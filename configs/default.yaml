@@ -1,0 +1,65 @@
+name: "my_experiment"
+
+data:
+    src: "de"
+    trg: "en"
+    train: "test/data/iwslt/train"
+    dev: "test/data/iwslt/dev"
+    test: "test/data/iwslt/test"
+    level: "word"
+    lowercase: True
+    max_sent_length: 30
+    voc_min_freq: 1
+    voc_limit: 100
+    #src_vocab: "my_model/src_vocab.txt"
+    #trg_vocab: "my_model/trg_vocab.txt"
+
+training:
+    #load_model: "my_model/3300.cpkt"
+    random_seed: 42
+    optimizer: "adam"
+    loss: "crossentropy"
+    learning_rate: 0.005
+    learning_rate_min: 0.0001
+    clip_grad_val: 1.0
+    weight_decay: 0.0
+    #clip_grad_norm: 1.0
+    batch_size: 10
+    scheduling: "plateau"
+    patience: 5
+    decrease_factor: 0.5
+    schedule_metric: "eval_metric"
+    epochs: 20
+    validation_freq: 50
+    logging_freq: 10
+    eval_metric: "bleu"
+    model_dir: "my_model"
+    overwrite: True
+    shuffle: True
+    use_cuda: False
+    #max_output_length: 31
+    print_valid_sents: 3
+
+model:
+    encoder:
+        type: "gru"
+        embeddings:
+            embedding_dim: 16
+            scale: False
+        hidden_size: 30
+        bidirectional: True
+        dropout: 0.2
+        num_layers: 3
+    decoder:
+        type: "gru"
+        embeddings:
+            embedding_dim: 16
+            scale: False
+        emb_scale: False
+        hidden_size: 31
+        dropout: 0.2
+        hidden_dropout: 0.2
+        num_layers: 2
+        input_feeding: True
+        bridge: "linear"
+        attention: "bahdanau"
