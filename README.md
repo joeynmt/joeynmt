@@ -32,13 +32,17 @@ We aim to implement the following features (aka the minimalist toolkit of NMT):
 - Word-, BPE- and character-based input handling
 - BLEU, ChrF evaluation
 - Beam search with length penalty and greedy decoding
+- Customizable initialization
 
+[Work in progress: Transformer, Multi-Head and Dot still missing.]
 
 ## Coding
 In order to keep the code clean and readable, we make use of:
 - Style checks: Pylint, PEP8
 - Typing
 - Docstrings
+
+[Work in progress!]
 
 
 ## Teaching
@@ -47,13 +51,15 @@ We will create dedicated material for teaching with Joey NMT. This will include:
 - A tutorial how to train and test a baseline model.
 - A walk-through example of how to implement a modification of a baseline model.
 
+[Work in progress!]
+
 ## Benchmarks
 Benchmarks on small models trained on GPU/CPU on standard data sets will be 
 posted here.
 
 - IWSLT15 En-Vi, word-based
-- IWSLT14 De-En, 32000 joint BPE, word- and character-based
-- WMT17 En-De (Sockeye). 
+- IWSLT14 De-En, 32000 joint BPE, word-based
+- WMT17 En-De and Lv-En, 32000 joint BPE
 
 ### IWSLT English-Vietnamese
 
@@ -110,35 +116,54 @@ Joey NMT (greedy) | bpe | 27.8 | | 60677100 |
 Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60677100 |
 
 ## WMT 17 English-German and Latvian-English
-TODO as reported in sockeye paper
-Postprocessing: detokenization. Evaluation with `sacrebleu`.
-also report training and validation speed tokens/s (batch16), total train time, num updates
+We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
+We only consider the ``Groundhog`` setting here, where toolkits are used out-of-the-box for creating a Groundhog-like model (1 layer, LSTMs, MLP attention).
+The data is pre-processed as described in the paper ([code](https://github.com/awslabs/sockeye/tree/arxiv_1217/arxiv/code)).
+Postprocessing is done with [Moses' detokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl), evaluation with `sacrebleu`.
 
+Note that the scores reported for other models might not reflect the current state of the code, but the state at the time of the Sockeye evaluation.
+Our models are the smallest in numbers of parameters. 
 
 ### English-German
-"default Bahdanau"
+Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `bridge=True`
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
-Joey NMT (greedy) | bpe | | | 86374500 | encoder rnn=500, lr=0.0003, bridge
-Joey NMT (beam=5) | bpe | | | 86374500 |
+Sockeye (beam=5) | bpe | - | 23.18 | 87.83M | 
+OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M |
+Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M | `wmt_ende_default.yaml`  
+
+The Joey NMT model was trained for 4 days (14 epochs).
 
 ### Latvian-English
-"default Bahdanau"
+Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `bridge=True`
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
-Joey NMT (greedy) | bpe | 10.20 | 7.53 | 64516000| encoder rnn=500, lr=0.0003, validate 4000, bridge
-Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64516000 |
-Joey NMT (greedy) | bpe | 9.93 |  | 73523000| encoder rnn=1000, lr=0.0002, validate 2000, no bridge
-Joey NMT (beam=5) | bpe | 11.27 | 8.02 | 73523000 |
-
-TODO eval with detokenized sacrebleu
+Sockeye (beam=5) | bpe | - | 14.40 | ? | 
+OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? | 
+Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M | `wmt_lven_default.yaml`  
 
 
 ## Contributing
+Since this codebase is supposed to stay clean and minimalistic, contributions addressing the following are welcome:
+- Code correctness
+- Code cleanliness
+- Documentation quality
+
+Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
+
+## Use-cases and Projects
+Here we'll collect projects and repositories that are based on Joey. If you used Joey for a project, publication or built some code on top of it, let us know and we'll link it here.
+
+Projects:
+- TBD
 
 ## Contact
+Please leave an issue if you have questions or issues with the code.
+
+For general questions, email us at `joeynmt <at> gmail.com`.
+
 
 ## Naming
 Joeys are [infant marsupials](https://en.wikipedia.org/wiki/Marsupial#Early_development). 
