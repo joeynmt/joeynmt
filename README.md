@@ -25,9 +25,7 @@ Data download and pre-processing scripts are [available](https://github.com/awsl
 
 ## Contributors
 
-Joey NMT is developed by:
-- [Joost Bastings](https://bastings.github.io) (University of Amsterdam)
-- [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University)
+Joey NMT is developed by [Joost Bastings](https://bastings.github.io) (University of Amsterdam) and [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University).
 
 ## Features
 We aim to implement the following features (aka the minimalist toolkit of NMT):
