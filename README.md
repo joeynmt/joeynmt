@@ -23,6 +23,11 @@ The goal is to match the basic Groundhog baseline on WMT17 En-De
 that is reported in the [Sockeye](https://arxiv.org/abs/1712.05690) paper.
 Data download and pre-processing scripts are [available](https://github.com/awslabs/sockeye/tree/arxiv_1217/arxiv/code)
 
+## Contributors
+
+Joey NMT is developed by:
+- [Joost Bastings](https://bastings.github.io) (University of Amsterdam)
+- [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University)
 
 ## Features
 We aim to implement the following features (aka the minimalist toolkit of NMT):
