@@ -33,6 +33,8 @@ We aim to implement the following features (aka the minimalist toolkit of NMT):
 - BLEU, ChrF evaluation
 - Beam search with length penalty and greedy decoding
 - Customizable initialization
+- Attention visualization
+- Learning curve plotting
 
 [Work in progress: Transformer, Multi-Head and Dot still missing.]
 
@@ -52,6 +54,44 @@ We will create dedicated material for teaching with Joey NMT. This will include:
 - A walk-through example of how to implement a modification of a baseline model.
 
 [Work in progress!]
+
+## Installation
+
+1. Clone this repository.
+2. Install the requirements:
+`pip3 -r requirements.txt` (you might want to add `--user` for a local installation).
+
+
+## Usage
+Models are specified in config files, in `yaml` format. You can find examples in the `configs` directory.
+
+### Training
+For training, run 
+
+`python3 -m joeynmt train configs/default.yaml`. 
+
+This will train a model on the training data specified in the config (here: `default.yaml`), 
+validate on validation data, 
+and store model parameters, vocabularies, validation outputs and a small number of attention plots in the `model_dir` (also specified in config).
+
+The `validations.txt` file in the model directory reports the validation results at every validation point. 
+Models are saved whenever a new best validation score is reached, in `batch_no.ckpt`, where `batch_no` is the number of batches the model has been trained on so far.
+
+Note that pre-processing like tokenization or BPE-ing is not included in training, but has to be done manually before.
+
+Tip: Be careful not to overwrite models by setting `overwrite: False` in the model configuration.
+
+### Testing
+For testing, run 
+
+`python3 -m joeynmt test configs/default.yaml --output_path out`.
+
+This will generate translations for validation and test set in `out.[dev|test]` (optional)
+with the latest model in the `model_dir` (or a specific checkpoint set with `load_model`).
+It will also evaluate the outputs with `eval_metric`.
+
+Note that post-processing like detokenization or de-BPE-ing is not included in this step, but has to be done manually.
+
 
 ## Benchmarks
 Benchmarks on small models trained on GPU/CPU on standard data sets will be 
@@ -87,33 +127,34 @@ Joey NMT (beam=5, alpha=1.0) | 24.9 | 27.7
 We compare against the baseline scores reported in [(Wiseman & Rush, 2016)](https://arxiv.org/pdf/1606.02960.pdf) (W&R), 
 [(Bahdanau et al., 2017)](https://arxiv.org/pdf/1607.07086.pdf) (B17) with tokenized, lowercased BLEU (using `sacrebleu`).
 Ẁe compare a word-based model of the same size and vocabulary as in W&R and B17. 
-On a XX GPU word-level training took <1h, beam search decoding for both dev and test <2min.
+On a K40-GPU word-level training took <1h, beam search decoding for both dev and test <2min.
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:
-W&R (greedy)   | word | | 22.53  |  
-W&R (beam=10)  | word | | 23.87  |
-B17 (greedy)   | word | | 25.82  |
-B17 (beam=10)  | word | | 27.56  | 
-Joey NMT (greedy) | word | 28.41 | 26.68 | 22049792 |
-Joey NMT (beam=10, alpha=1.0) | word | 28.96 | 27.03| 22049792 | 
+W&R (greedy)   | word | - | 22.53  |  
+W&R (beam=10)  | word | - | 23.87  |
+B17 (greedy)   | word | -| 25.82  |
+B17 (beam=10)  | word | -| 27.56  | 
+Joey NMT (greedy) | word | 28.41 | 26.68 | 22.05M |
+Joey NMT (beam=10, alpha=1.0) | word | 28.96 | 27.03| 22.05M | 
 
 On CPU (`use_cuda: False`): 
 (approx 8-10x slower: 8h for training, beam search decoding for both dev and test 19min, greedy decoding 5min)
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:
-Joey NMT (greedy) | word | 28.35 | 26.46 | 22049792 |
-Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22049792 | 
+Joey NMT (greedy) | word | 28.35 | 26.46 | 22.05M |
+Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M | 
 
-In addition, we compare to a BPE-based GRU model TODO describe data & training: bpe32k, GRU, size, bridge. Sockeye has additional output bias
+In addition, we compare to a BPE-based GRU model with 32k (Groundhog style).
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
-Sockeye (greedy) | bpe | TODO test | | 60880750 |
-Sockeye (beam=5) | bpe | TODO test| | 60880750 |
-Joey NMT (greedy) | bpe | 27.8 | | 60677100 | 
-Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60677100 |
+Sockeye (greedy) | bpe | TODO eval | | 60.88M |
+Sockeye (beam=5) | bpe | | 23.30 | 60.88M |
+Sockeye (beam=5, alpha=1.0) | bpe | | TODO eval | 60.88M |
+Joey NMT (greedy) | bpe | 27.8 | | 60.68M | 
+Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M |
 
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
@@ -122,7 +163,7 @@ The data is pre-processed as described in the paper ([code](https://github.com/a
 Postprocessing is done with [Moses' detokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl), evaluation with `sacrebleu`.
 
 Note that the scores reported for other models might not reflect the current state of the code, but the state at the time of the Sockeye evaluation.
-Our models are the smallest in numbers of parameters. 
+Please also consider the difference in number of parameters despite "the same" setup: our models are the smallest in numbers of parameters.
 
 ### English-German
 Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `bridge=True`
@@ -131,7 +172,7 @@ Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
 Sockeye (beam=5) | bpe | - | 23.18 | 87.83M | 
 OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M |
-Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M | `wmt_ende_default.yaml`  
+Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M | `configs/wmt_ende_default.yaml`  
 
 The Joey NMT model was trained for 4 days (14 epochs).
 
@@ -142,7 +183,7 @@ Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
 Sockeye (beam=5) | bpe | - | 14.40 | ? | 
 OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? | 
-Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M | `wmt_lven_default.yaml`  
+Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M | `configs/wmt_lven_default.yaml`  
 
 
 ## Contributing
