@@ -1,8 +1,5 @@
 # &nbsp; ![Joey-NMT](joey-small.png) joey-nmt
 
-Joey NMT
-
-
 ## Goal and Purpose
 Joey NMT framework is developed for educational purposes. 
 It aims to be a **clean** and **minimalistic** code base to help novices 
@@ -18,10 +15,6 @@ since this often goes in hand with an increase in code complexity
 and a decrease in readability.
 
 However, Joey NMT re-implements baselines from major publications.
-
-The goal is to match the basic Groundhog baseline on WMT17 En-De 
-that is reported in the [Sockeye](https://arxiv.org/abs/1712.05690) paper.
-Data download and pre-processing scripts are [available](https://github.com/awslabs/sockeye/tree/arxiv_1217/arxiv/code)
 
 ## Contributors
 
