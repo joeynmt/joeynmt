@@ -52,7 +52,7 @@ We will create dedicated material for teaching with Joey NMT. This will include:
 [Work in progress!]
 
 ## Installation
-Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](https://github.com/pytorch/text) for Python3.5.
+Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](https://github.com/pytorch/text) for Python >= 3.6.
 
 1. Clone this repository:
 `git clone https://github.com/joeynmt/joeynmt.git`
