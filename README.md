@@ -1,4 +1,4 @@
-# &nbsp; ![Joey-NMT](joey-small.png) joey-nmt
+# &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
 
 ## Goal and Purpose
 Joey NMT framework is developed for educational purposes. 
