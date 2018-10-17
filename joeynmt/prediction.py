@@ -1,10 +1,10 @@
 import torch
 import sacrebleu
 
-from joeynmt.constants import BOS_TOKEN, PAD_TOKEN
+from joeynmt.constants import PAD_TOKEN
 from joeynmt.helpers import load_data, arrays_to_sentences, bpe_postprocess, \
     load_config, get_latest_checkpoint, make_data_iter, \
-    load_model_from_checkpoint
+    load_model_from_checkpoint, store_attention_plots
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
 
@@ -46,7 +46,8 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
                 # sort outputs back to original order
                 all_outputs.extend(output[sort_reverse_index])
                 valid_attention_scores.extend(
-                    attention_scores[sort_reverse_index] if attention_scores is not None else [])
+                    attention_scores[sort_reverse_index]
+                    if attention_scores is not None else [])
 
             assert len(all_outputs) == len(data)
 
@@ -77,18 +78,23 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
                                     for v in valid_references]
                 valid_hypotheses = [bpe_postprocess(v) for
                                     v in valid_hypotheses]
-            assert len(valid_hypotheses) == len(valid_references)
 
-            current_valid_score = 0
-            if eval_metric.lower() == 'bleu':
-                # this version does not use any tokenization
-                current_valid_score = sacrebleu.raw_corpus_bleu(
-                    sys_stream=valid_hypotheses,
-                    ref_streams=[valid_references]).score
-            elif eval_metric.lower() == 'chrf':
-                current_valid_score = sacrebleu.corpus_chrf(
-                    hypotheses=valid_hypotheses,
-                    references=valid_references)
+            # if references are given, evaluate against them
+            if len(valid_references) > 0:
+                assert len(valid_hypotheses) == len(valid_references)
+
+                current_valid_score = 0
+                if eval_metric.lower() == 'bleu':
+                    # this version does not use any tokenization
+                    current_valid_score = sacrebleu.raw_corpus_bleu(
+                        sys_stream=valid_hypotheses,
+                        ref_streams=[valid_references]).score
+                elif eval_metric.lower() == 'chrf':
+                    current_valid_score = sacrebleu.corpus_chrf(
+                        hypotheses=valid_hypotheses,
+                        references=valid_references)
+            else:
+                current_valid_score = -1
 
         return current_valid_score, valid_loss, valid_ppl, valid_sources, \
                valid_sources_raw, valid_references, valid_hypotheses, \
@@ -98,7 +104,8 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
 
 def test(cfg_file,
          ckpt: str = None,
-         output_path: str = None):
+         output_path: str = None,
+         save_attention: bool = False):
 
     cfg = load_config(cfg_file)
 
@@ -109,6 +116,10 @@ def test(cfg_file,
     if ckpt is None:
         dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(dir)
+        try:
+            step = ckpt.split(dir+"/")[1].split(".ckpt")[0]
+        except IndexError:
+            step = "best"
 
     batch_size = cfg["training"]["batch_size"]
     use_cuda = cfg["training"]["use_cuda"]
@@ -144,25 +155,31 @@ def test(cfg_file,
 
     for data_set_name, data_set in data_to_predict.items():
 
-        # when targets are given, validate, otherwise just predict
-        if "trg" in data_set.fields.keys():
+        score, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores = validate_on_data(
+            model, data=data_set, batch_size=batch_size, level=level,
+            max_output_length=max_output_length, eval_metric=eval_metric,
+            use_cuda=use_cuda, criterion=None, beam_size=beam_size,
+            beam_alpha=beam_alpha)
 
-            score, loss, ppl, sources, sources_raw, references, hypotheses, \
-            hypotheses_raw, attention_scores = validate_on_data(
-                model, data=data_set, batch_size=batch_size, level=level,
-                max_output_length=max_output_length, eval_metric=eval_metric,
-                use_cuda=use_cuda, criterion=None, beam_size=beam_size,
-                beam_alpha=beam_alpha)
-
+        if "trg" in data_set.fields:
             decoding_description = "Greedy decoding" if beam_size == 0 else \
                 "Beam search decoding with beam size = {} and alpha = {}".format(
                     beam_size, beam_alpha)
             print("{:4s} {}: {} [{}]".format(
                 data_set_name, eval_metric, score, decoding_description))
-
         else:
-            # TODO just predict
-            pass
+            print("No references given for {} -> no evaluation.".format(
+                data_set_name))
+
+        if attention_scores is not None and save_attention:
+            attention_path = "{}/{}.{}.att".format(dir, data_set_name, step)
+            print("Attention plots saved to: {}.xx".format(attention_path))
+            store_attention_plots(attentions=attention_scores,
+                                  targets=hypotheses_raw,
+                                  sources=[s for s in data_set.src],
+                                  idx=range(len(hypotheses)),
+                                  output_prefix=attention_path)
 
         if output_path is not None:
             output_path_set = "{}.{}".format(output_path, data_set_name)

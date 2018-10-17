@@ -6,6 +6,7 @@ import yaml
 import glob
 import os
 from collections import Counter
+import os.path
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
@@ -208,12 +209,51 @@ def load_data(config):
                                   fields=(src_field, trg_field))
     test_data = None
     if test_path is not None:
-        test_data = TranslationDataset(path=test_path,
-                                       exts=("." + src_lang, "." + trg_lang),
-                                       fields=(src_field, trg_field))
+        # check if target exists
+        if os.path.isfile(test_path+"."+trg_lang):
+            test_data = TranslationDataset(
+                path=test_path, exts=("." + src_lang, "." + trg_lang),
+                fields=(src_field, trg_field))
+        else:
+            # no target is given -> create dataset from src only
+
+            test_data = MonoDataset(path=test_path, ext="." + src_lang,
+                                    field=(src_field))
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
     return train_data, dev_data, test_data, src_vocab, trg_vocab
+
+
+class MonoDataset(TranslationDataset):
+    """Defines a dataset for machine translation without targets."""
+
+    @staticmethod
+    def sort_key(ex):
+        return data.interleave_keys(len(ex.src), len(ex.trg))
+
+    def __init__(self, path, ext, field, **kwargs):
+        """Create a MonoDataset given path and field.
+
+        Arguments:
+            path: Prefix of path to the data file
+            ext: Containing the extension to path for this language.
+            field: Containing the fields that will be used for data
+            Remaining keyword arguments: Passed to the constructor of
+                data.Dataset.
+        """
+        fields = [('src', field)]
+
+        src_path = os.path.expanduser(path + ext)
+
+        examples = []
+        with open(src_path) as src_file:
+            for src_line in src_file:
+                src_line = src_line.strip()
+                if src_line != '':
+                    examples.append(data.Example.fromlist(
+                        [src_line], fields))
+
+        super(TranslationDataset, self).__init__(examples, fields, **kwargs)
 
 
 def load_config(path="configs/default.yaml"):

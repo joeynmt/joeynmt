@@ -19,7 +19,7 @@ class Batch:
         self.ntokens = None
         self.use_cuda = use_cuda
 
-        if torch_batch.trg is not None:
+        if hasattr(torch_batch, "trg"):
             trg, trg_lengths = torch_batch.trg
             # trg_input is used for teacher forcing, last one is cut off
             self.trg_input = trg[:, :-1]
