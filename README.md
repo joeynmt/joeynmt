@@ -64,6 +64,9 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](htt
 ## Usage
 Models are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
 
+## Documentation
+Read [the docs](https://joeynmt.readthedocs.io).
+
 ### Training
 For training, run 
 
