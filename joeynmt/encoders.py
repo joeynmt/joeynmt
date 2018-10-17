@@ -3,8 +3,15 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+"""
+Various encoders
+"""
+
 # TODO make general encoder class
 class Encoder(nn.Module):
+    """
+    Base encoder class
+    """
     _output_size = 0
 
     @property
@@ -25,6 +32,16 @@ class RecurrentEncoder(Encoder):
                  dropout: float = 0.,
                  bidirectional: bool = True,
                  **kwargs):
+        """
+        Initializer.
+        :param type:
+        :param hidden_size:
+        :param emb_size:
+        :param num_layers:
+        :param dropout:
+        :param bidirectional:
+        :param kwargs:
+        """
 
         super(RecurrentEncoder, self).__init__()
 

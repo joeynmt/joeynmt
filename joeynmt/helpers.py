@@ -17,6 +17,13 @@ from joeynmt.plotting import plot_heatmap
 
 
 def log_cfg(cfg, logger, prefix="cfg"):
+    """
+    Write configuration to log.
+    :param cfg:
+    :param logger:
+    :param prefix:
+    :return:
+    """
     for k, v in cfg.items():
         if isinstance(v, dict):
             p = '.'.join([prefix, k])
@@ -27,7 +34,16 @@ def log_cfg(cfg, logger, prefix="cfg"):
 
 
 def build_vocab(field, max_size, min_freq, data, vocab_file=None):
-    """ Build vocabulary for a field """
+    """
+    Builds vocabulary for a torchtext `field`
+
+    :param field:
+    :param max_size:
+    :param min_freq:
+    :param data:
+    :param vocab_file:
+    :return:
+    """
 
     # special symbols
     specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
@@ -72,14 +88,13 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
 
 def array_to_sentence(array, vocabulary, cut_at_eos=True):
     """
+    Converts an array of IDs to a sentence, optionally cutting the result
+    off at the end-of-sequence token.
 
-    Args:
-        array:
-        vocabulary:
-        cut_at_eos:
-
-    Returns:
-
+    :param array:
+    :param vocabulary:
+    :param cut_at_eos:
+    :return:
     """
     sentence = []
     for i in array:
@@ -92,14 +107,13 @@ def array_to_sentence(array, vocabulary, cut_at_eos=True):
 
 def arrays_to_sentences(arrays, vocabulary, cut_at_eos=True):
     """
+    Convert multiple arrays containing sequences of token IDs to their
+    sentences, optionally cutting them off at the end-of-sequence token.
 
-    Args:
-        arrays:
-        vocabulary:
-        cut_at_eos:
-
-    Returns:
-
+    :param arrays:
+    :param vocabulary:
+    :param cut_at_eos:
+    :return:
     """
     sentences = []
     for array in arrays:
@@ -111,15 +125,11 @@ def arrays_to_sentences(arrays, vocabulary, cut_at_eos=True):
 
 def clones(module, N):
     """
-    Produce N identical layers.
-    Transformer helper function.
+    Produce N identical layers. Transformer helper function.
 
-    Args:
-        module: the module to copy
-        N: how many times
-
-    Returns:
-
+    :param module: the module to clone
+    :param N: clone this many times
+    :return:
     """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
@@ -128,11 +138,8 @@ def subsequent_mask(size):
     """
     Mask out subsequent positions (to prevent attending to future positions)
     Transformer helper function.
-
-    Args:
-        size: number of time steps
-
-    Returns:
+    :param size:
+    :return:
     """
     attn_shape = (1, size, size)
     mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
@@ -141,7 +148,17 @@ def subsequent_mask(size):
 
 def log_data_info(train_data, valid_data, test_data, src_vocab, trg_vocab,
                   logging_function):
-    """ Log statistics of data and vocabulary. """
+    """
+    Log statistics of data and vocabulary.
+
+    :param train_data:
+    :param valid_data:
+    :param test_data:
+    :param src_vocab:
+    :param trg_vocab:
+    :param logging_function:
+    :return:
+    """
     logging_function("Data set sizes: \n\ttrain {},\n\tvalid {},\n\ttest {}".format(
         len(train_data), len(valid_data), len(test_data) if test_data is not None else "N/A"))
 
@@ -158,9 +175,14 @@ def log_data_info(train_data, valid_data, test_data, src_vocab, trg_vocab,
     logging_function("Number of Trg words (types): {}".format(len(trg_vocab)))
 
 
-def load_data(config):
+def load_data(cfg):
+    """
+    Load train, dev and test data as specified in ccnfiguration.
+    :param cfg:
+    :return:
+    """
     # load data from files
-    data_cfg = config["data"]
+    data_cfg = cfg["data"]
     src_lang = data_cfg["src"]
     trg_lang = data_cfg["trg"]
     train_path = data_cfg["train"]
@@ -217,17 +239,36 @@ def load_data(config):
 
 
 def load_config(path="configs/default.yaml"):
+    """
+    Loads and parses a YAML configuration file.
+    :param path:
+    :return:
+    """
     with open(path, 'r') as ymlfile:
         cfg = yaml.load(ymlfile)
     return cfg
 
 
 def bpe_postprocess(string):
+    """
+    Post-processor for BPE output. Recombines BPE-split tokens.
+    :param string:
+    :return:
+    """
     return string.replace("@@ ", "")
 
 
 def store_attention_plots(attentions, targets, sources, output_prefix,
                           idx):
+    """
+    Saves attention plots.
+    :param attentions:
+    :param targets:
+    :param sources:
+    :param output_prefix:
+    :param idx:
+    :return:
+    """
     for i in idx:
         plot_file = "{}.{}.pdf".format(output_prefix, i)
         src = sources[i]
@@ -244,12 +285,22 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
 
 
 def get_latest_checkpoint(dir):
-    """ Get the latest checkpoint (by time) from the given directory """
+    """
+    Returns the latest checkpoint (by time) from the given directory
+    :param dir:
+    :return:
+    """
     list_of_files = glob.glob("{}/*.ckpt".format(dir))
     latest_file = max(list_of_files, key=os.path.getctime)
     return latest_file
 
+
 def load_model_from_checkpoint(path):
+    """
+    Load model from saved checkpoint.
+    :param path:
+    :return:
+    """
     assert os.path.isfile(path), "Checkpoint %s not found" % path
     checkpoint = torch.load(path)
     model_state = checkpoint["model_state"]
@@ -257,6 +308,14 @@ def load_model_from_checkpoint(path):
 
 
 def make_data_iter(dataset, batch_size, train=False, shuffle=False):
+    """
+    Returns a torchtext iterator for a torchtext dataset.
+    :param dataset:
+    :param batch_size:
+    :param train:
+    :param shuffle:
+    :return:
+    """
     if train:
         # optionally shuffle and sort during training
         data_iter = data.BucketIterator(
@@ -271,10 +330,16 @@ def make_data_iter(dataset, batch_size, train=False, shuffle=False):
 
     return data_iter
 
+
 # from onmt
 def tile(x, count, dim=0):
     """
-    Tiles x on dimension dim count times.
+    Tiles x on dimension dim count times. From OpenNMT. Used for beam search.
+
+    :param x:
+    :param count:
+    :param dim:
+    :return:
     """
     if isinstance(x, tuple):
         h, c = x
