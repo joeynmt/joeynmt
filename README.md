@@ -52,14 +52,17 @@ We will create dedicated material for teaching with Joey NMT. This will include:
 [Work in progress!]
 
 ## Installation
+Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](https://github.com/pytorch/text) for Python3.5.
 
-1. Clone this repository.
+1. Clone this repository:
+`git clone https://github.com/joeynmt/joeynmt.git`
 2. Install the requirements:
+`cd joeynmt`
 `pip3 -r requirements.txt` (you might want to add `--user` for a local installation).
 
 
 ## Usage
-Models are specified in config files, in `yaml` format. You can find examples in the `configs` directory.
+Models are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
 
 ### Training
 For training, run 
@@ -73,9 +76,11 @@ and store model parameters, vocabularies, validation outputs and a small number 
 The `validations.txt` file in the model directory reports the validation results at every validation point. 
 Models are saved whenever a new best validation score is reached, in `batch_no.ckpt`, where `batch_no` is the number of batches the model has been trained on so far.
 
+For training on a GPU, set `use_cuda` in the config file to `True`.
+
 Note that pre-processing like tokenization or BPE-ing is not included in training, but has to be done manually before.
 
-Tip: Be careful not to overwrite models by setting `overwrite: False` in the model configuration.
+Tip: Be careful not to overwrite models, set `overwrite: False` in the model configuration.
 
 ### Testing
 For testing, run 
@@ -122,7 +127,8 @@ Joey NMT (beam=5, alpha=1.0) | 24.9 | 27.7
 ### IWSLT  German-English
 We compare against the baseline scores reported in [(Wiseman & Rush, 2016)](https://arxiv.org/pdf/1606.02960.pdf) (W&R), 
 [(Bahdanau et al., 2017)](https://arxiv.org/pdf/1607.07086.pdf) (B17) with tokenized, lowercased BLEU (using `sacrebleu`).
-Ẁe compare a word-based model of the same size and vocabulary as in W&R and B17. 
+Ẁe compare a word-based model of the same size and vocabulary as in W&R and B17.
+The [script](https://github.com/harvardnlp/BSO/blob/master/data_prep/MT/prepareData.sh) to obtain and pre-process the data is the one published with W&R.
 On a K40-GPU word-level training took <1h, beam search decoding for both dev and test <2min.
 
 Systems | level | dev | test | #params | Joey NMT config
@@ -142,7 +148,8 @@ Systems | level | dev | test | #params | Joey NMT config
 Joey NMT (greedy) | word | 28.35 | 26.46 | 22.05M |
 Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M | 
 
-In addition, we compare to a BPE-based GRU model with 32k (Groundhog style).
+In addition, we compare to a BPE-based GRU model with 32k (Groundhog style). 
+Use `scripts/get_iwslt14_bpe.sh` to pre-process the data.
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
@@ -187,6 +194,7 @@ Since this codebase is supposed to stay clean and minimalistic, contributions ad
 - Code correctness
 - Code cleanliness
 - Documentation quality
+- Speed or memory improvements
 
 Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
 
