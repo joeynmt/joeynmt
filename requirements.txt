@@ -1,7 +1,6 @@
 numpy
 torch>=0.4.1
 matplotlib
-spacy>=2.0.0,<3.0.0
 sacrebleu>=1.2.10
 seaborn
 torchtext
