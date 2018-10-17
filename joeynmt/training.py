@@ -20,13 +20,19 @@ from joeynmt.prediction import validate_on_data
 
 
 class TrainManager:
+    """ Manages training loop, validations, learning rate scheduling
+    and early stopping."""
 
     def __init__(self, model, config):
+        """
+        Creates a new TrainManager for a model, specified as in configuration.
+        :param model:
+        :param config:
+        """
         train_config = config["training"]
         self.model = model
         self.pad_index = self.model.pad_index
         self.bos_index = self.model.bos_index
-        # criterion = nn.CrossEntropyLoss(ignore_index=self.pad_index, reduction="sum")
         criterion = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
         self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
         if train_config["loss"].lower() not in ["crossentropy", "xent",
@@ -115,6 +121,10 @@ class TrainManager:
             self.load_checkpoint(model_load_path)
 
     def save_checkpoint(self):
+        """
+        Save the model's current parameters and state to a checkpoint.
+        :return:
+        """
         model_path = "{}/{}.ckpt".format(self.model_dir, self.steps)
         state = {
             "steps": self.steps,
@@ -129,7 +139,11 @@ class TrainManager:
         torch.save(state, model_path)
 
     def load_checkpoint(self, path):
-
+        """
+        Load a model from a given checkpoint file.
+        :param path:
+        :return:
+        """
         assert os.path.isfile(path), "Checkpoint %s not found" % path
         checkpoint = torch.load(path)
 
@@ -151,6 +165,11 @@ class TrainManager:
             self.model.cuda()
 
     def _make_model_dir(self, model_dir):
+        """
+        Create a new directory for the model.
+        :param model_dir:
+        :return:
+        """
         if os.path.isdir(model_dir):
             if not self.overwrite:
                 raise FileExistsError(
@@ -160,6 +179,10 @@ class TrainManager:
         return model_dir
 
     def _make_logger(self):
+        """
+        Create a logger for logging the training process.
+        :return:
+        """
         logging.basicConfig(level=logging.DEBUG,
                             format='%(asctime)s %(message)s',
                             handlers=[
@@ -171,6 +194,12 @@ class TrainManager:
         return logging
 
     def train_and_validate(self, train_data, valid_data):
+        """
+        Train the model and validate it from time to time on the validation set.
+        :param train_data:
+        :param valid_data:
+        :return:
+        """
         train_iter = make_data_iter(train_data, batch_size=self.batch_size,
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
@@ -287,6 +316,11 @@ class TrainManager:
             self.best_valid_iteration, self.best_valid_score, self.eval_metric))
 
     def _train_batch(self, batch):
+        """
+        Train the model on one batch: Compute the loss, make a gradient step.
+        :param batch:
+        :return:
+        """
         batch_loss = self.model.get_loss_for_batch(
             batch=batch, criterion=self.criterion)
 
@@ -317,7 +351,15 @@ class TrainManager:
 
     def _add_report(self, valid_score, valid_ppl, valid_loss, eval_metric,
                     new_best=False):
-        """ Add a one-line report to validation logging file. """
+        """
+        Add a one-line report to validation logging file.
+        :param valid_score:
+        :param valid_ppl:
+        :param valid_loss:
+        :param eval_metric:
+        :param new_best:
+        :return:
+        """
         current_lr = -1
         # ignores other param groups for now
         for param_group in self.optimizer.param_groups:
@@ -334,7 +376,11 @@ class TrainManager:
                     valid_score, current_lr, "*" if new_best else ""))
 
     def store_outputs(self, hypotheses):
-        """ Write current validation outputs to file """
+        """
+        Write current validation outputs to file in model_dir.
+        :param hypotheses:
+        :return:
+        """
         current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
                                                         self.steps)
         with open(current_valid_output_file, 'w') as opened_file:
@@ -343,6 +389,11 @@ class TrainManager:
 
 
 def train(cfg_file):
+    """
+    Main training function. After training, also test on test data if given.
+    :param cfg_file:
+    :return:
+    """
     cfg = load_config(cfg_file)
     # set the random seed
     # torch.backends.cudnn.deterministic = True

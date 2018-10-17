@@ -33,7 +33,7 @@ class RecurrentEncoder(Encoder):
                  bidirectional: bool = True,
                  **kwargs):
         """
-        Initializer.
+        Create a new recurrent encoder.
         :param type:
         :param hidden_size:
         :param emb_size:
@@ -59,9 +59,14 @@ class RecurrentEncoder(Encoder):
 
     def forward(self, x, x_length, mask):
         """
-        Applies a bidirectional GRU to sequence of embeddings x.
-        The input mini-batch x needs to be sorted by length.
+        Applies a bidirectional RNN to sequence of embeddings x.
+        The input mini-batch x needs to be sorted by src length.
         x should have dimensions [batch, time, dim].
+        The masks indicates padding areas (zeros where padding).
+        :param x:
+        :param x_length:
+        :param mask:
+        :return:
         """
         # apply dropout ot the rnn input
         x = self.rnn_input_dropout(x)
@@ -78,8 +83,8 @@ class RecurrentEncoder(Encoder):
         batch_size = hidden.size()[1]
         # separate final hidden states by layer and direction
         hidden_layerwise = hidden.view(self.rnn.num_layers,
-                                  2 if self.rnn.bidirectional else 1,
-                                  batch_size, self.rnn.hidden_size)
+                                       2 if self.rnn.bidirectional else 1,
+                                       batch_size, self.rnn.hidden_size)
         # final_layers: layers x directions x batch x hidden
 
         # concatenate the final states of the last layer for each directions

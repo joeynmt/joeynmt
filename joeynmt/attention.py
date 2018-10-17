@@ -19,6 +19,12 @@ class BahdanauAttention(AttentionMechanism):
     """
 
     def __init__(self, hidden_size=1, key_size=1, query_size=1):
+        """
+        Creates attention mechanism.
+        :param hidden_size:
+        :param key_size:
+        :param query_size:
+        """
 
         super(BahdanauAttention, self).__init__()
 
@@ -34,7 +40,7 @@ class BahdanauAttention(AttentionMechanism):
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
         """
-        Bahdanau additive attention forward pass
+        Bahdanau additive attention forward pass.
 
         :param query: the item to compare with the keys/memory (e.g. decoder state)
         :param keys: the keys/memory (e.g. encoder states)
@@ -78,9 +84,20 @@ class BahdanauAttention(AttentionMechanism):
         return context, alphas
 
     def compute_proj_keys(self, keys):
+        """
+        Compute the projection of the keys.
+        Is efficient if pre-computed before receiving individual queries.
+        :param keys:
+        :return:
+        """
         self.proj_keys = self.key_layer(keys)
 
     def compute_proj_query(self, query):
+        """
+        Compute the projection of the query.
+        :param query:
+        :return:
+        """
         self.proj_query = self.query_layer(query)
 
     def __repr__(self):
@@ -93,6 +110,11 @@ class LuongAttention(AttentionMechanism):
     """
 
     def __init__(self, hidden_size: int = 1, key_size: int = 1):
+        """
+        Creates attention mechanism.
+        :param hidden_size:
+        :param key_size:
+        """
 
         super(LuongAttention, self).__init__()
         self.key_layer = nn.Linear(key_size, hidden_size, bias=False)
@@ -105,7 +127,8 @@ class LuongAttention(AttentionMechanism):
         """
         Luong (multiplicative / bilinear) attention forward pass.
 
-        :param query: the item to compare with the keys/memory (e.g. decoder state)
+        :param query: the item to compare with the keys/memory
+        (e.g. decoder state)
         :param keys: the keys/memory (e.g. encoder states)
         :param mask: mask to mask out keys position
         :param values: values (e.g. typically also encoder states)
@@ -139,6 +162,12 @@ class LuongAttention(AttentionMechanism):
         return context, alphas
 
     def compute_proj_keys(self, keys):
+        """
+        Compute the projection of the keys.
+        Is efficient if pre-computed before receiving individual queries.
+        :param keys:
+        :return:
+        """
         self.proj_keys = self.key_layer(keys)
 
     def __repr__(self):

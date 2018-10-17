@@ -5,7 +5,7 @@ from torch import nn
 class Embeddings(nn.Module):
 
     """
-    Simple word embeddings class
+    Simple embeddings class
     """
 
     def __init__(self,
@@ -14,9 +14,12 @@ class Embeddings(nn.Module):
                  vocab_size: int = 0,
                  padding_idx: int = 1):
         """
-        Args:
-            embedding_dim: size of embeddings
-            scale: scale embeddings (use for Transformer)
+        Create new embeddings for the vocabulary.
+        Use scaling for the Transformer.
+        :param embedding_dim:
+        :param scale:
+        :param vocab_size:
+        :param padding_idx:
         """
         super(Embeddings, self).__init__()
 

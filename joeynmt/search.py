@@ -8,6 +8,17 @@ from joeynmt.helpers import tile
 
 def greedy(src_mask, embed, bos_index, max_output_length, decoder,
            encoder_output, encoder_hidden):
+    """
+    Greedy decoding: in each step, choose the word that gets highest score.
+    :param src_mask:
+    :param embed:
+    :param bos_index:
+    :param max_output_length:
+    :param decoder:
+    :param encoder_output:
+    :param encoder_hidden:
+    :return:
+    """
     batch_size = src_mask.size(0)
     prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
                                dtype=torch.long)
@@ -41,7 +52,24 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
 def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
                 encoder_hidden, src_mask, max_output_length, alpha, embed,
                 n_best=1):
-    """ Beam search with size k. Follows OpenNMT-py implementation. """
+    """
+    Beam search with size k. Follows OpenNMT-py implementation.
+    In each decoding step, find the k most likely partial hypotheses.
+    `alpha` is the factor for length penalty.
+    :param decoder:
+    :param size:
+    :param bos_index:
+    :param eos_index:
+    :param pad_index:
+    :param encoder_output:
+    :param encoder_hidden:
+    :param src_mask:
+    :param max_output_length:
+    :param alpha:
+    :param embed:
+    :param n_best:
+    :return:
+    """
     # init
     batch_size = src_mask.size(0)
     hidden = decoder.init_hidden(encoder_hidden)

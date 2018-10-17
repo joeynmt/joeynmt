@@ -137,11 +137,11 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
 
                 # scale embeddings if xavier (more variance)
                 if embed_init == "xavier":
-                    if ("src" in name and scale_src_emb) or (
-                        "trg" in name and scale_trg_emb):
+                    if ("src" in name and scale_src_emb) or \
+                            ("trg" in name and scale_trg_emb):
                         print("scaling", name)
                         dim = p.size(1)
-                        p.data = p.data * math.sqrt(dim)
+                        p.data *= math.sqrt(dim)
 
                 print("variance", name, p.var().item())
 
@@ -153,6 +153,7 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
                 # RNNs combine multiple matrices is one, which messes up
                 # xavier initialization
                 if init == "xavier" and "rnn" in name:
+                    n = 1
                     if "encoder" in name:
                         n = 4 if isinstance(model.encoder.rnn, nn.LSTM) else 3
                     elif "decoder" in name:
@@ -203,6 +204,16 @@ class Model(nn.Module):
                  trg_embed: Embeddings = None,
                  src_vocab: Vocabulary = None,
                  trg_vocab: Vocabulary = None):
+        """
+        Create a new encoder-decoder model
+        :param name:
+        :param encoder:
+        :param decoder:
+        :param src_embed:
+        :param trg_embed:
+        :param src_vocab:
+        :param trg_vocab:
+        """
         super(Model, self).__init__()
 
         self.name = name
@@ -219,7 +230,7 @@ class Model(nn.Module):
     def forward(self, src, trg_input, src_mask, src_lengths):
         """
         Take in and process masked src and target sequences.
-        Ise the encoder hidden state to initialize the decoder
+        Use the encoder hidden state to initialize the decoder
         The encoder outputs are used for attention
         :param src:
         :param trg_input:
@@ -329,6 +340,10 @@ class Model(nn.Module):
         return stacked_output, stacked_attention_scores
 
     def __repr__(self):
+        """
+        String representation: a description of encoder, decoder and embeddings
+        :return:
+        """
         return "%s(\n" \
                "\tencoder=%r,\n" \
                "\tdecoder=%r,\n" \

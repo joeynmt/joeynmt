@@ -22,7 +22,9 @@ def plot_heatmap(scores=None, column_labels=None, row_labels=None,
                  output_path="plot.png"):
 
     """
-    Plotting function that can be used to visualize (self-)attention
+    Plotting function that can be used to visualize (self-)attention.
+    Plots are saved if `output_path` is specified, in format that this file
+    ends with ('pdf' or 'png').
 
     :param scores: attention scores
     :param column_labels:  labels for columns (e.g. target tokens)
@@ -64,7 +66,7 @@ def plot_heatmap(scores=None, column_labels=None, row_labels=None,
         pp.close()
     else:
         if not output_path.endswith(".png"):
-            output_path = output_path + ".png"
+            output_path += ".png"
         plt.savefig(output_path)
 
     plt.close()

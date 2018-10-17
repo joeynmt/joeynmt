@@ -27,6 +27,23 @@ class RecurrentDecoder(Decoder):
                  bridge: bool = False,
                  input_feeding: bool = True,
                  **kwargs):
+        """
+        Create a recurrent decoder.
+        If `bridge` is True, the decoder hidden states are initialized from a
+        projection of the encoder states, else they are initialized with zeros.
+        :param type:
+        :param emb_size:
+        :param hidden_size:
+        :param encoder:
+        :param attention:
+        :param num_layers:
+        :param vocab_size:
+        :param dropout:
+        :param hidden_dropout:
+        :param bridge:
+        :param input_feeding:
+        :param kwargs:
+        """
 
         super(RecurrentDecoder, self).__init__()
 
@@ -128,7 +145,17 @@ class RecurrentDecoder(Decoder):
 
     def forward(self, trg_embed, encoder_output, encoder_hidden,
                 src_mask, unrol_steps, hidden=None, prev_att_vector=None):
-        """Unroll the decoder one step at a time."""
+        """
+         Unroll the decoder one step at a time for `unrol_steps` steps.
+        :param trg_embed:
+        :param encoder_output:
+        :param encoder_hidden:
+        :param src_mask:
+        :param unrol_steps:
+        :param hidden:
+        :param prev_att_vector:
+        :return:
+        """
 
         # initialize decoder hidden state from final encoder hidden state
         if hidden is None:
@@ -172,8 +199,12 @@ class RecurrentDecoder(Decoder):
         return outputs, hidden, att_probs, att_vectors
 
     def init_hidden(self, encoder_final):
-        """Returns the initial decoder state,
-        conditioned on the final encoder state of the last encoder layer."""
+        """
+        Returns the initial decoder state,
+        conditioned on the final encoder state of the last encoder layer.
+        :param encoder_final:
+        :return:
+        """
         batch_size = encoder_final.size(0)
 
         # for multiple layers: is the same for all layers
