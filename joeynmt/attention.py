@@ -14,7 +14,9 @@ class AttentionMechanism(nn.Module):
 
 
 class BahdanauAttention(AttentionMechanism):
-    """Implements Bahdanau (MLP) attention"""
+    """
+    Implements Bahdanau (MLP) attention
+    """
 
     def __init__(self, hidden_size=1, key_size=1, query_size=1):
 
@@ -32,15 +34,13 @@ class BahdanauAttention(AttentionMechanism):
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
         """
-        Attention forward pass
+        Bahdanau additive attention forward pass
 
-        Args:
-            query: the item to compare with the keys/memory (e.g. decoder state)
-            keys: the keys/memory
-            mask: mask to mask out keys position
-            values: values
-        Returns:
-
+        :param query: the item to compare with the keys/memory (e.g. decoder state)
+        :param keys: the keys/memory (e.g. encoder states)
+        :param mask: mask to mask out keys position
+        :param values: values (e.g. typically also encoder states)
+        :return: context vector, attention probabilities
         """
 
         assert mask is not None, "mask is required"
@@ -88,7 +88,9 @@ class BahdanauAttention(AttentionMechanism):
 
 
 class LuongAttention(AttentionMechanism):
-    """Implements Bahdanau (MLP) attention"""
+    """
+    Implements Luong (bilinear / multiplicative) attention
+    """
 
     def __init__(self, hidden_size: int = 1, key_size: int = 1):
 
@@ -101,16 +103,13 @@ class LuongAttention(AttentionMechanism):
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
         """
-        Attention forward pass
+        Luong (multiplicative / bilinear) attention forward pass.
 
-        Args:
-            query: the item to compare with the keys/memory (e.g. decoder state)
-            keys: the keys/memory (e.g. encoder states)
-            values: what to apply the attention alphas to (e.g. encoder states)
-              can be None, in which case the keys are used
-            mask: mask to mask out keys positions
-        Returns:
-
+        :param query: the item to compare with the keys/memory (e.g. decoder state)
+        :param keys: the keys/memory (e.g. encoder states)
+        :param mask: mask to mask out keys position
+        :param values: values (e.g. typically also encoder states)
+        :return: context vector, attention probabilities
         """
 
         assert self.proj_keys is not None,\

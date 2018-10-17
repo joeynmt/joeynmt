@@ -16,7 +16,6 @@ from joeynmt.vocabulary import Vocabulary
 def build_model(cfg: dict = None,
                 src_vocab: Vocabulary = None,
                 trg_vocab: Vocabulary = None):
-
     src_padding_idx = src_vocab.stoi[PAD_TOKEN]
     trg_padding_idx = trg_vocab.stoi[PAD_TOKEN]
 
@@ -58,13 +57,11 @@ def orthogonal_rnn_init_(cell, gain=1):
 def lstm_forget_gate_init_(cell, value=1.):
     """
     Initialize LSTM forget gates with 1.
-    Args:
-        cell:
-        value: to initialize forget gate
 
+    :param cell:
+    :param value:
+    :return:
     """
-
-    # positive forget gate bias (Jozefowicz et al., 2015)
     with torch.no_grad():
         for _, _, ih_b, hh_b in cell.all_weights:
             l = len(ih_b)
@@ -73,6 +70,15 @@ def lstm_forget_gate_init_(cell, value=1.):
 
 
 def xavier_uniform_n_(w, gain=1., n=4):
+    """
+    Xavier initializer for parameters that combine multiple matrices in one
+    parameter for efficiency. This is e.g. used for GRU and LSTM parameters,
+    where e.g. all gates are computed at the same time by 1 big matrix.
+    :param w:
+    :param gain:
+    :param n:
+    :return:
+    """
     with torch.no_grad():
         fan_in, fan_out = _calculate_fan_in_and_fan_out(w)
         assert fan_out % n == 0, "fan_out should be divisible by n"
@@ -86,14 +92,11 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
     """
     Custom initialization of the model based on config.
 
-    Args:
-        model:
-        cfg:
-        src_padding_idx:
-        trg_padding_idx:
-
-    Returns:
-
+    :param model:
+    :param cfg:
+    :param src_padding_idx:
+    :param trg_padding_idx:
+    :return:
     """
 
     # defaults: xavier, embeddings: normal 0.01, biases: zeros, no orthogonal
@@ -134,7 +137,8 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
 
                 # scale embeddings if xavier (more variance)
                 if embed_init == "xavier":
-                    if ("src" in name and scale_src_emb) or ("trg" in name and scale_trg_emb):
+                    if ("src" in name and scale_src_emb) or (
+                        "trg" in name and scale_trg_emb):
                         print("scaling", name)
                         dim = p.size(1)
                         p.data = p.data * math.sqrt(dim)
@@ -187,6 +191,9 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
 
 
 class Model(nn.Module):
+    """
+    Base Model class
+    """
 
     def __init__(self,
                  name: str = "my_model",
@@ -210,9 +217,16 @@ class Model(nn.Module):
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
 
     def forward(self, src, trg_input, src_mask, src_lengths):
-        """Take in and process masked src and target sequences."""
-        # use the encoder hidden state to initialize the decoder
-        # the encoder outputs are used for attention
+        """
+        Take in and process masked src and target sequences.
+        Ise the encoder hidden state to initialize the decoder
+        The encoder outputs are used for attention
+        :param src:
+        :param trg_input:
+        :param src_mask:
+        :param src_lengths:
+        :return: decoder outputs
+        """
         encoder_output, encoder_hidden = self.encode(src=src,
                                                      src_length=src_lengths,
                                                      src_mask=src_mask)
@@ -222,13 +236,32 @@ class Model(nn.Module):
                            src_mask=src_mask, trg_input=trg_input,
                            unrol_steps=unrol_steps)
 
-    # TODO adapt to transformer
     def encode(self, src, src_length, src_mask):
+        """
+        Encodes the source sentence.
+        TODO adapt to transformer
+
+        :param src:
+        :param src_length:
+        :param src_mask:
+        :return:
+        """
         return self.encoder(self.src_embed(src), src_length, src_mask)
 
-    # TODO adapt to transformer
     def decode(self, encoder_output, encoder_hidden, src_mask, trg_input,
                unrol_steps, decoder_hidden=None):
+        """
+        Decode, given an encoded source sentence.
+        # TODO adapt to transformer
+
+        :param encoder_output:
+        :param encoder_hidden:
+        :param src_mask:
+        :param trg_input:
+        :param unrol_steps:
+        :param decoder_hidden:
+        :return: decoder outputs
+        """
         return self.decoder(trg_embed=self.trg_embed(trg_input),
                             encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
@@ -237,7 +270,12 @@ class Model(nn.Module):
                             hidden=decoder_hidden)
 
     def get_loss_for_batch(self, batch, criterion):
-        """ Compute non-normalized loss and number of tokens for a batch"""
+        """
+        Compute non-normalized loss and number of tokens for a batch
+        :param batch:
+        :param criterion:
+        :return:
+        """
         out, hidden, att_probs, _ = self.forward(
             src=batch.src, trg_input=batch.trg_input,
             src_mask=batch.src_mask, src_lengths=batch.src_lengths)
@@ -253,7 +291,14 @@ class Model(nn.Module):
         return batch_loss
 
     def run_batch(self, batch, max_output_length, beam_size, beam_alpha):
-        """ Get outputs and attentions scores for a given batch """
+        """
+        Get outputs and attentions scores for a given batch
+        :param batch:
+        :param max_output_length:
+        :param beam_size:
+        :param beam_alpha:
+        :return:
+        """
         encoder_output, encoder_hidden = self.encode(
             batch.src, batch.src_lengths,
             batch.src_mask)
@@ -261,7 +306,7 @@ class Model(nn.Module):
 
         # if maximum output length is not globally specified, adapt to src len
         if max_output_length is None:
-            max_output_length = int(max(batch.src_lengths.cpu().numpy())*1.5)
+            max_output_length = int(max(batch.src_lengths.cpu().numpy()) * 1.5)
 
         # greedy decoding
         if beam_size == 0:
@@ -272,7 +317,7 @@ class Model(nn.Module):
                 max_output_length=max_output_length)
             # batch, time, max_src_length
         else:  # beam size
-            stacked_output, stacked_attention_scores =\
+            stacked_output, stacked_attention_scores = \
                 beam_search(size=beam_size, encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             src_mask=batch.src_mask, embed=self.trg_embed,
@@ -289,14 +334,19 @@ class Model(nn.Module):
                "\tdecoder=%r,\n" \
                "\tsrc_embed=%r,\n" \
                "\ttrg_embed=%r)" % (
-                self.__class__.__name__, str(self.encoder), str(self.decoder),
-                self.src_embed, self.trg_embed)
+                   self.__class__.__name__, str(self.encoder),
+                   str(self.decoder),
+                   self.src_embed, self.trg_embed)
 
     def log_parameters_list(self, logging_function):
+        """
+        Write all parameters (name, shape) to the log.
+        :param logging_function:
+        :return:
+        """
         model_parameters = filter(lambda p: p.requires_grad, self.parameters())
         n_params = sum([np.prod(p.size()) for p in model_parameters])
         logging_function("Total params: %d" % n_params)
         for name, p in self.named_parameters():
             if p.requires_grad:
                 logging_function("%s : %s" % (name, list(p.size())))
-

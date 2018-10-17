@@ -4,6 +4,10 @@ from torch import nn
 
 class Embeddings(nn.Module):
 
+    """
+    Simple word embeddings class
+    """
+
     def __init__(self,
                  embedding_dim: int = 64,
                  scale: bool = False,

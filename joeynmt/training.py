@@ -352,7 +352,7 @@ def train(cfg_file):
 
     # load the data
     train_data, dev_data, test_data, src_vocab, trg_vocab = \
-        load_data(config=cfg)
+        load_data(cfg=cfg)
 
     # build an encoder-decoder model
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)

@@ -1,11 +1,7 @@
-torch>=0.4.1
 numpy
+torch>=0.4.1
 matplotlib
-spacy>=2.0.0,<3.0.0
-https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.0.0/en_core_web_sm-2.0.0.tar.gz#en_core_web_sm
-https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-2.0.0/de_core_news_sm-2.0.0.tar.gz#de_core_news_sm
 sacrebleu>=1.2.10
-git+git://github.com/pytorch/text
 seaborn
 torchtext
 pyyaml

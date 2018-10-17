@@ -130,7 +130,7 @@ def test(cfg_file,
     # load the data
     # TODO load only test data
     train_data, dev_data, test_data, src_vocab, trg_vocab = \
-        load_data(config=cfg)
+        load_data(cfg=cfg)
 
     # TODO specify this differently
     data_to_predict = {"dev": dev_data, "test": test_data}

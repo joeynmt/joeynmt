@@ -20,17 +20,17 @@ rcParams['font.weight'] = "regular"
 
 def plot_heatmap(scores=None, column_labels=None, row_labels=None,
                  output_path="plot.png"):
+
     """
     Plotting function that can be used to visualize (self-)attention
-    Args:
-        scores: attention scores
-        column_labels: labels for columns (e.g. target tokens)
-        row_labels: labels for rows (e.g. source tokens)
-        output_path: path to save to
 
-    Returns:
-
+    :param scores: attention scores
+    :param column_labels:  labels for columns (e.g. target tokens)
+    :param row_labels: labels for rows (e.g. source tokens)
+    :param output_path: path to save to
+    :return:
     """
+
     assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
         "output path must have .png or .pdf extension"
 
