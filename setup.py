@@ -9,14 +9,6 @@ with open("requirements.txt", encoding="utf-8") as req_fp:
   install_requires = req_fp.readlines()
 
 setup(
-    name='Joey NMT',
-    version='0.0.1dev',
-    packages=['towelstuff',],
-    license='Creative Commons Attribution-Noncommercial-Share Alike license',
-    long_description=open('README.txt').read(),
-)
-
-setup(
   name='Joey NMT',
   version='0.0.1',
   description='Minimalist NMT for educational purposes',
