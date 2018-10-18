@@ -41,6 +41,7 @@ training:
     print_valid_sents: 3
 
 model:
+    tied_embeddings: False
     encoder:
         type: "gru"
         embeddings:

@@ -23,9 +23,14 @@ def build_model(cfg: dict = None,
         **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
         padding_idx=src_padding_idx)
 
-    trg_embed = Embeddings(
-        **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
-        padding_idx=trg_padding_idx)
+    if cfg.get("tied_embeddings", False) \
+        and src_vocab.itos == trg_vocab.itos:
+        # share embeddings for src and trg
+        trg_embed = src_embed
+    else:
+        trg_embed = Embeddings(
+            **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
+            padding_idx=trg_padding_idx)
 
     encoder = RecurrentEncoder(**cfg["encoder"],
                                emb_size=src_embed.embedding_dim)
