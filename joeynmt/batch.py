@@ -8,6 +8,15 @@ class Batch:
     """
 
     def __init__(self, torch_batch, pad_index, use_cuda=False):
+        """
+        Create a new joey batch from a torch batch.
+        This batch extends torch text's batch attributes with src and trg
+        length, masks, number of non-padded tokens in trg.
+        Furthermore, it can be sorted by src length.
+        :param torch_batch:
+        :param pad_index:
+        :param use_cuda:
+        """
 
         self.src, self.src_lengths = torch_batch.src
         self.src_mask = (self.src != pad_index).unsqueeze(-2)
@@ -34,6 +43,10 @@ class Batch:
             self._make_cuda()
 
     def _make_cuda(self):
+        """
+        Move the batch to GPU
+        :return:
+        """
         self.src = self.src.cuda()
         self.src_mask = self.src_mask.cuda()
 
@@ -43,8 +56,10 @@ class Batch:
             self.trg_mask = self.trg_mask.cuda()
 
     def sort_by_src_lengths(self):
-        """ Sort by src length (descending) and return index to revert sort """
-
+        """
+        Sort by src length (descending) and return index to revert sort
+        :return:
+        """
         lengths, perm_index = self.src_lengths.sort(0, descending=True)
         rev_index = [0]*perm_index.size(0)
         for new_pos, old_pos in enumerate(perm_index.cpu().numpy()):

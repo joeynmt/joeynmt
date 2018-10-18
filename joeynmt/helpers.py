@@ -249,10 +249,6 @@ def load_data(cfg):
 class MonoDataset(TranslationDataset):
     """Defines a dataset for machine translation without targets."""
 
-    @staticmethod
-    def sort_key(ex):
-        return data.interleave_keys(len(ex.src), len(ex.trg))
-
     def __init__(self, path, ext, field, **kwargs):
         """Create a MonoDataset given path and field.
 
@@ -326,7 +322,7 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
 
 def get_latest_checkpoint(dir):
     """
-    Returns the latest checkpoint (by time) from the given directory
+    Returns the latest checkpoint (by time) from the given directory.
     :param dir:
     :return:
     """
