@@ -435,8 +435,12 @@ def train(cfg_file):
 
     if test_data is not None:
         # test model
-        beam_size = cfg["testing"].get("beam_size", 0)
-        beam_alpha = cfg["testing"].get("alpha", -1)
+        if "testing" in cfg.keys():
+            beam_size = cfg["testing"].get("beam_size", 0)
+            beam_alpha = cfg["testing"].get("alpha", -1)
+        else:
+            beam_size = 0
+            beam_alpha = -1
         validate_on_data(
             data=test_data, batch_size=trainer.batch_size,
             eval_metric=trainer.eval_metric, level=trainer.level,
