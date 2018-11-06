@@ -1,66 +1,69 @@
 name: "my_experiment"
 
-data:
-    src: "de"
-    trg: "en"
-    train: "test/data/iwslt/train"
-    dev: "test/data/iwslt/dev"
-    test: "test/data/iwslt/test"
-    level: "word"
-    lowercase: True
-    max_sent_length: 30
-    voc_min_freq: 1
-    voc_limit: 100
-    #src_vocab: "my_model/src_vocab.txt"
-    #trg_vocab: "my_model/trg_vocab.txt"
+data: # specify your data here
+    src: "de"  # src language: expected suffix of train files, e.g. "train.de"
+    trg: "en"  # trg language
+    train: "test/data/iwslt/train"  # training data
+    dev: "test/data/iwslt/dev"  # development data for validation
+    test: "test/data/iwslt/test"  # test data for testing final model; optional
+    level: "word" # segmentation level: either "word", "bpe" or "char"
+    lowercase: True # lowercase the data, also for validation
+    max_sent_length: 30 # filter out longer sentences from training (src+trg)
+    voc_min_freq: 1 # minimum frequency for a token to become part of the vocabulary
+    voc_limit: 100  # vocabulary only includes this many most frequent tokens
+    #src_vocab: "my_model/src_vocab.txt"  # if specified, load a vocabulary from this file
+    #trg_vocab: "my_model/trg_vocab.txt"  # one token per line, line number is index
 
-training:
-    #load_model: "my_model/3300.cpkt"
-    random_seed: 42
-    optimizer: "adam"
-    loss: "crossentropy"
-    learning_rate: 0.005
-    learning_rate_min: 0.0001
-    clip_grad_val: 1.0
-    weight_decay: 0.0
-    #clip_grad_norm: 1.0
-    batch_size: 10
-    scheduling: "plateau"
-    patience: 5
-    decrease_factor: 0.5
-    schedule_metric: "eval_metric"
-    epochs: 20
-    validation_freq: 50
-    logging_freq: 10
-    eval_metric: "bleu"
-    model_dir: "my_model"
-    overwrite: True
-    shuffle: True
-    use_cuda: False
-    #max_output_length: 31
-    print_valid_sents: 3
+testing:  # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
+    beam_size: 5  # size of the beam for beam search
+    alpha: 1.0  # length penalty for beam search
 
-model:
-    tied_embeddings: False
+training: # specify training details here
+    #load_model: "my_model/3300.cpkt" # if given, load a pre-trained model from this checkpoint
+    random_seed: 42 # set this seed to make training deterministic
+    optimizer: "adam" # choices: "sgd", "adam", default is SGD, required
+    loss: "crossentropy"  # training loss, required
+    learning_rate: 0.005  # initial learning rate, default: 3.0e-4
+    learning_rate_min: 0.0001  # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
+    clip_grad_val: 1.0  # clip the gradients to this value when they exceed it, optional
+    #clip_grad_norm: 1.0  # norm clipping instead of value clipping
+    weight_decay: 0.1 # l2 regularization, default: 0
+    batch_size: 10  # mini-batch size, required
+    scheduling: "plateau" # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
+    patience: 5 # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
+    decrease_factor: 0.5  # specific to plateau & exponential scheduler: decrease the learning rate by this factor
+    schedule_metric: "eval_metric"  # metric that is used for learning rate scheduling, options "eval_metric" (default, validation metric, e.g. BLEU), "loss" (validation loss), "ppl" (perplexity)
+    epochs: 10  # train for this many epochs
+    validation_freq: 50  # validate after this many updates (number of mini-batches), default: 1000
+    logging_freq: 10  # log the training progress after this many updates, default: 100
+    eval_metric: "bleu" # validation metric, default: "bleu"
+    model_dir: "my_model" # directory where models and validation results are stored, required
+    overwrite: True # overwrite existing model directory, default: False. Do not set to True unless for debugging!
+    shuffle: True # shuffle the training data, default: True
+    use_cuda: False # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+    max_output_length: 31  # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
+    print_valid_sents: 3  # print this many validation sentences during each validation run
+
+model:  # specify your model architecture here
+    tied_embeddings: False  # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     encoder:
-        type: "gru"
+        type: "gru" # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
         embeddings:
-            embedding_dim: 16
-            scale: False
-        hidden_size: 30
-        bidirectional: True
-        dropout: 0.2
-        num_layers: 3
+            embedding_dim: 16 # size of embeddings
+            scale: False  # scale the embeddings by sqrt of their size, default: False
+        hidden_size: 30 # size of RNN
+        bidirectional: True # use a bi-directional encoder, default: True
+        dropout: 0.2  # apply dropout to the inputs to the RNN, default: 0.0
+        num_layers: 3 # stack this many layers of equal size, default: 1
     decoder:
         type: "gru"
         embeddings:
             embedding_dim: 16
             scale: False
-        emb_scale: False
         hidden_size: 31
         dropout: 0.2
-        hidden_dropout: 0.2
+        hidden_dropout: 0.2 # apply dropout to the attention vector, default: 0.0
         num_layers: 2
-        input_feeding: True
-        bridge: "linear"
-        attention: "bahdanau"
+        input_feeding: True # combine hidden state and attention vector before feeding to rnn, default: True
+        bridge: True # bridge between encoder and decoder: use linear projection of last encoder state to initialize decoder initial state, default: False
+        attention: "bahdanau" # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"

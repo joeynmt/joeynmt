@@ -95,9 +95,9 @@ class TrainManager:
         self.use_cuda = train_config["use_cuda"]
         if self.use_cuda:
             self.model.cuda()
-        self.logging_freq = train_config["logging_freq"]
-        self.validation_freq = train_config["validation_freq"]
-        self.eval_metric = train_config["eval_metric"]
+        self.logging_freq = train_config.get("logging_freq", 100)
+        self.validation_freq = train_config.get("validation_freq", 1000)
+        self.eval_metric = train_config.get("eval_metric", "bleu")
         self.print_valid_sents = train_config["print_valid_sents"]
         self.level = config["data"]["level"]
         self.clip_grad_fun = None

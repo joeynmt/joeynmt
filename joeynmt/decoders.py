@@ -120,7 +120,6 @@ class RecurrentDecoder(Decoder):
         _, hidden = self.rnn(rnn_input, hidden)
 
         # use new (top) decoder layer as attention query
-        # TODO dropout?
         if isinstance(hidden, tuple):
             query = hidden[0][-1].unsqueeze(1)
         else:
