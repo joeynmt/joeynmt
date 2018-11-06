@@ -1,21 +1,13 @@
 #!/usr/bin/env python
 
-import logging
 import matplotlib
+
 matplotlib.use('Agg')
 
 import numpy as np
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# font config
-rcParams['font.family'] = "sans-serif"
-rcParams['font.sans-serif'] = ["Fira Sans"]
-rcParams['font.weight'] = "regular"
 
 
 def plot_heatmap(scores=None, column_labels=None, row_labels=None,
@@ -45,8 +37,12 @@ def plot_heatmap(scores=None, column_labels=None, row_labels=None,
     # automatic label size
     labelsize = 25 * (10 / max(x_sent_len, y_sent_len))
 
-    matplotlib.rcParams['xtick.labelsize'] = labelsize
-    matplotlib.rcParams['ytick.labelsize'] = labelsize
+    # font config
+    rcParams['xtick.labelsize'] = labelsize
+    rcParams['ytick.labelsize'] = labelsize
+    #rcParams['font.family'] = "sans-serif"
+    #rcParams['font.sans-serif'] = ["Fira Sans"]
+    #rcParams['font.weight'] = "regular"
 
     fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
     heatmap = plt.imshow(scores, cmap='viridis', aspect='equal',

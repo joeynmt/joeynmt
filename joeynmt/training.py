@@ -183,15 +183,20 @@ class TrainManager:
         Create a logger for logging the training process.
         :return:
         """
-        logging.basicConfig(level=logging.DEBUG,
-                            format='%(asctime)s %(message)s',
-                            handlers=[
-                                logging.FileHandler(
-                                    "{}/train.log".format(self.model_dir)),
-                                logging.StreamHandler(sys.stdout)
-                            ])
-        logging.info("Hello! This is Joey-NMT.")
-        return logging
+        logger = logging.getLogger(__name__)
+        logger.setLevel(level=logging.DEBUG)
+        fh = logging.FileHandler(
+            "{}/train.log".format(self.model_dir))
+        fh.setLevel(level=logging.DEBUG)
+        logger.addHandler(fh)
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        fh.setFormatter(formatter)
+        sh.setFormatter(formatter)
+        logging.getLogger("").addHandler(sh)
+        logger.info("Hello! This is Joey-NMT.")
+        return logger
 
     def train_and_validate(self, train_data, valid_data):
         """
