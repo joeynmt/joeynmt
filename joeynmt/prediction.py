@@ -1,10 +1,12 @@
+# coding: utf-8
+
 import torch
-import sacrebleu
 
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.helpers import load_data, arrays_to_sentences, bpe_postprocess, \
     load_config, get_latest_checkpoint, make_data_iter, \
     load_model_from_checkpoint, store_attention_plots
+from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
 
@@ -101,13 +103,15 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
             current_valid_score = 0
             if eval_metric.lower() == 'bleu':
                 # this version does not use any tokenization
-                current_valid_score = sacrebleu.raw_corpus_bleu(
-                    sys_stream=valid_hypotheses,
-                    ref_streams=[valid_references]).score
+                current_valid_score = bleu(valid_hypotheses, valid_references)
             elif eval_metric.lower() == 'chrf':
-                current_valid_score = sacrebleu.corpus_chrf(
-                    hypotheses=valid_hypotheses,
-                    references=valid_references)
+                current_valid_score = chrf(valid_hypotheses, valid_references)
+            elif eval_metric.lower() == 'token_accuracy':
+                current_valid_score = token_accuracy(valid_hypotheses,
+                                               valid_references, level=level)
+            elif eval_metric.lower() == 'sequence_accuracy':
+                current_valid_score = sequence_accuracy(valid_hypotheses,
+                                               valid_references)
         else:
             current_valid_score = -1
 

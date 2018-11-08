@@ -1,3 +1,5 @@
+# coding: utf-8
+
 import copy
 import torch
 from torch import nn
