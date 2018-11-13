@@ -333,14 +333,15 @@ def get_latest_checkpoint(dir):
     return latest_file
 
 
-def load_model_from_checkpoint(path):
+def load_model_from_checkpoint(path, use_cuda=True):
     """
     Load model from saved checkpoint.
     :param path:
+    :param use_cuda:
     :return:
     """
     assert os.path.isfile(path), "Checkpoint %s not found" % path
-    checkpoint = torch.load(path)
+    checkpoint = torch.load(path, map_location='cuda' if use_cuda else 'cpu')
     model_state = checkpoint["model_state"]
     return model_state
 

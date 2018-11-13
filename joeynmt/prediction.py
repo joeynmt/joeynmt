@@ -150,7 +150,7 @@ def test(cfg_file,
             step = "best"
 
     batch_size = cfg["training"]["batch_size"]
-    use_cuda = cfg["training"]["use_cuda"]
+    use_cuda = cfg["training"].get("use_cuda", False)
     level = cfg["data"]["level"]
     eval_metric = cfg["training"]["eval_metric"]
     max_output_length = cfg["training"].get("max_output_length", None)
@@ -164,7 +164,7 @@ def test(cfg_file,
     data_to_predict = {"dev": dev_data, "test": test_data}
 
     # load model state from disk
-    model_state = load_model_from_checkpoint(ckpt)
+    model_state = load_model_from_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
