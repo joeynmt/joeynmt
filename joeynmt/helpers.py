@@ -347,9 +347,9 @@ def load_model_from_checkpoint(path, use_cuda=True):
     :return:
     """
     assert os.path.isfile(path), "Checkpoint %s not found" % path
-    checkpoint = torch.load(path, map_location='cuda' if use_cuda else 'cpu')
-    model_state = checkpoint["model_state"]
-    return model_state
+    model_checkpoint = torch.load(path,
+                                  map_location='cuda' if use_cuda else 'cpu')
+    return model_checkpoint
 
 
 def make_data_iter(dataset, batch_size, train=False, shuffle=False):

@@ -3,7 +3,6 @@ import argparse
 import logging
 import time
 import os
-import sys
 import numpy as np
 import shutil
 
@@ -15,7 +14,8 @@ from joeynmt.model import build_model
 
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_data, \
-    load_config, log_cfg, store_attention_plots, make_data_iter
+    load_config, log_cfg, store_attention_plots, make_data_iter, \
+    load_model_from_checkpoint
 from joeynmt.prediction import validate_on_data
 
 
@@ -144,21 +144,21 @@ class TrainManager:
         :param path:
         :return:
         """
-        assert os.path.isfile(path), "Checkpoint %s not found" % path
-        checkpoint = torch.load(path)
+        model_checkpoint = load_model_from_checkpoint(
+            path=path, use_cuda=self.use_cuda)
 
         # restore model and optimizer parameters
-        self.model.load_state_dict(checkpoint['model_state'])
-        self.optimizer.load_state_dict(checkpoint["optimizer_state"])
+        self.model.load_state_dict(model_checkpoint["model_state"])
+        self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
 
-        if checkpoint["scheduler_state"] is not None:
-            self.scheduler.load_state_dict(checkpoint["scheduler_state"])
+        if model_checkpoint["scheduler_state"] is not None:
+            self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
 
         # restore counts
-        self.steps = checkpoint["steps"]
-        self.total_tokens = checkpoint["total_tokens"]
-        self.best_valid_score = checkpoint["best_valid_score"]
-        self.best_valid_iteration = checkpoint["best_valid_iteration"]
+        self.steps = model_checkpoint["steps"]
+        self.total_tokens = model_checkpoint["total_tokens"]
+        self.best_valid_score = model_checkpoint["best_valid_score"]
+        self.best_valid_iteration = model_checkpoint["best_valid_iteration"]
 
         # move parameters to cuda
         if self.use_cuda:
