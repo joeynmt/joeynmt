@@ -58,5 +58,29 @@ class Vocabulary:
             for i, t in enumerate(self.itos):
                 open_file.write("{}\n".format(t))
 
+    def add_tokens(self, tokens):
+        """
+        Add list of tokens to vocabulary
+        :param tokens:
+        """
+        for t in tokens:
+            new_index = len(self.itos)
+            # add to vocab if not already there
+            if t not in self.itos:
+                self.itos.append(t)
+                self.stoi[t] = new_index
+
+    def is_unk(self, token):
+        """
+        Check whether a token is covered by the vocabulary
+        :param token:
+        :return:
+        """
+        if self.stoi[token] == DEFAULT_UNK_ID:
+            return True
+        else:
+            return False
+
+
     def __len__(self):
         return len(self.itos)

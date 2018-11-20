@@ -54,6 +54,7 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
     if vocab_file is not None:
         # load it from file
         vocab = Vocabulary(file=vocab_file)
+        vocab.add_tokens(specials)
     else:
         # create newly
         def filter_min(counter, min_freq):
@@ -86,6 +87,11 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
         assert vocab_tokens[DEFAULT_UNK_ID()] == UNK_TOKEN
         assert len(vocab_tokens) <= max_size + len(specials)
         vocab = Vocabulary(tokens=vocab_tokens)
+
+    # check for all except for UNK token whether they are OOVs
+    for s in specials[1:]:
+        assert not vocab.is_unk(s)
+
     return vocab
 
 
