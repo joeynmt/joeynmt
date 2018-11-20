@@ -18,7 +18,7 @@ merge_ops=32000
 src=de
 tgt=en
 lang=de-en
-prep="iwslt14.tokenized.bpe.${merge_ops}.joint.de-en"
+prep="../test/data/iwslt14"
 tmp=${prep}/tmp
 orig=orig
 
@@ -91,13 +91,13 @@ done
 echo "learning * joint * BPE..."
 codes_file="${tmp}/bpe.${merge_ops}"
 cat "${tmp}/train.${src}" "${tmp}/train.${tgt}" > ${tmp}/train.tmp
-subword-nmt learn-bpe -s "${merge_ops}" -i "${tmp}/train.tmp" -o "${codes_file}"
+python3 -m subword_nmt.learn_bpe -s "${merge_ops}" -i "${tmp}/train.tmp" -o "${codes_file}"
 rm "${tmp}/train.tmp"
 
 echo "applying BPE..."
 for l in ${src} ${tgt}; do
     for p in train valid test; do
-        subword-nmt apply-bpe -c "${codes_file}" -i "${tmp}/${p}.${l}" -o "${prep}/${p}.bpe.${merge_ops}.${l}"
+        python3 -m subword_nmt.apply_bpe -c "${codes_file}" -i "${tmp}/${p}.${l}" -o "${prep}/${p}.bpe.${merge_ops}.${l}"
     done
 done
 
