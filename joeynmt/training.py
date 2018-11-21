@@ -316,7 +316,7 @@ class TrainManager:
                         self.learning_rate_min))
                 break
         else:
-            self.logger.info('Training ended after {} epochs.'.format(epoch_no))
+            self.logger.info('Training ended after {} epochs.'.format(epoch_no+1))
         self.logger.info('Best validation result at step {}: {} {}.'.format(
             self.best_valid_iteration, self.best_valid_score, self.eval_metric))
 
@@ -452,6 +452,15 @@ def train(cfg_file):
             max_output_length=trainer.max_output_length,
             model=model, use_cuda=trainer.use_cuda, criterion=None,
             beam_size=beam_size, beam_alpha=beam_alpha)
+
+        score, loss, ppl, sources, sources_raw, references, hypotheses, hypotheses_raw, attention_scores  = validate_on_data(
+            data=test_data, batch_size=trainer.batch_size,
+            eval_metric=trainer.eval_metric, level=trainer.level,
+            max_output_length=trainer.max_output_length,
+            model=model, use_cuda=trainer.use_cuda, criterion=None,
+            beam_size=beam_size, beam_alpha=beam_alpha)
+        decoding_description = "Beam search decoding with beam size = {} and alpha = {}".format(beam_size, beam_alpha)
+        print("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
 
 
 if __name__ == "__main__":
