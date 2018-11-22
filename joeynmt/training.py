@@ -446,12 +446,6 @@ def train(cfg_file):
         else:
             beam_size = 0
             beam_alpha = -1
-        validate_on_data(
-            data=test_data, batch_size=trainer.batch_size,
-            eval_metric=trainer.eval_metric, level=trainer.level,
-            max_output_length=trainer.max_output_length,
-            model=model, use_cuda=trainer.use_cuda, criterion=None,
-            beam_size=beam_size, beam_alpha=beam_alpha)
 
         score, loss, ppl, sources, sources_raw, references, hypotheses, hypotheses_raw, attention_scores  = validate_on_data(
             data=test_data, batch_size=trainer.batch_size,
@@ -459,9 +453,18 @@ def train(cfg_file):
             max_output_length=trainer.max_output_length,
             model=model, use_cuda=trainer.use_cuda, criterion=None,
             beam_size=beam_size, beam_alpha=beam_alpha)
-        decoding_description = "Beam search decoding with beam size = {} and alpha = {}".format(beam_size, beam_alpha)
-        print("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
+        
+        if "trg" in test_data.fields:
+            decoding_description = "Greedy decoding" if beam_size == 0 else "Beam search decoding with beam size = {} and alpha = {}".format(beam_size, beam_alpha)
+            print("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
+        else:
+            print("No references given for {}.{} -> no evaluation.".format(cfg["data"]["test"],cfg["data"]["src"]))
 
+        output_path_set = "{}/{}.{}".format(trainer.model_dir,"test",cfg["data"]["trg"])
+        with open(output_path_set, mode="w", encoding="utf-8") as f:
+            for h in hypotheses:
+                f.write(h + "\n")
+        print("Test translations saved to: {}.{}".format(output_path_set,cfg["data"]["trg"]))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
