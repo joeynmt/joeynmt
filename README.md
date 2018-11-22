@@ -156,9 +156,6 @@ Use `scripts/get_iwslt14_bpe.sh` to pre-process the data and `configs/iwslt14_de
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
-Sockeye (greedy) | bpe | TODO eval | | 60.88M |
-Sockeye (beam=5) | bpe | | TODO eval | 60.88M |
-Sockeye (beam=5, alpha=1.0) | bpe | | TODO eval | 60.88M |
 Joey NMT (greedy) | bpe | 27.8 | | 60.68M | 
 Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M |
 
