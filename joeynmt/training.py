@@ -456,15 +456,15 @@ def train(cfg_file):
         
         if "trg" in test_data.fields:
             decoding_description = "Greedy decoding" if beam_size == 0 else "Beam search decoding with beam size = {} and alpha = {}".format(beam_size, beam_alpha)
-            print("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
+            trainer.logger.info("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
         else:
-            print("No references given for {}.{} -> no evaluation.".format(cfg["data"]["test"],cfg["data"]["src"]))
+            trainer.logger.info("No references given for {}.{} -> no evaluation.".format(cfg["data"]["test"],cfg["data"]["src"]))
 
         output_path_set = "{}/{}.{}".format(trainer.model_dir,"test",cfg["data"]["trg"])
         with open(output_path_set, mode="w", encoding="utf-8") as f:
             for h in hypotheses:
                 f.write(h + "\n")
-        print("Test translations saved to: {}.{}".format(output_path_set,cfg["data"]["trg"]))
+        trainer.logger.info("Test translations saved to: {}.{}".format(output_path_set,cfg["data"]["trg"]))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
