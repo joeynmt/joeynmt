@@ -10,7 +10,7 @@ data: # specify your data here
     lowercase: True # lowercase the data, also for validation
     max_sent_length: 30 # filter out longer sentences from training (src+trg)
     voc_min_freq: 1 # minimum frequency for a token to become part of the vocabulary
-    voc_limit: 100  # vocabulary only includes this many most frequent tokens
+    voc_limit: 100  # vocabulary only includes this many most frequent tokens, default: unlimited
     #src_vocab: "my_model/src_vocab.txt"  # if specified, load a vocabulary from this file
     #trg_vocab: "my_model/trg_vocab.txt"  # one token per line, line number is index
 

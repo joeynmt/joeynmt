@@ -18,6 +18,7 @@ from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
+import sys
 
 def log_cfg(cfg, logger, prefix="cfg"):
     """
@@ -225,7 +226,7 @@ def load_data(cfg):
                                               <= max_sent_length and
                                               len(vars(x)['trg'])
                                               <= max_sent_length)
-    max_size = data_cfg.get("voc_limit", -1)
+    max_size = data_cfg.get("voc_limit", sys.maxsize)
     min_freq = data_cfg.get("voc_min_freq", 1)
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
