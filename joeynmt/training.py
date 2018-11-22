@@ -464,7 +464,7 @@ def train(cfg_file):
         with open(output_path_set, mode="w", encoding="utf-8") as f:
             for h in hypotheses:
                 f.write(h + "\n")
-        trainer.logger.info("Test translations saved to: {}.{}".format(output_path_set,cfg["data"]["trg"]))
+        trainer.logger.info("Test translations saved to: {}".format(output_path_set))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
