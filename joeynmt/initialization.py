@@ -80,10 +80,10 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
     `lstm_forget_gate` controls how the LSTM forget gate is initialized.
     Default is `1`.
 
-    :param model:
-    :param cfg:
-    :param src_padding_idx:
-    :param trg_padding_idx:
+    :param model: model to initialize
+    :param cfg: the model configuration
+    :param src_padding_idx: index of source padding token
+    :param trg_padding_idx: index of target padding token
     :return:
     """
 
