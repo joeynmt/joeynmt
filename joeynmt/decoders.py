@@ -55,10 +55,8 @@ class RecurrentDecoder(Decoder):
         rnn = nn.GRU if type == "gru" else nn.LSTM
 
         self.input_feeding = input_feeding
-        if self.input_feeding:
-            # combine hidden state and attentional context before feeding to rnn
-            self.att_vector_layer = nn.Linear(
-                hidden_size + encoder.output_size, hidden_size, bias=True)
+        if self.input_feeding: # Luong-style
+            # combine embedded prev word +attention vector before feeding to rnn
             self.rnn_input_size = emb_size + hidden_size
         else:
             # just feed prev word embedding
@@ -68,6 +66,10 @@ class RecurrentDecoder(Decoder):
         self.rnn = rnn(self.rnn_input_size, hidden_size, num_layers,
                        batch_first=True,
                        dropout=dropout if num_layers > 1 else 0.)
+
+        # combine output with context vector before output layer (Luong-style)
+        self.att_vector_layer = nn.Linear(
+            hidden_size + encoder.output_size, hidden_size, bias=True)
 
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
         self.output_size = vocab_size
@@ -99,16 +101,13 @@ class RecurrentDecoder(Decoder):
                       hidden: Tensor = None):
         """Perform a single decoder step (1 word)"""
 
-        # FIXME trying new loop:
+        # loop:
         # 1. rnn input = concat(prev_embed, prev_output [possibly empty])
         # 2. update RNN with rnn_input
         # 3. calculate attention and context/attention vector
         # 4. repeat
 
         # update rnn hidden state
-        # if using input feeding, prev_context is the previous attention vector
-        # otherwise prev_context is the previous context vector
-        # FIXME if not input feeding, do not input context here
         if self.input_feeding:
             rnn_input = torch.cat([prev_embed, prev_att_vector], dim=2)
         else:
@@ -131,7 +130,7 @@ class RecurrentDecoder(Decoder):
         context, att_probs = self.attention(
             query=query, keys=encoder_output, mask=src_mask)
 
-        # return attention vector
+        # return attention vector (Luong)
         # combine context with decoder hidden state before prediction
         att_vector_input = torch.cat([query, context], dim=2)
         att_vector_input = self.hidden_dropout(att_vector_input)
