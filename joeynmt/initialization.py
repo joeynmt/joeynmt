@@ -56,9 +56,7 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
 
     All initializer configuration is part of the `model` section of the
     configuration file.
-    For an example, see e.g.
-    `iwslt_envi_xnmt.yaml
-<https://github.com/joeynmt/joeynmt/blob/master/configs/iwslt_envi_xnmt.yaml#L47>`_
+    For an example, see e.g. [iwslt_envi_xnmt.yaml](https://github.com/joeynmt/joeynmt/blob/master/configs/iwslt_envi_xnmt.yaml#L47).
 
     The main initializer is set using the `initializer` key.
     Possible values are `xavier`, `uniform`, `normal` or `zeros`.
