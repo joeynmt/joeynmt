@@ -52,7 +52,33 @@ def xavier_uniform_n_(w, gain=1., n=4):
 
 def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
     """
-    Custom initialization of the model based on config.
+    This initializes a model based on the provided config.
+
+    All initializer configuration is part of the `model` section of the
+    configuration file.
+
+    The main initializer is set using the `initializer` key.
+    Possible values are `xavier`, `uniform`, `normal` or `zeros`.
+    (`xavier` is the default).
+
+    When an initializer is set to `uniform`, then `init_weight` sets the
+    range for the values (-init_weight, init_weight).
+
+    When an initializer is set to `normal`, then `init_weight` sets the
+    standard deviation for the weights (with mean 0).
+
+    The word embedding initializer is set using `embed_initializer` and takes
+    the same values. The default is `normal` with `embed_init_weight = 0.01`.
+
+    Biases are initialized separately using `bias_initializer`.
+    The default is `zeros`, but you can use the same initializers as
+    the main initializer.
+
+    Set `init_rnn_orthogonal` to True if you want RNN orthogonal initialization
+    (for recurrent matrices). Default is False.
+
+    `lstm_forget_gate` controls how the LSTM forget gate is initialized.
+    Default is `1`.
 
     :param model:
     :param cfg:
