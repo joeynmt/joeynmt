@@ -60,6 +60,14 @@ joeynmt.helpers module
     :undoc-members:
     :show-inheritance:
 
+joeynmt.initialization module
+----------------------
+
+.. automodule:: joeynmt.initialization
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 joeynmt.model module
 --------------------
 
