@@ -35,6 +35,7 @@ def xavier_uniform_n_(w, gain=1., n=4):
     Xavier initializer for parameters that combine multiple matrices in one
     parameter for efficiency. This is e.g. used for GRU and LSTM parameters,
     where e.g. all gates are computed at the same time by 1 big matrix.
+
     :param w:
     :param gain:
     :param n:
