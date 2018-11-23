@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 Various encoders
 """
 
+
 # TODO make general encoder class
 class Encoder(nn.Module):
     """
@@ -34,6 +35,7 @@ class RecurrentEncoder(Encoder):
                  **kwargs):
         """
         Create a new recurrent encoder.
+
         :param type:
         :param hidden_size:
         :param emb_size:
@@ -63,6 +65,7 @@ class RecurrentEncoder(Encoder):
         The input mini-batch x needs to be sorted by src length.
         x should have dimensions [batch, time, dim].
         The masks indicates padding areas (zeros where padding).
+
         :param x:
         :param x_length:
         :param mask:

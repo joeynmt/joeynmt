@@ -16,6 +16,7 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
     """
     Generate translations for the given data.
     If `criterion` is not None and references are given, also compute the loss.
+
     :param model:
     :param data:
     :param batch_size:
@@ -128,6 +129,7 @@ def test(cfg_file,
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
+
     :param cfg_file:
     :param ckpt:
     :param output_path:

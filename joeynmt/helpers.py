@@ -9,6 +9,7 @@ import glob
 import os
 from collections import Counter
 import os.path
+import sys
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
@@ -18,11 +19,11 @@ from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
-import sys
 
 def log_cfg(cfg, logger, prefix="cfg"):
     """
     Write configuration to log.
+
     :param cfg:
     :param logger:
     :param prefix:
@@ -148,6 +149,7 @@ def subsequent_mask(size):
     """
     Mask out subsequent positions (to prevent attending to future positions)
     Transformer helper function.
+
     :param size:
     :return:
     """
@@ -188,6 +190,7 @@ def log_data_info(train_data, valid_data, test_data, src_vocab, trg_vocab,
 def load_data(cfg):
     """
     Load train, dev and test data as specified in ccnfiguration.
+
     :param cfg:
     :return:
     """
@@ -207,7 +210,7 @@ def load_data(cfg):
     else:  # bpe or word, pre-tokenized
         tok_fun = lambda s: s.split()
 
-    src_field = data.Field(init_token=None, eos_token=EOS_TOKEN,  #FIXME
+    src_field = data.Field(init_token=None, eos_token=EOS_TOKEN,
                            pad_token=PAD_TOKEN, tokenize=tok_fun,
                            batch_first=True, lower=lowercase,
                            unk_token=UNK_TOKEN,
@@ -286,6 +289,7 @@ class MonoDataset(TranslationDataset):
 def load_config(path="configs/default.yaml"):
     """
     Loads and parses a YAML configuration file.
+
     :param path:
     :return:
     """
@@ -297,6 +301,7 @@ def load_config(path="configs/default.yaml"):
 def bpe_postprocess(string):
     """
     Post-processor for BPE output. Recombines BPE-split tokens.
+
     :param string:
     :return:
     """
@@ -307,6 +312,7 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
                           idx):
     """
     Saves attention plots.
+
     :param attentions:
     :param targets:
     :param sources:
@@ -332,6 +338,7 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
 def get_latest_checkpoint(dir):
     """
     Returns the latest checkpoint (by time) from the given directory.
+
     :param dir:
     :return:
     """
@@ -343,6 +350,7 @@ def get_latest_checkpoint(dir):
 def load_model_from_checkpoint(path, use_cuda=True):
     """
     Load model from saved checkpoint.
+
     :param path:
     :param use_cuda:
     :return:
@@ -356,6 +364,7 @@ def load_model_from_checkpoint(path, use_cuda=True):
 def make_data_iter(dataset, batch_size, train=False, shuffle=False):
     """
     Returns a torchtext iterator for a torchtext dataset.
+
     :param dataset:
     :param batch_size:
     :param train:

@@ -16,6 +16,7 @@ class Embeddings(nn.Module):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.
+
         :param embedding_dim:
         :param scale:
         :param vocab_size:

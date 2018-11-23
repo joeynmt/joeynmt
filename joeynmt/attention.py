@@ -21,6 +21,7 @@ class BahdanauAttention(AttentionMechanism):
     def __init__(self, hidden_size=1, key_size=1, query_size=1):
         """
         Creates attention mechanism.
+
         :param hidden_size:
         :param key_size:
         :param query_size:
@@ -70,8 +71,6 @@ class BahdanauAttention(AttentionMechanism):
         # scores: batch x 1 x time
 
         # mask out invalid positions by filling the masked out parts with -inf
-        # TODO for debugging we are using torch.where since it is safer
-        # scores.data.masked_fill_(mask == 0, float('-inf'))
         scores = torch.where(mask, scores, scores.new_full([1], float('-inf')))
 
         # turn scores to probabilities
@@ -87,6 +86,7 @@ class BahdanauAttention(AttentionMechanism):
         """
         Compute the projection of the keys.
         Is efficient if pre-computed before receiving individual queries.
+
         :param keys:
         :return:
         """
@@ -95,6 +95,7 @@ class BahdanauAttention(AttentionMechanism):
     def compute_proj_query(self, query):
         """
         Compute the projection of the query.
+
         :param query:
         :return:
         """
@@ -112,6 +113,7 @@ class LuongAttention(AttentionMechanism):
     def __init__(self, hidden_size: int = 1, key_size: int = 1):
         """
         Creates attention mechanism.
+
         :param hidden_size:
         :param key_size:
         """
@@ -150,7 +152,6 @@ class LuongAttention(AttentionMechanism):
         # mask out invalid positions by filling the masked out parts with -inf
         # mask: batch x 1 x src_len
         # scores.data.masked_fill_(mask == 0, float('-inf'))
-        # TODO for debugging we are using torch.where since it is safer
         scores = torch.where(mask, scores, scores.new_full([1], float('-inf')))
 
         # turn scores to probabilities
@@ -165,6 +166,7 @@ class LuongAttention(AttentionMechanism):
         """
         Compute the projection of the keys.
         Is efficient if pre-computed before receiving individual queries.
+
         :param keys:
         :return:
         """

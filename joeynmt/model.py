@@ -61,6 +61,7 @@ class Model(nn.Module):
                  trg_vocab: Vocabulary = None):
         """
         Create a new encoder-decoder model
+
         :param name:
         :param encoder:
         :param decoder:
@@ -87,6 +88,7 @@ class Model(nn.Module):
         Take in and process masked src and target sequences.
         Use the encoder hidden state to initialize the decoder
         The encoder outputs are used for attention
+
         :param src:
         :param trg_input:
         :param src_mask:
@@ -138,6 +140,7 @@ class Model(nn.Module):
     def get_loss_for_batch(self, batch, criterion):
         """
         Compute non-normalized loss and number of tokens for a batch
+
         :param batch:
         :param criterion:
         :return:
@@ -159,6 +162,7 @@ class Model(nn.Module):
     def run_batch(self, batch, max_output_length, beam_size, beam_alpha):
         """
         Get outputs and attentions scores for a given batch
+
         :param batch:
         :param max_output_length:
         :param beam_size:
@@ -196,6 +200,7 @@ class Model(nn.Module):
     def __repr__(self):
         """
         String representation: a description of encoder, decoder and embeddings
+
         :return:
         """
         return "%s(\n" \
@@ -210,6 +215,7 @@ class Model(nn.Module):
     def log_parameters_list(self, logging_function):
         """
         Write all parameters (name, shape) to the log.
+
         :param logging_function:
         :return:
         """

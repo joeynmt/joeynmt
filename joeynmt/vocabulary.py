@@ -9,6 +9,7 @@ class Vocabulary:
     def __init__(self, tokens=None, file=None):
         """
         Create vocabulary from list of tokens or file.
+
         :param tokens:
         :param file:
         """
@@ -24,6 +25,7 @@ class Vocabulary:
     def _from_list(self, tokens):
         """
         Make vocabulary from list of tokens.
+
         :param tokens:
         :return:
         """
@@ -36,6 +38,7 @@ class Vocabulary:
         """
         Make vocabulary from contents of file.
         Format: token with index i is in line i.
+
         :param file:
         :return:
         """
@@ -51,6 +54,7 @@ class Vocabulary:
     def to_file(self, file):
         """
         Save the vocabulary to a file, by writing token with index i in line i.
+
         :param file:
         :return:
         """
@@ -61,6 +65,7 @@ class Vocabulary:
     def add_tokens(self, tokens):
         """
         Add list of tokens to vocabulary
+
         :param tokens:
         """
         for t in tokens:
@@ -73,6 +78,7 @@ class Vocabulary:
     def is_unk(self, token):
         """
         Check whether a token is covered by the vocabulary
+
         :param token:
         :return:
         """

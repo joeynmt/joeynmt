@@ -26,6 +26,7 @@ class TrainManager:
     def __init__(self, model, config):
         """
         Creates a new TrainManager for a model, specified as in configuration.
+
         :param model:
         :param config:
         """
@@ -123,6 +124,7 @@ class TrainManager:
     def save_checkpoint(self):
         """
         Save the model's current parameters and state to a checkpoint.
+
         :return:
         """
         model_path = "{}/{}.ckpt".format(self.model_dir, self.steps)
@@ -141,6 +143,7 @@ class TrainManager:
     def load_checkpoint(self, path):
         """
         Load a model from a given checkpoint file.
+
         :param path:
         :return:
         """
@@ -167,6 +170,7 @@ class TrainManager:
     def _make_model_dir(self, model_dir):
         """
         Create a new directory for the model.
+
         :param model_dir:
         :return:
         """
@@ -201,6 +205,7 @@ class TrainManager:
     def train_and_validate(self, train_data, valid_data):
         """
         Train the model and validate it from time to time on the validation set.
+
         :param train_data:
         :param valid_data:
         :return:
@@ -323,6 +328,7 @@ class TrainManager:
     def _train_batch(self, batch):
         """
         Train the model on one batch: Compute the loss, make a gradient step.
+
         :param batch:
         :return:
         """
@@ -358,6 +364,7 @@ class TrainManager:
                     new_best=False):
         """
         Add a one-line report to validation logging file.
+
         :param valid_score:
         :param valid_ppl:
         :param valid_loss:
@@ -396,6 +403,7 @@ class TrainManager:
 def train(cfg_file):
     """
     Main training function. After training, also test on test data if given.
+
     :param cfg_file:
     :return:
     """
@@ -447,7 +455,8 @@ def train(cfg_file):
             beam_size = 0
             beam_alpha = -1
 
-        score, loss, ppl, sources, sources_raw, references, hypotheses, hypotheses_raw, attention_scores  = validate_on_data(
+        score, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores  = validate_on_data(
             data=test_data, batch_size=trainer.batch_size,
             eval_metric=trainer.eval_metric, level=trainer.level,
             max_output_length=trainer.max_output_length,
@@ -455,16 +464,24 @@ def train(cfg_file):
             beam_size=beam_size, beam_alpha=beam_alpha)
         
         if "trg" in test_data.fields:
-            decoding_description = "Greedy decoding" if beam_size == 0 else "Beam search decoding with beam size = {} and alpha = {}".format(beam_size, beam_alpha)
-            trainer.logger.info("{:4s}: {} {} [{}]".format("Test data result", score, trainer.eval_metric, decoding_description))
+            decoding_description = "Greedy decoding" if beam_size == 0 else \
+                "Beam search decoding with beam size = {} and alpha = {}"\
+                    .format(beam_size, beam_alpha)
+            trainer.logger.info("{:4s}: {} {} [{}]".format(
+                "Test data result", score, trainer.eval_metric,
+                decoding_description))
         else:
-            trainer.logger.info("No references given for {}.{} -> no evaluation.".format(cfg["data"]["test"],cfg["data"]["src"]))
+            trainer.logger.info(
+                "No references given for {}.{} -> no evaluation.".format(
+                    cfg["data"]["test"],cfg["data"]["src"]))
 
-        output_path_set = "{}/{}.{}".format(trainer.model_dir,"test",cfg["data"]["trg"])
+        output_path_set = "{}/{}.{}".format(
+            trainer.model_dir,"test",cfg["data"]["trg"])
         with open(output_path_set, mode="w", encoding="utf-8") as f:
             for h in hypotheses:
                 f.write(h + "\n")
-        trainer.logger.info("Test translations saved to: {}".format(output_path_set))
+        trainer.logger.info("Test translations saved to: {}".format(
+            output_path_set))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')

@@ -6,6 +6,7 @@ import sacrebleu
 def chrf(hypotheses, references):
     """
     Character F-score from sacrebleu
+
     :param hypotheses:
     :param references:
     :return:
@@ -18,6 +19,7 @@ def chrf(hypotheses, references):
 def bleu(hypotheses, references):
     """
     Raw corpus BLEU from sacrebleu (without tokenization)
+
     :param hypotheses:
     :param references:
     :return:
@@ -31,6 +33,7 @@ def token_accuracy(hypotheses, references, level="word"):
     """
     Compute the accuracy of hypothesis tokens: correct tokens / all tokens
     Tokens are correct if they appear in the same position in the reference.
+
     :param hypotheses:
     :param references:
     :return:
@@ -52,6 +55,7 @@ def sequence_accuracy(hypotheses, references):
     """
     Compute the accuracy of hypothesis tokens: correct tokens / all tokens
     Tokens are correct if they appear in the same position in the reference.
+
     :param hypotheses:
     :param references:
     :return:

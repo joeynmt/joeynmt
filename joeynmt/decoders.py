@@ -31,6 +31,7 @@ class RecurrentDecoder(Decoder):
         Create a recurrent decoder.
         If `bridge` is True, the decoder hidden states are initialized from a
         projection of the encoder states, else they are initialized with zeros.
+
         :param type:
         :param emb_size:
         :param hidden_size:
@@ -99,7 +100,16 @@ class RecurrentDecoder(Decoder):
                       encoder_output: Tensor = None,
                       src_mask: Tensor = None,
                       hidden: Tensor = None):
-        """Perform a single decoder step (1 word)"""
+        """
+        Perform a single decoder step (1 word)
+
+        :param prev_embed:
+        :param prev_att_vector:
+        :param encoder_output:
+        :param src_mask:
+        :param hidden:
+        :return:
+        """
 
         # loop:
         # 1. rnn input = concat(prev_embed, prev_output [possibly empty])
@@ -145,6 +155,7 @@ class RecurrentDecoder(Decoder):
                 src_mask, unrol_steps, hidden=None, prev_att_vector=None):
         """
          Unroll the decoder one step at a time for `unrol_steps` steps.
+
         :param trg_embed:
         :param encoder_output:
         :param encoder_hidden:
@@ -169,7 +180,6 @@ class RecurrentDecoder(Decoder):
         att_vectors = []
         att_probs = []
 
-        # FIXME support not-input feeding
         batch_size = encoder_output.size(0)
 
         if prev_att_vector is None:
@@ -200,6 +210,7 @@ class RecurrentDecoder(Decoder):
         """
         Returns the initial decoder state,
         conditioned on the final encoder state of the last encoder layer.
+
         :param encoder_final:
         :return:
         """

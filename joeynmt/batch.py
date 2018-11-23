@@ -13,6 +13,7 @@ class Batch:
         This batch extends torch text's batch attributes with src and trg
         length, masks, number of non-padded tokens in trg.
         Furthermore, it can be sorted by src length.
+
         :param torch_batch:
         :param pad_index:
         :param use_cuda:
@@ -45,6 +46,7 @@ class Batch:
     def _make_cuda(self):
         """
         Move the batch to GPU
+
         :return:
         """
         self.src = self.src.cuda()
@@ -58,6 +60,7 @@ class Batch:
     def sort_by_src_lengths(self):
         """
         Sort by src length (descending) and return index to revert sort
+
         :return:
         """
         lengths, perm_index = self.src_lengths.sort(0, descending=True)

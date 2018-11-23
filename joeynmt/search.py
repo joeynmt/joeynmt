@@ -10,6 +10,7 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
            encoder_output, encoder_hidden):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
+
     :param src_mask:
     :param embed:
     :param bos_index:
@@ -55,9 +56,9 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
     """
     Beam search with size k. Follows OpenNMT-py implementation.
     In each decoding step, find the k most likely partial hypotheses.
-    `alpha` is the factor for length penalty.
+
     :param decoder:
-    :param size:
+    :param size: size of the beam
     :param bos_index:
     :param eos_index:
     :param pad_index:
@@ -65,9 +66,9 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
     :param encoder_hidden:
     :param src_mask:
     :param max_output_length:
-    :param alpha:
+    :param alpha: `alpha` factor for length penalty
     :param embed:
-    :param n_best:
+    :param n_best: return this many hypotheses, <= beam
     :return:
     """
     # init
