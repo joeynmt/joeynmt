@@ -138,7 +138,7 @@ class RecurrentDecoder(Decoder):
         # only use last layer for attention mechanism
         # key projections are pre-computed
         context, att_probs = self.attention(
-            query=query, keys=encoder_output, mask=src_mask)
+            query=query, values=encoder_output, mask=src_mask)
 
         # return attention vector (Luong)
         # combine context with decoder hidden state before prediction

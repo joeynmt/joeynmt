@@ -37,25 +37,20 @@ class BahdanauAttention(AttentionMechanism):
         self.proj_query = None  # projected query
 
     def forward(self, query: torch.Tensor = None,
-                keys: torch.Tensor = None,
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
         """
         Bahdanau additive attention forward pass.
 
         :param query: the item to compare with the keys/memory (e.g. decoder state)
-        :param keys: the keys/memory (e.g. encoder states)
         :param mask: mask to mask out keys position
-        :param values: values (e.g. typically also encoder states)
+        :param values: values (e.g. typically encoder states)
         :return: context vector, attention probabilities
         """
 
         assert mask is not None, "mask is required"
         assert self.proj_keys is not None,\
             "projection keys have to get pre-computed"
-
-        if values is None:
-            values = keys
 
         # We first project the query (the decoder state).
         # The projected keys (the encoder states) were already pre-computated.
@@ -123,7 +118,6 @@ class LuongAttention(AttentionMechanism):
         self.proj_keys = None  # projected keys
 
     def forward(self, query: torch.Tensor = None,
-                keys: torch.Tensor = None,
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
         """
@@ -131,18 +125,14 @@ class LuongAttention(AttentionMechanism):
 
         :param query: the item to compare with the keys/memory
         (e.g. decoder state)
-        :param keys: the keys/memory (e.g. encoder states)
         :param mask: mask to mask out keys position
-        :param values: values (e.g. typically also encoder states)
+        :param values: values (e.g. typically encoder states)
         :return: context vector, attention probabilities
         """
 
         assert self.proj_keys is not None,\
             "projection keys have to get pre-computed"
         assert mask is not None, "mask is required"
-
-        if values is None:
-            values = keys
 
         # query:     batch x 1 x hidden_size
         # proj_keys: batch x src_len x hidden_size
