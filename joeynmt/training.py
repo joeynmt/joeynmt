@@ -50,12 +50,19 @@ class TrainManager:
                 model.parameters(), weight_decay=weight_decay, lr=learning_rate)
         self.schedule_metric = train_config.get("schedule_metric",
                                                 "eval_metric")
-        if self.schedule_metric == "eval_metric":
-            # if we schedule after BLEU/chrf, we want to maximize it
-            scheduler_mode = "max"
+        self.ckpt_metric = train_config.get("ckpt_metric", "eval_metric")
+        self.best_ckpt_iteration = 0
+        # if we schedule after BLEU/chrf, we want to maximize it, else minimize
+        scheduler_mode = "max" if self.schedule_metric == "eval_metric" \
+            else "min"
+        # the ckpt metric decides on how to find a good early stopping point:
+        # ckpts are written when there's a new high/low score for this metric
+        if self.ckpt_metric == "eval_metric":
+            self.best_ckpt_score = -np.inf
+            self.is_best = lambda x: x > self.best_ckpt_score
         else:
-            # if we schedule after loss or perplexity, we want to minimize it
-            scheduler_mode = "min"
+            self.best_ckpt_score = np.inf
+            self.is_best = lambda x: x < self.best_ckpt_score
         self.scheduler = None
         if "scheduling" in train_config.keys() and \
                 train_config["scheduling"]:
@@ -64,7 +71,7 @@ class TrainManager:
                 self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     optimizer=self.optimizer,
                     mode=scheduler_mode,
-                    verbose=True,
+                    verbose=False,
                     threshold_mode='abs',
                     factor=train_config.get("decrease_factor", 0.1),
                     patience=train_config.get("patience", 10))
@@ -86,8 +93,6 @@ class TrainManager:
         # stop training if this flag is True by reaching learning rate minimum
         self.stop = False
         self.total_tokens = 0
-        self.best_valid_score = 0
-        self.best_valid_iteration = 0
         self.max_output_length = train_config.get("max_output_length", None)
         self.overwrite = train_config.get("overwrite", False)
         self.model_dir = self._make_model_dir(train_config["model_dir"])
@@ -131,8 +136,8 @@ class TrainManager:
         state = {
             "steps": self.steps,
             "total_tokens": self.total_tokens,
-            "best_valid_score": self.best_valid_score,
-            "best_valid_iteration": self.best_valid_iteration,
+            "best_ckpt_score": self.best_ckpt_score,
+            "best_ckpt_iteration": self.best_ckpt_iteration,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
             "scheduler_state": self.scheduler.state_dict() if \
@@ -160,8 +165,8 @@ class TrainManager:
         # restore counts
         self.steps = model_checkpoint["steps"]
         self.total_tokens = model_checkpoint["total_tokens"]
-        self.best_valid_score = model_checkpoint["best_valid_score"]
-        self.best_valid_iteration = model_checkpoint["best_valid_iteration"]
+        self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
+        self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
 
         # move parameters to cuda
         if self.use_cuda:
@@ -252,10 +257,21 @@ class TrainManager:
                         max_output_length=self.max_output_length,
                         criterion=self.criterion)
 
-                    if valid_score > self.best_valid_score:
-                        self.best_valid_score = valid_score
-                        self.best_valid_iteration = self.steps
-                        self.logger.info('Hooray! New best validation result!')
+                    if self.ckpt_metric == "loss":
+                        ckpt_score = valid_loss
+                    elif self.ckpt_metric in ["ppl", "perplexity"]:
+                        ckpt_score = valid_ppl
+                    else:
+                        ckpt_score = valid_score
+
+                    new_best = False
+                    if self.is_best(ckpt_score):
+                        self.best_ckpt_score = ckpt_score
+                        self.best_ckpt_iteration = self.steps
+                        self.logger.info(
+                            'Hooray! New best validation result [{}]!'.format(
+                                self.ckpt_metric))
+                        new_best = True
                         self.save_checkpoint()
 
                     # pass validation score or loss or ppl to scheduler
@@ -275,7 +291,7 @@ class TrainManager:
                     self._add_report(
                         valid_score=valid_score, valid_loss=valid_loss,
                         valid_ppl=valid_ppl, eval_metric=self.eval_metric,
-                        new_best=self.steps == self.best_valid_iteration)
+                        new_best=new_best)
 
                     # always print first x sentences
                     for p in range(self.print_valid_sents):
@@ -323,7 +339,7 @@ class TrainManager:
         else:
             self.logger.info('Training ended after {} epochs.'.format(epoch_no+1))
         self.logger.info('Best validation result at step {}: {} {}.'.format(
-            self.best_valid_iteration, self.best_valid_score, self.eval_metric))
+            self.best_ckpt_iteration, self.best_ckpt_score, self.ckpt_metric))
 
     def _train_batch(self, batch):
         """
