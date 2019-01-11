@@ -87,6 +87,7 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        self.batch_multiplier = train_config.get("batch_multiplier", 1)
         self.criterion = criterion
         self.normalization = train_config.get("normalization", "batch")
         self.steps = 0
@@ -224,15 +225,24 @@ class TrainManager:
             start = time.time()
             total_valid_duration = 0
             processed_tokens = self.total_tokens
+            count = 0
 
             for batch_no, batch in enumerate(iter(train_iter), 1):
                 # reactivate training
                 self.model.train()
                 batch = Batch(batch, self.pad_index, use_cuda=self.use_cuda)
-                batch_loss = self._train_batch(batch)
+
+                # only update every batch_multiplier batches
+                # see https://medium.com/@davidlmorton/increasing-mini-batch-size-without-increasing-memory-6794e10db672
+                update = count == 0
+                # print(count, update, self.steps)
+                batch_loss = self._train_batch(batch, update=update)
+                count = self.batch_multiplier if update else count
+                count -= 1
 
                 # log learning progress
-                if self.model.training and self.steps % self.logging_freq == 0:
+                if self.model.training and self.steps % self.logging_freq == 0 \
+                        and update:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
@@ -242,20 +252,20 @@ class TrainManager:
                     start = time.time()
                     total_valid_duration = 0
 
-                # validate on whole dev set
-                if self.steps % self.validation_freq == 0:
+                # validate on the entire dev set
+                if self.steps % self.validation_freq == 0 and update:
                     valid_start_time = time.time()
 
                     valid_score, valid_loss, valid_ppl, valid_sources, \
-                    valid_sources_raw, valid_references, valid_hypotheses, \
-                    valid_hypotheses_raw, valid_attention_scores = \
+                        valid_sources_raw, valid_references, valid_hypotheses, \
+                        valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                        batch_size=self.batch_size, data=valid_data,
-                        eval_metric=self.eval_metric,
-                        level=self.level, model=self.model,
-                        use_cuda=self.use_cuda,
-                        max_output_length=self.max_output_length,
-                        criterion=self.criterion)
+                            batch_size=self.batch_size, data=valid_data,
+                            eval_metric=self.eval_metric,
+                            level=self.level, model=self.model,
+                            use_cuda=self.use_cuda,
+                            max_output_length=self.max_output_length,
+                            criterion=self.criterion)
 
                     if self.ckpt_metric == "loss":
                         ckpt_score = valid_loss
@@ -337,15 +347,17 @@ class TrainManager:
                         self.learning_rate_min))
                 break
         else:
-            self.logger.info('Training ended after {} epochs.'.format(epoch_no+1))
+            self.logger.info('Training ended after {} epochs.'.format(
+                epoch_no+1))
         self.logger.info('Best validation result at step {}: {} {}.'.format(
             self.best_ckpt_iteration, self.best_ckpt_score, self.ckpt_metric))
 
-    def _train_batch(self, batch):
+    def _train_batch(self, batch, update=True):
         """
         Train the model on one batch: Compute the loss, make a gradient step.
 
         :param batch:
+        :param update: if False, only store gradient. if True also make update
         :return:
         """
         batch_loss = self.model.get_loss_for_batch(
@@ -360,20 +372,27 @@ class TrainManager:
             raise NotImplementedError("Only normalize by 'batch' or 'tokens'")
 
         norm_batch_loss = batch_loss.sum() / normalizer
-        # compute gradient
-        norm_batch_loss.backward()
+        # division needed since loss.backward sums the gradients until updated
+        norm_batch_multiply = norm_batch_loss / self.batch_multiplier
+
+        # compute gradients
+        norm_batch_multiply.backward()
 
         if self.clip_grad_fun is not None:
             # clip gradients (in-place)
             self.clip_grad_fun(params=self.model.parameters())
 
-        # make gradient step
-        self.optimizer.step()
-        self.optimizer.zero_grad()
+        if update:
+            # make gradient step
+            self.optimizer.step()
+            self.optimizer.zero_grad()
 
-        # increment step and token counter
-        self.steps += 1
+            # increment step counter
+            self.steps += 1
+
+        # increment token counter
         self.total_tokens += batch.ntokens
+
         return norm_batch_loss
 
     def _add_report(self, valid_score, valid_ppl, valid_loss, eval_metric,
