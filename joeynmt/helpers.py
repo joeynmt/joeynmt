@@ -416,3 +416,15 @@ def tile(x, count, dim=0):
     if dim != 0:
         x = x.permute(perm).contiguous()
     return x
+
+
+def freeze_params(module):
+    """
+    Freeze the parameters of this module,
+    i.e. do not update them during training
+
+    :param module:
+    :return:
+    """
+    for n, p in module.named_parameters():
+                p.requires_grad = False

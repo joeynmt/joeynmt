@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from joeynmt.helpers import freeze_params
 
 """
 Various encoders
@@ -32,6 +33,7 @@ class RecurrentEncoder(Encoder):
                  num_layers: int = 1,
                  dropout: float = 0.,
                  bidirectional: bool = True,
+                 freeze: bool = False,
                  **kwargs):
         """
         Create a new recurrent encoder.
@@ -42,6 +44,7 @@ class RecurrentEncoder(Encoder):
         :param num_layers:
         :param dropout:
         :param bidirectional:
+        :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
 
@@ -58,6 +61,9 @@ class RecurrentEncoder(Encoder):
             dropout=dropout if num_layers > 1 else 0.)
 
         self._output_size = 2 * hidden_size if bidirectional else hidden_size
+
+        if freeze:
+            freeze_params(self)
 
     def forward(self, x, x_length, mask):
         """

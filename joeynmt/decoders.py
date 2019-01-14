@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention, AttentionMechanism
 from joeynmt.encoders import Encoder
-
+from joeynmt.helpers import freeze_params
 
 # TODO make general decoder class
 class Decoder(nn.Module):
@@ -26,6 +26,7 @@ class RecurrentDecoder(Decoder):
                  hidden_dropout: float = 0.,
                  bridge: bool = False,
                  input_feeding: bool = True,
+                 freeze: bool = False,
                  **kwargs):
         """
         Create a recurrent decoder.
@@ -43,6 +44,7 @@ class RecurrentDecoder(Decoder):
         :param hidden_dropout:
         :param bridge:
         :param input_feeding:
+        :param freeze: freeze the parameters of the decoder during training
         :param kwargs:
         """
 
@@ -93,6 +95,9 @@ class RecurrentDecoder(Decoder):
         if self.bridge:
             self.bridge_layer = nn.Linear(
                 encoder.output_size, hidden_size, bias=True)
+
+        if freeze:
+            freeze_params(self)
 
     def _forward_step(self,
                       prev_embed: Tensor = None,

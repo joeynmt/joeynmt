@@ -53,15 +53,18 @@ model:  # specify your model architecture here
         embeddings:
             embedding_dim: 16 # size of embeddings
             scale: False  # scale the embeddings by sqrt of their size, default: False
+            freeze: False  # if True, embeddings are not updated during training
         hidden_size: 30 # size of RNN
         bidirectional: True # use a bi-directional encoder, default: True
         dropout: 0.2  # apply dropout to the inputs to the RNN, default: 0.0
         num_layers: 3 # stack this many layers of equal size, default: 1
+        freeze: False  # if True, encoder parameters are not updated during training (does not include embedding parameters)
     decoder:
         type: "gru"
         embeddings:
             embedding_dim: 16
             scale: False
+            freeze: False  # if True, embeddings are not updated during training
         hidden_size: 31
         dropout: 0.2
         hidden_dropout: 0.2 # apply dropout to the attention vector, default: 0.0
@@ -69,3 +72,4 @@ model:  # specify your model architecture here
         input_feeding: True # combine hidden state and attention vector before feeding to rnn, default: True
         bridge: True # bridge between encoder and decoder: use linear projection of last encoder state to initialize decoder initial state, default: False
         attention: "bahdanau" # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"
+        freeze: False  # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)
