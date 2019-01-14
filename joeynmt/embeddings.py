@@ -1,5 +1,6 @@
 import math
 from torch import nn
+from joeynmt.helpers import freeze_params
 
 
 class Embeddings(nn.Module):
@@ -12,7 +13,8 @@ class Embeddings(nn.Module):
                  embedding_dim: int = 64,
                  scale: bool = False,
                  vocab_size: int = 0,
-                 padding_idx: int = 1):
+                 padding_idx: int = 1,
+                 freeze: bool = False):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.
@@ -21,6 +23,7 @@ class Embeddings(nn.Module):
         :param scale:
         :param vocab_size:
         :param padding_idx:
+        :param freeze: freeze the embeddings during training
         """
         super(Embeddings, self).__init__()
 
@@ -29,6 +32,9 @@ class Embeddings(nn.Module):
         self.vocab_size = vocab_size
         self.lut = nn.Embedding(vocab_size, self.embedding_dim,
                                 padding_idx=padding_idx)
+
+        if freeze:
+            freeze_params(self)
 
     def forward(self, x):
         if self.scale:
