@@ -489,6 +489,7 @@ def train(cfg_file):
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
 
     if test_data is not None:
+        trainer.load_checkpoint("{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration))
         # test model
         if "testing" in cfg.keys():
             beam_size = cfg["testing"].get("beam_size", 0)
