@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("JoeyNMT Validation plotting.")
     parser.add_argument("model_dirs", type=str, nargs="+",
                         help="Model directories.")
-    parser.add_argument("--plot_values", type=str, nargs="+", default="bleu",
+    parser.add_argument("--plot_values", type=str, nargs="+", default=["bleu"],
                         help="Value(s) to plot. Default: bleu")
     parser.add_argument("--output_path", type=str, default="plot.pdf",
                         help="Plot will be stored in this location.")
