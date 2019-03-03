@@ -171,7 +171,7 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class NoamOpt:
+class NoamScheduler:
     """Optim wrapper that implements rate."""
 
     def __init__(self, model_size, factor, warmup, optimizer):
@@ -189,7 +189,6 @@ class NoamOpt:
         for p in self.optimizer.param_groups:
             p['lr'] = rate
         self._rate = rate
-        self.optimizer.step()
 
     def rate(self, step=None):
         """Implement `lrate` above"""
@@ -199,11 +198,8 @@ class NoamOpt:
                (self.model_size ** (-0.5) *
                 min(step ** (-0.5), step * self.warmup ** (-1.5)))
 
-
-def get_std_opt(model):
-    return NoamOpt(model.src_embed[0].d_model, 2, 4000,
-                   torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98),
-                                    eps=1e-9))
+    def state_dict(self):
+        return None
 
 
 class LabelSmoothing(nn.Module):

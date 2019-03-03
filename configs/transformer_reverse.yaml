@@ -22,17 +22,18 @@ training:
     #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
+    adam_betas: [0.9, 0.98]
+    scheduling: "noam"
+    schedule_after_loss: True
     loss: "crossentropy"
-    learning_rate: 0.0002
-    learning_rate_min: 0.0002
+    learning_rate: 0.0
+    learning_rate_min: 0.00000001
 #    clip_grad_val: 1.0
     weight_decay: 0.0
     clip_grad_norm: 1.0
     batch_size: 10
-    scheduling: "plateau"
     patience: 5
     decrease_factor: 0.5
-    schedule_after_loss: True
     epochs: 30
     validation_freq: 1000
     logging_freq: 100

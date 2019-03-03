@@ -18,6 +18,7 @@ from joeynmt.helpers import log_data_info, load_data, \
     load_config, log_cfg, store_attention_plots, make_data_iter, \
     load_model_from_checkpoint
 from joeynmt.prediction import validate_on_data
+from joeynmt.transformer import NoamScheduler
 
 
 class TrainManager:
@@ -44,7 +45,8 @@ class TrainManager:
         weight_decay = train_config.get("weight_decay", 0)
         if train_config["optimizer"].lower() == "adam":
             self.optimizer = torch.optim.Adam(
-                model.parameters(), weight_decay=weight_decay, lr=learning_rate)
+                model.parameters(), weight_decay=weight_decay, lr=learning_rate,
+                betas=train_config.get("adam_betas", [0.9, 0.999]))
         else:
             # default
             self.optimizer = torch.optim.SGD(
@@ -85,6 +87,10 @@ class TrainManager:
                     optimizer=self.optimizer,
                     gamma=train_config.get("decrease_factor", 0.99)
                 )
+            elif train_config["scheduling"].lower() == "noam":
+                self.scheduler = NoamScheduler(
+                    config["model"]["encoder"]["hidden_size"], 2, 4000,
+                    self.optimizer)
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
@@ -252,9 +258,11 @@ class TrainManager:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Loss: %f Tokens per Sec: %f" %
+                        "Epoch %d Step: %d Loss: %f Tokens per Sec: %f, Lr: %f" %
                         (epoch_no + 1, self.steps, batch_loss,
-                         elapsed_tokens / elapsed))
+                         elapsed_tokens / elapsed,
+                         self.optimizer.param_groups[0]["lr"]
+                         ))
                     start = time.time()
                     total_valid_duration = 0
 
@@ -301,7 +309,8 @@ class TrainManager:
                         # schedule based on evaluation score
                         schedule_score = valid_score
                     if self.scheduler is not None:
-                        self.scheduler.step(schedule_score)
+                        if not isinstance(self.scheduler, NoamScheduler):
+                            self.scheduler.step(schedule_score)
 
                     # append to validation report
                     self._add_report(
@@ -392,6 +401,9 @@ class TrainManager:
             # make gradient step
             self.optimizer.step()
             self.optimizer.zero_grad()
+
+            if isinstance(self.scheduler, NoamScheduler):
+                self.scheduler.step()
 
             # increment step counter
             self.steps += 1
