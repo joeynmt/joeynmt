@@ -89,7 +89,7 @@ class TrainManager:
                 )
             elif train_config["scheduling"].lower() == "noam":
                 self.scheduler = NoamScheduler(
-                    config["model"]["encoder"]["hidden_size"], 2, 4000,
+                    config["model"]["encoder"]["hidden_size"], 1, 4000,
                     self.optimizer)
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
