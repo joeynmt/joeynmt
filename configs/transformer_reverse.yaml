@@ -23,7 +23,7 @@ training:
     random_seed: 42
     optimizer: "adam"
     loss: "crossentropy"
-    learning_rate: 0.001
+    learning_rate: 0.0002
     learning_rate_min: 0.0002
 #    clip_grad_val: 1.0
     weight_decay: 0.0
@@ -33,9 +33,9 @@ training:
     patience: 5
     decrease_factor: 0.5
     schedule_after_loss: True
-    epochs: 10
-    validation_freq: 100
-    logging_freq: 50
+    epochs: 30
+    validation_freq: 1000
+    logging_freq: 100
     eval_metric: "bleu"
     model_dir: "transformer_reverse_001"
     overwrite: True
@@ -54,9 +54,9 @@ model:
         num_layers: 2
         num_heads: 8
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 128
             scale: True
-        hidden_size: 64
+        hidden_size: 128
         ff_size: 256
         dropout: 0.1
     decoder:
@@ -64,8 +64,8 @@ model:
         num_layers: 2
         num_heads: 8
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 128
             scale: True
-        hidden_size: 64
+        hidden_size: 128
         ff_size: 256
         dropout: 0.1

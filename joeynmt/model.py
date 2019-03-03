@@ -7,7 +7,7 @@ from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
-from joeynmt.search import beam_search, greedy
+from joeynmt.search import beam_search, greedy, transformer_greedy
 from joeynmt.vocabulary import Vocabulary
 
 
@@ -195,11 +195,19 @@ class Model(nn.Module):
 
         # greedy decoding
         if beam_size == 0:
-            stacked_output, stacked_attention_scores = greedy(
-                encoder_hidden=encoder_hidden, encoder_output=encoder_output,
-                src_mask=batch.src_mask, embed=self.trg_embed,
-                bos_index=self.bos_index, decoder=self.decoder,
-                max_output_length=max_output_length, trg_mask=batch.trg_mask)
+
+            if isinstance(self.decoder, TransformerDecoder):
+                stacked_output, stacked_attention_scores = transformer_greedy(
+                    encoder_hidden=encoder_hidden, encoder_output=encoder_output,
+                    src_mask=batch.src_mask, embed=self.trg_embed,
+                    bos_index=self.bos_index, decoder=self.decoder,
+                    max_output_length=max_output_length, trg_mask=batch.trg_mask)
+            else:
+                stacked_output, stacked_attention_scores = greedy(
+                    encoder_hidden=encoder_hidden, encoder_output=encoder_output,
+                    src_mask=batch.src_mask, embed=self.trg_embed,
+                    bos_index=self.bos_index, decoder=self.decoder,
+                    max_output_length=max_output_length, trg_mask=batch.trg_mask)
             # batch, time, max_src_length
         else:  # beam size
             stacked_output, stacked_attention_scores = \

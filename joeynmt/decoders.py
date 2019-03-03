@@ -6,7 +6,7 @@ from joeynmt.attention import BahdanauAttention, LuongAttention, AttentionMechan
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params, clones
 from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
-    PositionwiseFeedForward, subsequent_mask
+    PositionwiseFeedForward, subsequent_mask, PositionalEncoding
 
 
 # TODO make general decoder class
@@ -267,6 +267,8 @@ class TransformerDecoder(nn.Module):
 
         self.layers = nn.ModuleList(layers)
         self.norm = nn.LayerNorm(hidden_size)
+        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
 
     def forward(self,
@@ -292,6 +294,8 @@ class TransformerDecoder(nn.Module):
         assert trg_mask is not None, "trg_mask required for Transformer"
 
         x = trg_embed
+        x = self.pe(x)  # add position encoding
+
         trg_mask = trg_mask.unsqueeze(-2) & subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
 
         for layer in self.layers:

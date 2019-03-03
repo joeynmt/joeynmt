@@ -335,15 +335,15 @@ class TrainManager:
 
                     # store attention plots for first three sentences of
                     # valid data and one randomly chosen example
-                    store_attention_plots(attentions=valid_attention_scores,
-                                          targets=valid_hypotheses_raw,
-                                          sources=[s for s in valid_data.src],
-                                          idx=[0, 1, 2,
-                                               np.random.randint(0, len(
-                                                   valid_hypotheses))],
-                                          output_prefix="{}/att.{}".format(
-                                              self.model_dir,
-                                              self.steps))
+                    if len(valid_attention_scores) > 0:
+                        store_attention_plots(
+                            attentions=valid_attention_scores,
+                            targets=valid_hypotheses_raw,
+                            sources=[s for s in valid_data.src],
+                            idx=[0, 1, 2, np.random.randint(
+                                0, len(valid_hypotheses))],
+                            output_prefix="{}/att.{}".format(
+                                self.model_dir, self.steps))
 
                 if self.stop:
                     break

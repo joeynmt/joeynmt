@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from joeynmt.helpers import freeze_params, clones
-from joeynmt.transformer import \
-    SublayerConnection, MultiHeadedAttention, PositionwiseFeedForward
+from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
+    PositionwiseFeedForward, PositionalEncoding
 
 """
 Various encoders
@@ -133,6 +133,7 @@ class TransformerEncoder(nn.Module):
 
         self.layers = nn.ModuleList(layers)
         self.norm = nn.LayerNorm(hidden_size)
+        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
 
     def forward(self, x, lengths, mask):
         """
@@ -142,6 +143,9 @@ class TransformerEncoder(nn.Module):
         :param mask:
         :return:
         """
+
+        x = self.pe(x)  # add position encoding to word embeddings
+
         for layer in self.layers:
             x = layer(x, mask)
         return self.norm(x), None
