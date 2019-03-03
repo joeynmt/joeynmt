@@ -131,7 +131,7 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
                         dim = p.size(1)
                         p.data *= math.sqrt(dim)
 
-            elif "bias" in name:
+            elif "bias" in name or "norm" in name:
                 bias_init_fn_(p)
 
             elif len(p.size()) > 1:

@@ -4,7 +4,10 @@ import torch.nn as nn
 from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention, AttentionMechanism
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import freeze_params
+from joeynmt.helpers import freeze_params, clones
+from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
+    PositionwiseFeedForward, subsequent_mask
+
 
 # TODO make general decoder class
 class Decoder(nn.Module):
@@ -157,7 +160,8 @@ class RecurrentDecoder(Decoder):
         return att_vector, hidden, att_probs
 
     def forward(self, trg_embed, encoder_output, encoder_hidden,
-                src_mask, unrol_steps, hidden=None, prev_att_vector=None):
+                src_mask, unrol_steps, hidden=None, prev_att_vector=None,
+                **kwargs):
         """
          Unroll the decoder one step at a time for `unrol_steps` steps.
 
@@ -237,3 +241,89 @@ class RecurrentDecoder(Decoder):
     def __repr__(self):
         return "RecurrentDecoder(rnn=%r, attention=%r)" % (
             self.rnn, self.attention)
+
+
+class TransformerDecoder(nn.Module):
+    """
+    A transformer decoder with N masked layers.
+    Decoder layers are masked so that an attention head cannot see the future.
+    """
+
+    def __init__(self, num_layers=4, num_heads=8,
+                 hidden_size=512, ff_size=2048, dropout=0.1,
+                 vocab_size=1,
+                 **kwargs):
+        super(TransformerDecoder, self).__init__()
+
+        # build all (num_layers) layers
+        layers = []
+        for _ in range(num_layers):
+            layer = TransformerDecoderLayer(
+                hidden_size,
+                MultiHeadedAttention(num_heads, hidden_size),
+                MultiHeadedAttention(num_heads, hidden_size),
+                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
+            layers.append(layer)
+
+        self.layers = nn.ModuleList(layers)
+        self.norm = nn.LayerNorm(hidden_size)
+        self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+
+    def forward(self,
+                trg_embed = None,
+                encoder_output = None,
+                encoder_hidden = None,
+                src_mask = None,
+                unrol_steps = None,
+                hidden = None,
+                trg_mask = None,
+                **kwargs):
+        """
+        :param trg_embed: target embeddings
+        :param encoder_output: source representations
+        :param encoder_hidden: unused
+        :param src_mask:
+        :param unrol_steps: unused
+        :param hidden: unused
+        :param trg_mask:
+        :param kwargs:
+        :return:
+        """
+        assert trg_mask is not None, "trg_mask required for Transformer"
+
+        x = trg_embed
+        trg_mask = trg_mask.unsqueeze(-2) & subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
+
+        for layer in self.layers:
+            x = layer(x, encoder_output, src_mask, trg_mask)
+
+        x = self.norm(x)
+        output = self.output_layer(x)
+
+        return output, x, None, None
+
+    def __repr__(self):
+        return "%s(num_layers=%r, num_heads=%r)" % (
+            self.__class__.__name__, len(self.layers),
+            self.layers[0].self_attn.h)
+
+
+class TransformerDecoderLayer(nn.Module):
+    """
+    Transformer decoder layer.
+    Consists of self-attention, source-attention, and feed-forward.
+    """
+
+    def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
+        super(TransformerDecoderLayer, self).__init__()
+        self.size = size
+        self.self_attn = self_attn
+        self.src_attn = src_attn
+        self.feed_forward = feed_forward
+        self.sublayer = clones(SublayerConnection(size, dropout), 3)
+
+    def forward(self, x, memory, src_mask, tgt_mask):
+        m = memory
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
+        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
+        return self.sublayer[2](x, self.feed_forward)

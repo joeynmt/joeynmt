@@ -7,7 +7,7 @@ from joeynmt.helpers import tile
 
 
 def greedy(src_mask, embed, bos_index, max_output_length, decoder,
-           encoder_output, encoder_hidden):
+           encoder_output, encoder_hidden, trg_mask=None):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
 
@@ -18,6 +18,7 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
     :param decoder:
     :param encoder_output:
     :param encoder_hidden:
+    :param trg_mask:
     :return:
     """
     batch_size = src_mask.size(0)
@@ -36,7 +37,8 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
             trg_embed=embed(prev_y),
             hidden=hidden,
             prev_att_vector=prev_att_vector,
-            unrol_steps=1)
+            unrol_steps=1,
+            trg_mask=trg_mask)
         # out: batch x time=1 x vocab (logits)
 
         # greedy decoding: choose arg max over vocabulary in each step
@@ -52,7 +54,7 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
 
 def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
                 encoder_hidden, src_mask, max_output_length, alpha, embed,
-                n_best=1):
+                n_best=1, trg_mask=None):
     """
     Beam search with size k. Follows OpenNMT-py implementation.
     In each decoding step, find the k most likely partial hypotheses.
@@ -124,7 +126,7 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
             trg_embed=embed(decoder_input),
             hidden=hidden,
             prev_att_vector=att_vectors,
-            unrol_steps=1)
+            unrol_steps=1, trg_mask=trg_mask)
 
         log_probs = F.log_softmax(out, dim=-1).squeeze(1)  # batch*k x trg_vocab
 

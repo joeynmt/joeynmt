@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 from joeynmt.initialization import initialize_model
 from joeynmt.embeddings import Embeddings
-from joeynmt.encoders import Encoder, RecurrentEncoder
-from joeynmt.decoders import Decoder, RecurrentDecoder
+from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
+from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
 from joeynmt.search import beam_search, greedy
 from joeynmt.vocabulary import Vocabulary
@@ -30,11 +30,26 @@ def build_model(cfg: dict = None,
             **cfg["decoder"]["embeddings"], vocab_size=len(trg_vocab),
             padding_idx=trg_padding_idx)
 
-    encoder = RecurrentEncoder(**cfg["encoder"],
-                               emb_size=src_embed.embedding_dim)
-    decoder = RecurrentDecoder(**cfg["decoder"], encoder=encoder,
-                               vocab_size=len(trg_vocab),
-                               emb_size=trg_embed.embedding_dim)
+    # build encoder
+    if cfg["encoder"]["type"] == "transformer":
+        assert cfg["encoder"]["embeddings"]["embedding_dim"] == cfg["encoder"]["hidden_size"], \
+            "for transformer, emb_size must be hidden_size"
+
+        encoder = TransformerEncoder(**cfg["encoder"],
+                                     emb_size=src_embed.embedding_dim)
+    else:
+        encoder = RecurrentEncoder(**cfg["encoder"],
+                                   emb_size=src_embed.embedding_dim)
+
+    # build decoder
+    if cfg["decoder"]["type"] == "transformer":
+        decoder = TransformerDecoder(
+            **cfg["decoder"], encoder=encoder, vocab_size=len(trg_vocab),
+            emb_size=trg_embed.embedding_dim)
+    else:
+        decoder = RecurrentDecoder(
+            **cfg["decoder"], encoder=encoder, vocab_size=len(trg_vocab),
+            emb_size=trg_embed.embedding_dim)
 
     model = Model(encoder=encoder, decoder=decoder,
                   src_embed=src_embed, trg_embed=trg_embed,
@@ -83,16 +98,16 @@ class Model(nn.Module):
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
 
-    def forward(self, src, trg_input, src_mask, src_lengths):
+    def forward(self, src, trg_input, src_mask, src_lengths, trg_mask=None):
         """
-        Take in and process masked src and target sequences.
-        Use the encoder hidden state to initialize the decoder
-        The encoder outputs are used for attention
+        First encodes the source sentence.
+        Then produces the target one word at a time.
 
         :param src:
         :param trg_input:
         :param src_mask:
         :param src_lengths:
+        :param trg_mask: target mask used for Transformer
         :return: decoder outputs
         """
         encoder_output, encoder_hidden = self.encode(src=src,
@@ -102,12 +117,12 @@ class Model(nn.Module):
         return self.decode(encoder_output=encoder_output,
                            encoder_hidden=encoder_hidden,
                            src_mask=src_mask, trg_input=trg_input,
-                           unrol_steps=unrol_steps)
+                           unrol_steps=unrol_steps,
+                           trg_mask=trg_mask)
 
     def encode(self, src, src_length, src_mask):
         """
         Encodes the source sentence.
-        TODO adapt to transformer
 
         :param src:
         :param src_length:
@@ -117,10 +132,9 @@ class Model(nn.Module):
         return self.encoder(self.src_embed(src), src_length, src_mask)
 
     def decode(self, encoder_output, encoder_hidden, src_mask, trg_input,
-               unrol_steps, decoder_hidden=None):
+               unrol_steps, decoder_hidden=None, trg_mask=None):
         """
         Decode, given an encoded source sentence.
-        # TODO adapt to transformer
 
         :param encoder_output:
         :param encoder_hidden:
@@ -135,7 +149,8 @@ class Model(nn.Module):
                             encoder_hidden=encoder_hidden,
                             src_mask=src_mask,
                             unrol_steps=unrol_steps,
-                            hidden=decoder_hidden)
+                            hidden=decoder_hidden,
+                            trg_mask=trg_mask)
 
     def get_loss_for_batch(self, batch, criterion):
         """
@@ -147,7 +162,8 @@ class Model(nn.Module):
         """
         out, hidden, att_probs, _ = self.forward(
             src=batch.src, trg_input=batch.trg_input,
-            src_mask=batch.src_mask, src_lengths=batch.src_lengths)
+            src_mask=batch.src_mask, src_lengths=batch.src_lengths,
+            trg_mask=batch.trg_mask)
 
         # compute log probs
         log_probs = F.log_softmax(out, dim=-1)
@@ -183,7 +199,7 @@ class Model(nn.Module):
                 encoder_hidden=encoder_hidden, encoder_output=encoder_output,
                 src_mask=batch.src_mask, embed=self.trg_embed,
                 bos_index=self.bos_index, decoder=self.decoder,
-                max_output_length=max_output_length)
+                max_output_length=max_output_length, trg_mask=batch.trg_mask)
             # batch, time, max_src_length
         else:  # beam size
             stacked_output, stacked_attention_scores = \
@@ -193,7 +209,7 @@ class Model(nn.Module):
                             max_output_length=max_output_length,
                             alpha=beam_alpha, eos_index=self.eos_index,
                             pad_index=self.pad_index, bos_index=self.bos_index,
-                            decoder=self.decoder)
+                            decoder=self.decoder, trg_mask=batch.trg_mask)
 
         return stacked_output, stacked_attention_scores
 

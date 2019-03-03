@@ -477,7 +477,7 @@ def train(cfg_file):
                   logging_function=trainer.logger.info)
     model.log_parameters_list(logging_function=trainer.logger.info)
 
-    logging.info(model)
+    trainer.logger.info(str(model))
 
     # store the vocabs
     src_vocab_file = "{}/src_vocab.txt".format(cfg["training"]["model_dir"])
