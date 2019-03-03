@@ -38,7 +38,7 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_reverse_001"
+    model_dir: "transformer_reverse_003"
     overwrite: True
     shuffle: True
     use_cuda: False
@@ -47,17 +47,19 @@ training:
 
 model:
     initializer: "xavier"
-    embed_initializer: "xavier"
-    embed_init_weight: 0.1
+    # embedding init matters a lot! should investigate
+    embed_initializer: "normal"
+    embed_init_weight: 0.05
     bias_initializer: "zeros"
     encoder:
         type: "transformer"
         num_layers: 2
         num_heads: 8
         embeddings:
-            embedding_dim: 128
+            embedding_dim: 64
             scale: True
-        hidden_size: 128
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
         ff_size: 256
         dropout: 0.1
     decoder:
@@ -65,8 +67,9 @@ model:
         num_layers: 2
         num_heads: 8
         embeddings:
-            embedding_dim: 128
+            embedding_dim: 64
             scale: True
-        hidden_size: 128
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
         ff_size: 256
         dropout: 0.1
