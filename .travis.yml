@@ -3,7 +3,7 @@ python:
   - "3.6"
 # command to install dependencies
 install:
-  - pip install --progress-bar off -r requirements.txt
+  - pip install -r requirements.txt --progress-bar off
 # command to run tests
 script:
   - pytest
