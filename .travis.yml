@@ -1,9 +1,13 @@
 language: python
 python:
   - "3.6"
+before_install:
+  # Install CPU version of PyTorch.
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install https://download.pytorch.org/whl/cpu/torch-0.4.1-cp36-cp36m-linux_x86_64.whl; fi
+  - pip install -r requirements.txt
 # command to install dependencies
-install:
-  - pip install -r requirements.txt &2> log.txt
+#install:
+#  - pip install -r requirements.txt
 # command to run tests
 script:
   - pytest
