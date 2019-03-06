@@ -27,5 +27,4 @@ setup(
     'console_scripts': [
     ],
   }
-  packages=['joeynmt', 'joeynmt.tests']
 )
