@@ -59,6 +59,10 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](htt
 2. Install the requirements:
 `cd joeynmt`
 `pip3 install -r requirements.txt` (you might want to add `--user` for a local installation).
+3. Install joeynmt:
+`python3 setup.py install`
+4. Run the unit tests:
+`python3 -m unittest`
 
 
 ## Usage
