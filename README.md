@@ -1,4 +1,6 @@
 # &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
+[![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=master)](https://travis-ci.org/joeynmt/joeynmt)
+
 
 ## Goal and Purpose
 Joey NMT framework is developed for educational purposes. 
