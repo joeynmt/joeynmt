@@ -100,12 +100,78 @@ class RecurrentDecoder(Decoder):
         if freeze:
             freeze_params(self)
 
+    def _check_shapes_input_forward_step(self,
+                                         prev_embed: Tensor,
+                                         prev_att_vector: Tensor,
+                                         encoder_output: Tensor,
+                                         src_mask: Tensor,
+                                         hidden: Tensor):
+        """
+        Make sure the input shapes to `self._forward_step` are correct.
+        Same inputs as `self._forward_step`.
+
+        :param prev_embed:
+        :param prev_att_vector:
+        :param encoder_output:
+        :param src_mask:
+        :param hidden:
+        :return:
+        """
+        assert prev_embed.shape[1:] == torch.Size([1, self.emb_size])
+        assert prev_att_vector.shape[1:] == torch.Size(
+            [1, self.hidden_size])
+        assert prev_att_vector.shape[0] == prev_embed.shape[0]
+        assert encoder_output.shape[0] == prev_embed.shape[0]
+        assert len(encoder_output.shape) == 3
+        assert src_mask.shape[0] == prev_embed.shape[0]
+        assert src_mask.shape[1] == 1
+        assert src_mask.shape[2] == encoder_output.shape[1]
+        assert hidden.shape[0] == self.num_layers
+        assert hidden.shape[1] == prev_embed.shape[0]
+        assert hidden.shape[2] == self.hidden_size
+
+    def _check_shapes_input_forward(self,
+                                    trg_embed: Tensor,
+                                    encoder_output: Tensor,
+                                    encoder_hidden: Tensor,
+                                    src_mask: Tensor,
+                                    hidden: Tensor = None,
+                                    prev_att_vector: Tensor = None):
+        """
+        Make sure that inputs to `self.forward` are of correct shape.
+        Same input semantics as for `self.forward`.
+
+        :param trg_embed:
+        :param encoder_output:
+        :param encoder_hidden:
+        :param src_mask:
+        :param hidden:
+        :param prev_att_vector:
+        :return:
+        """
+        assert len(encoder_output.shape) == 3
+        assert len(encoder_hidden.shape) == 2
+        assert encoder_hidden.shape[0] == encoder_output.shape[0]
+        assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
+        assert src_mask.shape[1] == 1
+        assert src_mask.shape[0] == encoder_output.shape[0]
+        assert src_mask.shape[2] == encoder_output.shape[1]
+        assert trg_embed.shape[0] == encoder_output.shape[0]
+        assert trg_embed.shape[2] == self.emb_size
+        if hidden is not None:
+            assert hidden.shape[1] == encoder_output.shape[0]
+            assert hidden.shape[2] == self.hidden_size
+        if prev_att_vector is not None:
+            assert prev_att_vector.shape[0] == encoder_output.shape[0]
+            assert prev_att_vector.shape[2] == self.hidden_size
+            assert prev_att_vector.shape[1] == 1
+
     def _forward_step(self,
-                      prev_embed: Tensor = None,
-                      prev_att_vector: Tensor = None,  # context or att vector
-                      encoder_output: Tensor = None,
-                      src_mask: Tensor = None,
-                      hidden: Tensor = None):
+                      prev_embed: Tensor,
+                      prev_att_vector: Tensor,  # context or att vector
+                      encoder_output: Tensor,
+                      src_mask: Tensor,
+                      hidden: Tensor):
         """
         Perform a single decoder step (1 token).
 
@@ -130,17 +196,11 @@ class RecurrentDecoder(Decoder):
         """
 
         # shape checks
-        assert prev_embed.shape[1:] == torch.Size([1, self.emb_size])
-        assert prev_att_vector.shape[1:] == torch.Size([1, self.hidden_size])
-        assert prev_att_vector.shape[0] == prev_embed.shape[0]
-        assert encoder_output.shape[0] == prev_embed.shape[0]
-        assert len(encoder_output.shape) == 3
-        assert src_mask.shape[0] == prev_embed.shape[0]
-        assert src_mask.shape[1] == 1
-        assert src_mask.shape[2] == encoder_output.shape[1]
-        assert hidden.shape[0] == self.num_layers
-        assert hidden.shape[1] == prev_embed.shape[0]
-        assert hidden.shape[2] == self.hidden_size
+        self._check_shapes_input_forward_step(prev_embed = prev_embed,
+                                              prev_att_vector = prev_att_vector,
+                                              encoder_output = encoder_output,
+                                              src_mask = src_mask,
+                                              hidden = hidden)
 
         if self.input_feeding:
             # concatenate the input with the previous attention vector
@@ -233,22 +293,13 @@ class RecurrentDecoder(Decoder):
         """
 
         # shape checks
-        assert len(encoder_output.shape) == 3
-        assert len(encoder_hidden.shape) == 2
-        assert encoder_hidden.shape[0] == encoder_output.shape[0]
-        assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
-        assert src_mask.shape[1] == 1
-        assert src_mask.shape[0] == encoder_output.shape[0]
-        assert src_mask.shape[2] == encoder_output.shape[1]
-        assert trg_embed.shape[0] == encoder_output.shape[0]
-        assert trg_embed.shape[2] == self.emb_size
-        if hidden is not None:
-            assert hidden.shape[1] == encoder_output.shape[0]
-            assert hidden.shape[2] == self.hidden_size
-        if prev_att_vector is not None:
-            assert prev_att_vector.shape[0] == encoder_output.shape[0]
-            assert prev_att_vector.shape[2] == self.hidden_size
-            assert prev_att_vector.shape[1] == 1
+        self._check_shapes_input_forward(
+            trg_embed = trg_embed,
+            encoder_output = encoder_output,
+            encoder_hidden = encoder_hidden,
+            src_mask = src_mask,
+            hidden = hidden,
+            prev_att_vector = prev_att_vector)
 
         # initialize decoder hidden state from final encoder hidden state
         if hidden is None:

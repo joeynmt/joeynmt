@@ -1,7 +1,9 @@
 # coding: utf-8
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 from joeynmt.helpers import freeze_params
 
 """
@@ -52,6 +54,7 @@ class RecurrentEncoder(Encoder):
 
         self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
         self.type = type
+        self.emb_size = emb_size
 
         rnn = nn.GRU if type == "gru" else nn.LSTM
 
@@ -65,18 +68,37 @@ class RecurrentEncoder(Encoder):
         if freeze:
             freeze_params(self)
 
-    def forward(self, x, x_length, mask):
+    def _check_shapes_input_forward(self, x: Tensor, x_length: Tensor,
+                                    mask: Tensor):
         """
-        Applies a bidirectional RNN to sequence of embeddings x.
-        The input mini-batch x needs to be sorted by src length.
-        x should have dimensions [batch, time, dim].
-        The masks indicates padding areas (zeros where padding).
+        Make sure the shape of the inputs to `self.forward` are correct.
+        Same input semantics as `self.forward`.
 
         :param x:
         :param x_length:
         :param mask:
         :return:
         """
+        assert x.shape[0] == x_length.shape[0]
+        assert x.shape[2] == self.emb_size
+        assert mask.shape == x.shape
+        assert len(x_length.shape) == 1
+
+    def forward(self, x: Tensor, x_length: Tensor, mask: Tensor):
+        """
+        Applies a bidirectional RNN to sequence of embeddings x.
+        The input mini-batch x needs to be sorted by src length.
+        x and mask should have the same dimensions [batch, time, dim].
+
+        :param x: embedded src inputs, shape (batch_size, src_len, embed_size)
+        :param x_length: length of src inputs (counting tokens before padding),
+        shape (batch_size)
+        :param mask: indicates padding areas (zeros where padding), shape
+        (batch_size, src_len, embed_size)
+        :return:
+        """
+        self._check_shapes_input_forward(x=x, x_length=x_length, mask=mask)
+
         # apply dropout ot the rnn input
         x = self.rnn_input_dropout(x)
 
