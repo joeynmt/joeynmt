@@ -68,7 +68,7 @@ class TestRecurrentDecoder(TensorTestCase):
     def test_recurrent_decoder_type(self):
         valid_rnn_types = {"gru": GRU, "lstm": LSTM}
         for name, obj in valid_rnn_types.items():
-            decoder = RecurrentDecoder(type=name,
+            decoder = RecurrentDecoder(rnn_type=name,
                                        hidden_size=self.hidden_size,
                                        encoder=self.encoders[0],
                                        attention="bahdanau",

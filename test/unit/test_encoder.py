@@ -32,7 +32,7 @@ class TestRecurrentEncoder(TensorTestCase):
     def test_recurrent_encoder_type(self):
         valid_rnn_types = {"gru": GRU, "lstm": LSTM}
         for name, obj in valid_rnn_types.items():
-            encoder = RecurrentEncoder(type=name)
+            encoder = RecurrentEncoder(rnn_type=name)
             self.assertEqual(type(encoder.rnn), obj)
 
     def test_recurrent_input_dropout(self):
@@ -74,7 +74,7 @@ class TestRecurrentEncoder(TensorTestCase):
         # no padding, no mask
         x_length = torch.Tensor([time_dim]*batch_size).int()
         mask = torch.ones_like(x)
-        output, hidden = encoder(x=x, x_length=x_length, mask=mask)
+        output, hidden = encoder(embed_src=x, src_length=x_length, mask=mask)
         self.assertEqual(output.shape, torch.Size(
             [batch_size, time_dim, directions*self.hidden_size]))
         self.assertEqual(hidden.shape, torch.Size(
