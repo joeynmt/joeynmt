@@ -110,7 +110,7 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
     scale_src_emb = cfg["encoder"]["embeddings"].get("scale", False)
     scale_trg_emb = cfg["decoder"]["embeddings"].get("scale", False)
 
-    # pylint: disable=unnecessary-lambda
+    # pylint: disable=unnecessary-lambda, no-else-return
     def _parse_init(s, scale):
         scale = float(scale)
         assert scale > 0., "incorrect init_weight"

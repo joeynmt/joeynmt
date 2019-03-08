@@ -56,6 +56,7 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     return stacked_output, stacked_attention_scores
 
 
+# pylint: disable=too-many-statements
 def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
                 pad_index: int, encoder_output: Tensor,
                 encoder_hidden: Tensor, src_mask: Tensor,
