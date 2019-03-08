@@ -6,6 +6,7 @@ from joeynmt.attention import BahdanauAttention, LuongAttention, AttentionMechan
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params
 
+
 # TODO make general decoder class
 class Decoder(nn.Module):
     pass
@@ -29,22 +30,21 @@ class RecurrentDecoder(Decoder):
                  freeze: bool = False,
                  **kwargs):
         """
-        Create a recurrent decoder.
-        If `bridge` is True, the decoder hidden states are initialized from a
-        projection of the encoder states, else they are initialized with zeros.
+        Create a recurrent decoder with attention.
 
-        :param type:
-        :param emb_size:
-        :param hidden_size:
-        :param encoder:
-        :param attention:
-        :param num_layers:
-        :param vocab_size:
-        :param dropout:
-        :param hidden_dropout:
-        :param bridge:
-        :param input_feeding:
-        :param freeze: freeze the parameters of the decoder during training
+        :param type: rnn type, valid options: "lstm", "gru"
+        :param emb_size: target embedding size
+        :param hidden_size: size of the RNN
+        :param encoder: encoder connected to this decoder
+        :param attention: type of attention, valid options: "bahdanau", "luong"
+        :param num_layers: number of recurrent layers
+        :param vocab_size: target vocabulary size
+        :param hidden_dropout: Is applied to the input to the attentional layer.
+        :param dropout: Is applied to the input to the RNN.
+        :param bridge: If True, the decoder hidden states are initialized from a
+        projection of the encoder states, else they are initialized with zeros.
+        :param input_feeding: Use Luong's input feeding.
+        :param freeze: Freeze the parameters of the decoder during training.
         :param kwargs:
         """
 
@@ -54,6 +54,7 @@ class RecurrentDecoder(Decoder):
         self.type = type
         self.hidden_dropout = torch.nn.Dropout(p=hidden_dropout, inplace=False)
         self.hidden_size = hidden_size
+        self.emb_size = emb_size
 
         rnn = nn.GRU if type == "gru" else nn.LSTM
 
@@ -106,24 +107,43 @@ class RecurrentDecoder(Decoder):
                       src_mask: Tensor = None,
                       hidden: Tensor = None):
         """
-        Perform a single decoder step (1 word)
+        Perform a single decoder step (1 token).
 
-        :param prev_embed:
-        :param prev_att_vector:
-        :param encoder_output:
-        :param src_mask:
-        :param hidden:
-        :return:
+        1. `rnn_input`: concat(prev_embed, prev_att_vector [possibly empty])
+        2. update RNN with `rnn_input`
+        3. calculate attention and context/attention vector
+
+        :param prev_embed: embedded previous token,
+        shape (batch_size, 1, embed_size)
+        :param prev_att_vector: previous attention vector,
+        shape (batch_size, 1, hidden_size)
+        :param encoder_output: encoder hidden states for attention context,
+        shape (batch_size, src_length, encoder.output_size)
+        :param src_mask: src mask, 1s for area before <eos>, 0s elsewhere
+        shape (batch_size, 1, src_length)
+        :param hidden: previous hidden state,
+        shape (num_layers, batch_size, hidden_size)
+        :return: att_vector: new attention vector with
+        shape (batch_size, 1, hidden_size),
+        hidden: new hidden state with shape (batch_size, 1, hidden_size),
+        att_probs: attention probabilities with shape (batch_size, 1, src_len)
         """
 
-        # loop:
-        # 1. rnn input = concat(prev_embed, prev_output [possibly empty])
-        # 2. update RNN with rnn_input
-        # 3. calculate attention and context/attention vector
-        # 4. repeat
+        # shape checks
+        assert prev_embed.shape[1:] == torch.Size([1, self.emb_size])
+        assert prev_att_vector.shape[1:] == torch.Size([1, self.hidden_size])
+        assert prev_att_vector.shape[0] == prev_embed.shape[0]
+        assert encoder_output.shape[0] == prev_embed.shape[0]
+        assert len(encoder_output.shape) == 3
+        assert src_mask.shape[0] == prev_embed.shape[0]
+        assert src_mask.shape[1] == 1
+        assert src_mask.shape[2] == encoder_output.shape[1]
+        assert hidden.shape[0] == self.num_layers
+        assert hidden.shape[1] == prev_embed.shape[0]
+        assert hidden.shape[2] == self.hidden_size
 
-        # update rnn hidden state
         if self.input_feeding:
+            # concatenate the input with the previous attention vector
             rnn_input = torch.cat([prev_embed, prev_att_vector], dim=2)
         else:
             rnn_input = prev_embed
@@ -148,32 +168,91 @@ class RecurrentDecoder(Decoder):
         # return attention vector (Luong)
         # combine context with decoder hidden state before prediction
         att_vector_input = torch.cat([query, context], dim=2)
+        # batch x 1 x 2*enc_size+hidden_size
         att_vector_input = self.hidden_dropout(att_vector_input)
 
-        # batch x 1 x 2*enc_size+hidden_size
         att_vector = torch.tanh(self.att_vector_layer(att_vector_input))
 
-        # output: batch x 1 x dec_size
+        # output: batch x 1 x hidden_size
         return att_vector, hidden, att_probs
 
-    def forward(self, trg_embed, encoder_output, encoder_hidden,
-                src_mask, unrol_steps, hidden=None, prev_att_vector=None):
+    def forward(self,
+                trg_embed: Tensor,
+                encoder_output: Tensor,
+                encoder_hidden: Tensor,
+                src_mask: Tensor,
+                unrol_steps: int,
+                hidden: Tensor = None,
+                prev_att_vector: Tensor = None):
         """
          Unroll the decoder one step at a time for `unrol_steps` steps.
+         For every step, the `_forward_step` function is called internally.
 
-        :param trg_embed:
-        :param encoder_output:
-        :param encoder_hidden:
-        :param src_mask:
-        :param unrol_steps:
-        :param hidden:
-        :param prev_att_vector:
-        :return:
+         During training, the target inputs (`trg_embed') are already known for
+         the full sequence, so the full unrol is done.
+         In this case, `hidden` and `prev_att_vector` are None.
+
+         For inference, this function is called with one step at a time since
+         embedded targets are the predictions from the previous time step.
+         In this case, `hidden` and `prev_att_vector` are fed from the output
+         of the previous call of this function (from the 2nd step on).
+
+         `src_mask` is needed to mask out the areas of the encoder states that
+         should not receive any attention,
+         which is everything after the first <eos>.
+
+         The `encoder_output` are the hidden states from the encoder and are
+         used as context for the attention.
+
+         The `encoder_hidden` is the last encoder hidden state that is used to
+         initialize the first hidden decoder state
+         (in case of `self.bridge == True`).
+
+        :param trg_embed: emdedded target inputs,
+        shape (batch_size, trg_length, embed_size)
+        :param encoder_output: hidden states from the encoder,
+         shape (batch_size, src_length, encoder.output_size)
+        :param encoder_hidden: last state from the encoder, shape
+        (batch_size x encoder.output_size)
+        :param src_mask: mask for src states: 0s for padded areas,
+        1s for the rest, shape (batch_size, 1, src_length)
+        :param unrol_steps: number of steps to unrol the decoder RNN
+        :param hidden: previous decoder hidden state,
+        if not given it's initialized as in `self.init_hidden`,
+        shape (num_layers, batch_size, hidden_size)
+        :param prev_att_vector: previous attentional vector,
+        if not given it's initialized with zeros,
+        shape (batch_size, 1, hidden_size)
+        :return: outputs: shape (batch_size, unrol_steps, vocab_size),
+        hidden: last hidden state with shape
+        (num_layers, batch_size, hidden_size),
+        att_probs: attention probabilities with
+        shape (batch_size, unrol_steps, src_length),
+        att_vectors: attentional vectors with shape
+        (batch_size, unrol_steps, hidden_size)
         """
+
+        # shape checks
+        assert len(encoder_output.shape) == 3
+        assert len(encoder_hidden.shape) == 2
+        assert encoder_hidden.shape[0] == encoder_output.shape[0]
+        assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
+        assert src_mask.shape[1] == 1
+        assert src_mask.shape[0] == encoder_output.shape[0]
+        assert src_mask.shape[2] == encoder_output.shape[1]
+        assert trg_embed.shape[0] == encoder_output.shape[0]
+        assert trg_embed.shape[2] == self.emb_size
+        if hidden is not None:
+            assert hidden.shape[1] == encoder_output.shape[0]
+            assert hidden.shape[2] == self.hidden_size
+        if prev_att_vector is not None:
+            assert prev_att_vector.shape[0] == encoder_output.shape[0]
+            assert prev_att_vector.shape[2] == self.hidden_size
+            assert prev_att_vector.shape[1] == 1
 
         # initialize decoder hidden state from final encoder hidden state
         if hidden is None:
-            hidden = self.init_hidden(encoder_hidden)
+            hidden = self._init_hidden(encoder_hidden)
 
         # pre-compute projected encoder outputs
         # (the "keys" for the attention mechanism)
@@ -192,7 +271,7 @@ class RecurrentDecoder(Decoder):
                 prev_att_vector = encoder_output.new_zeros(
                     [batch_size, 1, self.hidden_size])
 
-        # unroll the decoder RN N for max_len steps
+        # unroll the decoder RNN for `unrol_steps` steps
         for i in range(unrol_steps):
             prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             prev_att_vector, hidden, att_prob = self._forward_step(
@@ -205,19 +284,30 @@ class RecurrentDecoder(Decoder):
             att_probs.append(att_prob)
 
         att_vectors = torch.cat(att_vectors, dim=1)
+        # att_vectos: batch, unrol_steps, hidden_size
         att_probs = torch.cat(att_probs, dim=1)
-        # att_probs: batch, max_len, src_length
+        # att_probs: batch, unrol_steps, src_length
         outputs = self.output_layer(att_vectors)
-        # outputs: batch, max_len, vocab_size
+        # outputs: batch, unrol_steps, vocab_size
         return outputs, hidden, att_probs, att_vectors
 
-    def init_hidden(self, encoder_final):
+    def _init_hidden(self,
+                     encoder_final: Tensor = None):
         """
         Returns the initial decoder state,
         conditioned on the final encoder state of the last encoder layer.
 
-        :param encoder_final:
-        :return:
+        In case of `self.bridge == True` and a given `encoder_final`,
+        this is a projection of the encoder state.
+        For LSTMs we initialize both the hidden state and the memory cell
+        with the same projection of the encoder hidden state.
+
+        Otherwise it is initialized with zeros.
+
+        :param encoder_final: final state from the last layer of the encoder,
+        shape (batch_size, encoder_hidden_size)
+        :return: hidden state if GRU, (hidden state, memory cell) if LSTM,
+        shape (batch_size, hidden_size)
         """
         batch_size = encoder_final.size(0)
 
