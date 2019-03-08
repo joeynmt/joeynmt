@@ -1,7 +1,15 @@
 # coding: utf-8
-import torch.nn as nn
-import torch.nn.functional as F
+"""
+Module to represents whole models
+"""
+
+from typing import Callable
 import numpy as np
+
+import torch.nn as nn
+from torch import Tensor
+import torch.nn.functional as F
+
 from joeynmt.initialization import initialize_model
 from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder
@@ -9,6 +17,7 @@ from joeynmt.decoders import Decoder, RecurrentDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
 from joeynmt.search import beam_search, greedy
 from joeynmt.vocabulary import Vocabulary
+from joeynmt.batch import Batch
 
 
 def build_model(cfg: dict = None,
@@ -83,7 +92,9 @@ class Model(nn.Module):
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
 
-    def forward(self, src, trg_input, src_mask, src_lengths):
+    #pylint: disable=arguments-differ
+    def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
+                src_lengths: Tensor):
         """
         Take in and process masked src and target sequences.
         Use the encoder hidden state to initialize the decoder
@@ -104,7 +115,7 @@ class Model(nn.Module):
                            src_mask=src_mask, trg_input=trg_input,
                            unrol_steps=unrol_steps)
 
-    def encode(self, src, src_length, src_mask):
+    def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor):
         """
         Encodes the source sentence.
         TODO adapt to transformer
@@ -116,11 +127,11 @@ class Model(nn.Module):
         """
         return self.encoder(self.src_embed(src), src_length, src_mask)
 
-    def decode(self, encoder_output, encoder_hidden, src_mask, trg_input,
-               unrol_steps, decoder_hidden=None):
+    def decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
+               src_mask: Tensor, trg_input: Tensor,
+               unrol_steps: int, decoder_hidden: Tensor = None):
         """
         Decode, given an encoded source sentence.
-        # TODO adapt to transformer
 
         :param encoder_output:
         :param encoder_hidden:
@@ -137,7 +148,7 @@ class Model(nn.Module):
                             unrol_steps=unrol_steps,
                             hidden=decoder_hidden)
 
-    def get_loss_for_batch(self, batch, criterion):
+    def get_loss_for_batch(self, batch: Batch, criterion: nn.Module):
         """
         Compute non-normalized loss and number of tokens for a batch
 
@@ -145,6 +156,7 @@ class Model(nn.Module):
         :param criterion:
         :return:
         """
+        #pylint: disable=unused-variable
         out, hidden, att_probs, _ = self.forward(
             src=batch.src, trg_input=batch.trg_input,
             src_mask=batch.src_mask, src_lengths=batch.src_lengths)
@@ -159,7 +171,8 @@ class Model(nn.Module):
         # return batch loss = sum over all elements in batch that are not pad
         return batch_loss
 
-    def run_batch(self, batch, max_output_length, beam_size, beam_alpha):
+    def run_batch(self, batch: Batch, max_output_length: int, beam_size: int,
+                  beam_alpha: float):
         """
         Get outputs and attentions scores for a given batch
 
@@ -212,7 +225,7 @@ class Model(nn.Module):
                    str(self.decoder),
                    self.src_embed, self.trg_embed)
 
-    def log_parameters_list(self, logging_function):
+    def log_parameters_list(self, logging_function: Callable[[str], None]):
         """
         Write all parameters (name, shape) to the log.
 

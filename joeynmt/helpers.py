@@ -1,18 +1,25 @@
 # coding: utf-8
-
+"""
+Collection of helper functions
+"""
 import copy
-import torch
-from torch import nn
-import numpy as np
-import yaml
 import glob
 import os
-from collections import Counter
 import os.path
 import sys
+from collections import Counter
+from logging import Logger
+from typing import Callable
+import numpy as np
+import yaml
+
+
+import torch
+from torch import nn
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
+from torchtext.data import Dataset
 
 from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
     EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
@@ -20,13 +27,13 @@ from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
 
-def log_cfg(cfg, logger, prefix="cfg"):
+def log_cfg(cfg: dict, logger: Logger, prefix: str = "cfg"):
     """
     Write configuration to log.
 
-    :param cfg:
-    :param logger:
-    :param prefix:
+    :param cfg: configuration to log
+    :param logger: logger that defines where log is written to
+    :param prefix: prefix for logging
     :return:
     """
     for k, v in cfg.items():
@@ -38,15 +45,16 @@ def log_cfg(cfg, logger, prefix="cfg"):
             logger.info("{:34s} : {}".format(p, v))
 
 
-def build_vocab(field, max_size, min_freq, data, vocab_file=None):
+def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
+                vocab_file: str = None):
     """
-    Builds vocabulary for a torchtext `field`
+    Builds vocabulary for a torchtext `field`.
 
-    :param field:
-    :param max_size:
-    :param min_freq:
-    :param data:
-    :param vocab_file:
+    :param field: attribute e.g. "src"
+    :param max_size: maximum size of vocabulary
+    :param min_freq: minimum frequency for an item to be included
+    :param dataset: dataset to load data for field from
+    :param vocab_file: file to store the vocabulary
     :return:
     """
 
@@ -62,7 +70,7 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
         def filter_min(counter, min_freq):
             """ Filter counter by min frequency """
             filtered_counter = Counter({t: c for t, c in counter.items()
-                                   if c >= min_freq})
+                                        if c >= min_freq})
             return filtered_counter
 
         def sort_and_cut(counter, limit):
@@ -76,7 +84,7 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
             return vocab_tokens
 
         tokens = []
-        for i in data.examples:
+        for i in dataset.examples:
             if field == "src":
                 tokens.extend(i.src)
             elif field == "trg":
@@ -97,14 +105,14 @@ def build_vocab(field, max_size, min_freq, data, vocab_file=None):
     return vocab
 
 
-def array_to_sentence(array, vocabulary, cut_at_eos=True):
+def array_to_sentence(array: np.array, vocabulary: Vocabulary, cut_at_eos=True):
     """
     Converts an array of IDs to a sentence, optionally cutting the result
     off at the end-of-sequence token.
 
-    :param array:
-    :param vocabulary:
-    :param cut_at_eos:
+    :param array: 1D array containing indices
+    :param vocabulary: defines mapping of indices to tokens
+    :param cut_at_eos: cut the decoded sentences at the first <eos>
     :return:
     """
     sentence = []
@@ -116,14 +124,15 @@ def array_to_sentence(array, vocabulary, cut_at_eos=True):
     return sentence
 
 
-def arrays_to_sentences(arrays, vocabulary, cut_at_eos=True):
+def arrays_to_sentences(arrays: np.array, vocabulary: Vocabulary,
+                        cut_at_eos=True):
     """
     Convert multiple arrays containing sequences of token IDs to their
     sentences, optionally cutting them off at the end-of-sequence token.
 
-    :param arrays:
-    :param vocabulary:
-    :param cut_at_eos:
+    :param arrays: 2D array containing indices
+    :param vocabulary: defines mapping of indices to tokens
+    :param cut_at_eos: cut the decoded sentences at the first <eos>
     :return:
     """
     sentences = []
@@ -134,18 +143,18 @@ def arrays_to_sentences(arrays, vocabulary, cut_at_eos=True):
     return sentences
 
 
-def clones(module, N):
+def clones(module: nn.Module, n: int):
     """
     Produce N identical layers. Transformer helper function.
 
     :param module: the module to clone
-    :param N: clone this many times
+    :param n: clone this many times
     :return:
     """
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(n)])
 
 
-def subsequent_mask(size):
+def subsequent_mask(size: int):
     """
     Mask out subsequent positions (to prevent attending to future positions)
     Transformer helper function.
@@ -158,8 +167,9 @@ def subsequent_mask(size):
     return torch.from_numpy(mask) == 0
 
 
-def log_data_info(train_data, valid_data, test_data, src_vocab, trg_vocab,
-                  logging_function):
+def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
+                  src_vocab: Vocabulary, trg_vocab: Vocabulary,
+                  logging_function: Callable[[str], None]):
     """
     Log statistics of data and vocabulary.
 
@@ -171,20 +181,22 @@ def log_data_info(train_data, valid_data, test_data, src_vocab, trg_vocab,
     :param logging_function:
     :return:
     """
-    logging_function("Data set sizes: \n\ttrain {},\n\tvalid {},\n\ttest {}".format(
-        len(train_data), len(valid_data), len(test_data) if test_data is not None else "N/A"))
+    logging_function(
+        "Data set sizes: \n\ttrain %d,\n\tvalid %d,\n\ttest %d",
+            len(train_data), len(valid_data),
+            len(test_data) if test_data is not None else 0)
 
-    logging_function("First training example:\n\t[SRC] {}\n\t[TRG] {}".format(
+    logging_function("First training example:\n\t[SRC] %s\n\t[TRG] %s",
         " ".join(vars(train_data[0])['src']),
-        " ".join(vars(train_data[0])['trg'])))
+        " ".join(vars(train_data[0])['trg']))
 
-    logging_function("First 10 words (src): {}".format(" ".join(
-        '(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10]))))
-    logging_function("First 10 words (trg): {}".format(" ".join(
-        '(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10]))))
+    logging_function("First 10 words (src): %s", " ".join(
+        '(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10])))
+    logging_function("First 10 words (trg): %s", " ".join(
+        '(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10])))
 
-    logging_function("Number of Src words (types): {}".format(len(src_vocab)))
-    logging_function("Number of Trg words (types): {}".format(len(trg_vocab)))
+    logging_function("Number of Src words (types): %d", len(src_vocab))
+    logging_function("Number of Trg words (types): %d", len(trg_vocab))
 
 
 def load_data(cfg):
@@ -205,6 +217,7 @@ def load_data(cfg):
     lowercase = data_cfg["lowercase"]
     max_sent_length = data_cfg["max_sent_length"]
 
+    #pylint: disable=unnecessary-lambda
     if level == "char":
         tok_fun = lambda s: list(s)
     else:  # bpe or word, pre-tokenized
@@ -221,30 +234,32 @@ def load_data(cfg):
                            unk_token=UNK_TOKEN,
                            batch_first=True, lower=lowercase,
                            include_lengths=True)
+
     train_data = TranslationDataset(path=train_path,
                                     exts=("." + src_lang, "." + trg_lang),
                                     fields=(src_field, trg_field),
                                     filter_pred=
                                     lambda x: len(vars(x)['src'])
-                                              <= max_sent_length and
-                                              len(vars(x)['trg'])
-                                              <= max_sent_length)
+                                    <= max_sent_length
+                                    and len(vars(x)['trg'])
+                                    <= max_sent_length)
+
     max_size = data_cfg.get("voc_limit", sys.maxsize)
     min_freq = data_cfg.get("voc_min_freq", 1)
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
 
     src_vocab = build_vocab(field="src", min_freq=min_freq, max_size=max_size,
-                            data=train_data, vocab_file=src_vocab_file)
+                            dataset=train_data, vocab_file=src_vocab_file)
     trg_vocab = build_vocab(field="trg", min_freq=min_freq, max_size=max_size,
-                            data=train_data, vocab_file=trg_vocab_file)
+                            dataset=train_data, vocab_file=trg_vocab_file)
     dev_data = TranslationDataset(path=dev_path,
                                   exts=("." + src_lang, "." + trg_lang),
                                   fields=(src_field, trg_field))
     test_data = None
     if test_path is not None:
         # check if target exists
-        if os.path.isfile(test_path+"."+trg_lang):
+        if os.path.isfile(test_path + "." + trg_lang):
             test_data = TranslationDataset(
                 path=test_path, exts=("." + src_lang, "." + trg_lang),
                 fields=(src_field, trg_field))
@@ -258,8 +273,13 @@ def load_data(cfg):
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
-class MonoDataset(TranslationDataset):
+class MonoDataset(Dataset):
     """Defines a dataset for machine translation without targets."""
+
+
+    @staticmethod
+    def sort_key(ex):
+        return len(ex.src)
 
     def __init__(self, path, ext, field, **kwargs):
         """Create a MonoDataset given path and field.
@@ -283,7 +303,7 @@ class MonoDataset(TranslationDataset):
                     examples.append(data.Example.fromlist(
                         [src_line], fields))
 
-        super(TranslationDataset, self).__init__(examples, fields, **kwargs)
+        super(MonoDataset, self).__init__(examples, fields, **kwargs)
 
 
 def load_config(path="configs/default.yaml"):
@@ -327,7 +347,8 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
         attention_scores = attentions[i].T
         try:
             plot_heatmap(scores=attention_scores, column_labels=trg,
-                        row_labels=src, output_path=plot_file)
+                         row_labels=src, output_path=plot_file)
+        # pylint: disable=bare-except
         except:
             print("Couldn't plot example {}: src len {}, trg len {}, "
                   "attention scores shape {}".format(i, len(src), len(trg),
@@ -335,14 +356,14 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
             continue
 
 
-def get_latest_checkpoint(dir):
+def get_latest_checkpoint(ckpt_dir):
     """
     Returns the latest checkpoint (by time) from the given directory.
 
-    :param dir:
+    :param ckpt_dir:
     :return:
     """
-    list_of_files = glob.glob("{}/*.ckpt".format(dir))
+    list_of_files = glob.glob("{}/*.ckpt".format(ckpt_dir))
     latest_file = max(list_of_files, key=os.path.getctime)
     return latest_file
 
@@ -408,11 +429,11 @@ def tile(x, count, dim=0):
     out_size[0] *= count
     batch = x.size(0)
     x = x.view(batch, -1) \
-         .transpose(0, 1) \
-         .repeat(count, 1) \
-         .transpose(0, 1) \
-         .contiguous() \
-         .view(*out_size)
+        .transpose(0, 1) \
+        .repeat(count, 1) \
+        .transpose(0, 1) \
+        .contiguous() \
+        .view(*out_size)
     if dim != 0:
         x = x.permute(perm).contiguous()
     return x
@@ -426,5 +447,5 @@ def freeze_params(module):
     :param module:
     :return:
     """
-    for n, p in module.named_parameters():
-                p.requires_grad = False
+    for _, p in module.named_parameters():
+        p.requires_grad = False

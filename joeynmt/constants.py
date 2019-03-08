@@ -1,3 +1,7 @@
+# coding: utf-8
+"""
+Defining global constants
+"""
 
 UNK_TOKEN = '<unk>'
 PAD_TOKEN = '<pad>'

@@ -1,10 +1,17 @@
 # coding: utf-8
+
+"""
+Implements custom initialization
+"""
+
+import math
+
 import torch
 import torch.nn as nn
-import math
+from torch import Tensor
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
-def orthogonal_rnn_init_(cell, gain=1):
+def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.):
     """
     Orthogonal initialization of recurrent weights
     RNN parameters contain 3 or 4 matrices in one parameter, so we slice it.
@@ -15,7 +22,7 @@ def orthogonal_rnn_init_(cell, gain=1):
                 nn.init.orthogonal_(hh.data[i:i + cell.hidden_size], gain=gain)
 
 
-def lstm_forget_gate_init_(cell, value=1.):
+def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.):
     """
     Initialize LSTM forget gates with 1.
 
@@ -30,7 +37,7 @@ def lstm_forget_gate_init_(cell, value=1.):
             hh_b.data[l // 4:l // 2].fill_(value)
 
 
-def xavier_uniform_n_(w, gain=1., n=4):
+def xavier_uniform_n_(w: Tensor, gain: float = 1., n: int = 4):
     """
     Xavier initializer for parameters that combine multiple matrices in one
     parameter for efficiency. This is e.g. used for GRU and LSTM parameters,
@@ -44,19 +51,22 @@ def xavier_uniform_n_(w, gain=1., n=4):
     with torch.no_grad():
         fan_in, fan_out = _calculate_fan_in_and_fan_out(w)
         assert fan_out % n == 0, "fan_out should be divisible by n"
-        fan_out = fan_out // n
+        fan_out //= n
         std = gain * math.sqrt(2.0 / (fan_in + fan_out))
         a = math.sqrt(3.0) * std
         nn.init.uniform_(w, -a, a)
 
 
-def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
+# pylint: disable=too-many-branches
+def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
+                     trg_padding_idx: int):
     """
     This initializes a model based on the provided config.
 
     All initializer configuration is part of the `model` section of the
     configuration file.
-    For an example, see e.g. https://github.com/joeynmt/joeynmt/blob/master/configs/iwslt_envi_xnmt.yaml#L47
+    For an example, see e.g. `https://github.com/joeynmt/joeynmt/
+    blob/master/configs/iwslt_envi_xnmt.yaml#L47`
 
     The main initializer is set using the `initializer` key.
     Possible values are `xavier`, `uniform`, `normal` or `zeros`.
@@ -100,6 +110,7 @@ def initialize_model(model, cfg, src_padding_idx, trg_padding_idx):
     scale_src_emb = cfg["encoder"]["embeddings"].get("scale", False)
     scale_trg_emb = cfg["decoder"]["embeddings"].get("scale", False)
 
+    # pylint: disable=unnecessary-lambda
     def _parse_init(s, scale):
         scale = float(scale)
         assert scale > 0., "incorrect init_weight"

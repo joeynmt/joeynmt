@@ -1,22 +1,39 @@
 # coding: utf-8
+
+"""
+Various decoders
+"""
+
 import torch
 import torch.nn as nn
 from torch import Tensor
-from joeynmt.attention import BahdanauAttention, LuongAttention, AttentionMechanism
+from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params
 
 
-# TODO make general decoder class
+#pylint: disable=abstract-method
 class Decoder(nn.Module):
-    pass
+    """
+    Base decoder class
+    """
+    @property
+    def output_size(self):
+        """
+        Return the output size
+
+        :return:
+        """
+        return self._output_size
 
 
+# pylint: disable=arguments-differ,too-many-arguments
+# pylint: disable=too-many-instance-attributes, unused-argument
 class RecurrentDecoder(Decoder):
     """A conditional RNN decoder with attention."""
 
     def __init__(self,
-                 type: str = "gru",
+                 rnn_type: str = "gru",
                  emb_size: int = 0,
                  hidden_size: int = 0,
                  encoder: Encoder = None,
@@ -32,7 +49,7 @@ class RecurrentDecoder(Decoder):
         """
         Create a recurrent decoder with attention.
 
-        :param type: rnn type, valid options: "lstm", "gru"
+        :param rnn_type: rnn type, valid options: "lstm", "gru"
         :param emb_size: target embedding size
         :param hidden_size: size of the RNN
         :param encoder: encoder connected to this decoder
@@ -51,12 +68,12 @@ class RecurrentDecoder(Decoder):
         super(RecurrentDecoder, self).__init__()
 
         self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
-        self.type = type
+        self.type = rnn_type
         self.hidden_dropout = torch.nn.Dropout(p=hidden_dropout, inplace=False)
         self.hidden_size = hidden_size
         self.emb_size = emb_size
 
-        rnn = nn.GRU if type == "gru" else nn.LSTM
+        rnn = nn.GRU if rnn_type == "gru" else nn.LSTM
 
         self.input_feeding = input_feeding
         if self.input_feeding: # Luong-style
@@ -76,7 +93,7 @@ class RecurrentDecoder(Decoder):
             hidden_size + encoder.output_size, hidden_size, bias=True)
 
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
-        self.output_size = vocab_size
+        self._output_size = vocab_size
 
         if attention == "bahdanau":
             self.attention = BahdanauAttention(hidden_size=hidden_size,
@@ -151,7 +168,8 @@ class RecurrentDecoder(Decoder):
         """
         assert len(encoder_output.shape) == 3
         assert len(encoder_hidden.shape) == 2
-        assert encoder_hidden.shape[0] == encoder_output.shape[0]
+        # for beam search, batch_size of encoder outputs is expanded beam times
+        assert not encoder_output.shape[0] % encoder_hidden.shape[0]
         assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
         assert src_mask.shape[1] == 1
         assert src_mask.shape[0] == encoder_output.shape[0]
@@ -196,11 +214,11 @@ class RecurrentDecoder(Decoder):
         """
 
         # shape checks
-        self._check_shapes_input_forward_step(prev_embed = prev_embed,
-                                              prev_att_vector = prev_att_vector,
-                                              encoder_output = encoder_output,
-                                              src_mask = src_mask,
-                                              hidden = hidden)
+        self._check_shapes_input_forward_step(prev_embed=prev_embed,
+                                              prev_att_vector=prev_att_vector,
+                                              encoder_output=encoder_output,
+                                              src_mask=src_mask,
+                                              hidden=hidden)
 
         if self.input_feeding:
             # concatenate the input with the previous attention vector
@@ -294,12 +312,12 @@ class RecurrentDecoder(Decoder):
 
         # shape checks
         self._check_shapes_input_forward(
-            trg_embed = trg_embed,
-            encoder_output = encoder_output,
-            encoder_hidden = encoder_hidden,
-            src_mask = src_mask,
-            hidden = hidden,
-            prev_att_vector = prev_att_vector)
+            trg_embed=trg_embed,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            src_mask=src_mask,
+            hidden=hidden,
+            prev_att_vector=prev_att_vector)
 
         # initialize decoder hidden state from final encoder hidden state
         if hidden is None:
@@ -309,7 +327,7 @@ class RecurrentDecoder(Decoder):
         # (the "keys" for the attention mechanism)
         # this is only done for efficiency
         if hasattr(self.attention, "compute_proj_keys"):
-            self.attention.compute_proj_keys(encoder_output)
+            self.attention.compute_proj_keys(keys=encoder_output)
 
         # here we store all intermediate attention vectors (used for prediction)
         att_vectors = []
@@ -335,7 +353,7 @@ class RecurrentDecoder(Decoder):
             att_probs.append(att_prob)
 
         att_vectors = torch.cat(att_vectors, dim=1)
-        # att_vectos: batch, unrol_steps, hidden_size
+        # att_vectors: batch, unrol_steps, hidden_size
         att_probs = torch.cat(att_probs, dim=1)
         # att_probs: batch, unrol_steps, src_length
         outputs = self.output_layer(att_vectors)
@@ -364,16 +382,17 @@ class RecurrentDecoder(Decoder):
 
         # for multiple layers: is the same for all layers
         if self.bridge and encoder_final is not None:
-            h = torch.tanh(
-                self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
-                self.num_layers, 1, 1)  # num_layers x batch_size x hidden_size
+            # num_layers x batch_size x hidden_size
+            hidden = torch.tanh(
+                    self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
+                    self.num_layers, 1, 1)
 
         else:  # initialize with zeros
             with torch.no_grad():
-                h = encoder_final.new_zeros(self.num_layers, batch_size,
-                                            self.hidden_size)
+                hidden = encoder_final.new_zeros(
+                    self.num_layers, batch_size, self.hidden_size)
 
-        return (h, h) if isinstance(self.rnn, nn.LSTM) else h
+        return (hidden, hidden) if isinstance(self.rnn, nn.LSTM) else hidden
 
     def __repr__(self):
         return "RecurrentDecoder(rnn=%r, attention=%r)" % (
