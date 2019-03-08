@@ -38,11 +38,11 @@ We aim to implement the following features (aka the minimalist toolkit of NMT):
 
 ## Coding
 In order to keep the code clean and readable, we make use of:
-- Style checks: Pylint, PEP8
-- Typing
-- Docstrings
-
-[Work in progress!]
+- Style checks: pylint with (mostly) PEP8 conventions, see `.pylintrc`.
+- Typing: Every function has documented input types.
+- Docstrings: Every function, class and module has docstrings describing their purpose and usage.
+- Unittests: Every module has unit tests, defined in `test/unit/`.
+Travis CI runs the tests and pylint on every push to ensure the repository stays clean.
 
 
 ## Teaching
@@ -200,6 +200,7 @@ Since this codebase is supposed to stay clean and minimalistic, contributions ad
 - Code cleanliness
 - Documentation quality
 - Speed or memory improvements
+- Code addressing issues
 
 Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
 
