@@ -19,7 +19,7 @@ testing:  # specify which inference algorithm to use for testing (for validation
     alpha: 1.0  # length penalty for beam search
 
 training: # specify training details here
-    #load_model: "my_model/3300.ckpt" # if given, load a pre-trained model from this checkpoint
+    load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
     random_seed: 42 # set this seed to make training deterministic
     optimizer: "adam" # choices: "sgd", "adam", default is SGD, required
     loss: "crossentropy"  # training loss, required
@@ -49,7 +49,7 @@ training: # specify training details here
 model:  # specify your model architecture here
     tied_embeddings: False  # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     encoder:
-        type: "gru" # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
+        rnn_type: "gru" # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
         embeddings:
             embedding_dim: 16 # size of embeddings
             scale: False  # scale the embeddings by sqrt of their size, default: False
@@ -60,7 +60,7 @@ model:  # specify your model architecture here
         num_layers: 3 # stack this many layers of equal size, default: 1
         freeze: False  # if True, encoder parameters are not updated during training (does not include embedding parameters)
     decoder:
-        type: "gru"
+        rnn_type: "gru"
         embeddings:
             embedding_dim: 16
             scale: False
