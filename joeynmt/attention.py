@@ -1,15 +1,20 @@
 # coding: utf-8
+"""
+Attention modules
+"""
+
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class AttentionMechanism(nn.Module):
+    """
+    Base attention class
+    """
 
-    def __init__(self):
-        super(AttentionMechanism, self).__init__()
-
-    def forward(self, *input):
+    def forward(self, *inputs):
         raise NotImplementedError("Implement this.")
 
 
@@ -36,13 +41,15 @@ class BahdanauAttention(AttentionMechanism):
         self.proj_keys = None   # to store projected keys
         self.proj_query = None  # projected query
 
-    def forward(self, query: torch.Tensor = None,
-                mask: torch.Tensor = None,
-                values: torch.Tensor = None):
+    #pylint: disable=arguments-differ
+    def forward(self, query: Tensor = None,
+                mask: Tensor = None,
+                values: Tensor = None):
         """
         Bahdanau additive attention forward pass.
 
-        :param query: the item to compare with the keys/memory (e.g. decoder state)
+        :param query: the item to compare with the keys/memory
+        (e.g. decoder state)
         :param mask: mask to mask out keys position
         :param values: values (e.g. typically encoder states)
         :return: context vector, attention probabilities
@@ -77,7 +84,7 @@ class BahdanauAttention(AttentionMechanism):
         # context shape: [B, 1, 2D], alphas shape: [B, 1, M]
         return context, alphas
 
-    def compute_proj_keys(self, keys):
+    def compute_proj_keys(self, keys: Tensor):
         """
         Compute the projection of the keys.
         Is efficient if pre-computed before receiving individual queries.
@@ -87,7 +94,7 @@ class BahdanauAttention(AttentionMechanism):
         """
         self.proj_keys = self.key_layer(keys)
 
-    def compute_proj_query(self, query):
+    def compute_proj_query(self, query: Tensor):
         """
         Compute the projection of the query.
 
@@ -114,9 +121,12 @@ class LuongAttention(AttentionMechanism):
         """
 
         super(LuongAttention, self).__init__()
-        self.key_layer = nn.Linear(key_size, hidden_size, bias=False)
+        self.key_layer = nn.Linear(in_features=key_size,
+                                   out_features=hidden_size,
+                                   bias=False)
         self.proj_keys = None  # projected keys
 
+    # pylint: disable=arguments-differ
     def forward(self, query: torch.Tensor = None,
                 mask: torch.Tensor = None,
                 values: torch.Tensor = None):
@@ -152,7 +162,7 @@ class LuongAttention(AttentionMechanism):
 
         return context, alphas
 
-    def compute_proj_keys(self, keys):
+    def compute_proj_keys(self, keys: Tensor):
         """
         Compute the projection of the keys.
         Is efficient if pre-computed before receiving individual queries.
@@ -160,7 +170,7 @@ class LuongAttention(AttentionMechanism):
         :param keys:
         :return:
         """
-        self.proj_keys = self.key_layer(keys)
+        self.proj_keys = self.key_layer(keys=keys)
 
     def __repr__(self):
         return "LuongAttention"

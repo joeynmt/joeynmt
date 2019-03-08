@@ -1,18 +1,22 @@
 # coding: utf-8
+
+"""
+Training module
+"""
+
 import argparse
 import logging
 import time
 import os
-import numpy as np
 import shutil
 import random
 
+import numpy as np
 
 import torch
 import torch.nn as nn
 
 from joeynmt.model import build_model
-
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_data, \
     load_config, log_cfg, store_attention_plots, make_data_iter, \
@@ -20,6 +24,7 @@ from joeynmt.helpers import log_data_info, load_data, \
 from joeynmt.prediction import validate_on_data
 
 
+# pylint: disable=too-many-instance-attributes
 class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
@@ -125,13 +130,13 @@ class TrainManager:
 
         if "load_model" in train_config.keys():
             model_load_path = train_config["load_model"]
-            self.logger.info("Loading model from {}".format(model_load_path))
+            self.logger.info("Loading model from %s", model_load_path)
             self.load_checkpoint(model_load_path)
 
         trainable_params = [n for (n, p) in self.model.named_parameters()
                             if p.requires_grad]
-        self.logger.info("Trainable parameters: {}".format(trainable_params))
-        assert len(trainable_params) > 0
+        self.logger.info("Trainable parameters: %s", trainable_params)
+        assert trainable_params
 
     def save_checkpoint(self):
         """
@@ -225,7 +230,7 @@ class TrainManager:
         train_iter = make_data_iter(train_data, batch_size=self.batch_size,
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
-            self.logger.info("EPOCH {}".format(epoch_no + 1))
+            self.logger.info("EPOCH %d", epoch_no + 1)
             self.model.train()
 
             start = time.time()
@@ -233,13 +238,15 @@ class TrainManager:
             processed_tokens = self.total_tokens
             count = 0
 
-            for batch_no, batch in enumerate(iter(train_iter), 1):
+            for batch in iter(train_iter):
                 # reactivate training
                 self.model.train()
                 batch = Batch(batch, self.pad_index, use_cuda=self.use_cuda)
 
                 # only update every batch_multiplier batches
-                # see https://medium.com/@davidlmorton/increasing-mini-batch-size-without-increasing-memory-6794e10db672
+                # see https://medium.com/@davidlmorton/
+                # increasing-mini-batch-size-without-increasing-
+                # memory-6794e10db672
                 update = count == 0
                 # print(count, update, self.steps)
                 batch_loss = self._train_batch(batch, update=update)
@@ -252,9 +259,9 @@ class TrainManager:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Loss: %f Tokens per Sec: %f" %
-                        (epoch_no + 1, self.steps, batch_loss,
-                         elapsed_tokens / elapsed))
+                        "Epoch %d Step: %d Loss: %f Tokens per Sec: %f",
+                        epoch_no + 1, self.steps, batch_loss,
+                        elapsed_tokens / elapsed)
                     start = time.time()
                     total_valid_duration = 0
 
@@ -285,8 +292,8 @@ class TrainManager:
                         self.best_ckpt_score = ckpt_score
                         self.best_ckpt_iteration = self.steps
                         self.logger.info(
-                            'Hooray! New best validation result [{}]!'.format(
-                                self.ckpt_metric))
+                            'Hooray! New best validation result [%s]!',
+                                self.ckpt_metric)
                         new_best = True
                         self.save_checkpoint()
 
@@ -311,24 +318,24 @@ class TrainManager:
 
                     # always print first x sentences
                     for p in range(self.print_valid_sents):
-                        self.logger.debug("Example #{}".format(p))
-                        self.logger.debug("\tRaw source: {}".format(
-                            valid_sources_raw[p]))
-                        self.logger.debug("\tSource: {}".format(
-                            valid_sources[p]))
-                        self.logger.debug("\tReference: {}".format(
-                            valid_references[p]))
-                        self.logger.debug("\tRaw hypothesis: {}".format(
-                            valid_hypotheses_raw[p]))
-                        self.logger.debug("\tHypothesis: {}".format(
-                            valid_hypotheses[p]))
+                        self.logger.debug("Example #%d", p)
+                        self.logger.debug("\tRaw source: %s",
+                                          valid_sources_raw[p])
+                        self.logger.debug("\tSource: %s",
+                            valid_sources[p])
+                        self.logger.debug("\tReference: %s",
+                                          valid_references[p])
+                        self.logger.debug("\tRaw hypothesis: %s",
+                            valid_hypotheses_raw[p])
+                        self.logger.debug("\tHypothesis: %s",
+                            valid_hypotheses[p])
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
                     self.logger.info(
-                        'Validation result at epoch {}, step {}: {}: {}, '
-                        'loss: {}, ppl: {}, duration: {:.4f}s'.format(
+                        'Validation result at epoch %d, step %d: %s: %f, '
+                        'loss: %f, ppl: %f, duration: %.4fs',
                             epoch_no+1, self.steps, self.eval_metric,
-                            valid_score, valid_loss, valid_ppl, valid_duration))
+                            valid_score, valid_loss, valid_ppl, valid_duration)
 
                     # store validation set outputs
                     self.store_outputs(valid_hypotheses)
@@ -349,14 +356,14 @@ class TrainManager:
                     break
             if self.stop:
                 self.logger.info(
-                    'Training ended since minimum lr {} was reached.'.format(
-                        self.learning_rate_min))
+                    'Training ended since minimum lr %f was reached.',
+                        self.learning_rate_min)
                 break
         else:
-            self.logger.info('Training ended after {} epochs.'.format(
-                epoch_no+1))
-        self.logger.info('Best validation result at step {}: {} {}.'.format(
-            self.best_ckpt_iteration, self.best_ckpt_score, self.ckpt_metric))
+            self.logger.info('Training ended after %d epochs.',
+                epoch_no+1)
+        self.logger.info('Best validation result at step %d: %f %s.',
+            self.best_ckpt_iteration, self.best_ckpt_score, self.ckpt_metric)
 
     def _train_batch(self, batch, update=True):
         """
@@ -489,7 +496,8 @@ def train(cfg_file):
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
 
     if test_data is not None:
-        trainer.load_checkpoint("{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration))
+        trainer.load_checkpoint("{}/{}.ckpt".format(
+            trainer.model_dir, trainer.best_ckpt_iteration))
         # test model
         if "testing" in cfg.keys():
             beam_size = cfg["testing"].get("beam_size", 0)
@@ -498,33 +506,33 @@ def train(cfg_file):
             beam_size = 0
             beam_alpha = -1
 
+        # pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
-        hypotheses_raw, attention_scores  = validate_on_data(
-            data=test_data, batch_size=trainer.batch_size,
-            eval_metric=trainer.eval_metric, level=trainer.level,
-            max_output_length=trainer.max_output_length,
-            model=model, use_cuda=trainer.use_cuda, criterion=None,
-            beam_size=beam_size, beam_alpha=beam_alpha)
-        
+            hypotheses_raw, attention_scores = validate_on_data(
+                data=test_data, batch_size=trainer.batch_size,
+                eval_metric=trainer.eval_metric, level=trainer.level,
+                max_output_length=trainer.max_output_length,
+                model=model, use_cuda=trainer.use_cuda, criterion=None,
+                beam_size=beam_size, beam_alpha=beam_alpha)
+
         if "trg" in test_data.fields:
             decoding_description = "Greedy decoding" if beam_size == 0 else \
                 "Beam search decoding with beam size = {} and alpha = {}"\
                     .format(beam_size, beam_alpha)
-            trainer.logger.info("{:4s}: {} {} [{}]".format(
-                "Test data result", score, trainer.eval_metric,
-                decoding_description))
+            trainer.logger.info("Test data result: %f %s [%s]",
+                                score, trainer.eval_metric,
+                                decoding_description)
         else:
             trainer.logger.info(
-                "No references given for {}.{} -> no evaluation.".format(
-                    cfg["data"]["test"],cfg["data"]["src"]))
+                "No references given for %s.%s -> no evaluation.",
+                cfg["data"]["test"], cfg["data"]["src"])
 
         output_path_set = "{}/{}.{}".format(
-            trainer.model_dir,"test",cfg["data"]["trg"])
+            trainer.model_dir, "test", cfg["data"]["trg"])
         with open(output_path_set, mode="w", encoding="utf-8") as f:
             for h in hypotheses:
                 f.write(h + "\n")
-        trainer.logger.info("Test translations saved to: {}".format(
-            output_path_set))
+        trainer.logger.info("Test translations saved to: %s", output_path_set)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')

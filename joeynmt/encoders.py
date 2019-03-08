@@ -1,33 +1,37 @@
 # coding: utf-8
-import torch
-import torch.nn as nn
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from joeynmt.helpers import freeze_params
 
 """
 Various encoders
 """
 
+import torch
+import torch.nn as nn
+from torch import Tensor
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-# TODO make general encoder class
+from joeynmt.helpers import freeze_params
+
+#pylint: disable=abstract-method
 class Encoder(nn.Module):
     """
     Base encoder class
     """
-    _output_size = 0
-
     @property
     def output_size(self):
-        return self._output_size
+        """
+        Return the output size
 
-    pass
+        :return:
+        """
+        return self._output_size
 
 
 class RecurrentEncoder(Encoder):
     """Encodes a sequence of word embeddings"""
 
+    #pylint: disable=unused-argument
     def __init__(self,
-                 type: str = "gru",
+                 rnn_type: str = "gru",
                  hidden_size: int = 1,
                  emb_size: int = 1,
                  num_layers: int = 1,
@@ -38,7 +42,7 @@ class RecurrentEncoder(Encoder):
         """
         Create a new recurrent encoder.
 
-        :param type:
+        :param rnn_type:
         :param hidden_size:
         :param emb_size:
         :param num_layers:
@@ -51,9 +55,10 @@ class RecurrentEncoder(Encoder):
         super(RecurrentEncoder, self).__init__()
 
         self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
-        self.type = type
+        self.type = rnn_type
+        self.emb_size = emb_size
 
-        rnn = nn.GRU if type == "gru" else nn.LSTM
+        rnn = nn.GRU if rnn_type == "gru" else nn.LSTM
 
         self.rnn = rnn(
             emb_size, hidden_size, num_layers, batch_first=True,
@@ -65,24 +70,49 @@ class RecurrentEncoder(Encoder):
         if freeze:
             freeze_params(self)
 
-    def forward(self, x, x_length, mask):
+    #pylint: disable=invalid-name, unused-argument
+    def _check_shapes_input_forward(self, embed_src: Tensor, src_length: Tensor,
+                                    mask: Tensor):
         """
-        Applies a bidirectional RNN to sequence of embeddings x.
-        The input mini-batch x needs to be sorted by src length.
-        x should have dimensions [batch, time, dim].
-        The masks indicates padding areas (zeros where padding).
+        Make sure the shape of the inputs to `self.forward` are correct.
+        Same input semantics as `self.forward`.
 
         :param x:
         :param x_length:
         :param mask:
         :return:
         """
-        # apply dropout ot the rnn input
-        x = self.rnn_input_dropout(x)
+        assert embed_src.shape[0] == src_length.shape[0]
+        assert embed_src.shape[2] == self.emb_size
+       # assert mask.shape == embed_src.shape
+        assert len(src_length.shape) == 1
 
-        packed = pack_padded_sequence(x, x_length, batch_first=True)
+    #pylint: disable=arguments-differ
+    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor):
+        """
+        Applies a bidirectional RNN to sequence of embeddings x.
+        The input mini-batch x needs to be sorted by src length.
+        x and mask should have the same dimensions [batch, time, dim].
+
+        :param embed_src: embedded src inputs,
+        shape (batch_size, src_len, embed_size)
+        :param src_length: length of src inputs
+         (counting tokens before padding), shape (batch_size)
+        :param mask: indicates padding areas (zeros where padding), shape
+        (batch_size, src_len, embed_size)
+        :return:
+        """
+        self._check_shapes_input_forward(embed_src=embed_src,
+                                         src_length=src_length,
+                                         mask=mask)
+
+        # apply dropout ot the rnn input
+        embed_src = self.rnn_input_dropout(embed_src)
+
+        packed = pack_padded_sequence(embed_src, src_length, batch_first=True)
         output, hidden = self.rnn(packed)
 
+        #pylint: disable=unused-variable
         if isinstance(hidden, tuple):
             hidden, memory_cell = hidden
 
@@ -102,11 +132,12 @@ class RecurrentEncoder(Encoder):
         bwd_hidden_last = hidden_layerwise[-1:, 1]
 
         # only feed the final state of the top-most layer to the decoder
+        #pylint: disable=no-member
         hidden_concat = torch.cat(
             [fwd_hidden_last, bwd_hidden_last], dim=2).squeeze(0)
         # final: batch x directions*hidden
         return output, hidden_concat
 
+    @property
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.rnn)
-

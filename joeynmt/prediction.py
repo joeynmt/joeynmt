@@ -1,4 +1,7 @@
 # coding: utf-8
+"""
+This modules holds methods for generating predictions from a model.
+"""
 
 import torch
 
@@ -11,6 +14,7 @@ from joeynmt.model import build_model
 from joeynmt.batch import Batch
 
 
+# pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
                      level, eval_metric, criterion, beam_size=0, beam_alpha=-1):
     """
@@ -30,7 +34,7 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
     :return:
     """
     valid_iter = make_data_iter(dataset=data, batch_size=batch_size,
-                          shuffle=False, train=False)
+                                shuffle=False, train=False)
     valid_sources_raw = [s for s in data.src]
     pad_index = model.src_vocab.stoi[PAD_TOKEN]
     # disable dropout
@@ -41,14 +45,13 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
         valid_attention_scores = []
         total_loss = 0
         total_ntokens = 0
-        for valid_i, valid_batch in enumerate(iter(valid_iter), 1):
+        for valid_batch in iter(valid_iter):
             # run as during training to get validation loss (e.g. xent)
 
             batch = Batch(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
             sort_reverse_index = batch.sort_by_src_lengths()
 
-            # TODO save computation: forward pass is computed twice
             # run as during training with teacher forcing
             if criterion is not None and batch.trg is not None:
                 batch_loss = model.get_loss_for_batch(
@@ -98,7 +101,7 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
                                 v in valid_hypotheses]
 
         # if references are given, evaluate against them
-        if len(valid_references) > 0:
+        if valid_references:
             assert len(valid_hypotheses) == len(valid_references)
 
             current_valid_score = 0
@@ -108,19 +111,17 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
             elif eval_metric.lower() == 'chrf':
                 current_valid_score = chrf(valid_hypotheses, valid_references)
             elif eval_metric.lower() == 'token_accuracy':
-                current_valid_score = token_accuracy(valid_hypotheses,
-                                               valid_references, level=level)
+                current_valid_score = token_accuracy(
+                    valid_hypotheses, valid_references, level=level)
             elif eval_metric.lower() == 'sequence_accuracy':
-                current_valid_score = sequence_accuracy(valid_hypotheses,
-                                               valid_references)
+                current_valid_score = sequence_accuracy(
+                    valid_hypotheses, valid_references)
         else:
             current_valid_score = -1
 
     return current_valid_score, valid_loss, valid_ppl, valid_sources, \
-           valid_sources_raw, valid_references, valid_hypotheses, \
-           decoded_valid, \
-           valid_attention_scores
-
+        valid_sources_raw, valid_references, valid_hypotheses, \
+        decoded_valid, valid_attention_scores
 
 def test(cfg_file,
          ckpt: str = None,
@@ -144,10 +145,10 @@ def test(cfg_file,
 
     # when checkpoint is not specified, take oldest from model dir
     if ckpt is None:
-        dir = cfg["training"]["model_dir"]
-        ckpt = get_latest_checkpoint(dir)
+        model_dir = cfg["training"]["model_dir"]
+        ckpt = get_latest_checkpoint(model_dir)
         try:
-            step = ckpt.split(dir+"/")[1].split(".ckpt")[0]
+            step = ckpt.split(model_dir+"/")[1].split(".ckpt")[0]
         except IndexError:
             step = "best"
 
@@ -158,11 +159,9 @@ def test(cfg_file,
     max_output_length = cfg["training"].get("max_output_length", None)
 
     # load the data
-    # TODO load only test data
-    train_data, dev_data, test_data, src_vocab, trg_vocab = \
+    _, dev_data, test_data, src_vocab, trg_vocab = \
         load_data(cfg=cfg)
 
-    # TODO specify this differently
     data_to_predict = {"dev": dev_data, "test": test_data}
 
     # load model state from disk
@@ -185,17 +184,19 @@ def test(cfg_file,
 
     for data_set_name, data_set in data_to_predict.items():
 
+        #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=data_set, batch_size=batch_size, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, criterion=None, beam_size=beam_size,
             beam_alpha=beam_alpha)
+        #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
             decoding_description = "Greedy decoding" if beam_size == 0 else \
-                "Beam search decoding with beam size = {} and alpha = {}".format(
-                    beam_size, beam_alpha)
+                "Beam search decoding with beam size = {} and alpha = {}".\
+                    format(beam_size, beam_alpha)
             print("{:4s} {}: {} [{}]".format(
                 data_set_name, eval_metric, score, decoding_description))
         else:
@@ -203,7 +204,8 @@ def test(cfg_file,
                 data_set_name))
 
         if attention_scores is not None and save_attention:
-            attention_path = "{}/{}.{}.att".format(dir, data_set_name, step)
+            attention_path = "{}/{}.{}.att".format(model_dir, data_set_name,
+                                                   step)
             print("Attention plots saved to: {}.xx".format(attention_path))
             store_attention_plots(attentions=attention_scores,
                                   targets=hypotheses_raw,
@@ -213,7 +215,7 @@ def test(cfg_file,
 
         if output_path is not None:
             output_path_set = "{}.{}".format(output_path, data_set_name)
-            with open(output_path_set, mode="w", encoding="utf-8") as f:
-                for h in hypotheses:
-                    f.write(h + "\n")
+            with open(output_path_set, mode="w", encoding="utf-8") as out_file:
+                for hyp in hypotheses:
+                    out_file.write(hyp + "\n")
             print("Translations saved to: {}".format(output_path_set))

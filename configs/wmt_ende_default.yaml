@@ -42,7 +42,7 @@ training:
 
 model:
     encoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 500
             scale: False
@@ -51,7 +51,7 @@ model:
         dropout: 0.2
         num_layers: 1
     decoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 500
             scale: False

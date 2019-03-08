@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 
-import matplotlib
+from typing import List
+import numpy as np
 
+# pylint: disable=wrong-import-position
+import matplotlib
 matplotlib.use('Agg')
 
-import numpy as np
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def plot_heatmap(scores=None, column_labels=None, row_labels=None,
-                 output_path="plot.png"):
+
+def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
+                 row_labels: List[str] = None, output_path: str = "plot.png"):
 
     """
     Plotting function that can be used to visualize (self-)attention.
@@ -45,6 +48,7 @@ def plot_heatmap(scores=None, column_labels=None, row_labels=None,
     #rcParams['font.weight'] = "regular"
 
     fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
+    # pylint: disable=unused-variable
     heatmap = plt.imshow(scores, cmap='viridis', aspect='equal',
                          origin='upper', vmin=0., vmax=1.)
 

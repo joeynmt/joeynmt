@@ -52,7 +52,7 @@ model:
     init_rnn_orthogonal: False
     lstm_forget_gate: 0.
     encoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 16
             scale: False
@@ -61,7 +61,7 @@ model:
         dropout: 0.1
         num_layers: 1
     decoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 16
             scale: False
