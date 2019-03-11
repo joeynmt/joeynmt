@@ -6,7 +6,6 @@ import copy
 import glob
 import os
 import os.path
-from collections import Counter
 from logging import Logger
 from typing import Callable
 import numpy as np
@@ -16,12 +15,8 @@ import yaml
 import torch
 from torch import nn
 
-from torchtext.datasets import TranslationDataset
-from torchtext import data
 from torchtext.data import Dataset
 
-from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
-    EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
@@ -42,104 +37,6 @@ def log_cfg(cfg: dict, logger: Logger, prefix: str = "cfg"):
         else:
             p = '.'.join([prefix, k])
             logger.info("{:34s} : {}".format(p, v))
-
-
-def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
-                vocab_file: str = None):
-    """
-    Builds vocabulary for a torchtext `field`.
-
-    :param field: attribute e.g. "src"
-    :param max_size: maximum size of vocabulary
-    :param min_freq: minimum frequency for an item to be included
-    :param dataset: dataset to load data for field from
-    :param vocab_file: file to store the vocabulary
-    :return:
-    """
-
-    # special symbols
-    specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
-
-    if vocab_file is not None:
-        # load it from file
-        vocab = Vocabulary(file=vocab_file)
-        vocab.add_tokens(specials)
-    else:
-        # create newly
-        def filter_min(counter, min_freq):
-            """ Filter counter by min frequency """
-            filtered_counter = Counter({t: c for t, c in counter.items()
-                                        if c >= min_freq})
-            return filtered_counter
-
-        def sort_and_cut(counter, limit):
-            """ Cut counter to most frequent,
-            sorted numerically and alphabetically"""
-            # sort by frequency, then alphabetically
-            tokens_and_frequencies = sorted(counter.items(),
-                                            key=lambda tup: tup[0])
-            tokens_and_frequencies.sort(key=lambda tup: tup[1], reverse=True)
-            vocab_tokens = [i[0] for i in tokens_and_frequencies[:limit]]
-            return vocab_tokens
-
-        tokens = []
-        for i in dataset.examples:
-            if field == "src":
-                tokens.extend(i.src)
-            elif field == "trg":
-                tokens.extend(i.trg)
-
-        counter = Counter(tokens)
-        if min_freq > -1:
-            counter = filter_min(counter, min_freq)
-        vocab_tokens = specials + sort_and_cut(counter, max_size)
-        assert vocab_tokens[DEFAULT_UNK_ID()] == UNK_TOKEN
-        assert len(vocab_tokens) <= max_size + len(specials)
-        vocab = Vocabulary(tokens=vocab_tokens)
-
-    # check for all except for UNK token whether they are OOVs
-    for s in specials[1:]:
-        assert not vocab.is_unk(s)
-
-    return vocab
-
-
-def array_to_sentence(array: np.array, vocabulary: Vocabulary, cut_at_eos=True):
-    """
-    Converts an array of IDs to a sentence, optionally cutting the result
-    off at the end-of-sequence token.
-
-    :param array: 1D array containing indices
-    :param vocabulary: defines mapping of indices to tokens
-    :param cut_at_eos: cut the decoded sentences at the first <eos>
-    :return:
-    """
-    sentence = []
-    for i in array:
-        s = vocabulary.itos[i]
-        if cut_at_eos and s == EOS_TOKEN:
-            break
-        sentence.append(s)
-    return sentence
-
-
-def arrays_to_sentences(arrays: np.array, vocabulary: Vocabulary,
-                        cut_at_eos=True):
-    """
-    Convert multiple arrays containing sequences of token IDs to their
-    sentences, optionally cutting them off at the end-of-sequence token.
-
-    :param arrays: 2D array containing indices
-    :param vocabulary: defines mapping of indices to tokens
-    :param cut_at_eos: cut the decoded sentences at the first <eos>
-    :return:
-    """
-    sentences = []
-    for array in arrays:
-        sentences.append(
-            array_to_sentence(array=array, vocabulary=vocabulary,
-                              cut_at_eos=cut_at_eos))
-    return sentences
 
 
 def clones(module: nn.Module, n: int):
@@ -272,32 +169,6 @@ def load_model_from_checkpoint(path, use_cuda=True):
     model_checkpoint = torch.load(path,
                                   map_location='cuda' if use_cuda else 'cpu')
     return model_checkpoint
-
-
-def make_data_iter(dataset, batch_size, train=False, shuffle=False):
-    """
-    Returns a torchtext iterator for a torchtext dataset.
-
-    :param dataset:
-    :param batch_size:
-    :param train:
-    :param shuffle:
-    :return:
-    """
-    if train:
-        # optionally shuffle and sort during training
-        data_iter = data.BucketIterator(
-            repeat=False, sort=False, dataset=dataset,
-            batch_size=batch_size, train=True, sort_within_batch=True,
-            sort_key=lambda x: len(x.src), shuffle=shuffle)
-    else:
-        # don't sort/shuffle for validation/inference
-        data_iter = data.Iterator(
-            repeat=False, dataset=dataset, batch_size=batch_size,
-            train=False, sort=False)
-
-    return data_iter
-
 
 # from onmt
 def tile(x, count, dim=0):

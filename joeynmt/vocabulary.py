@@ -3,11 +3,14 @@
 """
 Vocabulary module
 """
-
-from collections import defaultdict
+from collections import defaultdict, Counter
 from typing import List
+import numpy as np
 
-from joeynmt.constants import DEFAULT_UNK_ID
+from torchtext.data import Dataset
+
+from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
+    EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 
 
 class Vocabulary:
@@ -93,3 +96,96 @@ class Vocabulary:
 
     def __len__(self):
         return len(self.itos)
+
+    def array_to_sentence(self, array: np.array, cut_at_eos=True):
+        """
+        Converts an array of IDs to a sentence, optionally cutting the result
+        off at the end-of-sequence token.
+
+        :param array: 1D array containing indices
+        :param cut_at_eos: cut the decoded sentences at the first <eos>
+        :return:
+        """
+        sentence = []
+        for i in array:
+            s = self.itos[i]
+            if cut_at_eos and s == EOS_TOKEN:
+                break
+            sentence.append(s)
+        return sentence
+
+    def arrays_to_sentences(self, arrays: np.array, cut_at_eos=True):
+        """
+        Convert multiple arrays containing sequences of token IDs to their
+        sentences, optionally cutting them off at the end-of-sequence token.
+
+        :param arrays: 2D array containing indices
+        :param vocabulary: defines mapping of indices to tokens
+        :param cut_at_eos: cut the decoded sentences at the first <eos>
+        :return:
+        """
+        sentences = []
+        for array in arrays:
+            sentences.append(
+                self.array_to_sentence(array=array, cut_at_eos=cut_at_eos))
+        return sentences
+
+
+def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
+                vocab_file: str = None):
+    """
+    Builds vocabulary for a torchtext `field`.
+
+    :param field: attribute e.g. "src"
+    :param max_size: maximum size of vocabulary
+    :param min_freq: minimum frequency for an item to be included
+    :param dataset: dataset to load data for field from
+    :param vocab_file: file to store the vocabulary
+    :return:
+    """
+
+    # special symbols
+    specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
+
+    if vocab_file is not None:
+        # load it from file
+        vocab = Vocabulary(file=vocab_file)
+        vocab.add_tokens(specials)
+    else:
+        # create newly
+        def filter_min(counter, min_freq):
+            """ Filter counter by min frequency """
+            filtered_counter = Counter({t: c for t, c in counter.items()
+                                        if c >= min_freq})
+            return filtered_counter
+
+        def sort_and_cut(counter, limit):
+            """ Cut counter to most frequent,
+            sorted numerically and alphabetically"""
+            # sort by frequency, then alphabetically
+            tokens_and_frequencies = sorted(counter.items(),
+                                            key=lambda tup: tup[0])
+            tokens_and_frequencies.sort(key=lambda tup: tup[1], reverse=True)
+            vocab_tokens = [i[0] for i in tokens_and_frequencies[:limit]]
+            return vocab_tokens
+
+        tokens = []
+        for i in dataset.examples:
+            if field == "src":
+                tokens.extend(i.src)
+            elif field == "trg":
+                tokens.extend(i.trg)
+
+        counter = Counter(tokens)
+        if min_freq > -1:
+            counter = filter_min(counter, min_freq)
+        vocab_tokens = specials + sort_and_cut(counter, max_size)
+        assert vocab_tokens[DEFAULT_UNK_ID()] == UNK_TOKEN
+        assert len(vocab_tokens) <= max_size + len(specials)
+        vocab = Vocabulary(tokens=vocab_tokens)
+
+    # check for all except for UNK token whether they are OOVs
+    for s in specials[1:]:
+        assert not vocab.is_unk(s)
+
+    return vocab

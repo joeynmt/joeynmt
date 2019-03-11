@@ -6,13 +6,12 @@ This modules holds methods for generating predictions from a model.
 import torch
 
 from joeynmt.constants import PAD_TOKEN
-from joeynmt.helpers import arrays_to_sentences, bpe_postprocess, \
-    load_config, get_latest_checkpoint, make_data_iter, \
-    load_model_from_checkpoint, store_attention_plots
+from joeynmt.helpers import bpe_postprocess, load_config, \
+    get_latest_checkpoint, load_model_from_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
-from joeynmt.data import load_data
+from joeynmt.data import load_data, make_data_iter
 
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
@@ -83,9 +82,8 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
             valid_ppl = -1
 
         # decode back to symbols
-        decoded_valid = arrays_to_sentences(arrays=all_outputs,
-                                            vocabulary=model.trg_vocab,
-                                            cut_at_eos=True)
+        decoded_valid = model.trg_vocab.arrays_to_sentences(arrays=all_outputs,
+                                                            cut_at_eos=True)
 
         # evaluate with metric on full dataset
         join_char = " " if level in ["word", "bpe"] else ""

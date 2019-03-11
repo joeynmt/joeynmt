@@ -11,7 +11,7 @@ from torchtext import data
 from torchtext.data import Dataset
 
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
-from joeynmt.helpers import build_vocab
+from joeynmt.vocabulary import build_vocab
 
 
 def load_data(cfg: dict):
@@ -86,6 +86,31 @@ def load_data(cfg: dict):
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
     return train_data, dev_data, test_data, src_vocab, trg_vocab
+
+
+def make_data_iter(dataset, batch_size, train=False, shuffle=False):
+    """
+    Returns a torchtext iterator for a torchtext dataset.
+
+    :param dataset:
+    :param batch_size:
+    :param train:
+    :param shuffle:
+    :return:
+    """
+    if train:
+        # optionally shuffle and sort during training
+        data_iter = data.BucketIterator(
+            repeat=False, sort=False, dataset=dataset,
+            batch_size=batch_size, train=True, sort_within_batch=True,
+            sort_key=lambda x: len(x.src), shuffle=shuffle)
+    else:
+        # don't sort/shuffle for validation/inference
+        data_iter = data.Iterator(
+            repeat=False, dataset=dataset, batch_size=batch_size,
+            train=False, sort=False)
+
+    return data_iter
 
 
 class MonoDataset(Dataset):
