@@ -13,11 +13,12 @@ from torchtext.data import Dataset
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 from joeynmt.helpers import build_vocab
 
-def load_data(cfg):
-    """
-    Load train, dev and test data as specified in ccnfiguration.
 
-    :param cfg:
+def load_data(cfg: dict):
+    """
+    Load train, dev and test data as specified in configuration.
+
+    :param cfg: configuration dictionary
     :return:
     """
     # load data from files
@@ -90,21 +91,21 @@ def load_data(cfg):
 class MonoDataset(Dataset):
     """Defines a dataset for machine translation without targets."""
 
-
     @staticmethod
     def sort_key(ex):
         return len(ex.src)
 
-    def __init__(self, path, ext, field, **kwargs):
-        """Create a MonoDataset given path and field.
+    def __init__(self, path: str, ext: str, field: str, **kwargs):
+        """
+        Create a monolingual dataset (=only sources) given path and field.
 
-        Arguments:
-            path: Prefix of path to the data file
-            ext: Containing the extension to path for this language.
-            field: Containing the fields that will be used for data
-            Remaining keyword arguments: Passed to the constructor of
+        :param path: Prefix of path to the data file
+        :param ext: Containing the extension to path for this language.
+        :param field: Containing the fields that will be used for data.
+        :param kwargs: Passed to the constructor of
                 data.Dataset.
         """
+
         fields = [('src', field)]
 
         src_path = os.path.expanduser(path + ext)
