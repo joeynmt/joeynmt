@@ -3,6 +3,7 @@
 """
 Various decoders
 """
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -45,7 +46,7 @@ class RecurrentDecoder(Decoder):
                  bridge: bool = False,
                  input_feeding: bool = True,
                  freeze: bool = False,
-                 **kwargs):
+                 **kwargs) -> None:
         """
         Create a recurrent decoder with attention.
 
@@ -123,7 +124,7 @@ class RecurrentDecoder(Decoder):
                                          prev_att_vector: Tensor,
                                          encoder_output: Tensor,
                                          src_mask: Tensor,
-                                         hidden: Tensor):
+                                         hidden: Tensor) -> None:
         """
         Make sure the input shapes to `self._forward_step` are correct.
         Same inputs as `self._forward_step`.
@@ -133,7 +134,6 @@ class RecurrentDecoder(Decoder):
         :param encoder_output:
         :param src_mask:
         :param hidden:
-        :return:
         """
         assert prev_embed.shape[1:] == torch.Size([1, self.emb_size])
         assert prev_att_vector.shape[1:] == torch.Size(
@@ -154,7 +154,7 @@ class RecurrentDecoder(Decoder):
                                     encoder_hidden: Tensor,
                                     src_mask: Tensor,
                                     hidden: Tensor = None,
-                                    prev_att_vector: Tensor = None):
+                                    prev_att_vector: Tensor = None) -> None:
         """
         Make sure that inputs to `self.forward` are of correct shape.
         Same input semantics as for `self.forward`.
@@ -165,7 +165,6 @@ class RecurrentDecoder(Decoder):
         :param src_mask:
         :param hidden:
         :param prev_att_vector:
-        :return:
         """
         assert len(encoder_output.shape) == 3
         assert len(encoder_hidden.shape) == 2
@@ -190,7 +189,7 @@ class RecurrentDecoder(Decoder):
                       prev_att_vector: Tensor,  # context or att vector
                       encoder_output: Tensor,
                       src_mask: Tensor,
-                      hidden: Tensor):
+                      hidden: Tensor) -> (Tensor, Tensor, Tensor):
         """
         Perform a single decoder step (1 token).
 
@@ -261,7 +260,8 @@ class RecurrentDecoder(Decoder):
                 src_mask: Tensor,
                 unrol_steps: int,
                 hidden: Tensor = None,
-                prev_att_vector: Tensor = None):
+                prev_att_vector: Tensor = None) \
+            -> (Tensor, Tensor, Tensor, Tensor):
         """
          Unroll the decoder one step at a time for `unrol_steps` steps.
          For every step, the `_forward_step` function is called internally.
@@ -359,8 +359,8 @@ class RecurrentDecoder(Decoder):
         # outputs: batch, unrol_steps, vocab_size
         return outputs, hidden, att_probs, att_vectors
 
-    def _init_hidden(self,
-                     encoder_final: Tensor = None):
+    def _init_hidden(self, encoder_final: Tensor = None) \
+            -> (Tensor, Optional(Tensor)):
         """
         Returns the initial decoder state,
         conditioned on the final encoder state of the last encoder layer.
