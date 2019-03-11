@@ -246,4 +246,3 @@ def build_model(cfg: dict = None,
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
 
     return model
-
