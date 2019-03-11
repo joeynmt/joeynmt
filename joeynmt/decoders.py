@@ -360,7 +360,7 @@ class RecurrentDecoder(Decoder):
         return outputs, hidden, att_probs, att_vectors
 
     def _init_hidden(self, encoder_final: Tensor = None) \
-            -> (Tensor, Optional(Tensor)):
+            -> (Tensor, Optional[Tensor]):
         """
         Returns the initial decoder state,
         conditioned on the final encoder state of the last encoder layer.
