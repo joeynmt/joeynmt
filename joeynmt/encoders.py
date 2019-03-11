@@ -95,11 +95,11 @@ class RecurrentEncoder(Encoder):
         x and mask should have the same dimensions [batch, time, dim].
 
         :param embed_src: embedded src inputs,
-        shape (batch_size, src_len, embed_size)
+            shape (batch_size, src_len, embed_size)
         :param src_length: length of src inputs
-         (counting tokens before padding), shape (batch_size)
+            (counting tokens before padding), shape (batch_size)
         :param mask: indicates padding areas (zeros where padding), shape
-        (batch_size, src_len, embed_size)
+            (batch_size, src_len, embed_size)
         :return:
         """
         self._check_shapes_input_forward(embed_src=embed_src,
