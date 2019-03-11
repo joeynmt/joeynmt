@@ -37,7 +37,13 @@ class Embeddings(nn.Module):
             freeze_params(self)
 
     # pylint: disable=arguments-differ
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Perform lookup for input `x` in the embedding table.
+
+        :param x: index in the vocabulary
+        :return: embedded representation for `x`
+        """
         if self.scale:
             return self.lut(x) * math.sqrt(self.embedding_dim)
         return self.lut(x)
