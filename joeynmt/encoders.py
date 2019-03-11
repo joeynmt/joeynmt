@@ -38,7 +38,7 @@ class RecurrentEncoder(Encoder):
                  dropout: float = 0.,
                  bidirectional: bool = True,
                  freeze: bool = False,
-                 **kwargs):
+                 **kwargs) -> None:
         """
         Create a new recurrent encoder.
 
@@ -72,14 +72,14 @@ class RecurrentEncoder(Encoder):
 
     #pylint: disable=invalid-name, unused-argument
     def _check_shapes_input_forward(self, embed_src: Tensor, src_length: Tensor,
-                                    mask: Tensor):
+                                    mask: Tensor) -> None:
         """
         Make sure the shape of the inputs to `self.forward` are correct.
         Same input semantics as `self.forward`.
 
-        :param x:
-        :param x_length:
-        :param mask:
+        :param embed_src: embedded source tokens
+        :param src_length: source length
+        :param mask: source mask
         :return:
         """
         assert embed_src.shape[0] == src_length.shape[0]
@@ -88,7 +88,8 @@ class RecurrentEncoder(Encoder):
         assert len(src_length.shape) == 1
 
     #pylint: disable=arguments-differ
-    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor):
+    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor) \
+            -> (Tensor, Tensor):
         """
         Applies a bidirectional RNN to sequence of embeddings x.
         The input mini-batch x needs to be sorted by src length.
@@ -100,7 +101,10 @@ class RecurrentEncoder(Encoder):
             (counting tokens before padding), shape (batch_size)
         :param mask: indicates padding areas (zeros where padding), shape
             (batch_size, src_len, embed_size)
-        :return:
+        :return: output: hidden states with
+            shape (batch_size, max_length, directions*hidden),
+            hidden_concat: last hidden state with
+            shape (batch_size, directions*hidden)
         """
         self._check_shapes_input_forward(embed_src=embed_src,
                                          src_length=src_length,
