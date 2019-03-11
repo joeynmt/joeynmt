@@ -18,10 +18,11 @@ import torch.nn as nn
 
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
-from joeynmt.helpers import log_data_info, load_data, \
+from joeynmt.helpers import log_data_info, \
     load_config, log_cfg, store_attention_plots, make_data_iter, \
     load_model_from_checkpoint
 from joeynmt.prediction import validate_on_data
+from joeynmt.data import load_data
 
 
 # pylint: disable=too-many-instance-attributes

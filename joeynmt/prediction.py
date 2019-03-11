@@ -6,12 +6,13 @@ This modules holds methods for generating predictions from a model.
 import torch
 
 from joeynmt.constants import PAD_TOKEN
-from joeynmt.helpers import load_data, arrays_to_sentences, bpe_postprocess, \
+from joeynmt.helpers import arrays_to_sentences, bpe_postprocess, \
     load_config, get_latest_checkpoint, make_data_iter, \
     load_model_from_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
+from joeynmt.data import load_data
 
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
