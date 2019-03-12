@@ -11,7 +11,6 @@ from typing import Callable, Optional
 import numpy as np
 import yaml
 
-
 import torch
 from torch import nn
 

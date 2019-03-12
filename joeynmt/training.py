@@ -18,13 +18,15 @@ import torch.nn as nn
 
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
-from joeynmt.helpers import log_data_info, \
-    load_config, log_cfg, store_attention_plots, load_model_from_checkpoint
+from joeynmt.helpers import log_data_info, load_config, log_cfg, \
+    store_attention_plots, load_model_from_checkpoint
 from joeynmt.prediction import validate_on_data
 from joeynmt.data import load_data, make_data_iter
+from joeynmt.builders import build_optimizer, build_scheduler, \
+    build_gradient_clipper
 
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes,too-many-branches
 class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
@@ -40,20 +42,15 @@ class TrainManager:
         self.model = model
         self.pad_index = self.model.pad_index
         self.bos_index = self.model.bos_index
-        criterion = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
-        self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
         if train_config["loss"].lower() not in ["crossentropy", "xent",
                                                 "mle", "cross-entropy"]:
             raise NotImplementedError("Loss is not implemented. Only xent.")
-        learning_rate = train_config.get("learning_rate", 3.0e-4)
-        weight_decay = train_config.get("weight_decay", 0)
-        if train_config["optimizer"].lower() == "adam":
-            self.optimizer = torch.optim.Adam(
-                model.parameters(), weight_decay=weight_decay, lr=learning_rate)
-        else:
-            # default
-            self.optimizer = torch.optim.SGD(
-                model.parameters(), weight_decay=weight_decay, lr=learning_rate)
+        criterion = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
+
+        self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
+        self.optimizer = build_optimizer(config=train_config,
+                                         parameters=model.parameters())
+
         self.schedule_metric = train_config.get("schedule_metric",
                                                 "eval_metric")
         self.ckpt_metric = train_config.get("ckpt_metric", "eval_metric")
@@ -69,27 +66,11 @@ class TrainManager:
         else:
             self.best_ckpt_score = np.inf
             self.is_best = lambda x: x < self.best_ckpt_score
-        self.scheduler = None
-        if "scheduling" in train_config.keys() and \
-                train_config["scheduling"]:
-            if train_config["scheduling"].lower() == "plateau":
-                # learning rate scheduler
-                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    optimizer=self.optimizer,
-                    mode=scheduler_mode,
-                    verbose=False,
-                    threshold_mode='abs',
-                    factor=train_config.get("decrease_factor", 0.1),
-                    patience=train_config.get("patience", 10))
-            elif train_config["scheduling"].lower() == "decaying":
-                self.scheduler = torch.optim.lr_scheduler.StepLR(
-                    optimizer=self.optimizer,
-                    step_size=train_config.get("decaying_step_size", 10))
-            elif train_config["scheduling"].lower() == "exponential":
-                self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                    optimizer=self.optimizer,
-                    gamma=train_config.get("decrease_factor", 0.99)
-                )
+
+        self.scheduler, self.scheduler_step_at = build_scheduler(
+            config=train_config, scheduler_mode=scheduler_mode,
+            optimizer=self.optimizer)
+
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
@@ -113,20 +94,8 @@ class TrainManager:
         self.eval_metric = train_config.get("eval_metric", "bleu")
         self.print_valid_sents = train_config["print_valid_sents"]
         self.level = config["data"]["level"]
-        self.clip_grad_fun = None
-        if "clip_grad_val" in train_config.keys():
-            clip_value = train_config["clip_grad_val"]
-            self.clip_grad_fun = lambda params:\
-                nn.utils.clip_grad_value_(parameters=params,
-                                          clip_value=clip_value)
-        elif "clip_grad_norm" in train_config.keys():
-            max_norm = train_config["clip_grad_norm"]
-            self.clip_grad_fun = lambda params:\
-                nn.utils.clip_grad_norm_(parameters=params, max_norm=max_norm)
 
-        assert not ("clip_grad_val" in train_config.keys() and
-                    "clip_grad_norm" in train_config.keys()), \
-            "you can only specify either clip_grad_val or clip_grad_norm"
+        self.clip_grad_fun = build_gradient_clipper(config=train_config)
 
         if "load_model" in train_config.keys():
             model_load_path = train_config["load_model"]
@@ -231,6 +200,10 @@ class TrainManager:
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
+
+            if self.scheduler is not None and self.scheduler_step_at == "epoch":
+                self.scheduler.step(epoch=epoch_no)
+
             self.model.train()
 
             start = time.time()
@@ -307,7 +280,9 @@ class TrainManager:
                     else:
                         # schedule based on evaluation score
                         schedule_score = valid_score
-                    if self.scheduler is not None:
+
+                    if self.scheduler is not None \
+                            and self.scheduler_step_at == "validation":
                         self.scheduler.step(schedule_score)
 
                     # append to validation report
