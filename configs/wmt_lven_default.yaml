@@ -28,7 +28,7 @@ training:
     scheduling: "plateau"
     patience: 8
     decrease_factor: 0.7
-    schedule_metric: "ppl"
+    early_stopping_metric: "ppl"
     epochs: 20
     validation_freq: 2000
     logging_freq: 1000
