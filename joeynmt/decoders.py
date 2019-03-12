@@ -168,8 +168,6 @@ class RecurrentDecoder(Decoder):
         """
         assert len(encoder_output.shape) == 3
         assert len(encoder_hidden.shape) == 2
-        # for beam search, batch_size of encoder outputs is expanded beam times
-        #assert not encoder_output.shape[0] % encoder_hidden.shape[0]
         assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
         assert src_mask.shape[1] == 1
         assert src_mask.shape[0] == encoder_output.shape[0]
