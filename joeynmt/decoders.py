@@ -144,6 +144,8 @@ class RecurrentDecoder(Decoder):
         assert src_mask.shape[0] == prev_embed.shape[0]
         assert src_mask.shape[1] == 1
         assert src_mask.shape[2] == encoder_output.shape[1]
+        if isinstance(hidden, tuple):  # for lstm
+            hidden = hidden[0]
         assert hidden.shape[0] == self.num_layers
         assert hidden.shape[1] == prev_embed.shape[0]
         assert hidden.shape[2] == self.hidden_size
@@ -177,6 +179,8 @@ class RecurrentDecoder(Decoder):
         assert trg_embed.shape[0] == encoder_output.shape[0]
         assert trg_embed.shape[2] == self.emb_size
         if hidden is not None:
+            if isinstance(hidden, tuple):  # for lstm
+                hidden = hidden[0]
             assert hidden.shape[1] == encoder_output.shape[0]
             assert hidden.shape[2] == self.hidden_size
         if prev_att_vector is not None:
