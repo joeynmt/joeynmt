@@ -209,9 +209,10 @@ class RecurrentDecoder(Decoder):
             shape (batch_size, 1, src_length)
         :param hidden: previous hidden state,
             shape (num_layers, batch_size, hidden_size)
-        :return: att_vector: new attention vector (batch_size, 1, hidden_size),
-            hidden: new hidden state with shape (batch_size, 1, hidden_size),
-            att_probs: attention probabilities (batch_size, 1, src_len)
+        :return:
+            - att_vector: new attention vector (batch_size, 1, hidden_size),
+            - hidden: new hidden state with shape (batch_size, 1, hidden_size),
+            - att_probs: attention probabilities (batch_size, 1, src_len)
         """
 
         # shape checks
@@ -303,12 +304,13 @@ class RecurrentDecoder(Decoder):
         :param prev_att_vector: previous attentional vector,
             if not given it's initialized with zeros,
             shape (batch_size, 1, hidden_size)
-        :return: outputs: shape (batch_size, unrol_steps, vocab_size),
-            hidden: last hidden state (num_layers, batch_size, hidden_size),
-            att_probs: attention probabilities
-            with shape (batch_size, unrol_steps, src_length),
-            att_vectors: attentional vectors
-            with shape (batch_size, unrol_steps, hidden_size)
+        :return:
+            - outputs: shape (batch_size, unrol_steps, vocab_size),
+            - hidden: last hidden state (num_layers, batch_size, hidden_size),
+            - att_probs: attention probabilities
+                with shape (batch_size, unrol_steps, src_length),
+            - att_vectors: attentional vectors
+                with shape (batch_size, unrol_steps, hidden_size)
         """
 
         # shape checks

@@ -80,7 +80,6 @@ class RecurrentEncoder(Encoder):
         :param embed_src: embedded source tokens
         :param src_length: source length
         :param mask: source mask
-        :return:
         """
         assert embed_src.shape[0] == src_length.shape[0]
         assert embed_src.shape[2] == self.emb_size
@@ -101,10 +100,11 @@ class RecurrentEncoder(Encoder):
             (counting tokens before padding), shape (batch_size)
         :param mask: indicates padding areas (zeros where padding), shape
             (batch_size, src_len, embed_size)
-        :return: output: hidden states with
-            shape (batch_size, max_length, directions*hidden),
-            hidden_concat: last hidden state with
-            shape (batch_size, directions*hidden)
+        :return:
+            - output: hidden states with
+                shape (batch_size, max_length, directions*hidden),
+            - hidden_concat: last hidden state with
+                shape (batch_size, directions*hidden)
         """
         self._check_shapes_input_forward(embed_src=embed_src,
                                          src_length=src_length,

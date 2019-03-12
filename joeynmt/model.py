@@ -3,7 +3,6 @@
 Module to represents whole models
 """
 
-from typing import Callable
 import numpy as np
 
 import torch.nn as nn
@@ -112,15 +111,17 @@ class Model(nn.Module):
                             unrol_steps=unrol_steps,
                             hidden=decoder_hidden)
 
-    def get_loss_for_batch(self, batch: Batch, criterion: nn.Module) -> Tensor:
+    def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
+            -> Tensor:
         """
         Compute non-normalized loss and number of tokens for a batch
 
         :param batch: batch to compute loss for
-        :param criterion: loss criterion
+        :param loss_function: loss function, computes for input and target
+            a scalar loss for the complete batch
         :return: batch_loss: sum of losses over non-pad elements in the batch
         """
-        #pylint: disable=unused-variable
+        # pylint: disable=unused-variable
         out, hidden, att_probs, _ = self.forward(
             src=batch.src, trg_input=batch.trg_input,
             src_mask=batch.src_mask, src_lengths=batch.src_lengths)
@@ -129,7 +130,7 @@ class Model(nn.Module):
         log_probs = F.log_softmax(out, dim=-1)
 
         # compute batch loss
-        batch_loss = criterion(
+        batch_loss = loss_function(
             input=log_probs.contiguous().view(-1, log_probs.size(-1)),
             target=batch.trg.contiguous().view(-1))
         # return batch loss = sum over all elements in batch that are not pad
@@ -189,20 +190,6 @@ class Model(nn.Module):
                    self.__class__.__name__, str(self.encoder),
                    str(self.decoder),
                    self.src_embed, self.trg_embed)
-
-    def log_parameters_list(self, logging_function: Callable[[str], None]) \
-            -> None:
-        """
-        Write all parameters (name, shape) to the log.
-
-        :param logging_function: a logger's logging function
-        """
-        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
-        n_params = sum([np.prod(p.size()) for p in model_parameters])
-        logging_function("Total params: %d" % n_params)
-        for name, p in self.named_parameters():
-            if p.requires_grad:
-                logging_function("%s : %s" % (name, list(p.size())))
 
 
 def build_model(cfg: dict = None,
