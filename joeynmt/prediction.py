@@ -2,21 +2,28 @@
 """
 This modules holds methods for generating predictions from a model.
 """
+from typing import List
+import numpy as np
 
 import torch
+from torchtext.data import Dataset
 
 from joeynmt.constants import PAD_TOKEN
-from joeynmt.helpers import load_data, arrays_to_sentences, bpe_postprocess, \
-    load_config, get_latest_checkpoint, make_data_iter, \
-    load_model_from_checkpoint, store_attention_plots
+from joeynmt.helpers import bpe_postprocess, load_config, \
+    get_latest_checkpoint, load_model_from_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
-from joeynmt.model import build_model
+from joeynmt.model import build_model, Model
 from joeynmt.batch import Batch
+from joeynmt.data import load_data, make_data_iter
 
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
-def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
-                     level, eval_metric, criterion, beam_size=0, beam_alpha=-1):
+def validate_on_data(model: Model, data: Dataset, batch_size: int,
+                     use_cuda: bool, max_output_length: int,
+                     level: str, eval_metric: str, criterion: torch.nn.Module,
+                     beam_size: int = 0, beam_alpha: int = -1) \
+        -> (float, float, float, List[str], List[List[str]], List[str],
+            List[str], List[List[str]], List[np.array]):
     """
     Generate translations for the given data.
     If `criterion` is not None and references are given, also compute the loss.
@@ -31,7 +38,15 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
     :param criterion:
     :param beam_size:
     :param beam_alpha:
-    :return:
+    :return: current_valid_score: current validation score [eval_metric],
+        valid_loss: validation loss,
+        valid_ppl:, validation perplexity,
+        valid_sources: validation sources,
+        valid_sources_raw: raw validation sources (before post-processing),
+        valid_references: validation references,
+        valid_hypotheses: validation_hypotheses,
+        decoded_valid: raw validation hypotheses (before post-processing),
+        valid_attention_scores: attention scores for validation hypotheses
     """
     valid_iter = make_data_iter(dataset=data, batch_size=batch_size,
                                 shuffle=False, train=False)
@@ -82,9 +97,8 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
             valid_ppl = -1
 
         # decode back to symbols
-        decoded_valid = arrays_to_sentences(arrays=all_outputs,
-                                            vocabulary=model.trg_vocab,
-                                            cut_at_eos=True)
+        decoded_valid = model.trg_vocab.arrays_to_sentences(arrays=all_outputs,
+                                                            cut_at_eos=True)
 
         # evaluate with metric on full dataset
         join_char = " " if level in ["word", "bpe"] else ""
@@ -123,19 +137,19 @@ def validate_on_data(model, data, batch_size, use_cuda, max_output_length,
         valid_sources_raw, valid_references, valid_hypotheses, \
         decoded_valid, valid_attention_scores
 
+
 def test(cfg_file,
          ckpt: str = None,
          output_path: str = None,
-         save_attention: bool = False):
+         save_attention: bool = False) -> None:
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
 
-    :param cfg_file:
-    :param ckpt:
-    :param output_path:
-    :param save_attention:
-    :return:
+    :param cfg_file: path to configuration file
+    :param ckpt: path to checkpoint to load
+    :param output_path: path to output
+    :param save_attention: whether to save the computed attention weights
     """
 
     cfg = load_config(cfg_file)

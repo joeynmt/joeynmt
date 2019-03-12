@@ -11,18 +11,20 @@ from joeynmt.embeddings import Embeddings
 
 def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
            max_output_length: int, decoder: Decoder,
-           encoder_output: Tensor, encoder_hidden: Tensor):
+           encoder_output: Tensor, encoder_hidden: Tensor)\
+        -> (np.array, np.array):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
 
-    :param src_mask:
-    :param embed:
-    :param bos_index:
-    :param max_output_length:
-    :param decoder:
-    :param encoder_output:
-    :param encoder_hidden:
-    :return:
+    :param src_mask: mask for source inputs, 0 for positions after </s>
+    :param embed: target embedding
+    :param bos_index: index of <s> in the vocabulary
+    :param max_output_length: maximum length for the hypotheses
+    :param decoder: decoder to use for greedy decoding
+    :param encoder_output: encoder hidden states for attention
+    :param encoder_hidden: encoder last state for decoder initialization
+    :return: stacked_output: output hypotheses (2d array of indices),
+        stacked_attention_scores: attention scores (3d array)
     """
     batch_size = src_mask.size(0)
     prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
@@ -61,7 +63,7 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
                 pad_index: int, encoder_output: Tensor,
                 encoder_hidden: Tensor, src_mask: Tensor,
                 max_output_length: int, alpha: float, embed: Embeddings,
-                n_best: int = 1):
+                n_best: int = 1) -> (np.array, np.array):
     """
     Beam search with size k. Follows OpenNMT-py implementation.
     In each decoding step, find the k most likely partial hypotheses.
@@ -78,7 +80,8 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
     :param alpha: `alpha` factor for length penalty
     :param embed:
     :param n_best: return this many hypotheses, <= beam
-    :return:
+    :return: stacked_output: output hypotheses (2d array of indices),
+        stacked_attention_scores: attention scores (3d array)
     """
     # init
     batch_size = src_mask.size(0)
