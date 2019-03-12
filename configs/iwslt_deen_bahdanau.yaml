@@ -21,7 +21,6 @@ testing:
 training:
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00005
     batch_size: 64

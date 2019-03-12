@@ -22,7 +22,6 @@ training:
     #load_model: "iwslt_envi_luong/XXXXX.cpkt"
     random_seed: 42
     optimizer: "sgd"
-    loss: "crossentropy"
     learning_rate: 1.0
     learning_rate_min: 0.0625
     weight_decay: 0.0

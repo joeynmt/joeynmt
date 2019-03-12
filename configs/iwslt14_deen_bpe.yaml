@@ -18,7 +18,6 @@ testing:
 
 training:
     optimizer: "adam"
-    loss: "crossentropy"
     normalization: "tokens"
     learning_rate: 0.0002
     batch_size: 80
