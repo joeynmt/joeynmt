@@ -19,9 +19,9 @@ testing:  # specify which inference algorithm to use for testing (for validation
     alpha: 1.0  # length penalty for beam search
 
 training: # specify training details here
-    load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
+    #load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
     random_seed: 42 # set this seed to make training deterministic
-    optimizer: "adam" # choices: "sgd", "adam", default is SGD, required
+    optimizer: "adam" # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
     loss: "crossentropy"  # training loss, required
     learning_rate: 0.005  # initial learning rate, default: 3.0e-4
     learning_rate_min: 0.0001  # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
