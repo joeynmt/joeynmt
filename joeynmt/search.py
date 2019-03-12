@@ -112,7 +112,7 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
         device=encoder_output.device)
 
     # Give full probability to the first beam on the first step.
-    topk_log_probs = (torch.Tensor([0.0] + [float("-inf")] * (size - 1),
+    topk_log_probs = (torch.tensor([0.0] + [float("-inf")] * (size - 1),
                                    device=encoder_output.device).repeat(
                                     batch_size))
 
