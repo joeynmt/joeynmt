@@ -7,7 +7,7 @@ import glob
 import os
 import os.path
 from logging import Logger
-from typing import Callable
+from typing import Callable, Optional
 import numpy as np
 import yaml
 
@@ -145,16 +145,19 @@ def store_attention_plots(attentions, targets, sources, output_prefix,
             continue
 
 
-def get_latest_checkpoint(ckpt_dir):
+def get_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
     """
     Returns the latest checkpoint (by time) from the given directory.
+    If there is no checkpoint in this directory, returns None
 
     :param ckpt_dir:
-    :return:
+    :return: latest checkpoint file
     """
     list_of_files = glob.glob("{}/*.ckpt".format(ckpt_dir))
-    latest_file = max(list_of_files, key=os.path.getctime)
-    return latest_file
+    latest_checkpoint = None
+    if list_of_files:
+        latest_checkpoint = max(list_of_files, key=os.path.getctime)
+    return latest_checkpoint
 
 
 def load_model_from_checkpoint(path, use_cuda=True):
@@ -169,6 +172,7 @@ def load_model_from_checkpoint(path, use_cuda=True):
     model_checkpoint = torch.load(path,
                                   map_location='cuda' if use_cuda else 'cpu')
     return model_checkpoint
+
 
 # from onmt
 def tile(x, count, dim=0):

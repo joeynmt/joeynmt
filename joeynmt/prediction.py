@@ -161,6 +161,9 @@ def test(cfg_file,
     if ckpt is None:
         model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
+        if ckpt is None:
+            raise FileNotFoundError("No checkpoint found in directory {}."
+                                    .format(model_dir))
         try:
             step = ckpt.split(model_dir+"/")[1].split(".ckpt")[0]
         except IndexError:
