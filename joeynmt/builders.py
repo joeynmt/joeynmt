@@ -112,8 +112,9 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str) \
     :param scheduler_mode: "min" or "max", depending on whether the validation
         score should be minimized or maximized.
         Only relevant for "plateau".
-    :return: scheduler: scheduler object,
-        scheduler_step_at: either "validation" or "epoch"
+    :return:
+        - scheduler: scheduler object,
+        - scheduler_step_at: either "validation" or "epoch"
     """
     scheduler, scheduler_step_at = None, None
     if "scheduling" in config.keys() and \
