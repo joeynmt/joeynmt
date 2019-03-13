@@ -446,7 +446,8 @@ def train(cfg_file: str) -> None:
     set_seed(seed=cfg["training"].get("random_seed", 42))
 
     # load the data
-    train_data, dev_data, test_data, src_vocab, trg_vocab = load_data(cfg=cfg)
+    train_data, dev_data, test_data, src_vocab, trg_vocab = load_data(
+        data_cfg=cfg["data"])
 
     # build an encoder-decoder model
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)

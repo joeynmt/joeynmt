@@ -20,10 +20,25 @@ joeynmt.batch module
     :undoc-members:
     :show-inheritance:
 
+joeynmt.builders module
+-----------------------
+
+.. automodule:: joeynmt.builders
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 joeynmt.constants module
 ------------------------
 
 .. automodule:: joeynmt.constants
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+joeynmt.data module
+-------------------
+.. automodule:: joeynmt.data
     :members:
     :undoc-members:
     :show-inheritance:
@@ -61,9 +76,17 @@ joeynmt.helpers module
     :show-inheritance:
 
 joeynmt.initialization module
-----------------------
+-----------------------------
 
 .. automodule:: joeynmt.initialization
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+joeynmt.metrics module
+----------------------
+
+.. automodule:: joeynmt.metrics
     :members:
     :undoc-members:
     :show-inheritance:
@@ -75,6 +98,7 @@ joeynmt.model module
     :members:
     :undoc-members:
     :show-inheritance:
+
 
 joeynmt.plotting module
 -----------------------
