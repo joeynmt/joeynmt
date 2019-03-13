@@ -5,24 +5,37 @@ Data module
 import sys
 import os
 import os.path
+from typing import Optional
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
-from torchtext.data import Dataset
+from torchtext.data import Dataset, Iterator
 
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
-from joeynmt.vocabulary import build_vocab
+from joeynmt.vocabulary import build_vocab, Vocabulary
 
 
-def load_data(cfg: dict):
+def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
+                                  Vocabulary, Vocabulary):
     """
-    Load train, dev and test data as specified in configuration.
+    Load train, dev and optionally test data as specified in configuration.
+    Vocabularies are created from the training set with a limit of `voc_limit`
+    tokens and a minimum token frequency of `voc_min_freq`
+    (specified in the configuration dictionary).
 
-    :param cfg: configuration dictionary
+    The training data is filtered to include sentences up to `max_sent_length`
+    on source and target side.
+
+    :param data_cfg: configuration dictionary for data
+        ("data" part of configuation file)
     :return:
+        - train_data: training dataset
+        - dev_data: development dataset
+        - test_data: testdata set if given, otherwise None
+        - src_vocab: source vocabulary extracted from training data
+        - trg_vocab: target vocabulary extracted from training data
     """
     # load data from files
-    data_cfg = cfg["data"]
     src_lang = data_cfg["src"]
     trg_lang = data_cfg["trg"]
     train_path = data_cfg["train"]
@@ -32,11 +45,7 @@ def load_data(cfg: dict):
     lowercase = data_cfg["lowercase"]
     max_sent_length = data_cfg["max_sent_length"]
 
-    #pylint: disable=unnecessary-lambda
-    if level == "char":
-        tok_fun = lambda s: list(s)
-    else:  # bpe or word, pre-tokenized
-        tok_fun = lambda s: s.split()
+    tok_fun = lambda s: list(s) if level == "char" else s.split()
 
     src_field = data.Field(init_token=None, eos_token=EOS_TOKEN,
                            pad_token=PAD_TOKEN, tokenize=tok_fun,
@@ -88,15 +97,18 @@ def load_data(cfg: dict):
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
-def make_data_iter(dataset, batch_size, train=False, shuffle=False):
+def make_data_iter(dataset: Dataset, batch_size: int, train: bool = False,
+                   shuffle: bool = False) -> Iterator:
     """
     Returns a torchtext iterator for a torchtext dataset.
 
-    :param dataset:
-    :param batch_size:
-    :param train:
-    :param shuffle:
-    :return:
+    :param dataset: torchtext dataset containing src and optionally trg
+    :param batch_size: size of the batches the iterator prepares
+    :param train: whether it's training time, when turned off,
+        bucketing, sorting within batches and shuffling is disabled
+    :param shuffle: whether to shuffle the data before each epoch
+        (no effect if set to True for testing)
+    :return: torchtext iterator
     """
     if train:
         # optionally shuffle and sort during training
@@ -120,15 +132,14 @@ class MonoDataset(Dataset):
     def sort_key(ex):
         return len(ex.src)
 
-    def __init__(self, path: str, ext: str, field: str, **kwargs):
+    def __init__(self, path: str, ext: str, field: str, **kwargs) -> None:
         """
         Create a monolingual dataset (=only sources) given path and field.
 
         :param path: Prefix of path to the data file
         :param ext: Containing the extension to path for this language.
         :param field: Containing the fields that will be used for data.
-        :param kwargs: Passed to the constructor of
-                data.Dataset.
+        :param kwargs: Passed to the constructor of data.Dataset.
         """
 
         fields = [('src', field)]
