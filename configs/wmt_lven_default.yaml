@@ -60,5 +60,5 @@ model:
         hidden_dropout: 0.3
         num_layers: 1
         input_feeding: True
-        bridge: True
+        init_hidden: "bridge"
         attention: "bahdanau"

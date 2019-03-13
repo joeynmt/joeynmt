@@ -69,5 +69,5 @@ model:
         hidden_dropout: 0.1
         num_layers: 1
         input_feeding: True
-        bridge: False
+        init_hidden: "zero"
         attention: "luong"

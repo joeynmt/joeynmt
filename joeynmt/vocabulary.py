@@ -148,7 +148,7 @@ def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
     :param dataset: dataset to load data for field from
     :param vocab_file: file to store the vocabulary,
         if not None, load vocabulary from here
-    :return: Vocabulary created from either `dataset`
+    :return: Vocabulary created from either `dataset` or `vocab_file`
     """
 
     if vocab_file is not None:
