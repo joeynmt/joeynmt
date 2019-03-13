@@ -43,7 +43,7 @@ class RecurrentDecoder(Decoder):
                  vocab_size: int = 0,
                  dropout: float = 0.,
                  hidden_dropout: float = 0.,
-                 bridge: bool = False,
+                 init_hidden: str = "bridge",
                  input_feeding: bool = True,
                  freeze: bool = False,
                  **kwargs) -> None:
@@ -59,9 +59,11 @@ class RecurrentDecoder(Decoder):
         :param vocab_size: target vocabulary size
         :param hidden_dropout: Is applied to the input to the attentional layer.
         :param dropout: Is applied to the input to the RNN.
-        :param bridge: If True, the decoder hidden states are initialized from a
-            projection of the encoder states,
-            else they are initialized with zeros.
+        :param init_hidden: If "bridge" (default), the decoder hidden states are
+            initialized from a projection of the last encoder state,
+            if "zeros" they are initialized with zeros,
+            if "last" they are identical to the last encoder state
+            (only if they have the same size)
         :param input_feeding: Use Luong's input feeding.
         :param freeze: Freeze the parameters of the decoder during training.
         :param kwargs:
@@ -111,10 +113,16 @@ class RecurrentDecoder(Decoder):
         self.hidden_size = hidden_size
 
         # to initialize from the final encoder state of last layer
-        self.bridge = bridge
-        if self.bridge:
+        self.init_hidden_option = init_hidden
+        if self.init_hidden_option == "bridge":
             self.bridge_layer = nn.Linear(
                 encoder.output_size, hidden_size, bias=True)
+        elif self.init_hidden_option == "last":
+            if encoder.output_size != self.hidden_size:
+                raise ValueError(
+                    "For initializing the decoder state with the last encoder "
+                    "state, their sizes have to match (encoder: {} vs. decoder:"
+                    " {})".format(encoder.output_size, self.hidden_size))
 
         if freeze:
             freeze_params(self)
@@ -287,7 +295,7 @@ class RecurrentDecoder(Decoder):
 
          The `encoder_hidden` is the last encoder hidden state that is used to
          initialize the first hidden decoder state
-         (in case of `self.bridge == True`).
+         (when `self.init_hidden_option` is "bridge" or "last").
 
         :param trg_embed: emdedded target inputs,
             shape (batch_size, trg_length, embed_size)
@@ -369,12 +377,19 @@ class RecurrentDecoder(Decoder):
         Returns the initial decoder state,
         conditioned on the final encoder state of the last encoder layer.
 
-        In case of `self.bridge == True` and a given `encoder_final`,
-        this is a projection of the encoder state.
-        For LSTMs we initialize both the hidden state and the memory cell
-        with the same projection of the encoder hidden state.
+        In case of `self.init_hidden_option == "bridge"`
+        and a given `encoder_final`, this is a projection of the encoder state.
 
-        Otherwise it is initialized with zeros.
+        In case of `self.init_hidden_option == "last"`
+        and a size-matching `encoder_final`, this is set to the encoder state.
+
+        In case of `self.init_hidden_option == "zero"`, it is initialized with
+        zeros.
+
+        For LSTMs we initialize both the hidden state and the memory cell
+        with the same projection/copy of the encoder hidden state.
+
+        All decoder layers are initialized with the same initial values.
 
         :param encoder_final: final state from the last layer of the encoder,
             shape (batch_size, encoder_hidden_size)
@@ -384,12 +399,13 @@ class RecurrentDecoder(Decoder):
         batch_size = encoder_final.size(0)
 
         # for multiple layers: is the same for all layers
-        if self.bridge and encoder_final is not None:
+        if self.init_hidden_option == "bridge" and encoder_final is not None:
             # num_layers x batch_size x hidden_size
             hidden = torch.tanh(
                     self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
                     self.num_layers, 1, 1)
-
+        elif self.init_hidden_option == "last" and encoder_final is not None:
+            hidden = encoder_final.unsqueeze(0).repeat(self.num_layers, 1, 1)
         else:  # initialize with zeros
             with torch.no_grad():
                 hidden = encoder_final.new_zeros(
