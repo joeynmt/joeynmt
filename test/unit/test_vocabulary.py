@@ -14,48 +14,40 @@ class TestVocabulary(unittest.TestCase):
         self.char_list = list(sent)
         self.temp_file_char = "tmp.src.char"
         self.temp_file_word = "tmp.src.word"
+        self.word_vocab = Vocabulary(tokens=sorted(list(set(self.word_list))))
+        self.char_vocab = Vocabulary(tokens=sorted(list(set(self.char_list))))
 
-    def testVocabularyFromListAndFile(self):
-        word_vocab = Vocabulary(tokens=self.word_list)
-        char_vocab = Vocabulary(tokens=self.char_list)
-        self.assertEqual(len(word_vocab), len(set(self.word_list)))
-        self.assertEqual(len(char_vocab), len(set(self.char_list)))
-        expected_char_stoi = {'M': 6, 'f': 14, 'g': 15, 'W': 8, 'l': 19,
-                              'K': 5, 'n': 21, 'b': 10, '–': 29, 'k': 18,
-                              'c': 11, 'w': 28, 't': 25, ' ': 0, 'G': 4,
-                              'h': 16, 'e': 13, 'd': 12, 'r': 23, 'u': 26,
-                              '.': 2, 'v': 27, ',': 1, 's': 24, 'D': 3, 'T': 7,
-                              'o': 22, 'i': 17, 'a': 9, 'm': 20}
-        expected_char_itos = [' ', ',', '.', 'D', 'G', 'K', 'M', 'T', 'W', 'a',
+    def testVocabularyFromList(self):
+        self.assertEqual(len(self.word_vocab)-len(self.word_vocab.specials),
+                         len(set(self.word_list)))
+        self.assertEqual(len(self.char_vocab)-len(self.char_vocab.specials),
+                         len(set(self.char_list)))
+        expected_char_itos = ['<unk>', '<pad>', '<s>', '</s>',
+                              ' ', ',', '.', 'D', 'G', 'K', 'M', 'T', 'W', 'a',
                               'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l',
                               'm', 'n', 'o', 'r', 's', 't', 'u', 'v', 'w', '–']
-        self.assertEqual(char_vocab.stoi, expected_char_stoi)
-        self.assertEqual(char_vocab.itos, expected_char_itos)
-        expected_word_stoi = {'Die': 0, 'Titanic': 4, 'alle': 6, 'Wahrheit': 5,
-                              'ist,': 12, 'Geschichte': 1, 'sie': 16, '–': 18,
-                              'Kinokassenrekorde': 2, 'vom': 17, 'ist.': 13,
-                              'obwohl': 15, 'die': 10, 'Meer': 3, 'nicht': 14,
-                              'bricht': 8, 'dass': 9, 'gerade': 11,
-                              'aufregendste': 7}
-        expected_word_itos = ['Die', 'Geschichte', 'Kinokassenrekorde', 'Meer',
+        self.assertEqual(self.char_vocab.itos, expected_char_itos)
+        expected_word_itos = ['<unk>', '<pad>', '<s>', '</s>',
+                              'Die', 'Geschichte', 'Kinokassenrekorde', 'Meer',
                               'Titanic', 'Wahrheit', 'alle', 'aufregendste',
                               'bricht', 'dass', 'die', 'gerade', 'ist,', 'ist.',
                               'nicht', 'obwohl', 'sie', 'vom', '–']
-        self.assertEqual(word_vocab.stoi, expected_word_stoi)
-        self.assertEqual(word_vocab.itos, expected_word_itos)
+        self.assertEqual(self.word_vocab.itos, expected_word_itos)
 
+    def testVocabularyFromFile(self):
         # write vocabs to file and create new ones from those files
-        word_vocab.to_file(self.temp_file_word)
-        char_vocab.to_file(self.temp_file_char)
+        self.word_vocab.to_file(self.temp_file_word)
+        self.char_vocab.to_file(self.temp_file_char)
 
         word_vocab2 = Vocabulary(file=self.temp_file_word)
         char_vocab2 = Vocabulary(file=self.temp_file_char)
-        self.assertEqual(word_vocab.itos, word_vocab2.itos)
-        self.assertEqual(char_vocab.itos, char_vocab2.itos)
-
-    def tearDown(self):
-        # delete temporary vocab files
+        self.assertEqual(self.word_vocab.itos, word_vocab2.itos)
+        self.assertEqual(self.char_vocab.itos, char_vocab2.itos)
         os.remove(self.temp_file_char)
         os.remove(self.temp_file_word)
 
-
+    def testIsUnk(self):
+        self.assertTrue(self.word_vocab.is_unk("BLA"))
+        self.assertFalse(self.word_vocab.is_unk("Die"))
+        self.assertTrue(self.char_vocab.is_unk("x"))
+        self.assertFalse(self.char_vocab.is_unk("d"))

@@ -1,9 +1,9 @@
-from .test_helpers import TensorTestCase
+import unittest
 
 from joeynmt.data import MonoDataset, TranslationDataset, load_data
 
 
-class TestData(TensorTestCase):
+class TestData(unittest.TestCase):
 
     def setUp(self):
         self.train_path = "test/data/iwslt/train"
