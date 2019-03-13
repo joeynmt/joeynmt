@@ -9,7 +9,7 @@ from typing import Optional
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
-from torchtext.data import Dataset, Iterator
+from torchtext.data import Dataset, Iterator, Field
 
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 from joeynmt.vocabulary import build_vocab, Vocabulary
@@ -89,9 +89,8 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                 fields=(src_field, trg_field))
         else:
             # no target is given -> create dataset from src only
-
             test_data = MonoDataset(path=test_path, ext="." + src_lang,
-                                    field=(src_field))
+                                    field=src_field)
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
     return train_data, dev_data, test_data, src_vocab, trg_vocab
@@ -132,7 +131,7 @@ class MonoDataset(Dataset):
     def sort_key(ex):
         return len(ex.src)
 
-    def __init__(self, path: str, ext: str, field: str, **kwargs) -> None:
+    def __init__(self, path: str, ext: str, field: Field, **kwargs) -> None:
         """
         Create a monolingual dataset (=only sources) given path and field.
 
