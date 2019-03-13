@@ -20,11 +20,18 @@ class Vocabulary:
         """
         Create vocabulary from list of tokens or file.
 
+        Special tokens are added if not already in file or list.
+        File format: token with index i is in line i.
+
         :param tokens: list of tokens
-        :param file:
+        :param file: file to load vocabulary from
         """
         # don't rename stoi and itos since needed for torchtext
         # warning: stoi grows with unknown tokens, don't use for saving or size
+
+        # special symbols
+        self.specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
+
         self.stoi = defaultdict(DEFAULT_UNK_ID)
         self.itos = []
         if tokens is not None:
@@ -35,20 +42,20 @@ class Vocabulary:
     def _from_list(self, tokens: List[str] = None) -> None:
         """
         Make vocabulary from list of tokens.
+        Tokens are assumed to be unique and pre-selected.
+        Special symbols are added if not in list.
 
         :param tokens: list of tokens
         """
-        for i, t in enumerate(tokens):
-            self.stoi[t] = i
-            self.itos.append(t)
+        self.add_tokens(tokens=self.specials+tokens)
         assert len(self.stoi) == len(self.itos)
 
     def _from_file(self, file: str) -> None:
         """
         Make vocabulary from contents of file.
-        Format: token with index i is in line i.
+        File format: token with index i is in line i.
 
-        :param file:
+        :param file: path to file where the vocabulary is loaded from
         """
         tokens = []
         with open(file, "r") as open_file:
@@ -89,7 +96,7 @@ class Vocabulary:
         :param token:
         :return: True if covered, False otherwise
         """
-        return self.stoi[token] == DEFAULT_UNK_ID
+        return self.stoi[token] == DEFAULT_UNK_ID()
 
     def __len__(self) -> int:
         return len(self.itos)
@@ -144,13 +151,9 @@ def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
     :return: Vocabulary created from either `dataset`
     """
 
-    # special symbols
-    specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
-
     if vocab_file is not None:
         # load it from file
         vocab = Vocabulary(file=vocab_file)
-        vocab.add_tokens(specials)
     else:
         # create newly
         def filter_min(counter: Counter, min_freq: int):
@@ -179,13 +182,15 @@ def build_vocab(field: str, max_size: int, min_freq: int, dataset: Dataset,
         counter = Counter(tokens)
         if min_freq > -1:
             counter = filter_min(counter, min_freq)
-        vocab_tokens = specials + sort_and_cut(counter, max_size)
-        assert vocab_tokens[DEFAULT_UNK_ID()] == UNK_TOKEN
-        assert len(vocab_tokens) <= max_size + len(specials)
+        vocab_tokens = sort_and_cut(counter, max_size)
+        assert len(vocab_tokens) <= max_size
+
         vocab = Vocabulary(tokens=vocab_tokens)
+        assert len(vocab) <= max_size + len(vocab.specials)
+        assert vocab.itos[DEFAULT_UNK_ID()] == UNK_TOKEN
 
     # check for all except for UNK token whether they are OOVs
-    for s in specials[1:]:
+    for s in vocab.specials[1:]:
         assert not vocab.is_unk(s)
 
     return vocab
