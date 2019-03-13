@@ -178,7 +178,7 @@ Note that the scores reported for other models might not reflect the current sta
 Please also consider the difference in number of parameters despite "the same" setup: our models are the smallest in numbers of parameters.
 
 ### English-German
-Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `bridge=True`
+Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
@@ -189,7 +189,7 @@ Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M | `configs/wmt_ende_default.ya
 The Joey NMT model was trained for 4 days (14 epochs).
 
 ### Latvian-English
-Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `bridge=True`
+Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`
 
 Systems | level | dev | test | #params | Joey NMT config
 --- | :---: | :---: | :---: | :---: | :---:  
