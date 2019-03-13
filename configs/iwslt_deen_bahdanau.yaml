@@ -21,14 +21,13 @@ testing:
 training:
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00005
     batch_size: 64
     scheduling: "plateau"
     patience: 0
     decrease_factor: 0.5
-    schedule_metric: "ppl"
+    early_stopping_metric: "ppl"
     epochs: 100
     validation_freq: 2359
     logging_freq: 500

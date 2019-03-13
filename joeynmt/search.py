@@ -23,8 +23,9 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
     :param encoder_hidden: encoder last state for decoder initialization
-    :return: stacked_output: output hypotheses (2d array of indices),
-        stacked_attention_scores: attention scores (3d array)
+    :return:
+        - stacked_output: output hypotheses (2d array of indices),
+        - stacked_attention_scores: attention scores (3d array)
     """
     batch_size = src_mask.size(0)
     prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
@@ -80,8 +81,9 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
     :param alpha: `alpha` factor for length penalty
     :param embed:
     :param n_best: return this many hypotheses, <= beam
-    :return: stacked_output: output hypotheses (2d array of indices),
-        stacked_attention_scores: attention scores (3d array)
+    :return:
+        - stacked_output: output hypotheses (2d array of indices),
+        - stacked_attention_scores: attention scores (3d array)
     """
     # init
     batch_size = src_mask.size(0)

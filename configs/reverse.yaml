@@ -22,7 +22,6 @@ training:
     #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.0002
 #    clip_grad_val: 1.0

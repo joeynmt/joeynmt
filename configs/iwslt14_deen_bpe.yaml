@@ -18,7 +18,6 @@ testing:
 
 training:
     optimizer: "adam"
-    loss: "crossentropy"
     normalization: "tokens"
     learning_rate: 0.0002
     batch_size: 80
@@ -27,7 +26,7 @@ training:
     #clip_grad_norm: 1.0
     weight_decay: 0.0
     decrease_factor: 0.7
-    schedule_metric: "loss"
+    early_stopping_metric: "loss"
     epochs: 100
     validation_freq: 2000
     logging_freq: 500

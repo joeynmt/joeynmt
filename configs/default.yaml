@@ -19,10 +19,9 @@ testing:  # specify which inference algorithm to use for testing (for validation
     alpha: 1.0  # length penalty for beam search
 
 training: # specify training details here
-    load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
+    #load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
     random_seed: 42 # set this seed to make training deterministic
-    optimizer: "adam" # choices: "sgd", "adam", default is SGD, required
-    loss: "crossentropy"  # training loss, required
+    optimizer: "adam" # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
     learning_rate: 0.005  # initial learning rate, default: 3.0e-4
     learning_rate_min: 0.0001  # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
     clip_grad_val: 1.0  # clip the gradients to this value when they exceed it, optional
@@ -33,18 +32,17 @@ training: # specify training details here
     scheduling: "plateau" # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
     patience: 5 # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
     decrease_factor: 0.5  # specific to plateau & exponential scheduler: decrease the learning rate by this factor
-    schedule_metric: "eval_metric"  # metric that is used for learning rate scheduling, options "eval_metric" (default, validation metric, e.g. BLEU), "loss" (validation loss), "ppl" (perplexity)
-    epochs: 10  # train for this many epochs
+    epochs: 2  # train for this many epochs
     validation_freq: 50  # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10  # log the training progress after this many updates, default: 100
     eval_metric: "bleu" # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
-    ckpt_metric: "eval_metric"  # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
+    early_stopping_metric: "loss"  # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
     model_dir: "my_model" # directory where models and validation results are stored, required
     overwrite: True # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True # shuffle the training data, default: True
     use_cuda: False # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31  # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
-    print_valid_sents: 3  # print this many validation sentences during each validation run
+    print_valid_sents: 3  # print this many validation sentences during each validation run, default: 3
 
 model:  # specify your model architecture here
     tied_embeddings: False  # tie src and trg embeddings, only applicable if vocabularies are the same, default: False

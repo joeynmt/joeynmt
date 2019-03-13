@@ -10,7 +10,7 @@ from torchtext.data import Dataset
 
 from joeynmt.constants import PAD_TOKEN
 from joeynmt.helpers import bpe_postprocess, load_config, \
-    get_latest_checkpoint, load_model_from_checkpoint, store_attention_plots
+    get_latest_checkpoint, load_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model
 from joeynmt.batch import Batch
@@ -20,33 +20,40 @@ from joeynmt.data import load_data, make_data_iter
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset, batch_size: int,
                      use_cuda: bool, max_output_length: int,
-                     level: str, eval_metric: str, criterion: torch.nn.Module,
+                     level: str, eval_metric: str,
+                     loss_function: torch.nn.Module = None,
                      beam_size: int = 0, beam_alpha: int = -1) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
     Generate translations for the given data.
-    If `criterion` is not None and references are given, also compute the loss.
+    If `loss_function` is not None and references are given,
+    also compute the loss.
 
-    :param model:
-    :param data:
-    :param batch_size:
-    :param use_cuda:
-    :param max_output_length:
-    :param level:
-    :param eval_metric:
-    :param criterion:
-    :param beam_size:
-    :param beam_alpha:
-    :return: current_valid_score: current validation score [eval_metric],
-        valid_loss: validation loss,
-        valid_ppl:, validation perplexity,
-        valid_sources: validation sources,
-        valid_sources_raw: raw validation sources (before post-processing),
-        valid_references: validation references,
-        valid_hypotheses: validation_hypotheses,
-        decoded_valid: raw validation hypotheses (before post-processing),
-        valid_attention_scores: attention scores for validation hypotheses
+    :param model: model module
+    :param data: dataset for validation
+    :param batch_size: validation batch size
+    :param use_cuda: if True, use CUDA
+    :param max_output_length: maximum length for generated hypotheses
+    :param level: segmentation level, one of "char", "bpe", "word"
+    :param eval_metric: evaluation metric, e.g. "bleu"
+    :param loss_function: loss function that computes a scalar loss
+        for given inputs and targets
+    :param beam_size: beam size for validation.
+        If 0 then greedy decoding (default).
+    :param beam_alpha: beam search alpha for length penalty,
+        disabled if set to -1 (default).
+
+    :return:
+        - current_valid_score: current validation score [eval_metric],
+        - valid_loss: validation loss,
+        - valid_ppl:, validation perplexity,
+        - valid_sources: validation sources,
+        - valid_sources_raw: raw validation sources (before post-processing),
+        - valid_references: validation references,
+        - valid_hypotheses: validation_hypotheses,
+        - decoded_valid: raw validation hypotheses (before post-processing),
+        - valid_attention_scores: attention scores for validation hypotheses
     """
     valid_iter = make_data_iter(dataset=data, batch_size=batch_size,
                                 shuffle=False, train=False)
@@ -68,9 +75,9 @@ def validate_on_data(model: Model, data: Dataset, batch_size: int,
             sort_reverse_index = batch.sort_by_src_lengths()
 
             # run as during training with teacher forcing
-            if criterion is not None and batch.trg is not None:
+            if loss_function is not None and batch.trg is not None:
                 batch_loss = model.get_loss_for_batch(
-                    batch, criterion=criterion)
+                    batch, loss_function=loss_function)
                 total_loss += batch_loss
                 total_ntokens += batch.ntokens
 
@@ -87,7 +94,7 @@ def validate_on_data(model: Model, data: Dataset, batch_size: int,
 
         assert len(all_outputs) == len(data)
 
-        if criterion is not None and total_ntokens > 0:
+        if loss_function is not None and total_ntokens > 0:
             # total validation loss
             valid_loss = total_loss
             # exponent of token-level negative log prob
@@ -176,13 +183,12 @@ def test(cfg_file,
     max_output_length = cfg["training"].get("max_output_length", None)
 
     # load the data
-    _, dev_data, test_data, src_vocab, trg_vocab = \
-        load_data(cfg=cfg)
+    _, dev_data, test_data, src_vocab, trg_vocab = load_data(cfg=cfg)
 
     data_to_predict = {"dev": dev_data, "test": test_data}
 
     # load model state from disk
-    model_checkpoint = load_model_from_checkpoint(ckpt, use_cuda=use_cuda)
+    model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
@@ -206,7 +212,7 @@ def test(cfg_file,
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=data_set, batch_size=batch_size, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
-            use_cuda=use_cuda, criterion=None, beam_size=beam_size,
+            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
             beam_alpha=beam_alpha)
         #pylint: enable=unused-variable
 
@@ -227,7 +233,7 @@ def test(cfg_file,
             store_attention_plots(attentions=attention_scores,
                                   targets=hypotheses_raw,
                                   sources=[s for s in data_set.src],
-                                  idx=range(len(hypotheses)),
+                                  indices=range(len(hypotheses)),
                                   output_prefix=attention_path)
 
         if output_path is not None:

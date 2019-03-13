@@ -11,6 +11,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
+
 def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.):
     """
     Orthogonal initialization of recurrent weights
@@ -22,13 +23,12 @@ def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.):
                 nn.init.orthogonal_(hh.data[i:i + cell.hidden_size], gain=gain)
 
 
-def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.):
+def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.) -> None:
     """
-    Initialize LSTM forget gates with 1.
+    Initialize LSTM forget gates with `value`.
 
-    :param cell:
-    :param value:
-    :return:
+    :param cell: LSTM cell
+    :param value: initial value, default: 1
     """
     with torch.no_grad():
         for _, _, ih_b, hh_b in cell.all_weights:
@@ -37,16 +37,15 @@ def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.):
             hh_b.data[l // 4:l // 2].fill_(value)
 
 
-def xavier_uniform_n_(w: Tensor, gain: float = 1., n: int = 4):
+def xavier_uniform_n_(w: Tensor, gain: float = 1., n: int = 4) -> None:
     """
     Xavier initializer for parameters that combine multiple matrices in one
     parameter for efficiency. This is e.g. used for GRU and LSTM parameters,
     where e.g. all gates are computed at the same time by 1 big matrix.
 
-    :param w:
-    :param gain:
-    :param n:
-    :return:
+    :param w: parameter
+    :param gain: default 1
+    :param n: default 4
     """
     with torch.no_grad():
         fan_in, fan_out = _calculate_fan_in_and_fan_out(w)
@@ -59,7 +58,7 @@ def xavier_uniform_n_(w: Tensor, gain: float = 1., n: int = 4):
 
 # pylint: disable=too-many-branches
 def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
-                     trg_padding_idx: int):
+                     trg_padding_idx: int) -> None:
     """
     This initializes a model based on the provided config.
 
@@ -95,7 +94,6 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
     :param cfg: the model configuration
     :param src_padding_idx: index of source padding token
     :param trg_padding_idx: index of target padding token
-    :return:
     """
 
     # defaults: xavier, embeddings: normal 0.01, biases: zeros, no orthogonal

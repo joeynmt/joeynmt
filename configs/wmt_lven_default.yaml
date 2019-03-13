@@ -19,7 +19,6 @@ testing:
 training:
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.0002
     learning_rate_min: 0.0000005
     weight_decay: 0.0
@@ -28,7 +27,7 @@ training:
     scheduling: "plateau"
     patience: 8
     decrease_factor: 0.7
-    schedule_metric: "ppl"
+    early_stopping_metric: "ppl"
     epochs: 20
     validation_freq: 2000
     logging_freq: 1000
