@@ -9,10 +9,12 @@ data:
     level: "word"
     lowercase: True
     max_sent_length: 50
-    voc_min_freq: 0
-    voc_limit: 100000
-    src_vocab: "test/data/iwslt_deen/vocab.de"
-    trg_vocab: "test/data/iwslt_deen/vocab.en"
+    src_voc_min_freq: 0
+    trg_voc_min_freq: 0
+    src_voc_limit: 32007  # w/o special tokens
+    trg_voc_limit: 22820
+    #src_vocab: "test/data/iwslt_deen/vocab.de"
+    #trg_vocab: "test/data/iwslt_deen/vocab.en"
 
 testing:
     beam_size: 10

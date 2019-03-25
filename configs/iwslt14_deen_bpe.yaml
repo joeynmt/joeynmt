@@ -9,8 +9,10 @@ data:
     level: "bpe"
     lowercase: True
     max_sent_length: 62
-    voc_min_freq: 1
-    voc_limit: 32000
+    src_voc_min_freq: 1
+    src_voc_limit: 32000
+    trg_voc_min_freq: 1
+    trg_voc_limit: 32000
 
 testing:
     beam_size: 5
