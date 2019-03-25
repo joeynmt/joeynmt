@@ -68,14 +68,19 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                                     and len(vars(x)['trg'])
                                     <= max_sent_length)
 
-    max_size = data_cfg.get("voc_limit", sys.maxsize)
-    min_freq = data_cfg.get("voc_min_freq", 1)
+    src_max_size = data_cfg.get("src_voc_limit", sys.maxsize)
+    src_min_freq = data_cfg.get("src_voc_min_freq", 1)
+    trg_max_size = data_cfg.get("trg_voc_limit", sys.maxsize)
+    trg_min_freq = data_cfg.get("trg_voc_min_freq", 1)
+
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
 
-    src_vocab = build_vocab(field="src", min_freq=min_freq, max_size=max_size,
+    src_vocab = build_vocab(field="src", min_freq=src_min_freq,
+                            max_size=src_max_size,
                             dataset=train_data, vocab_file=src_vocab_file)
-    trg_vocab = build_vocab(field="trg", min_freq=min_freq, max_size=max_size,
+    trg_vocab = build_vocab(field="trg", min_freq=trg_min_freq,
+                            max_size=trg_max_size,
                             dataset=train_data, vocab_file=trg_vocab_file)
     dev_data = TranslationDataset(path=dev_path,
                                   exts=("." + src_lang, "." + trg_lang),
