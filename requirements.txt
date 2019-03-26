@@ -7,4 +7,3 @@ torchtext
 pyyaml
 subword-nmt
 pylint
-yaml
