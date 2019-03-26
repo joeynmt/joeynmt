@@ -5,8 +5,8 @@ Collection of helper functions
 import copy
 import glob
 import os
-import shutil
 import os.path
+import shutil
 import random
 import logging
 from logging import Logger
