@@ -69,6 +69,7 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](htt
 
 ## Usage
 Models are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
+`default.yaml` contains a detailed explanation of configuration options.
 
 ## Documentation
 Read [the docs](https://joeynmt.readthedocs.io).
@@ -141,32 +142,33 @@ We compare against the baseline scores reported in [(Wiseman & Rush, 2016)](http
 [(Bahdanau et al., 2017)](https://arxiv.org/pdf/1607.07086.pdf) (B17) with tokenized, lowercased BLEU (using `sacrebleu`).
 Ẁe compare a word-based model of the same size and vocabulary as in W&R and B17.
 The [script](https://github.com/harvardnlp/BSO/blob/master/data_prep/MT/prepareData.sh) to obtain and pre-process the data is the one published with W&R.
+Use `configs/iwslt_deen_bahdanau.yaml` for training the model.
 On a K40-GPU word-level training took <1h, beam search decoding for both dev and test <2min.
 
-Systems | level | dev | test | #params | Joey NMT config
---- | :---: | :---: | :---: | :---: | :---:
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
 W&R (greedy)   | word | - | 22.53  |  
 W&R (beam=10)  | word | - | 23.87  |
 B17 (greedy)   | word | -| 25.82  |
 B17 (beam=10)  | word | -| 27.56  | 
-Joey NMT (greedy) | word | 28.41 | 26.68 | 22.05M |
-Joey NMT (beam=10, alpha=1.0) | word | 28.96 | 27.03| 22.05M | 
+Joey NMT (greedy) | word | 28.41 | 26.68 | 22.05M 
+Joey NMT (beam=10, alpha=1.0) | word | 28.96 | 27.03| 22.05M 
 
 On CPU (`use_cuda: False`): 
 (approx 8-10x slower: 8h for training, beam search decoding for both dev and test 19min, greedy decoding 5min)
 
-Systems | level | dev | test | #params | Joey NMT config
---- | :---: | :---: | :---: | :---: | :---:
-Joey NMT (greedy) | word | 28.35 | 26.46 | 22.05M |
-Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M | 
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
+Joey NMT (greedy) | word | 28.35 | 26.46 | 22.05M 
+Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M  
 
 In addition, we compare to a BPE-based GRU model with 32k (Groundhog style). 
 Use `scripts/get_iwslt14_bpe.sh` to pre-process the data and `configs/iwslt14_deen_bpe.yaml` to train the model.
 
-Systems | level | dev | test | #params | Joey NMT config
---- | :---: | :---: | :---: | :---: | :---:  
-Joey NMT (greedy) | bpe | 27.8 | | 60.68M | 
-Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M |
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
+Joey NMT (greedy) | bpe | 27.8 | | 60.68M 
+Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M 
 
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
@@ -178,24 +180,24 @@ Note that the scores reported for other models might not reflect the current sta
 Please also consider the difference in number of parameters despite "the same" setup: our models are the smallest in numbers of parameters.
 
 ### English-German
-Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`
+Groundhog setting: `configs/wmt_ende_default.yaml`  with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
 
-Systems | level | dev | test | #params | Joey NMT config
---- | :---: | :---: | :---: | :---: | :---:  
-Sockeye (beam=5) | bpe | - | 23.18 | 87.83M | 
-OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M |
-Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M | `configs/wmt_ende_default.yaml`  
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: | 
+Sockeye (beam=5) | bpe | - | 23.18 | 87.83M 
+OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M 
+Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M  
 
 The Joey NMT model was trained for 4 days (14 epochs).
 
 ### Latvian-English
-Groundhog setting: `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`
+Groundhog setting: `configs/wmt_lven_default.yaml` with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
 
-Systems | level | dev | test | #params | Joey NMT config
---- | :---: | :---: | :---: | :---: | :---:  
-Sockeye (beam=5) | bpe | - | 14.40 | ? | 
-OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? | 
-Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M | `configs/wmt_lven_default.yaml`  
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
+Sockeye (beam=5) | bpe | - | 14.40 | ? 
+OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? 
+Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M 
 
 
 ## Contributing
