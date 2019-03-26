@@ -12,6 +12,7 @@ from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
 import yaml
+import shutil
 
 import torch
 from torch import nn, Tensor
@@ -34,8 +35,9 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
         if not overwrite:
             raise FileExistsError(
                 "Model directory exists and overwriting is disabled.")
-    else:
-        os.makedirs(model_dir)
+        # delete previous directory to start with empty dir again
+        shutil.rmtree(model_dir)
+    os.makedirs(model_dir)
     return model_dir
 
 
