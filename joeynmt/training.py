@@ -152,7 +152,12 @@ class TrainManager:
         torch.save(state, model_path)
         if self.ckpt_queue.full():
             to_delete = self.ckpt_queue.get()  # delete oldest ckpt
-            os.remove(to_delete)
+            try:
+                os.remove(to_delete)
+            except FileNotFoundError:
+                self.logger.warning("Wanted to delete old checkpoint %s but "
+                                    "file does not exist.", to_delete)
+
         self.ckpt_queue.put(model_path)
 
     def init_from_checkpoint(self, path: str) -> None:
