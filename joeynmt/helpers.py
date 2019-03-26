@@ -6,6 +6,7 @@ import copy
 import glob
 import os
 import os.path
+import shutil
 import random
 import logging
 from logging import Logger
@@ -34,8 +35,9 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
         if not overwrite:
             raise FileExistsError(
                 "Model directory exists and overwriting is disabled.")
-    else:
-        os.makedirs(model_dir)
+        # delete previous directory to start with empty dir again
+        shutil.rmtree(model_dir)
+    os.makedirs(model_dir)
     return model_dir
 
 

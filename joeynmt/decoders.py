@@ -119,11 +119,12 @@ class RecurrentDecoder(Decoder):
                 encoder.output_size, hidden_size, bias=True)
         elif self.init_hidden_option == "last":
             if encoder.output_size != self.hidden_size:
-                raise ValueError(
-                    "For initializing the decoder state with the last encoder "
-                    "state, their sizes have to match (encoder: {} vs. decoder:"
-                    " {})".format(encoder.output_size, self.hidden_size))
-
+                if encoder.output_size != 2*self.hidden_size: # bidirectional
+                    raise ValueError(
+                        "For initializing the decoder state with the "
+                        "last encoder state, their sizes have to match "
+                        "(encoder: {} vs. decoder:  {})".format(
+                            encoder.output_size, self.hidden_size))
         if freeze:
             freeze_params(self)
 
@@ -382,6 +383,8 @@ class RecurrentDecoder(Decoder):
 
         In case of `self.init_hidden_option == "last"`
         and a size-matching `encoder_final`, this is set to the encoder state.
+        If the encoder is twice as large as the decoder state (e.g. when
+        bi-directional), just use the forward hidden state.
 
         In case of `self.init_hidden_option == "zero"`, it is initialized with
         zeros.
@@ -405,6 +408,9 @@ class RecurrentDecoder(Decoder):
                     self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
                     self.num_layers, 1, 1)
         elif self.init_hidden_option == "last" and encoder_final is not None:
+            # special case: encoder is bidirectional: use only forward state
+            if encoder_final.shape[1] == 2*self.hidden_size:  # bidirectional
+                encoder_final = encoder_final[:, :self.hidden_size]
             hidden = encoder_final.unsqueeze(0).repeat(self.num_layers, 1, 1)
         else:  # initialize with zeros
             with torch.no_grad():
