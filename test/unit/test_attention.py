@@ -1,4 +1,3 @@
-from torch.nn import GRU, LSTM
 import torch
 
 from joeynmt.attention import BahdanauAttention, LuongAttention
@@ -8,9 +7,6 @@ from .test_helpers import TensorTestCase
 class TestBahdanauAttention(TensorTestCase):
 
     def setUp(self):
-        self.addTypeEqualityFunc(torch.Tensor,
-                                 lambda x, y, msg: self.failureException(
-                                     msg) if not torch.equal(x, y) else True)
         self.key_size = 3
         self.query_size = 5
         self.hidden_size = 7

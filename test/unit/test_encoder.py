@@ -4,12 +4,10 @@ import torch
 from joeynmt.encoders import RecurrentEncoder
 from .test_helpers import TensorTestCase
 
+
 class TestRecurrentEncoder(TensorTestCase):
 
     def setUp(self):
-        self.addTypeEqualityFunc(torch.Tensor,
-                                 lambda x, y, msg: self.failureException(
-                                     msg) if not torch.equal(x, y) else True)
         self.emb_size = 10
         self.num_layers = 3
         self.hidden_size = 7
