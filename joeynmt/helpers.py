@@ -5,6 +5,7 @@ Collection of helper functions
 import copy
 import glob
 import os
+import shutil
 import os.path
 import random
 import logging
@@ -12,7 +13,6 @@ from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
 import yaml
-import shutil
 
 import torch
 from torch import nn, Tensor
