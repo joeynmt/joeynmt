@@ -8,6 +8,8 @@ import argparse
 import time
 import shutil
 from typing import List
+import os
+import queue
 
 import numpy as np
 
@@ -70,6 +72,8 @@ class TrainManager:
         # validation & early stopping
         self.validation_freq = train_config.get("validation_freq", 1000)
         self.log_valid_sents = train_config.get("print_valid_sents", 3)
+        self.ckpt_queue = queue.Queue(maxsize=
+                                      train_config.get("keep_last_ckpts", 5))
         self.eval_metric = train_config.get("eval_metric", "bleu")
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
@@ -146,6 +150,10 @@ class TrainManager:
             self.scheduler is not None else None,
         }
         torch.save(state, model_path)
+        if self.ckpt_queue.full():
+            to_delete = self.ckpt_queue.get()  # delete oldest ckpt
+            os.remove(to_delete)
+        self.ckpt_queue.put(model_path)
 
     def init_from_checkpoint(self, path: str) -> None:
         """
