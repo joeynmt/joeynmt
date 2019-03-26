@@ -210,6 +210,7 @@ class TrainManager:
             total_valid_duration = 0
             processed_tokens = self.total_tokens
             count = 0
+            epoch_loss = 0
 
             for batch in iter(train_iter):
                 # reactivate training
@@ -226,13 +227,14 @@ class TrainManager:
                 batch_loss = self._train_batch(batch, update=update)
                 count = self.batch_multiplier if update else count
                 count -= 1
+                epoch_loss += batch_loss
 
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Loss: %f Tokens per Sec: %f",
+                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f",
                         epoch_no + 1, self.steps, batch_loss,
                         elapsed_tokens / elapsed)
                     start = time.time()
@@ -310,7 +312,6 @@ class TrainManager:
                                           output_prefix="{}/att.{}".format(
                                               self.model_dir,
                                               self.steps))
-
                 if self.stop:
                     break
             if self.stop:
@@ -318,6 +319,9 @@ class TrainManager:
                     'Training ended since minimum lr %f was reached.',
                      self.learning_rate_min)
                 break
+
+            self.logger.info('Epoch %d: total training loss %.2f', epoch_no+1,
+                             epoch_loss)
         else:
             self.logger.info('Training ended after %d epochs.', epoch_no+1)
         self.logger.info('Best validation result at step %d: %f %s.',
