@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import List
+from typing import List, Optional
 import numpy as np
 
 # pylint: disable=wrong-import-position
@@ -13,10 +13,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
-                 row_labels: List[str] = None, output_path: str = "plot.png",
-                 dpi: int = 300) \
-        -> Figure:
+def plot_heatmap(scores: np.array, column_labels: List[str],
+                 row_labels: List[str], output_path: Optional[str] = None,
+                 dpi: int = 300) -> Figure:
 
     """
     Plotting function that can be used to visualize (self-)attention.
@@ -31,7 +30,8 @@ def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
     :return: pyplot figure
     """
 
-    assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
+    if output_path is not None:
+        assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
         "output path must have .png or .pdf extension"
 
     x_sent_len = len(column_labels)
@@ -62,14 +62,15 @@ def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
     ax.set_yticks(np.arange(scores.shape[0]) + 0, minor=False)
     plt.tight_layout()
 
-    if output_path.endswith(".pdf"):
-        pp = PdfPages(output_path)
-        pp.savefig(fig)
-        pp.close()
-    else:
-        if not output_path.endswith(".png"):
-            output_path += ".png"
-        plt.savefig(output_path)
+    if output_path is not None:
+        if output_path.endswith(".pdf"):
+            pp = PdfPages(output_path)
+            pp.savefig(fig)
+            pp.close()
+        else:
+            if not output_path.endswith(".png"):
+                output_path += ".png"
+            plt.savefig(output_path)
 
     plt.close()
 

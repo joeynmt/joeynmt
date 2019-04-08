@@ -202,8 +202,7 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
             if tb_writer is not None:
                 # lower resolution for tensorboardX
                 fig = plot_heatmap(scores=attention_scores, column_labels=trg,
-                                   row_labels=src, output_path=plot_file,
-                                   dpi=50)
+                                   row_labels=src, output_path=None, dpi=50)
                 tb_writer.add_figure("attention/{}.".format(i), fig,
                                      global_step=steps)
         # pylint: disable=bare-except
