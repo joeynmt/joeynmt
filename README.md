@@ -68,11 +68,29 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](htt
 
 
 ## Usage
-Models are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
+
+### Data Preparation
+
+#### Parallel Data
+For training a translation model, you need parallel data, i.e. a collection of source sentences and reference translations that are aligned sentence-by-sentence and stored in two files, 
+such that each line in the reference file is the translation of the same line in the source file.
+
+The shared tasks of the yearly [Conference on Machine Translation (WMT)](http://www.statmt.org/wmt19/) provide lots of parallel data.
+
+#### Pre-processing
+Before training a model on it, parallel data is most commonly filtered by length ratio, tokenized and true- or lowercased.
+
+The Moses toolkit provides a set of useful [scripts](https://github.com/moses-smt/mosesdecoder/tree/master/scripts) for this purpose.
+
+In addition, you might want to build the NMT model not on the basis of words, but rather sub-words or characters (the `level` in JoeyNMT configurations).
+Currently, JoeyNMT supports the byte-pair-encodings (BPE) format by [subword-nmt](https://github.com/rsennrich/subword-nmt).
+
+### Configuration
+Experiments are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
 `default.yaml` contains a detailed explanation of configuration options.
 
-## Documentation
-Read [the docs](https://joeynmt.readthedocs.io).
+Most importantly, the configuration contains the description of the model architecture (e.g. number of hidden units in the encoder RNN), 
+paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
 ### Training
 For training, run 
@@ -85,6 +103,7 @@ and store model parameters, vocabularies, validation outputs and a small number 
 
 The `validations.txt` file in the model directory reports the validation results at every validation point. 
 Models are saved whenever a new best validation score is reached, in `batch_no.ckpt`, where `batch_no` is the number of batches the model has been trained on so far.
+`best.ckpt` links to the checkpoint that has so far achieved the best validation score.
 
 Run `python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf` to plot curves of validation BLEU and PPL.  
 
@@ -95,17 +114,40 @@ Note that pre-processing like tokenization or BPE-ing is not included in trainin
 Tip: Be careful not to overwrite models, set `overwrite: False` in the model configuration.
 
 
-### Testing
-For testing, run 
+### Translating
+
+There's 3 options for testing what the model has learned.
+
+Whatever data you feed the model for translating, make sure it is properly pre-processed, just as you pre-processed the training data, e.g. tokenized and split into subwords (if working with BPEs).
+
+#### 1. Test Set Evaluation 
+For testing and evaluating on your parallel test/dev set, run 
 
 `python3 -m joeynmt test configs/default.yaml --output_path out`.
 
-This will generate translations for validation and test set in `out.[dev|test]` (optional)
-with the latest model in the `model_dir` (or a specific checkpoint set with `load_model`).
+This will generate translations for validation and test set (as specified in the configuration) in `out.[dev|test]`
+with the latest/best model in the `model_dir` (or a specific checkpoint set with `load_model`).
 It will also evaluate the outputs with `eval_metric`.
+If `--output_path` is not specified, it will not store the translation, and only do the evaluation and print the results.
 
-Note that post-processing like detokenization or de-BPE-ing is not included in this step, but has to be done manually.
+#### 2. File Translation
+In order to translate the contents of a file not contained in the configuration (here `my_input.txt`), simply run
 
+`python3 -m joeynmt translate configs/default.yaml < my_input.txt > out`.
+
+The translations will be written to stdout or alternatively`--output_path` if specified.
+
+#### 3. Interactive
+If you just want try a few examples, run
+
+`python3 -m joeynmt translate configs/default.yaml`
+
+and you'll be prompted to type input sentences that JoeyNMT will then translate with the model specified in the configuration.
+
+
+
+## API Documentation
+Read [the docs](https://joeynmt.readthedocs.io).
 
 ## Benchmarks
 Benchmarks on small models trained on GPU/CPU on standard data sets will be 
@@ -164,11 +206,12 @@ Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M
 
 In addition, we compare to a BPE-based GRU model with 32k (Groundhog style). 
 Use `scripts/get_iwslt14_bpe.sh` to pre-process the data and `configs/iwslt14_deen_bpe.yaml` to train the model.
+This model is available for download [here](https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/models/iwslt14-deen-bpe/).
 
 Systems | level | dev | test | #params 
 --- | :---: | :---: | :---: | :---: 
-Joey NMT (greedy) | bpe | 27.8 | | 60.68M 
-Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M 
+Joey NMT (greedy) | bpe | 27.57 | | 60.69M 
+Joey NMT (beam=5, alpha=1.0) | bpe | 28.55 | 27.34 | 60.69M 
 
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 

@@ -6,6 +6,7 @@ import copy
 import glob
 import os
 import os.path
+import errno
 import shutil
 import random
 import logging
@@ -267,3 +268,14 @@ def freeze_params(module: nn.Module) -> None:
     """
     for _, p in module.named_parameters():
         p.requires_grad = False
+
+
+def symlink_update(target, link_name):
+    try:
+        os.symlink(target, link_name)
+    except FileExistsError as e:
+        if e.errno == errno.EEXIST:
+            os.remove(link_name)
+            os.symlink(target, link_name)
+        else:
+            raise e
