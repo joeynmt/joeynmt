@@ -206,11 +206,12 @@ Joey NMT (beam=10, alpha=1.0) | word | 28.85 | 27.06 | 22.05M
 
 In addition, we compare to a BPE-based GRU model with 32k (Groundhog style). 
 Use `scripts/get_iwslt14_bpe.sh` to pre-process the data and `configs/iwslt14_deen_bpe.yaml` to train the model.
+This model is available for download [here](https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/models/iwslt14-deen-bpe/).
 
 Systems | level | dev | test | #params 
 --- | :---: | :---: | :---: | :---: 
-Joey NMT (greedy) | bpe | 27.8 | | 60.68M 
-Joey NMT (beam=5, alpha=1.0) | bpe | 28.74 | 27.63 | 60.68M 
+Joey NMT (greedy) | bpe | 27.57 | | 60.69M 
+Joey NMT (beam=5, alpha=1.0) | bpe | 28.55 | 27.34 | 60.69M 
 
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
