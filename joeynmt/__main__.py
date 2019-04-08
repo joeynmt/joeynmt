@@ -2,13 +2,14 @@ import argparse
 
 from joeynmt.training import train
 from joeynmt.prediction import test
+from joeynmt.prediction import translate
 
 
 def main():
     ap = argparse.ArgumentParser("Joey NMT")
 
-    ap.add_argument("mode", choices=["train", "test"],
-                    help="train a model or test")
+    ap.add_argument("mode", choices=["train", "test", "translate"],
+                    help="train a model or test or translate")
 
     ap.add_argument("config_path", type=str,
                     help="path to YAML config file")
@@ -29,6 +30,9 @@ def main():
     elif args.mode == "test":
         test(cfg_file=args.config_path, ckpt=args.ckpt,
              output_path=args.output_path, save_attention=args.save_attention)
+    elif args.mode == "translate":
+        translate(cfg_file=args.config_path, ckpt=args.ckpt,
+                  output_path=args.output_path)
     else:
         raise ValueError("Unknown mode")
 

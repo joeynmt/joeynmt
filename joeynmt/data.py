@@ -148,14 +148,19 @@ class MonoDataset(Dataset):
 
         fields = [('src', field)]
 
-        src_path = os.path.expanduser(path + ext)
+        if hasattr(path, "readline"):  # special usage: stdin
+            src_file = path
+        else:
+            src_path = os.path.expanduser(path + ext)
+            src_file = open(src_path)
 
         examples = []
-        with open(src_path) as src_file:
-            for src_line in src_file:
-                src_line = src_line.strip()
-                if src_line != '':
-                    examples.append(data.Example.fromlist(
-                        [src_line], fields))
+        for src_line in src_file:
+            src_line = src_line.strip()
+            if src_line != '':
+                examples.append(data.Example.fromlist(
+                    [src_line], fields))
+
+        src_file.close()
 
         super(MonoDataset, self).__init__(examples, fields, **kwargs)

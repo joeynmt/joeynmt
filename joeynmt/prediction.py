@@ -2,25 +2,28 @@
 """
 This modules holds methods for generating predictions from a model.
 """
-from typing import List
+import os
+import sys
+from typing import List, Optional
 import numpy as np
 
 import torch
-from torchtext.data import Dataset
+from torchtext.data import Dataset, Field
 
-from joeynmt.constants import PAD_TOKEN
 from joeynmt.helpers import bpe_postprocess, load_config, \
     get_latest_checkpoint, load_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model
 from joeynmt.batch import Batch
-from joeynmt.data import load_data, make_data_iter
+from joeynmt.data import load_data, make_data_iter, MonoDataset
+from joeynmt.constants import UNK_TOKEN, PAD_TOKEN, EOS_TOKEN
+from joeynmt.vocabulary import Vocabulary
 
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset, batch_size: int,
                      use_cuda: bool, max_output_length: int,
-                     level: str, eval_metric: str,
+                     level: str, eval_metric: Optional[str],
                      loss_function: torch.nn.Module = None,
                      beam_size: int = 0, beam_alpha: int = -1) \
         -> (float, float, float, List[str], List[List[str]], List[str],
@@ -146,7 +149,7 @@ def validate_on_data(model: Model, data: Dataset, batch_size: int,
 
 
 def test(cfg_file,
-         ckpt: str = None,
+         ckpt: str,
          output_path: str = None,
          save_attention: bool = False) -> None:
     """
@@ -243,3 +246,132 @@ def test(cfg_file,
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
             print("Translations saved to: {}".format(output_path_set))
+
+
+def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
+    """
+    Interactive translation function.
+    Loads model from checkpoint and translates either the stdin input or
+    asks for input to translate interactively.
+    The input has to be pre-processed according to the data that the model
+    was trained on, i.e. tokenized or split into subwords.
+    Translations are printed to stdout.
+
+    :param cfg_file: path to configuration file
+    :param ckpt: path to checkpoint to load
+    """
+
+    def _load_line_as_data(line):
+        """ Create a dataset from one line via a temporary file. """
+        # write src input to temporary file
+        tmp_name = "tmp"
+        tmp_suffix = ".src"
+        tmp_filename = tmp_name+tmp_suffix
+        with open(tmp_filename, "w") as tmp_file:
+            tmp_file.write("{}\n".format(line))
+
+        test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
+                                field=src_field)
+
+        # remove temporary file
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
+
+        return test_data
+
+    def _translate_data(test_data):
+        """ Translates given dataset, using parameters from outer scope. """
+        # pylint: disable=unused-variable
+        score, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores = validate_on_data(
+            model, data=test_data, batch_size=batch_size, level=level,
+            max_output_length=max_output_length, eval_metric="",
+            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
+            beam_alpha=beam_alpha)
+        return hypotheses
+
+    cfg = load_config(cfg_file)
+
+    # when checkpoint is not specified, take oldest from model dir
+    if ckpt is None:
+        model_dir = cfg["training"]["model_dir"]
+        ckpt = get_latest_checkpoint(model_dir)
+
+    batch_size = cfg["training"].get("batch_size", 1)
+    use_cuda = cfg["training"].get("use_cuda", False)
+    level = cfg["data"]["level"]
+    max_output_length = cfg["training"].get("max_output_length", None)
+
+    # read vocabs
+    src_vocab_file = cfg["training"].get(
+        "src_vocab", cfg["training"]["model_dir"] + "/src_vocab.txt")
+    trg_vocab_file = cfg["training"].get(
+        "trg_vocab", cfg["training"]["model_dir"] + "/trg_vocab.txt")
+    src_vocab = Vocabulary(file=src_vocab_file)
+    trg_vocab = Vocabulary(file=trg_vocab_file)
+
+    data_cfg = cfg["data"]
+    level = data_cfg["level"]
+    lowercase = data_cfg["lowercase"]
+
+    tok_fun = lambda s: list(s) if level == "char" else s.split()
+
+    src_field = Field(init_token=None, eos_token=EOS_TOKEN,
+                      pad_token=PAD_TOKEN, tokenize=tok_fun,
+                      batch_first=True, lower=lowercase,
+                      unk_token=UNK_TOKEN,
+                      include_lengths=True)
+    src_field.vocab = src_vocab
+
+    # load model state from disk
+    model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
+
+    # build model and load parameters into it
+    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    model.load_state_dict(model_checkpoint["model_state"])
+
+    if use_cuda:
+        model.cuda()
+
+    # whether to use beam search for decoding, 0: greedy decoding
+    if "testing" in cfg.keys():
+        beam_size = cfg["testing"].get("beam_size", 0)
+        beam_alpha = cfg["testing"].get("alpha", -1)
+    else:
+        beam_size = 0
+        beam_alpha = -1
+
+    if not sys.stdin.isatty():
+        # file given
+        test_data = MonoDataset(path=sys.stdin, ext="", field=src_field)
+        hypotheses = _translate_data(test_data)
+
+        if output_path is not None:
+            output_path_set = "{}".format(output_path)
+            with open(output_path_set, mode="w", encoding="utf-8") as out_file:
+                for hyp in hypotheses:
+                    out_file.write(hyp + "\n")
+            print("Translations saved to: {}".format(output_path_set))
+        else:
+            for hyp in hypotheses:
+                print(hyp)
+
+    else:
+        # enter interactive mode
+        batch_size = 1
+        while True:
+            try:
+                src_input = input("\nPlease enter a source sentence "
+                                  "(pre-processed): \n")
+                if not src_input.strip():
+                    break
+
+                # every line has to be made into dataset
+                test_data = _load_line_as_data(line=src_input)
+
+                hypotheses = _translate_data(test_data)
+                print("JoeyNMT: {}".format(hypotheses[0]))
+
+            except KeyboardInterrupt:
+                print("\nBye.")
+                break

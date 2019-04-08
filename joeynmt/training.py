@@ -23,7 +23,7 @@ from joeynmt.model import build_model
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     store_attention_plots, load_checkpoint, make_model_dir, \
-    make_logger, set_seed
+    make_logger, set_seed, symlink_update
 from joeynmt.model import Model
 from joeynmt.prediction import validate_on_data
 from joeynmt.data import load_data, make_data_iter
@@ -159,6 +159,9 @@ class TrainManager:
                                     "file does not exist.", to_delete)
 
         self.ckpt_queue.put(model_path)
+
+        # create/modify symbolic link for best checkpoint
+        symlink_update(model_path, "best.ckpt")
 
     def init_from_checkpoint(self, path: str) -> None:
         """
