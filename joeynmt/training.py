@@ -19,6 +19,8 @@ import torch.nn as nn
 
 from torchtext.data import Dataset
 
+from tensorboardX import SummaryWriter
+
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_config, log_cfg, \
@@ -52,6 +54,7 @@ class TrainManager:
         self.logger = make_logger(model_dir=self.model_dir)
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
+        self.tb_writer = SummaryWriter(log_dir=self.model_dir+"/tensorboard/")
 
         # model
         self.model = model
@@ -71,7 +74,7 @@ class TrainManager:
 
         # validation & early stopping
         self.validation_freq = train_config.get("validation_freq", 1000)
-        self.log_valid_sents = train_config.get("print_valid_sents", 3)
+        self.log_valid_sents = train_config.get("print_valid_sents", [0, 1, 2])
         self.ckpt_queue = queue.Queue(maxsize=
                                       train_config.get("keep_last_ckpts", 5))
         self.eval_metric = train_config.get("eval_metric", "bleu")
@@ -228,6 +231,8 @@ class TrainManager:
                 update = count == 0
                 # print(count, update, self.steps)
                 batch_loss = self._train_batch(batch, update=update)
+                self.tb_writer.add_scalar("train/train_batch_loss", batch_loss,
+                                          self.steps)
                 count = self.batch_multiplier if update else count
                 count -= 1
                 epoch_loss += batch_loss
@@ -257,6 +262,13 @@ class TrainManager:
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
                             loss_function=self.loss)
+
+                    self.tb_writer.add_scalar("valid/valid_loss",
+                                              valid_loss, self.steps)
+                    self.tb_writer.add_scalar("valid/valid_score",
+                                              valid_score, self.steps)
+                    self.tb_writer.add_scalar("valid/valid_ppl",
+                                              valid_ppl, self.steps)
 
                     if self.early_stopping_metric == "loss":
                         ckpt_score = valid_loss
@@ -304,17 +316,17 @@ class TrainManager:
                     # store validation set outputs
                     self._store_outputs(valid_hypotheses)
 
-                    # store attention plots for first three sentences of
-                    # valid data and one randomly chosen example
+                    # store attention plots for selected valid sentences
                     store_attention_plots(attentions=valid_attention_scores,
                                           targets=valid_hypotheses_raw,
                                           sources=[s for s in valid_data.src],
-                                          indices=[0, 1, 2,
-                                                   np.random.randint(0, len(
-                                                   valid_hypotheses))],
+                                          indices=self.log_valid_sents,
                                           output_prefix="{}/att.{}".format(
                                               self.model_dir,
-                                              self.steps))
+                                              self.steps),
+                                          tb_writer=self.tb_writer,
+                                          steps=self.steps)
+
                 if self.stop:
                     break
             if self.stop:
@@ -429,7 +441,9 @@ class TrainManager:
         :param hypotheses_raw: raw hypotheses (list of list of tokens)
         :param references_raw: raw references (list of list of tokens)
         """
-        for p in range(min(self.log_valid_sents, len(sources))):
+        for p in self.log_valid_sents:
+            if p >= len(sources):
+                continue
             self.logger.debug("Example #%d", p)
             if sources_raw is not None:
                 self.logger.debug("\tRaw source: %s", sources_raw[p])

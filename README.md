@@ -93,6 +93,8 @@ Most importantly, the configuration contains the description of the model archit
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
 ### Training
+
+#### Start
 For training, run 
 
 `python3 -m joeynmt train configs/default.yaml`. 
@@ -101,17 +103,24 @@ This will train a model on the training data specified in the config (here: `def
 validate on validation data, 
 and store model parameters, vocabularies, validation outputs and a small number of attention plots in the `model_dir` (also specified in config).
 
+Note that pre-processing like tokenization or BPE-ing is not included in training, but has to be done manually before.
+
+Tip: Be careful not to overwrite models, set `overwrite: False` in the model configuration.
+
+#### Validations
 The `validations.txt` file in the model directory reports the validation results at every validation point. 
 Models are saved whenever a new best validation score is reached, in `batch_no.ckpt`, where `batch_no` is the number of batches the model has been trained on so far.
 `best.ckpt` links to the checkpoint that has so far achieved the best validation score.
 
-Run `python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf` to plot curves of validation BLEU and PPL.  
 
-For training on a GPU, set `use_cuda` in the config file to `True`.
+#### Visualization
+JoeyNMT uses [TensorboardX](https://github.com/lanpa/tensorboardX) to visualize training and validation curves and attention matrices during training.
+Launch [Tensorboard](https://github.com/tensorflow/tensorboard) with `tensorboard --logdir model_dir/tensorboard` and then open the url (default: `localhost:6006`) with a browser. 
 
-Note that pre-processing like tokenization or BPE-ing is not included in training, but has to be done manually before.
+For a stand-alone plot, run `python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf` to plot curves of validation BLEU and PPL.
 
-Tip: Be careful not to overwrite models, set `overwrite: False` in the model configuration.
+#### CPU vs. GPU
+For training on a GPU, set `use_cuda` in the config file to `True`. This requires the installation of required CUDA libraries.
 
 
 ### Translating
