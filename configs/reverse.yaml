@@ -35,15 +35,15 @@ training:
     decrease_factor: 0.5
     schedule_after_loss: True
     epochs: 10
-    validation_freq: 1000
+    validation_freq: 500
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "reverse_luong_0003"
+    model_dir: "new_reverse"
     overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 11
-    print_valid_sents: 3
+    print_valid_sents: [1, 2, 3]
 
 model:
     initializer: "xavier"

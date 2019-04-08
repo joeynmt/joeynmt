@@ -38,7 +38,7 @@ training:
     shuffle: True
     use_cuda: True
     max_output_length: 80
-    print_valid_sents: 5
+    print_valid_sents: [0, 1, 2, 3, 4]
 
 model:
     encoder:

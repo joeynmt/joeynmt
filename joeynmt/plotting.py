@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import List
+from typing import List, Optional
 import numpy as np
 
 # pylint: disable=wrong-import-position
@@ -8,13 +8,14 @@ import matplotlib
 matplotlib.use('Agg')
 
 from matplotlib import rcParams
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-
-def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
-                 row_labels: List[str] = None, output_path: str = "plot.png"):
+def plot_heatmap(scores: np.array, column_labels: List[str],
+                 row_labels: List[str], output_path: Optional[str] = None,
+                 dpi: int = 300) -> Figure:
 
     """
     Plotting function that can be used to visualize (self-)attention.
@@ -25,10 +26,12 @@ def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
     :param column_labels:  labels for columns (e.g. target tokens)
     :param row_labels: labels for rows (e.g. source tokens)
     :param output_path: path to save to
-    :return:
+    :param dpi: set resolution for matplotlib
+    :return: pyplot figure
     """
 
-    assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
+    if output_path is not None:
+        assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
         "output path must have .png or .pdf extension"
 
     x_sent_len = len(column_labels)
@@ -47,10 +50,9 @@ def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
     #rcParams['font.sans-serif'] = ["Fira Sans"]
     #rcParams['font.weight'] = "regular"
 
-    fig, ax = plt.subplots(figsize=(10, 10), dpi=300)
-    # pylint: disable=unused-variable
-    heatmap = plt.imshow(scores, cmap='viridis', aspect='equal',
-                         origin='upper', vmin=0., vmax=1.)
+    fig, ax = plt.subplots(figsize=(10, 10), dpi=dpi)
+    plt.imshow(scores, cmap='viridis', aspect='equal',
+               origin='upper', vmin=0., vmax=1.)
 
     ax.set_xticklabels(column_labels, minor=False, rotation="vertical")
     ax.set_yticklabels(row_labels, minor=False)
@@ -60,13 +62,16 @@ def plot_heatmap(scores: np.array = None, column_labels: List[str] = None,
     ax.set_yticks(np.arange(scores.shape[0]) + 0, minor=False)
     plt.tight_layout()
 
-    if output_path.endswith(".pdf"):
-        pp = PdfPages(output_path)
-        pp.savefig(fig)
-        pp.close()
-    else:
-        if not output_path.endswith(".png"):
-            output_path += ".png"
-        plt.savefig(output_path)
+    if output_path is not None:
+        if output_path.endswith(".pdf"):
+            pp = PdfPages(output_path)
+            pp.savefig(fig)
+            pp.close()
+        else:
+            if not output_path.endswith(".png"):
+                output_path += ".png"
+            plt.savefig(output_path)
 
     plt.close()
+
+    return fig
