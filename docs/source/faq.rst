@@ -1,3 +1,5 @@
+.. _faq:
+
 ==========================
 Frequently Asked Questions
 ==========================
@@ -20,7 +22,7 @@ Usage
   for individual modules.
   Please note that there is no guarantee that the default setting is a good setting.
 - **What happens if I made a mistake when configuring my model?**
-  JoeyNMT will complain by raising a ``ConfigurationError`.
+  JoeyNMT will complain by raising a ``ConfigurationError``.
 - **How can I stop training?**
   Simply press Control+C.
 - **How often should I validate?**
@@ -67,8 +69,8 @@ Features
 - **How is the vocabulary generated?**
 - **What does freezing mean?**
   *Freezing* means that you don't update a subset of your parameters. If you freeze all parts of your model, it won't get updated (which doesn't make much sense).
-   It might, however, might sense to update only a subset of the parameters in the case where you have a pre-trained model and want to carefully fine-tune it to e.g. a new domain.
-   For the modules you want to freeze, set ``freeze: True`` in the corresponding configuration section.
+  It might, however, might sense to update only a subset of the parameters in the case where you have a pre-trained model and want to carefully fine-tune it to e.g. a new domain.
+  For the modules you want to freeze, set ``freeze: True`` in the corresponding configuration section.
 
 Model Extensions
 ----------------

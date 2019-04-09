@@ -1,3 +1,5 @@
+.. _visualization:
+
 =============
 Visualization
 =============

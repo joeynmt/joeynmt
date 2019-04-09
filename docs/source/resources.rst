@@ -1,3 +1,5 @@
+.. _resources:
+
 =========
 Resources
 =========
@@ -31,6 +33,7 @@ PyTorch
 =======
 
 Here's a collection of links that should help you get started or improve your coding skills with PyTorch:
+
 - `Intro to PyTorch <https://github.com/udacity/deep-learning-v2-pytorch/tree/master/intro-to-pytorch>`_ from Udacity's Deep Learning course (Jupyter notebooks)
 - `60 min Blitz tutorial <https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html>`_ by Soumith Chintala.
 
