@@ -21,3 +21,4 @@ Getting Started
    visualization
    api
    faq
+   resources
