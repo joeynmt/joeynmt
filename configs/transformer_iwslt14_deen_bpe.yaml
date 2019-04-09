@@ -36,7 +36,7 @@ training:
     validation_freq: 2000
     logging_freq: 500
     eval_metric: "bleu"
-    model_dir: "transformer_iwslt_deen_bahdanau_big_8l_02"
+    model_dir: "transformer_iwslt_deen_bpe"
     overwrite: True
     shuffle: True
     use_cuda: True
