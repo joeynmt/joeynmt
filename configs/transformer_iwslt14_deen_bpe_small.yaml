@@ -36,38 +36,38 @@ training:
     validation_freq: 2000
     logging_freq: 500
     eval_metric: "bleu"
-    model_dir: "transformer_iwslt_deen_bahdanau_big_8l_02"
+    model_dir: "transformer_iwslt_deen_bahdanau_small_06"
     overwrite: True
     shuffle: True
     use_cuda: True
-    max_output_length: 100
+    max_output_length: 80
     print_valid_sents: 5
 
 model:
     initializer: "xavier"
     # embedding init matters a lot! should investigate
     embed_initializer: "normal"
-    embed_init_weight: 0.05
+    embed_init_weight: 0.1
     bias_initializer: "zeros"
     encoder:
         type: "transformer"
         num_layers: 8
         num_heads: 8
         embeddings:
-            embedding_dim: 512
+            embedding_dim: 256
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 512
-        ff_size: 2048
+        hidden_size: 256
+        ff_size: 1024
         dropout: 0.3
     decoder:
         type: "transformer"
         num_layers: 8
         num_heads: 8
         embeddings:
-            embedding_dim: 512
+            embedding_dim: 256
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 512
-        ff_size: 2048
+        hidden_size: 256
+        ff_size: 1024
         dropout: 0.3

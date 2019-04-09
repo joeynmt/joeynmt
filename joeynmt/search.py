@@ -7,54 +7,7 @@ from joeynmt.helpers import tile
 from joeynmt.transformer import subsequent_mask
 
 
-def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
-           encoder_output, encoder_hidden, trg_mask=None):
-    """
-    Special greedy function for transformer, since it works differently.
-    The transformer remembers all previous states and attends to them.
-
-    :param src_mask:
-    :param embed:
-    :param bos_index:
-    :param max_output_length:
-    :param decoder:
-    :param encoder_output:
-    :param encoder_hidden:
-    :param trg_mask:
-    :return:
-    """
-
-    # model, src, src_mask, max_len, start_symbol):
-
-    batch_size = src_mask.size(0)
-
-    # start with BOS-symbol for each sentence in the batch
-    ys = encoder_output.new_full([batch_size, 1], bos_index, dtype=torch.long)
-
-    # step_mask = trg_mask[:, :ys.size(1)]
-    mask = src_mask.new_ones([1, 1])
-
-    for i in range(max_output_length):
-
-        trg_embed = embed(ys)  # embed the BOS-symbol
-
-        prob, out, _, _ = decoder(
-            trg_embed=trg_embed,
-            encoder_output=encoder_output,
-            encoder_hidden=None,
-            src_mask=src_mask,
-            unrol_steps=None,
-            hidden=None,
-            trg_mask=mask
-        )
-
-        prob = prob[:, -1]
-        _, next_word = torch.max(prob, dim=1)
-        next_word = next_word.data
-        ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
-
-    ys = ys[:, 1:]  # remove BOS-symbol
-    return ys, None
+__all__ = ["greedy", "transformer_greedy", "beam_search"]
 
 
 def greedy(src_mask, embed, bos_index, max_output_length, decoder,
@@ -101,6 +54,57 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
     stacked_output = np.stack(output, axis=1)  # batch, time
     stacked_attention_scores = np.stack(attention_scores, axis=1)
     return stacked_output, stacked_attention_scores
+
+
+def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
+           encoder_output, encoder_hidden, trg_mask=None):
+    """
+    Special greedy function for transformer, since it works differently.
+    The transformer remembers all previous states and attends to them.
+
+    :param src_mask:
+    :param embed:
+    :param bos_index:
+    :param max_output_length:
+    :param decoder:
+    :param encoder_output:
+    :param encoder_hidden:
+    :param trg_mask:
+    :return:
+    """
+
+    # model, src, src_mask, max_len, start_symbol):
+
+    batch_size = src_mask.size(0)
+
+    # start with BOS-symbol for each sentence in the batch
+    ys = encoder_output.new_full([batch_size, 1], bos_index, dtype=torch.long)
+
+    # step_mask = trg_mask[:, :ys.size(1)]
+    mask = src_mask.new_ones([1, 1])
+
+    for i in range(max_output_length):
+
+        trg_embed = embed(ys)  # embed the BOS-symbol
+
+        with torch.no_grad():
+            prob, out, _, _ = decoder(
+                trg_embed=trg_embed,
+                encoder_output=encoder_output,
+                encoder_hidden=None,
+                src_mask=src_mask,
+                unrol_steps=None,
+                hidden=None,
+                trg_mask=mask
+            )
+
+            prob = prob[:, -1]
+            _, next_word = torch.max(prob, dim=1)
+            next_word = next_word.data
+            ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
+
+    ys = ys[:, 1:]  # remove BOS-symbol
+    return ys, None
 
 
 def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
