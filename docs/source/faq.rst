@@ -15,7 +15,9 @@ Usage
 - **How can I perform domain adaptation?**
   First train your model
 - **Where can I find the default values for the settings in the configuration file?**
-  Either check `the default configuration file <https://github.com/joeynmt/joeynmt/blob/master/configs/default.yaml>`_ or :ref:`the API documentation <api>`_ for individual modules.
+  Either check `the default configuration file <https://github.com/joeynmt/joeynmt/blob/master/configs/default.yaml>`_ or
+  :ref:`the API documentation <api>`
+  for individual modules.
   Please note that there is no guarantee that the default setting is a good setting.
 - **What happens if I made a mistake when configuring my model?**
   JoeyNMT will complain by raising a ``ConfigurationError`.
