@@ -9,8 +9,10 @@ data:
     level: "word"
     lowercase: False
     max_sent_length: 110
-    voc_min_freq: 0
-    voc_limit: 100000
+    src_voc_min_freq: 0
+    src_voc_limit: 100000
+    trg_voc_min_freq: 0
+    trg_voc_limit: 100000
     src_vocab: "test/data/iwslt_envi/vocab.en"
     trg_vocab: "test/data/iwslt_envi/vocab.vi"
 
@@ -22,7 +24,6 @@ training:
     #load_model: "iwslt_envi_xnmt/XXX.cpkt"
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00005
     weight_decay: 0.0
@@ -31,7 +32,7 @@ training:
     scheduling: "plateau"
     patience: 1
     decrease_factor: 0.5
-    schedule_metric: "eval_metric"
+    early_stopping_metric: "eval_metric"
     epochs: 30
     validation_freq: 1000
     logging_freq: 100
@@ -41,7 +42,7 @@ training:
     shuffle: True
     use_cuda: True
     max_output_length: 150
-    print_valid_sents: 3
+    print_valid_sents: [0, 1, 2]
 
 model:
     initializer: "xavier"
@@ -51,7 +52,7 @@ model:
     init_rnn_orthogonal: False
     lstm_forget_gate: 0.
     encoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 128
             scale: False
@@ -60,7 +61,7 @@ model:
         dropout: 0.3
         num_layers: 1
     decoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 128
             scale: False
@@ -69,5 +70,5 @@ model:
         hidden_dropout: 0.3
         num_layers: 1
         input_feeding: True
-        bridge: False
+        init_hidden: "zero"
         attention: "bahdanau"

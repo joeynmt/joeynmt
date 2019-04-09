@@ -1,5 +1,5 @@
 import math
-from torch import nn
+from torch import nn, Tensor
 from joeynmt.helpers import freeze_params
 
 
@@ -36,7 +36,14 @@ class Embeddings(nn.Module):
         if freeze:
             freeze_params(self)
 
-    def forward(self, x):
+    # pylint: disable=arguments-differ
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Perform lookup for input `x` in the embedding table.
+
+        :param x: index in the vocabulary
+        :return: embedded representation for `x`
+        """
         if self.scale:
             return self.lut(x) * math.sqrt(self.embedding_dim)
         return self.lut(x)

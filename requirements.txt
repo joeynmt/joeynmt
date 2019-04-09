@@ -6,3 +6,5 @@ seaborn
 torchtext
 pyyaml
 subword-nmt
+pylint
+tensorboardX

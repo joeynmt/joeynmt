@@ -9,11 +9,9 @@ data:
     level: "word"
     lowercase: True
     max_sent_length: 50
-    voc_min_freq: 0
-    voc_limit: 100000
-    src_vocab: "test/data/iwslt_deen/vocab.de"
-    trg_vocab: "test/data/iwslt_deen/vocab.en"
-
+    src_voc_min_freq: 3
+    trg_voc_min_freq: 3
+   
 testing:
     beam_size: 10
     alpha: 1.0
@@ -21,14 +19,13 @@ testing:
 training:
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00005
     batch_size: 64
     scheduling: "plateau"
     patience: 0
     decrease_factor: 0.5
-    schedule_metric: "ppl"
+    early_stopping_metric: "ppl"
     epochs: 100
     validation_freq: 2359
     logging_freq: 500
@@ -38,11 +35,11 @@ training:
     shuffle: True
     use_cuda: True
     max_output_length: 100
-    print_valid_sents: 5
+    print_valid_sents: [0, 1, 2, 3, 4]
 
 model:
     encoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings: 
             embedding_dim: 256
             scale: False
@@ -51,7 +48,7 @@ model:
         dropout: 0.0
         num_layers: 1
     decoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 256
             scale: False
@@ -61,5 +58,5 @@ model:
         hidden_dropout: 0.2
         num_layers: 1
         input_feeding: True
-        bridge: False
+        init_hidden: "last"
         attention: "luong"

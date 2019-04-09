@@ -9,8 +9,10 @@ data:
     level: "word"
     lowercase: False
     max_sent_length: 11
-    voc_min_freq: 0
-    voc_limit: 100
+    src_voc_min_freq: 0
+    src_voc_limit: 100
+    trg_voc_min_freq: 0
+    trg_voc_limit: 100
     #src_vocab: "my_model/src_vocab.txt"
     #trg_vocab: "my_model/trg_vocab.txt"
 
@@ -22,7 +24,6 @@ training:
     #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
-    loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.0002
 #    clip_grad_val: 1.0
@@ -34,15 +35,15 @@ training:
     decrease_factor: 0.5
     schedule_after_loss: True
     epochs: 10
-    validation_freq: 1000
+    validation_freq: 500
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "reverse_luong_0003"
+    model_dir: "new_reverse"
     overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 11
-    print_valid_sents: 3
+    print_valid_sents: [1, 2, 3]
 
 model:
     initializer: "xavier"
@@ -52,7 +53,7 @@ model:
     init_rnn_orthogonal: False
     lstm_forget_gate: 0.
     encoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 16
             scale: False
@@ -61,7 +62,7 @@ model:
         dropout: 0.1
         num_layers: 1
     decoder:
-        type: "lstm"
+        rnn_type: "lstm"
         embeddings:
             embedding_dim: 16
             scale: False
@@ -70,5 +71,5 @@ model:
         hidden_dropout: 0.1
         num_layers: 1
         input_feeding: True
-        bridge: False
+        init_hidden: "zero"
         attention: "luong"

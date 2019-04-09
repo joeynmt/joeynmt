@@ -1,7 +1,11 @@
 # coding: utf-8
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 import numpy as np
+
+from joeynmt.decoders import Decoder
+from joeynmt.embeddings import Embeddings
 
 from joeynmt.helpers import tile
 from joeynmt.transformer import subsequent_mask
@@ -10,20 +14,23 @@ from joeynmt.transformer import subsequent_mask
 __all__ = ["greedy", "transformer_greedy", "beam_search"]
 
 
-def greedy(src_mask, embed, bos_index, max_output_length, decoder,
-           encoder_output, encoder_hidden, trg_mask=None):
+def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
+           max_output_length: int, decoder: Decoder,
+           encoder_output: Tensor, encoder_hidden: Tensor)\
+        -> (np.array, np.array):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
 
-    :param src_mask:
-    :param embed:
-    :param bos_index:
-    :param max_output_length:
-    :param decoder:
-    :param encoder_output:
-    :param encoder_hidden:
-    :param trg_mask:
+    :param src_mask: mask for source inputs, 0 for positions after </s>
+    :param embed: target embedding
+    :param bos_index: index of <s> in the vocabulary
+    :param max_output_length: maximum length for the hypotheses
+    :param decoder: decoder to use for greedy decoding
+    :param encoder_output: encoder hidden states for attention
+    :param encoder_hidden: encoder last state for decoder initialization
     :return:
+        - stacked_output: output hypotheses (2d array of indices),
+        - stacked_attention_scores: attention scores (3d array)
     """
     batch_size = src_mask.size(0)
     prev_y = src_mask.new_full(size=[batch_size, 1], fill_value=bos_index,
@@ -32,6 +39,8 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
     attention_scores = []
     hidden = None
     prev_att_vector = None
+
+    # pylint: disable=unused-variable
     for t in range(max_output_length):
         # decode one single step
         out, hidden, att_probs, prev_att_vector = decoder(
@@ -41,8 +50,7 @@ def greedy(src_mask, embed, bos_index, max_output_length, decoder,
             trg_embed=embed(prev_y),
             hidden=hidden,
             prev_att_vector=prev_att_vector,
-            unrol_steps=1,
-            trg_mask=trg_mask)
+            unrol_steps=1)
         # out: batch x time=1 x vocab (logits)
 
         # greedy decoding: choose arg max over vocabulary in each step
@@ -107,9 +115,12 @@ def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
     return ys, None
 
 
-def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
-                encoder_hidden, src_mask, max_output_length, alpha, embed,
-                n_best=1, trg_mask=None):
+# pylint: disable=too-many-statements
+def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
+                pad_index: int, encoder_output: Tensor,
+                encoder_hidden: Tensor, src_mask: Tensor,
+                max_output_length: int, alpha: float, embed: Embeddings,
+                n_best: int = 1) -> (np.array, np.array):
     """
     Beam search with size k. Follows OpenNMT-py implementation.
     In each decoding step, find the k most likely partial hypotheses.
@@ -127,10 +138,13 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
     :param embed:
     :param n_best: return this many hypotheses, <= beam
     :return:
+        - stacked_output: output hypotheses (2d array of indices),
+        - stacked_attention_scores: attention scores (3d array)
     """
     # init
     batch_size = src_mask.size(0)
-    hidden = decoder.init_hidden(encoder_hidden)
+    # pylint: disable=protected-access
+    hidden = decoder._init_hidden(encoder_hidden)
 
     # tile hidden decoder states and encoder output beam_size times
     hidden = tile(hidden, size, dim=1)  # layers x batch*k x dec_hidden_size
@@ -156,9 +170,10 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
         device=encoder_output.device)
 
     # Give full probability to the first beam on the first step.
+    # pylint: disable=not-callable
     topk_log_probs = (torch.tensor([0.0] + [float("-inf")] * (size - 1),
                                    device=encoder_output.device).repeat(
-        batch_size))
+                                    batch_size))
 
     # Structure that holds finished hypotheses.
     hypotheses = [[] for _ in range(batch_size)]
@@ -174,6 +189,7 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
         # expand current hypotheses
         # decode one single step
         # out: logits for final softmax
+        # pylint: disable=unused-variable
         out, hidden, att_scores, att_vectors = decoder(
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
@@ -250,6 +266,7 @@ def beam_search(decoder, size, bos_index, eos_index, pad_index, encoder_output,
                         results["predictions"][b].append(pred)
             non_finished = end_condition.eq(0).nonzero().view(-1)
             # if all sentences are translated, no need to go further
+            # pylint: disable=len-as-condition
             if len(non_finished) == 0:
                 break
             # remove finished batches for the next step

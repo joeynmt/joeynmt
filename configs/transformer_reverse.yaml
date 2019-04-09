@@ -43,7 +43,7 @@ training:
     shuffle: True
     use_cuda: False
     max_output_length: 11
-    print_valid_sents: 3
+    print_valid_sents: [1, 2, 3]
 
 model:
     initializer: "xavier"
