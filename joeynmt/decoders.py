@@ -426,6 +426,8 @@ class RecurrentDecoder(Decoder):
             self.rnn, self.attention)
 
 
+# pylint: disable=arguments-differ,too-many-arguments
+# pylint: disable=too-many-instance-attributes, unused-argument
 class TransformerDecoder(nn.Module):
     """
     A transformer decoder with N masked layers.
@@ -455,13 +457,13 @@ class TransformerDecoder(nn.Module):
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
 
     def forward(self,
-                trg_embed = None,
-                encoder_output = None,
-                encoder_hidden = None,
-                src_mask = None,
-                unrol_steps = None,
-                hidden = None,
-                trg_mask = None,
+                trg_embed: Tensor = None,
+                encoder_output: Tensor = None,
+                encoder_hidden: Tensor = None,
+                src_mask: Tensor = None,
+                unrol_steps: int = None,
+                hidden: Tensor = None,
+                trg_mask: Tensor = None,
                 **kwargs):
         """
         :param trg_embed: target embeddings
@@ -479,7 +481,8 @@ class TransformerDecoder(nn.Module):
         x = trg_embed
         x = self.pe(x)  # add position encoding
 
-        trg_mask = trg_mask.unsqueeze(-2) & subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
+        trg_mask = trg_mask.unsqueeze(-2) & \
+            subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
 
         for layer in self.layers:
             x = layer(x, encoder_output, src_mask, trg_mask)

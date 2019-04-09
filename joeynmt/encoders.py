@@ -2,22 +2,13 @@
 
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 from joeynmt.helpers import freeze_params, clones
 from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
     PositionwiseFeedForward, PositionalEncoding
 
-
-"""
-Various encoders
-"""
-
-import torch
-import torch.nn as nn
-from torch import Tensor
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
-from joeynmt.helpers import freeze_params
 
 #pylint: disable=abstract-method
 class Encoder(nn.Module):
@@ -160,6 +151,7 @@ class TransformerEncoder(nn.Module):
     Transformer Encoder
     """
 
+    #pylint: disable=unused-argument
     def __init__(self, hidden_size=512, ff_size=2048,
                  num_layers=8, num_heads=4, dropout=0.1, **kwargs):
         super(TransformerEncoder, self).__init__()
@@ -177,15 +169,15 @@ class TransformerEncoder(nn.Module):
         self.norm = nn.LayerNorm(hidden_size)
         self.pe = PositionalEncoding(hidden_size, dropout=dropout)
 
+    #pylint: disable=arguments-differ
     def forward(self, x, lengths, mask):
         """
         Pass the input (and mask) through each layer in turn.
-        :param x: 
+        :param x:
         :param lengths: for API compatibility
         :param mask:
         :return:
         """
-
         x = self.pe(x)  # add position encoding to word embeddings
 
         for layer in self.layers:
@@ -211,6 +203,7 @@ class TransformerEncoderLayer(nn.Module):
         self.sublayer = clones(SublayerConnection(size, dropout), 2)
         self.size = size
 
+    #pylint: disable=arguments-differ
     def forward(self, x, mask):
         """
 
@@ -220,4 +213,3 @@ class TransformerEncoderLayer(nn.Module):
         """
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
         return self.sublayer[1](x, self.feed_forward)
-

@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import math
+import copy
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-import copy
 
-"""
-This contains helper classes for the Transformer.
-Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
-"""
+
+# This contains helper classes for the Transformer.
+# Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
 
 
 def clones(module, N):
@@ -18,6 +17,7 @@ def clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
+# pylint: disable=arguments-differ,too-many-arguments
 class SublayerConnection(nn.Module):
     """
     Transformer residual connection
@@ -37,8 +37,8 @@ def subsequent_mask(size):
     Mask out subsequent positions.
     """
     attn_shape = (1, size, size)
-    subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
-    return torch.from_numpy(subsequent_mask) == 0
+    subseq_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    return torch.from_numpy(subseq_mask) == 0
 
 
 def attention(query, key, value, mask=None, dropout=None):
@@ -62,6 +62,7 @@ def attention(query, key, value, mask=None, dropout=None):
     return torch.matmul(p_attn, value), p_attn
 
 
+# pylint: disable=arguments-differ,too-many-arguments
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
         """
@@ -82,6 +83,7 @@ class MultiHeadedAttention(nn.Module):
     def forward(self, query, key, value, mask=None):
         """
         Compute multi-headed attention.
+
         :param query:
         :param key:
         :param value:
@@ -198,6 +200,7 @@ class NoamScheduler:
                (self.model_size ** (-0.5) *
                 min(step ** (-0.5), step * self.warmup ** (-1.5)))
 
+    #pylint: disable=no-self-use
     def state_dict(self):
         return None
 

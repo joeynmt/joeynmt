@@ -90,10 +90,11 @@ def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
     # step_mask = trg_mask[:, :ys.size(1)]
     mask = src_mask.new_ones([1, 1])
 
-    for i in range(max_output_length):
+    for _ in range(max_output_length):
 
         trg_embed = embed(ys)  # embed the BOS-symbol
 
+        # pylint: disable=unused-variable
         with torch.no_grad():
             prob, out, _, _ = decoder(
                 trg_embed=trg_embed,

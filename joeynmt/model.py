@@ -55,7 +55,8 @@ class Model(nn.Module):
 
     #pylint: disable=arguments-differ
     def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-                src_lengths: Tensor, trg_mask: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+                src_lengths: Tensor, trg_mask: Tensor = None) -> (
+            Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
         Then produces the target one word at a time.
@@ -172,7 +173,8 @@ class Model(nn.Module):
                     max_output_length=max_output_length)
             else:  # greedy decoding for Recurrent models
                 stacked_output, stacked_attention_scores = greedy(
-                    encoder_hidden=encoder_hidden, encoder_output=encoder_output,
+                    encoder_hidden=encoder_hidden,
+                    encoder_output=encoder_output,
                     src_mask=batch.src_mask, embed=self.trg_embed,
                     bos_index=self.bos_index, decoder=self.decoder,
                     max_output_length=max_output_length)
@@ -234,8 +236,9 @@ def build_model(cfg: dict = None,
 
     # build encoder
     if cfg["encoder"]["type"] == "transformer":
-        assert cfg["encoder"]["embeddings"]["embedding_dim"] == cfg["encoder"]["hidden_size"], \
-            "for transformer, emb_size must be hidden_size"
+        assert cfg["encoder"]["embeddings"]["embedding_dim"] == \
+               cfg["encoder"]["hidden_size"], \
+               "for transformer, emb_size must be hidden_size"
 
         encoder = TransformerEncoder(**cfg["encoder"],
                                      emb_size=src_embed.embedding_dim)

@@ -241,7 +241,8 @@ class TrainManager:
                 count -= 1
                 epoch_loss += batch_loss
 
-                if self.scheduler is not None and self.scheduler_step_at == "step":
+                if self.scheduler is not None and \
+                        self.scheduler_step_at == "step":
                     self.scheduler.step()
 
                 # log learning progress
@@ -249,9 +250,11 @@ class TrainManager:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f, Lr: %f",
+                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f, "
+                        "Lr: %f",
                         epoch_no + 1, self.steps, batch_loss,
-                        elapsed_tokens / elapsed, self.optimizer.param_groups[0]["lr"])
+                        elapsed_tokens / elapsed,
+                        self.optimizer.param_groups[0]["lr"])
                     start = time.time()
                     total_valid_duration = 0
 
@@ -324,16 +327,15 @@ class TrainManager:
                     self._store_outputs(valid_hypotheses)
 
                     # store attention plots for selected valid sentences
-                    if len(valid_attention_scores) > 0:
-                        store_attention_plots(attentions=valid_attention_scores,
-                                          targets=valid_hypotheses_raw,
-                                          sources=[s for s in valid_data.src],
-                                          indices=self.log_valid_sents,
-                                          output_prefix="{}/att.{}".format(
-                                              self.model_dir,
-                                              self.steps),
-                                          tb_writer=self.tb_writer,
-                                          steps=self.steps)
+                    if valid_attention_scores:
+                        store_attention_plots(
+                            attentions=valid_attention_scores,
+                            targets=valid_hypotheses_raw,
+                            sources=[s for s in valid_data.src],
+                            indices=self.log_valid_sents,
+                            output_prefix="{}/att.{}".format(
+                                self.model_dir, self.steps),
+                            tb_writer=self.tb_writer, steps=self.steps)
 
                 if self.stop:
                     break
