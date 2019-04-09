@@ -75,8 +75,9 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     weight_decay = config.get("weight_decay", 0)
 
     if optimizer_name == "adam":
+        adam_betas = config.get("adam_betas", (0.9, 0.999))
         optimizer = torch.optim.Adam(parameters, weight_decay=weight_decay,
-                                     lr=learning_rate)
+                                     lr=learning_rate, betas=adam_betas)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters, weight_decay=weight_decay,
                                         lr=learning_rate)
