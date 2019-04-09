@@ -8,7 +8,6 @@ from joeynmt.decoders import Decoder
 from joeynmt.embeddings import Embeddings
 
 from joeynmt.helpers import tile
-from joeynmt.transformer import subsequent_mask
 
 
 __all__ = ["greedy", "transformer_greedy", "beam_search"]
@@ -65,20 +64,20 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
 
 
 def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
-           encoder_output, encoder_hidden, trg_mask=None):
+                       encoder_output):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
 
-    :param src_mask:
-    :param embed:
-    :param bos_index:
-    :param max_output_length:
-    :param decoder:
-    :param encoder_output:
-    :param encoder_hidden:
-    :param trg_mask:
+    :param src_mask: mask for source inputs, 0 for positions after </s>
+    :param embed: target embedding
+    :param bos_index: index of <s> in the vocabulary
+    :param max_output_length: maximum length for the hypotheses
+    :param decoder: decoder to use for greedy decoding
+    :param encoder_output: encoder hidden states for attention
     :return:
+        - stacked_output: output hypotheses (2d array of indices),
+        - stacked_attention_scores: attention scores (3d array)
     """
 
     # model, src, src_mask, max_len, start_symbol):
@@ -197,7 +196,7 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
             trg_embed=embed(decoder_input),
             hidden=hidden,
             prev_att_vector=att_vectors,
-            unrol_steps=1, trg_mask=trg_mask)
+            unrol_steps=1)
 
         log_probs = F.log_softmax(out, dim=-1).squeeze(1)  # batch*k x trg_vocab
 

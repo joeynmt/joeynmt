@@ -55,7 +55,7 @@ class Model(nn.Module):
 
     #pylint: disable=arguments-differ
     def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-                src_lengths: Tensor, trg_mask: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+                src_lengths: Tensor, trg_mask: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
         Then produces the target one word at a time.
@@ -163,18 +163,19 @@ class Model(nn.Module):
         # greedy decoding
         if beam_size == 0:
 
+            # greedy decoding for Transformer models
             if isinstance(self.decoder, TransformerDecoder):
                 stacked_output, stacked_attention_scores = transformer_greedy(
-                    encoder_hidden=encoder_hidden, encoder_output=encoder_output,
+                    encoder_output=encoder_output,
                     src_mask=batch.src_mask, embed=self.trg_embed,
                     bos_index=self.bos_index, decoder=self.decoder,
-                    max_output_length=max_output_length, trg_mask=batch.trg_mask)
-            else:
+                    max_output_length=max_output_length)
+            else:  # greedy decoding for Recurrent models
                 stacked_output, stacked_attention_scores = greedy(
                     encoder_hidden=encoder_hidden, encoder_output=encoder_output,
                     src_mask=batch.src_mask, embed=self.trg_embed,
                     bos_index=self.bos_index, decoder=self.decoder,
-                    max_output_length=max_output_length, trg_mask=batch.trg_mask)
+                    max_output_length=max_output_length)
             # batch, time, max_src_length
         else:  # beam size
             stacked_output, stacked_attention_scores = \
@@ -184,7 +185,7 @@ class Model(nn.Module):
                             max_output_length=max_output_length,
                             alpha=beam_alpha, eos_index=self.eos_index,
                             pad_index=self.pad_index, bos_index=self.bos_index,
-                            decoder=self.decoder, trg_mask=batch.trg_mask)
+                            decoder=self.decoder)
 
         return stacked_output, stacked_attention_scores
 

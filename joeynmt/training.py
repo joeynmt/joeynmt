@@ -32,7 +32,6 @@ from joeynmt.prediction import validate_on_data
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
-from joeynmt.transformer import NoamScheduler
 
 
 # pylint: disable=too-many-instance-attributes
