@@ -35,18 +35,18 @@ Let's generate some data!
 
 .. code-block:: bash
 
-    $cd scripts
-    $python3 generate_reverse_task.py
+    cd scripts
+    python3 generate_reverse_task.py
 
 This generates 50k training and 1k dev and test examples for integers between 0 and 50 of maximum length 25 for training and 30 for development and testing.
 Lets move it to a better directory.
 
 .. code-block:: bash
 
-    $mkdir test/data/reverse
-    $mv train* test/data/reverse/
-    $mv test* test/data/reverse/
-    $mv dev* test/data/reverse/
+    mkdir test/data/reverse
+    mv train* test/data/reverse/
+    mv test* test/data/reverse/
+    mv dev* test/data/reverse/
 
 
 Pre-processing
@@ -131,7 +131,7 @@ For training, run the following command:
 
 .. code-block:: bash
 
-    $python3 -m joeynmt train configs/reverse.yaml
+    python3 -m joeynmt train configs/reverse.yaml
 
 
 This will train a model on the reverse data specified in the config,
@@ -202,11 +202,11 @@ You can choose several models and metrics to plot. For now, we're interested in 
 
 .. code-block:: bash
 
-    $python3 scripts/plot_validations.py reverse_model --plot_values bleu PPL  --output_path reverse_model/bleu-ppl.png
+    python3 scripts/plot_validations.py reverse_model --plot_values bleu PPL  --output_path reverse_model/bleu-ppl.png
 
 It should like this:
 
-.. image:: ..images/bleu-ppl.png
+.. image:: ../images/bleu-ppl.png
     :width: 150px
     :align: center
     :height: 300px
@@ -219,13 +219,13 @@ JoeyNMT additionally uses `TensorboardX <https://github.com/lanpa/tensorboardX>`
 Launch `Tensorboard <https://github.com/tensorflow/tensorboard>`_ (requires installation that is not included in JoeyNMTs requirements) like this:
 
 .. code-block:: bash
-    $ tensorboard --logdir reverse_model/tensorboard
+    tensorboard --logdir reverse_model/tensorboard
 
 and then open the url (default: ``localhost:6006``) with a browser.
 
 You should see something like that:
 
-.. image:: ..images/tensorboard.png
+.. image:: ../images/tensorboard.png
     :width: 374px
     :align: center
     :height: 196px
@@ -233,7 +233,7 @@ You should see something like that:
 
 We can now inspect the training loss curves, both for individual batches
 
-.. image:: ..images/train_train_batch_loss.png
+.. image:: ../images/train_train_batch_loss.png
     :width: 265px
     :align: center
     :height: 100px
@@ -241,7 +241,7 @@ We can now inspect the training loss curves, both for individual batches
 
 and for the whole training set:
 
-.. image:: ..images/train_train_epoch_loss.png
+.. image:: ../images/train_train_epoch_loss.png
     :width: 330px
     :align: center
     :height: 200px
@@ -249,7 +249,7 @@ and for the whole training set:
 
 and the validation loss:
 
-.. image:: ..images/valid_valid_loss.png
+.. image:: ../images/valid_valid_loss.png
     :width: 330px
     :align: center
     :height: 200px
@@ -266,7 +266,7 @@ JoeyNMT automatically saves plots of attention scores for examples of the valida
 
 Here's an example, target tokens as columns and source tokens as rows:
 
-.. image:: ..images/attention_reverse.png
+.. image:: ../images/attention_reverse.png
     :width: 330px
     :align: center
     :height: 200px
@@ -277,12 +277,12 @@ We can see here that the model has figured out to give "2" on the source high at
 
 Tensorboard (tab: "images") allows us to inspect how attention develops over time, here's happened for the first sentence of the validation set:
 
-.. image:: ..images/attention_0.gif
+.. image:: ../images/attention_0.gif
     :alt: attention over time
 
 For real machine translation tasks, this would look less monotone, for example for an IWSLT de-en model like this:
 
-.. image:: ..images/attention_iwslt.png
+.. image:: ../images/attention_iwslt.png
     :width: 300px
     :align: center
     :height: 300px
