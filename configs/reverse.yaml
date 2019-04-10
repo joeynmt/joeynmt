@@ -21,12 +21,10 @@ testing:
     alpha: 1.0
 
 training:
-    #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
     learning_rate: 0.001
     learning_rate_min: 0.0002
-#    clip_grad_val: 1.0
     weight_decay: 0.0
     clip_grad_norm: 1.0
     batch_size: 10
@@ -34,16 +32,16 @@ training:
     patience: 5
     decrease_factor: 0.5
     schedule_after_loss: True
-    epochs: 10
+    epochs: 6
     validation_freq: 500
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "new_reverse"
+    model_dir: "reverse_model"
     overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 11
-    print_valid_sents: [1, 2, 3]
+    print_valid_sents: [0, 3, 6]
 
 model:
     initializer: "xavier"
@@ -57,7 +55,7 @@ model:
         embeddings:
             embedding_dim: 16
             scale: False
-        hidden_size: 64
+        hidden_size: 32
         bidirectional: True
         dropout: 0.1
         num_layers: 1
@@ -66,7 +64,7 @@ model:
         embeddings:
             embedding_dim: 16
             scale: False
-        hidden_size: 64
+        hidden_size: 32
         dropout: 0.1
         hidden_dropout: 0.1
         num_layers: 1
