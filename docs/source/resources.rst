@@ -29,6 +29,11 @@ Publications
 - `THUNLP-MT MT reading list <https://github.com/THUNLP-MT/MT-Reading-List>`_
 
 
+Data
+----
+- WMT: The shared tasks of the yearly [Conference on Machine Translation (WMT)](http://www.statmt.org/wmt19/) provide lots of parallel data.
+- OPUS: TODO
+
 PyTorch
 =======
 
