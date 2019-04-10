@@ -249,7 +249,7 @@ class TrainManager:
                                           self.steps)
                 count = self.batch_multiplier if update else count
                 count -= 1
-                epoch_loss += batch_loss
+                epoch_loss += batch_loss.detach().cpu().numpy()
 
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
