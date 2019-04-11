@@ -17,10 +17,8 @@ Getting Started
    :maxdepth: 2
 
    install
-   overview
    tutorial
-   configuration
-   visualization
+   overview
    api
    faq
    resources

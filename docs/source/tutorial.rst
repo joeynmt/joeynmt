@@ -241,7 +241,7 @@ You can choose several models and metrics to plot. For now, we're interested in 
 
     python3 scripts/plot_validations.py reverse_model --plot_values bleu PPL  --output_path reverse_model/bleu-ppl.png
 
-It should like this:
+It should look like this:
 
 .. image:: ../images/bleu-ppl.png
     :width: 150px
@@ -312,7 +312,7 @@ Here's an example, target tokens as columns and source tokens as rows:
 The bright colors mean that these positions got high attention, the dark colors mean there was not much attention.
 We can see here that the model has figured out to give "2" on the source high attention when it has to generate "2" on the target side.
 
-Tensorboard (tab: "images") allows us to inspect how attention develops over time, here's happened a relatively short sentence:
+Tensorboard (tab: "images") allows us to inspect how attention develops over time, here's what happened for a relatively short sentence:
 
 .. image:: ../images/attention_0.gif
     :alt: attention over time
@@ -329,7 +329,7 @@ For real machine translation tasks, the attention looks less monotonic, for exam
 4. Testing
 ==========
 
-There's 3 options for testing what the model has learned.
+There's *three* options for testing what the model has learned.
 
 In general, testing works by loading a trained model (``load_model`` in the configuration) and feeding it new sources that it will generate predictions for.
 

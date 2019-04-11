@@ -18,18 +18,17 @@ Training
 
 - **How can I see how well my model is doing?**
    1. *Training log*: Validation results and training loss (after each epoch and batch) are reported in the training log file ``train.log`` in your model directory.
-   2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved.
-     You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/master/scripts/plot_validations.py>`_, e.g.
-     ::
+   2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved. You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/master/scripts/plot_validations.py>`_, e.g.
+    ::
 
         python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf
 
    3. *Tensorboard*: Validation results, training losses and attention scores are also stored in summaries for Tensorboard. Launch Tensorboard with
-     ::
+    ::
 
         tensorboard --logdir model_dir/tensorboard
 
-     and then open the url (default: ``localhost:6006``) with a browser.
+    and then open the url (default: ``localhost:6006``) with a browser.
 
    See :ref:`tutorial`, section "Progress Tracking", for a detailed description of the quantities being logged.
 
@@ -40,9 +39,9 @@ Training
 - **How can I perform domain adaptation?**
    1. First train your model on one dataset (the *out-of-domain* data).
    2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
-     Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
-     You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
-     In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
+    Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
+    You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
+    In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
    3. Train the in-domain model.
 
 - **What if training is interrupted and I need to resume it?**
