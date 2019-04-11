@@ -309,6 +309,7 @@ JoeyNMT additionally uses `TensorboardX <https://github.com/lanpa/tensorboardX>`
 Launch `Tensorboard <https://github.com/tensorflow/tensorboard>`_ (requires installation that is not included in JoeyNMTs requirements) like this:
 
 .. code-block:: bash
+
     tensorboard --logdir reverse_model/tensorboard
 
 and then open the url (default: ``localhost:6006``) with a browser.
