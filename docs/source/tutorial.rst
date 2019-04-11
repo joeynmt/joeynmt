@@ -87,12 +87,23 @@ The training set will be filtered by ``max_sent_length``, i.e. only examples whe
 Source and target vocabulary are created from the training data, by keeping ``src_voc_limit`` source tokens that occur at least ``src_voc_min_freq`` times, and equivalently for the target side.
 If you want to use a pre-generated vocabulary, you can load it with ``src_vocab`` and ``trg_vocab``. This will be important when loading a trained model for testing.
 
-.. literalinclude:: ../../configs/reverse.yaml
-    :linenos:
-    :language: python
-    :lines:
-    :start-after: 2
-    :end-before: 18
+.. code-block:: python
+
+    data:
+        src: "src"
+        trg: "trg"
+        train: "test/data/reverse/train"
+        dev: "test/data/reverse/dev"
+        test: "test/data/reverse/test"
+        level: "word"
+        lowercase: False
+        max_sent_length: 25
+        src_voc_min_freq: 0
+        src_voc_limit: 100
+        trg_voc_min_freq: 0
+        trg_voc_limit: 100
+        #src_vocab: "reverse_model/src_vocab.txt"
+        #trg_vocab: "reverse_model/trg_vocab.txt"
 
 
 2. Training Section
@@ -114,12 +125,31 @@ With `use_cuda` we can decide whether to train the model on GPU (True) or CPU (F
 
 *Caution*: In this example we set ``overwrite: True`` which you shouldn't do if you're running serious experiments, since it overwrites the existing ``model_dir`` and all its content if it already exists and you re-start training.
 
-.. literalinclude:: ../../configs/reverse.yaml
-    :linenos:
-    :language: python
-    :lines:
-    :start-after: 22
-    :end-before: 47
+.. code-block:: python
+
+    training:
+        random_seed: 42
+        optimizer: "adam"
+        learning_rate: 0.001
+        learning_rate_min: 0.0002
+        weight_decay: 0.0
+        clip_grad_norm: 1.0
+        batch_size: 10
+        scheduling: "plateau"
+        patience: 5
+        decrease_factor: 0.5
+        early_stopping_metric: "eval_metric"
+        epochs: 6
+        validation_freq: 1000
+        logging_freq: 100
+        eval_metric: "bleu"
+        model_dir: "reverse_model"
+        overwrite: True
+        shuffle: True
+        use_cuda: False
+        max_output_length: 30
+        print_valid_sents: [0, 3, 6]
+        keep_last_ckpts: 2
 
 
 3. Testing Section
@@ -128,12 +158,11 @@ With `use_cuda` we can decide whether to train the model on GPU (True) or CPU (F
 Here we only specify which decoding strategy we want to use during testing. If ``beam_size: 0`` the model greedily decodes, otherwise it uses a beam of ``beam_size`` to search for the best output.
 `alpha` is the length penalty for beam search (proposed in `Wu et al. 2018 <https://arxiv.org/pdf/1609.08144.pdf>`_).
 
-.. literalinclude:: ../../configs/reverse.yaml
-    :linenos:
-    :language: python
-    :lines:
-    :start-after: 18
-    :end-before: 22
+.. code-block:: python
+
+    testing:
+        beam_size: 10
+        alpha: 1.0
 
 
 4. Model Section
@@ -154,12 +183,36 @@ The first decoder state is simply initialized with zeros. For real translation t
 
 Encoder and decoder are connected through global attention, here through `luong` attention, aka the "general" (Luong et al. 2015) or bilinear attention mechanism.
 
-.. literalinclude:: ../../configs/reverse.yaml
-    :linenos:
-    :language: python
-    :lines:
-    :start-after: 46
-    :end-before: 75
+.. code-block:: python
+
+    model:
+        initializer: "xavier"
+        embed_initializer: "normal"
+        embed_init_weight: 0.1
+        bias_initializer: "zeros"
+        init_rnn_orthogonal: False
+        lstm_forget_gate: 0.
+        encoder:
+            rnn_type: "lstm"
+            embeddings:
+                embedding_dim: 16
+                scale: False
+            hidden_size: 64
+            bidirectional: True
+            dropout: 0.1
+            num_layers: 1
+        decoder:
+            rnn_type: "lstm"
+            embeddings:
+                embedding_dim: 16
+                scale: False
+            hidden_size: 64
+            dropout: 0.1
+            hidden_dropout: 0.1
+            num_layers: 1
+            input_feeding: True
+            init_hidden: "zero"
+            attention: "luong"
 
 That's it! We've specified all that we need to train a translation model for the reverse task.
 
@@ -304,9 +357,9 @@ JoeyNMT automatically saves plots of attention scores for examples of the valida
 Here's an example, target tokens as columns and source tokens as rows:
 
 .. image:: ../images/attention_reverse.png
-    :width: 165px
+    :width: 300px
     :align: center
-    :height: 100px
+    :height: 300px
     :alt: attention for reverse model
 
 The bright colors mean that these positions got high attention, the dark colors mean there was not much attention.
@@ -315,14 +368,17 @@ We can see here that the model has figured out to give "2" on the source high at
 Tensorboard (tab: "images") allows us to inspect how attention develops over time, here's what happened for a relatively short sentence:
 
 .. image:: ../images/attention_0.gif
+    :width: 400px
+    :align: center
+    :height: 300px
     :alt: attention over time
 
 For real machine translation tasks, the attention looks less monotonic, for example for an IWSLT de-en model like this:
 
 .. image:: ../images/attention_iwslt.png
-    :width: 300px
+    :width: 400px
     :align: center
-    :height: 300px
+    :height: 400px
     :alt: attention iwslt
 
 
@@ -402,7 +458,7 @@ Let's try a challenging long one:
 =========
 Trying out different combinations of hyperparameters to improve the model is called "tuning".
 Improving the model could mean in terms of generalization performance at the end of training, faster convergence or making it more efficient or smaller while achieving the same quality.
-For our case that means going back to the `Configuration`_ and changing a few of the hyperparameters.
+For our case that means going back to the configuration and changing a few of the hyperparameters.
 
 For example, let's try out what happens if we increase the batch size to 50 or reduce it to 2 (and change the "model_dir"!).
 For a one-to-one comparison we consequently need to divide or multiply the validation frequency by 5, respectively, since the "steps" are counted in terms of mini-batches.
@@ -421,6 +477,6 @@ or random search (`Bergstra & Bengio 2012 <http://www.jmlr.org/papers/volume13/b
 
 6. What's next?
 ===============
-If you want to implement something new in JoeyNMT or dive a bit deeper, you should take a look at the architecture :ref:`overview` and explore the API documentation of the :ref:`modules`.
+If you want to implement something new in JoeyNMT or dive a bit deeper, you should take a look at the architecture :ref:`overview` and explore the API documentation of :ref:`modules`.
 
 Other than that, we hope that you found this tutorial helpful. Please leave an `issue on Github <https://github.com/joeynmt/joeynmt/issues>`_ if you had trouble with anything or have ideas for improvement.
