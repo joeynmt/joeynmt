@@ -10,12 +10,11 @@ import torch.nn as nn
 from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import freeze_params, clones
+from joeynmt.helpers import freeze_params, clones, ConfigurationError
 from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
     PositionwiseFeedForward, subsequent_mask, PositionalEncoding
 
-
-#pylint: disable=abstract-method
+# pylint: disable=abstract-method
 class Decoder(nn.Module):
     """
     Base decoder class
@@ -109,7 +108,9 @@ class RecurrentDecoder(Decoder):
             self.attention = LuongAttention(hidden_size=hidden_size,
                                             key_size=encoder.output_size)
         else:
-            raise ValueError("Unknown attention mechanism: %s" % attention)
+            raise ConfigurationError("Unknown attention mechanism: %s. "
+                                     "Valid options: 'bahdanau', 'luong'."
+                                     % attention)
 
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -121,8 +122,8 @@ class RecurrentDecoder(Decoder):
                 encoder.output_size, hidden_size, bias=True)
         elif self.init_hidden_option == "last":
             if encoder.output_size != self.hidden_size:
-                if encoder.output_size != 2*self.hidden_size: # bidirectional
-                    raise ValueError(
+                if encoder.output_size != 2*self.hidden_size:  # bidirectional
+                    raise ConfigurationError(
                         "For initializing the decoder state with the "
                         "last encoder state, their sizes have to match "
                         "(encoder: {} vs. decoder:  {})".format(

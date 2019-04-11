@@ -11,6 +11,8 @@ from torch.optim.lr_scheduler import _LRScheduler, ReduceLROnPlateau, \
 from torch.optim import Optimizer
 from joeynmt.transformer import NoamScheduler
 
+from joeynmt.helpers import ConfigurationError
+
 
 def build_gradient_clipper(config: dict) -> Optional[Callable]:
     """
@@ -37,9 +39,9 @@ def build_gradient_clipper(config: dict) -> Optional[Callable]:
         clip_grad_fun = lambda params: \
             nn.utils.clip_grad_norm_(parameters=params, max_norm=max_norm)
 
-    assert not ("clip_grad_val" in config.keys() and
-                "clip_grad_norm" in config.keys()), \
-        "you can only specify either clip_grad_val or clip_grad_norm"
+    if "clip_grad_val" in config.keys() and "clip_grad_norm" in config.keys():
+        raise ConfigurationError(
+            "You can only specify either clip_grad_val or clip_grad_norm.")
 
     return clip_grad_fun
 
@@ -91,6 +93,9 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
         # default
         optimizer = torch.optim.SGD(parameters, weight_decay=weight_decay,
                                     lr=learning_rate)
+    else:
+        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
+                                 "'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
     return optimizer
 
 

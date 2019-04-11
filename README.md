@@ -44,15 +44,6 @@ In order to keep the code clean and readable, we make use of:
 - Unittests: Every module has unit tests, defined in `test/unit/`.
 Travis CI runs the tests and pylint on every push to ensure the repository stays clean.
 
-
-## Teaching
-We will create dedicated material for teaching with Joey NMT. This will include:
-- An overview and explanation of the code architecture.
-- A tutorial how to train and test a baseline model.
-- A walk-through example of how to implement a modification of a baseline model.
-
-[Work in progress!]
-
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](https://github.com/pytorch/text) for Python >= 3.6.
 
@@ -69,13 +60,13 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](htt
 
 ## Usage
 
+For details, follow the tutorial in [the docs](https://joeynmt.readthedocs.io).
+
 ### Data Preparation
 
 #### Parallel Data
 For training a translation model, you need parallel data, i.e. a collection of source sentences and reference translations that are aligned sentence-by-sentence and stored in two files, 
 such that each line in the reference file is the translation of the same line in the source file.
-
-The shared tasks of the yearly [Conference on Machine Translation (WMT)](http://www.statmt.org/wmt19/) provide lots of parallel data.
 
 #### Pre-processing
 Before training a model on it, parallel data is most commonly filtered by length ratio, tokenized and true- or lowercased.
@@ -115,7 +106,7 @@ Models are saved whenever a new best validation score is reached, in `batch_no.c
 
 #### Visualization
 JoeyNMT uses [TensorboardX](https://github.com/lanpa/tensorboardX) to visualize training and validation curves and attention matrices during training.
-Launch [Tensorboard](https://github.com/tensorflow/tensorboard) with `tensorboard --logdir model_dir/tensorboard` and then open the url (default: `localhost:6006`) with a browser. 
+Launch [Tensorboard](https://github.com/tensorflow/tensorboard) with `tensorboard --logdir model_dir/tensorboard` (or `python -m tensorboard.main ...`) and then open the url (default: `localhost:6006`) with a browser. 
 
 For a stand-alone plot, run `python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf` to plot curves of validation BLEU and PPL.
 
@@ -154,13 +145,11 @@ If you just want try a few examples, run
 and you'll be prompted to type input sentences that JoeyNMT will then translate with the model specified in the configuration.
 
 
-
-## API Documentation
-Read [the docs](https://joeynmt.readthedocs.io).
+## Documentation and Tutorial
+[The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the API documentation and FAQs.
 
 ## Benchmarks
-Benchmarks on small models trained on GPU/CPU on standard data sets will be 
-posted here.
+Benchmarks on small models trained on GPU/CPU on standard data sets are reported here.
 
 - IWSLT15 En-Vi, word-based
 - IWSLT14 De-En, 32000 joint BPE, word-based
@@ -258,7 +247,7 @@ Since this codebase is supposed to stay clean and minimalistic, contributions ad
 - Code cleanliness
 - Documentation quality
 - Speed or memory improvements
-- Code addressing issues
+- resolving issues
 
 Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
 
