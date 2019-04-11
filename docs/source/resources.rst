@@ -32,7 +32,7 @@ Publications
 Data
 ----
 - WMT: The shared tasks of the yearly `Conference on Machine Translation (WMT) <http://www.statmt.org/wmt19/>`_ provide lots of parallel data.
-- OPUS: The OPUS project collects publicly available parallel data and provides it to everyone on their `website < http://opus.nlpl.eu/>`_.
+- OPUS: The OPUS project collects publicly available parallel data and provides it to everyone on their `website <http://opus.nlpl.eu/>`_.
 
 PyTorch
 =======
