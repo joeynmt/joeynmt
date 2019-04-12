@@ -3,9 +3,9 @@ name: "iwslt_deen_bahdanau"
 data:
     src: "de"
     trg: "en"
-    train: "test/data/iwslt_deen/train"
-    dev: "test/data/iwslt_deen/dev"
-    test: "test/data/iwslt_deen/test"
+    train: "test/data/iwslt/train"
+    dev: "test/data/iwslt/dev"
+    test: "test/data/iwslt/test"
     level: "word"
     lowercase: True
     max_sent_length: 50
@@ -26,7 +26,7 @@ training:
     patience: 0
     decrease_factor: 0.5
     early_stopping_metric: "ppl"
-    epochs: 100
+    epochs: 500
     validation_freq: 2359
     logging_freq: 500
     eval_metric: "bleu"
