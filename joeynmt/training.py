@@ -300,7 +300,7 @@ class TrainManager:
                             'Hooray! New best validation result [%s]!',
                             self.early_stopping_metric)
                         new_best = True
-                        self.logger.info('Saving checkpoint.')
+                        self.logger.info('Saving new checkpoint.')
                         self._save_checkpoint()
 
                     if self.scheduler is not None \
