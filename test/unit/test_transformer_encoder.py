@@ -5,7 +5,7 @@ from joeynmt.transformer import PositionalEncoding
 from .test_helpers import TensorTestCase
 
 
-class TestRecurrentEncoder(TensorTestCase):
+class TestTransformerEncoder(TensorTestCase):
 
     def setUp(self):
         self.emb_size = 12
@@ -16,13 +16,6 @@ class TestRecurrentEncoder(TensorTestCase):
         self.dropout = 0.
         seed = 42
         torch.manual_seed(seed)
-
-    def test_position_encoding(self):
-        x = torch.zeros([2, 3, self.emb_size])
-        pe = PositionalEncoding(self.hidden_size, dropout=0.)
-        output = pe(x)
-        self.assertEqual(pe.pe.size(2), self.hidden_size)
-        self.assertTensorAlmostEqual(output, pe.pe[:, :x.size(1)])
 
     def test_transformer_freeze(self):
         encoder = TransformerEncoder(freeze=True)
