@@ -177,7 +177,7 @@ class TrainManager:
         self.ckpt_queue.put(model_path)
 
         # create/modify symbolic link for best checkpoint
-        symlink_update(model_path, "best.ckpt")
+        symlink_update("{}.ckpt".format(self.steps), "{}/best.ckpt".format(self.model_dir))
 
     def init_from_checkpoint(self, path: str) -> None:
         """
