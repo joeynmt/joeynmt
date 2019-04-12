@@ -152,8 +152,25 @@ class TransformerEncoder(nn.Module):
     """
 
     #pylint: disable=unused-argument
-    def __init__(self, hidden_size=512, ff_size=2048,
-                 num_layers=8, num_heads=4, dropout=0.1, **kwargs):
+    def __init__(self,
+                 hidden_size: int = 512,
+                 ff_size: int = 2048,
+                 num_layers: int = 8,
+                 num_heads: int = 4,
+                 dropout: float = 0.1,
+                 freeze: bool = False,
+                 **kwargs):
+        """
+        Initializes the Transformer.
+        :param hidden_size: hidden size and size of embeddings
+        :param ff_size: position-wise feed-forward layer size.
+          (Typically this is 2*hidden_size.)
+        :param num_layers: number of layers
+        :param num_heads: number of heads for multi-headed attention
+        :param dropout: dropout probability
+        :param freeze: freeze the parameters of the encoder during training
+        :param kwargs:
+        """
         super(TransformerEncoder, self).__init__()
 
         # build all (num_layers) layers
@@ -169,16 +186,33 @@ class TransformerEncoder(nn.Module):
         self.norm = nn.LayerNorm(hidden_size)
         self.pe = PositionalEncoding(hidden_size, dropout=dropout)
 
+        if freeze:
+            freeze_params(self)
+
     #pylint: disable=arguments-differ
-    def forward(self, x, lengths, mask):
+    def forward(self,
+                embed_src: Tensor,
+                src_length: Tensor,
+                mask: Tensor) -> (Tensor, Tensor):
         """
         Pass the input (and mask) through each layer in turn.
-        :param x:
-        :param lengths: for API compatibility
-        :param mask:
+        Applies a Transformer encoder to sequence of embeddings x.
+        The input mini-batch x needs to be sorted by src length.
+        x and mask should have the same dimensions [batch, time, dim].
+
+        :param embed_src: embedded src inputs,
+            shape (batch_size, src_len, embed_size)
+        :param src_length: length of src inputs
+            (counting tokens before padding), shape (batch_size)
+        :param mask: indicates padding areas (zeros where padding), shape
+            (batch_size, src_len, embed_size)
         :return:
+            - output: hidden states with
+                shape (batch_size, max_length, directions*hidden),
+            - hidden_concat: last hidden state with
+                shape (batch_size, directions*hidden)
         """
-        x = self.pe(x)  # add position encoding to word embeddings
+        x = self.pe(embed_src)  # add position encoding to word embeddings
 
         for layer in self.layers:
             x = layer(x, mask)
