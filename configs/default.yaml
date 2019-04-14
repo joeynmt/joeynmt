@@ -3,9 +3,9 @@ name: "my_experiment"
 data: # specify your data here
     src: "de"  # src language: expected suffix of train files, e.g. "train.de"
     trg: "en"  # trg language
-    train: "test/data/iwslt/train"  # training data
-    dev: "test/data/iwslt/dev"  # development data for validation
-    test: "test/data/iwslt/test"  # test data for testing final model; optional
+    train: "test/data/toy/train"  # training data
+    dev: "test/data/toy/dev"  # development data for validation
+    test: "test/data/toy/test"  # test data for testing final model; optional
     level: "word" # segmentation level: either "word", "bpe" or "char"
     lowercase: True # lowercase the data, also for validation
     max_sent_length: 30 # filter out longer sentences from training (src+trg)
