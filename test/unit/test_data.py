@@ -6,9 +6,9 @@ from joeynmt.data import MonoDataset, TranslationDataset, load_data
 class TestData(unittest.TestCase):
 
     def setUp(self):
-        self.train_path = "test/data/iwslt/train"
-        self.dev_path = "test/data/iwslt/dev"
-        self.test_path = "test/data/iwslt/test"
+        self.train_path = "test/data/toy/train"
+        self.dev_path = "test/data/toy/dev"
+        self.test_path = "test/data/toy/test"
         self.levels = ["char", "word"]  # bpe is equivalently processed to word
         self.max_sent_length = 10
 
