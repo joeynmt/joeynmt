@@ -45,7 +45,7 @@ In order to keep the code clean and readable, we make use of:
 Travis CI runs the tests and pylint on every push to ensure the repository stays clean.
 
 ## Installation
-Joey NMT is built on [PyTorch](https://pytorch.org/) v.0.4.1 and [torchtext](https://github.com/pytorch/text) for Python >= 3.6.
+Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://github.com/pytorch/text) for Python >= 3.5.
 
 1. Clone this repository:
 `git clone https://github.com/joeynmt/joeynmt.git`
