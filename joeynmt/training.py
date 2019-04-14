@@ -299,9 +299,10 @@ class TrainManager:
                         self.logger.info(
                             'Hooray! New best validation result [%s]!',
                             self.early_stopping_metric)
-                        new_best = True
-                        self.logger.info('Saving new checkpoint.')
-                        self._save_checkpoint()
+                        if self.ckpt_queue.maxsize > 0:
+                            self.logger.info("Saving new checkpoint.")
+                            new_best = True
+                            self._save_checkpoint()
 
                     if self.scheduler is not None \
                             and self.scheduler_step_at == "validation":

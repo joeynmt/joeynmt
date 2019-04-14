@@ -37,8 +37,7 @@ Let's generate some data!
 
 .. code-block:: bash
 
-    cd scripts
-    python3 generate_reverse_task.py
+    python3 scripts/generate_reverse_task.py
 
 This generates 50k training and 1k dev and test examples for integers between 0 and 50 of maximum length 25 for training and 30 for development and testing.
 Lets move it to a better directory.
@@ -371,7 +370,7 @@ Tensorboard (tab: "images") allows us to inspect how attention develops over tim
 .. image:: ../images/attention_0.gif
     :width: 400px
     :align: center
-    :height: 300px
+    :height: 400px
     :alt: attention over time
 
 For real machine translation tasks, the attention looks less monotonic, for example for an IWSLT de-en model like this:

@@ -78,7 +78,7 @@ Currently, JoeyNMT supports the byte-pair-encodings (BPE) format by [subword-nmt
 
 ### Configuration
 Experiments are specified in configuration files, in simple [YAML](http://yaml.org/) format. You can find examples in the `configs` directory.
-`default.yaml` contains a detailed explanation of configuration options.
+`small.yaml` contains a detailed explanation of configuration options.
 
 Most importantly, the configuration contains the description of the model architecture (e.g. number of hidden units in the encoder RNN), 
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
@@ -88,9 +88,9 @@ paths to the training, development and test data, and the training hyperparamete
 #### Start
 For training, run 
 
-`python3 -m joeynmt train configs/default.yaml`. 
+`python3 -m joeynmt train configs/small.yaml`. 
 
-This will train a model on the training data specified in the config (here: `default.yaml`), 
+This will train a model on the training data specified in the config (here: `small.yaml`), 
 validate on validation data, 
 and store model parameters, vocabularies, validation outputs and a small number of attention plots in the `model_dir` (also specified in config).
 
@@ -123,7 +123,7 @@ Whatever data you feed the model for translating, make sure it is properly pre-p
 #### 1. Test Set Evaluation 
 For testing and evaluating on your parallel test/dev set, run 
 
-`python3 -m joeynmt test configs/default.yaml --output_path out`.
+`python3 -m joeynmt test configs/small.yaml --output_path out`.
 
 This will generate translations for validation and test set (as specified in the configuration) in `out.[dev|test]`
 with the latest/best model in the `model_dir` (or a specific checkpoint set with `load_model`).
@@ -133,14 +133,14 @@ If `--output_path` is not specified, it will not store the translation, and only
 #### 2. File Translation
 In order to translate the contents of a file not contained in the configuration (here `my_input.txt`), simply run
 
-`python3 -m joeynmt translate configs/default.yaml < my_input.txt > out`.
+`python3 -m joeynmt translate configs/small.yaml < my_input.txt > out`.
 
 The translations will be written to stdout or alternatively`--output_path` if specified.
 
 #### 3. Interactive
 If you just want try a few examples, run
 
-`python3 -m joeynmt translate configs/default.yaml`
+`python3 -m joeynmt translate configs/small.yaml`
 
 and you'll be prompted to type input sentences that JoeyNMT will then translate with the model specified in the configuration.
 
