@@ -372,6 +372,6 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
                 hypotheses = _translate_data(test_data)
                 print("JoeyNMT: {}".format(hypotheses[0]))
 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, EOFError):
                 print("\nBye.")
                 break
