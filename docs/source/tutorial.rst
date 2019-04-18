@@ -73,7 +73,7 @@ Most importantly, the configuration contains the description of the model archit
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
 You can find examples in the `configs directory <https://github.com/joeynmt/joeynmt/tree/master/configs>`_.
-`default.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/default.yaml>`_ contains a detailed explanation of all configuration options.
+`small.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/small.yaml>`_ contains a detailed explanation of all configuration options.
 
 For the tutorial we'll use `reverse.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/reverse.yaml>`_. We'll go through it section by section.
 
