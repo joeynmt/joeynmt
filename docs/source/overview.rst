@@ -15,6 +15,7 @@ Modes
 When JoeyNMT is called from the command line, the mode ("train/test/translate") determines what happens next.
 
 The **"train"** mode leads to ``training.py``, where executes the following steps:
+
 1. load the configuration file
 2. load the data and build the vocabularies
 3. build the model
@@ -23,14 +24,15 @@ The **"train"** mode leads to ``training.py``, where executes the following step
 6. test the model with the best checkpoint (if test data given)
 
 **"test"** and **"translate"** mode are handled by ``prediction.py``.
-In "test" mode, JoeyNMT does the following:
+In **"test"** mode, JoeyNMT does the following:
+
 1. load the configuration file
 2. load the data and vocabulary files
 3. load the model from checkpoint
 4. predict hypotheses for the test set
 5. evaluate hypotheses against references (if given)
 
-The "translate" mode is similar, but it loads source sentences either from an *external* file or prompts lines of *inputs from the user* and does not perform an evaluation.
+The **"translate"** mode is similar, but it loads source sentences either from an *external* file or prompts lines of *inputs from the user* and does not perform an evaluation.
 
 Training Management
 ===================
