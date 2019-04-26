@@ -429,7 +429,7 @@ class RecurrentDecoder(Decoder):
 
 # pylint: disable=arguments-differ,too-many-arguments
 # pylint: disable=too-many-instance-attributes, unused-argument
-class TransformerDecoder(nn.Module):
+class TransformerDecoder(Decoder):
     """
     A transformer decoder with N masked layers.
     Decoder layers are masked so that an attention head cannot see the future.
@@ -437,7 +437,7 @@ class TransformerDecoder(nn.Module):
 
     def __init__(self, num_layers=4, num_heads=8,
                  hidden_size=512, ff_size=2048, dropout=0.1,
-                 vocab_size=1,
+                 vocab_size=1, freeze=False,
                  **kwargs):
         super(TransformerDecoder, self).__init__()
 
@@ -454,8 +454,15 @@ class TransformerDecoder(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.norm = nn.LayerNorm(hidden_size)
         self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+        self._output_size = hidden_size
 
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        if freeze:
+            freeze_params(self)
+
+    def output_size(self):
+        return self.hidden_size
 
     def forward(self,
                 trg_embed: Tensor = None,

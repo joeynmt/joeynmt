@@ -146,7 +146,7 @@ class RecurrentEncoder(Encoder):
         return "%s(%r)" % (self.__class__.__name__, self.rnn)
 
 
-class TransformerEncoder(nn.Module):
+class TransformerEncoder(Encoder):
     """
     Transformer Encoder
     """
@@ -185,6 +185,7 @@ class TransformerEncoder(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.norm = nn.LayerNorm(hidden_size)
         self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+        self._output_size = hidden_size
 
         if freeze:
             freeze_params(self)

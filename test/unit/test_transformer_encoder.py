@@ -17,7 +17,7 @@ class TestTransformerEncoder(TensorTestCase):
         seed = 42
         torch.manual_seed(seed)
 
-    def test_transformer_freeze(self):
+    def test_transformer_encoder_freeze(self):
         encoder = TransformerEncoder(freeze=True)
         for n, p in encoder.named_parameters():
             self.assertFalse(p.requires_grad)
