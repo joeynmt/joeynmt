@@ -44,4 +44,4 @@ class TestTransformerUtils(TensorTestCase):
             )
         )
 
-        self.assertAlmostEqual(v.item(), 1.0663001537322998)
+        self.assertTensorAlmostEqual(v, 1.0663)
