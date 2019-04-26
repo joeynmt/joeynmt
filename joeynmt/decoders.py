@@ -461,9 +461,6 @@ class TransformerDecoder(Decoder):
         if freeze:
             freeze_params(self)
 
-    def output_size(self):
-        return self.hidden_size
-
     def forward(self,
                 trg_embed: Tensor = None,
                 encoder_output: Tensor = None,

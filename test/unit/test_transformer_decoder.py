@@ -24,6 +24,19 @@ class TestTransformerDecoder(TensorTestCase):
         for n, p in encoder.named_parameters():
             self.assertFalse(p.requires_grad)
 
+    def test_transformer_decoder_output_size(self):
+
+        vocab_size = 11
+        decoder = TransformerDecoder(
+            num_layers=self.num_layers, num_heads=self.num_heads,
+            hidden_size=self.hidden_size, ff_size=self.ff_size,
+            dropout=self.dropout, vocab_size=vocab_size)
+
+        if not hasattr(decoder, "output_size"):
+            self.fail("Missing output_size property.")
+
+        self.assertEqual(decoder.output_size, self.hidden_size)
+
     def test_transformer_decoder_forward(self):
         torch.manual_seed(self.seed)
         batch_size = 2
@@ -37,9 +50,6 @@ class TestTransformerDecoder(TensorTestCase):
             num_layers=self.num_layers, num_heads=self.num_heads,
             hidden_size=self.hidden_size, ff_size=self.ff_size,
             dropout=self.dropout, vocab_size=vocab_size)
-
-        if not hasattr(decoder, "output_size"):
-            self.fail("Missing output_size property.")
 
         encoder_output = torch.rand(
             size=(batch_size, src_time_dim, self.hidden_size))
@@ -66,6 +76,7 @@ class TestTransformerDecoder(TensorTestCase):
               [0.1026, 0.0322, -0.4689, 0.3650, -0.2139, 0.0451, -0.1446],
               [0.3209, 0.2738, -0.3494, 0.0914, -0.4500, -0.0238, 0.0493],
               [0.2975, 0.2314, 0.0655, -0.4934, 0.3150, -0.4421, -0.4362]]])
+        self.assertEqual(output_target.shape, output.shape)
         self.assertTensorAlmostEqual(output_target, output)
 
         greedy_predictions = output.argmax(-1)
@@ -93,4 +104,37 @@ class TestTransformerDecoder(TensorTestCase):
                -1.6918, -0.5047, 1.3717, 0.5127, 1.5583],
               [-1.5689, -0.6707, 0.0566, -0.5892, 1.0769, 0.7327, -1.2552,
                -1.0371, -0.2615, 1.3452, 0.8067, 1.3644]]])
+
+        self.assertEqual(states_target.shape, states.shape)
         self.assertTensorAlmostEqual(states_target, states)
+
+    def test_transformer_decoder_layers(self):
+
+        torch.manual_seed(self.seed)
+        batch_size = 2
+        src_time_dim = 4
+        trg_time_dim = 5
+        vocab_size = 7
+
+        decoder = TransformerDecoder(
+            num_layers=self.num_layers, num_heads=self.num_heads,
+            hidden_size=self.hidden_size, ff_size=self.ff_size,
+            dropout=self.dropout, vocab_size=vocab_size)
+
+        self.assertEqual(len(decoder.layers), self.num_layers)
+
+        for layer in decoder.layers:
+            self.assertTrue(isinstance(layer, TransformerDecoderLayer))
+            self.assertTrue(hasattr(layer, "src_attn"))
+            self.assertTrue(hasattr(layer, "self_attn"))
+            self.assertTrue(hasattr(layer, "feed_forward"))
+            self.assertEqual(layer.size, self.hidden_size)
+            self.assertEqual(
+                layer.feed_forward.layer[0].in_features, self.hidden_size)
+            self.assertEqual(
+                layer.feed_forward.layer[0].out_features, self.ff_size)
+
+
+
+
+
