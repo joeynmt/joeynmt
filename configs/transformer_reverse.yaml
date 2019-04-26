@@ -8,14 +8,14 @@ data:
     test: "test/data/reverse/test"
     level: "word"
     lowercase: False
-    max_sent_length: 11
+    max_sent_length: 30
     voc_min_freq: 0
     voc_limit: 100
     #src_vocab: "my_model/src_vocab.txt"
     #trg_vocab: "my_model/trg_vocab.txt"
 
 testing:
-    beam_size: 1
+    beam_size: 0
     alpha: 1.0
 
 training:
@@ -26,7 +26,7 @@ training:
     scheduling: "noam"
     schedule_after_loss: True
     loss: "crossentropy"
-    learning_rate: 0.0
+    learning_rate: 2
     learning_rate_min: 0.00000001
 #    clip_grad_val: 1.0
     weight_decay: 0.0
@@ -42,8 +42,9 @@ training:
     overwrite: True
     shuffle: True
     use_cuda: False
-    max_output_length: 11
-    print_valid_sents: [1, 2, 3]
+    max_output_length: 30
+    print_valid_sents: [0, 3, 6]
+    keep_last_ckpts: 2
 
 model:
     initializer: "xavier"
@@ -54,7 +55,7 @@ model:
     encoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 8
+        num_heads: 4
         embeddings:
             embedding_dim: 64
             scale: True
@@ -65,7 +66,7 @@ model:
     decoder:
         type: "transformer"
         num_layers: 2
-        num_heads: 8
+        num_heads: 4
         embeddings:
             embedding_dim: 64
             scale: True
