@@ -8,7 +8,7 @@ data:
     test: "test/data/reverse/test"
     level: "word"
     lowercase: False
-    max_sent_length: 30
+    max_sent_length: 25
     voc_min_freq: 0
     voc_limit: 100
     #src_vocab: "my_model/src_vocab.txt"
