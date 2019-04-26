@@ -181,7 +181,8 @@ class TrainManager:
         self.ckpt_queue.put(model_path)
 
         # create/modify symbolic link for best checkpoint
-        symlink_update(model_path, "best.ckpt")
+        symlink_update("{}.ckpt".format(self.steps),
+                       "{}/best.ckpt".format(self.model_dir))
 
     def init_from_checkpoint(self, path: str) -> None:
         """
@@ -308,8 +309,10 @@ class TrainManager:
                         self.logger.info(
                             'Hooray! New best validation result [%s]!',
                             self.early_stopping_metric)
-                        new_best = True
-                        self._save_checkpoint()
+                        if self.ckpt_queue.maxsize > 0:
+                            self.logger.info("Saving new checkpoint.")
+                            new_best = True
+                            self._save_checkpoint()
 
                     if self.scheduler is not None \
                             and self.scheduler_step_at == "validation":

@@ -15,6 +15,7 @@ Modes
 When JoeyNMT is called from the command line, the mode ("train/test/translate") determines what happens next.
 
 The **"train"** mode leads to ``training.py``, where executes the following steps:
+
 1. load the configuration file
 2. load the data and build the vocabularies
 3. build the model
@@ -22,13 +23,16 @@ The **"train"** mode leads to ``training.py``, where executes the following step
 5. train and validate the model (includes saving checkpoints)
 6. test the model with the best checkpoint (if test data given)
 
-**"test" and "translate"** mode are handled by ``prediction.py``. In "test" mode this happens:
+**"test"** and **"translate"** mode are handled by ``prediction.py``.
+In **"test"** mode, JoeyNMT does the following:
+
 1. load the configuration file
 2. load the data and vocabulary files
 3. load the model from checkpoint
 4. predict hypotheses for the test set
 5. evaluate hypotheses against references (if given)
-The "translate" mode is similar, except for it loads the data either from an external file or prompts lines of inputs from the user and does not perform an evaluation.
+
+The **"translate"** mode is similar, but it loads source sentences either from an *external* file or prompts lines of *inputs from the user* and does not perform an evaluation.
 
 Training Management
 ===================
@@ -59,7 +63,7 @@ This trick speeds up validation and also testing.
 
 Vocabulary
 ----------
-For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/vocabulary.py>`_), all tokens occuring in the training set are collected, sorted and otionally filtered by frequency and then cut off as specified in the configurarion.
+For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/vocabulary.py>`_), all tokens occuring in the training set are collected, sorted and optionally filtered by frequency and then cut off as specified in the configurarion.
 The vocabularies are stored in the model directory. The vocabulary files contain one token per line, where the line number corresponds to the index of the token in the vocabulary.
 
 Data Loading

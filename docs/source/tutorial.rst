@@ -37,8 +37,7 @@ Let's generate some data!
 
 .. code-block:: bash
 
-    cd scripts
-    python3 generate_reverse_task.py
+    python3 scripts/generate_reverse_task.py
 
 This generates 50k training and 1k dev and test examples for integers between 0 and 50 of maximum length 25 for training and 30 for development and testing.
 Lets move it to a better directory.
@@ -74,7 +73,7 @@ Most importantly, the configuration contains the description of the model archit
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
 You can find examples in the `configs directory <https://github.com/joeynmt/joeynmt/tree/master/configs>`_.
-`default.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/default.yaml>`_ contains a detailed explanation of all configuration options.
+`small.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/small.yaml>`_ contains a detailed explanation of all configuration options.
 
 For the tutorial we'll use `reverse.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/reverse.yaml>`_. We'll go through it section by section.
 
@@ -174,7 +173,7 @@ In this example we use a one-layer bidirectional LSTM encoder with 64 units, a o
 Source and target embeddings both have the size of 16.
 
 We're not going into details for the initialization, just know that it matters for tuning but that out default configurations should generally work fine.
-A detailed description for the initialization options is described in `ìnitialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
+A detailed description for the initialization options is described in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
 
 Dropout is applied onto the input of the encoder RNN with dropout probability of 0.1, as well as to the input of the decoder RNN and to the input of the attention vector layer (``hidden_dropout``).
 Input feeding (`Luong et al. 2015 <https://aclweb.org/anthology/D15-1166>`_) means the attention vector is concatenated to the hidden state before feeding it to the RNN in the next step.
@@ -371,7 +370,7 @@ Tensorboard (tab: "images") allows us to inspect how attention develops over tim
 .. image:: ../images/attention_0.gif
     :width: 400px
     :align: center
-    :height: 300px
+    :height: 400px
     :alt: attention over time
 
 For real machine translation tasks, the attention looks less monotonic, for example for an IWSLT de-en model like this:
@@ -386,7 +385,7 @@ For real machine translation tasks, the attention looks less monotonic, for exam
 4. Testing
 ==========
 
-There's *three* options for testing what the model has learned.
+There are *three* options for testing what the model has learned.
 
 In general, testing works by loading a trained model (``load_model`` in the configuration) and feeding it new sources that it will generate predictions for.
 

@@ -3,9 +3,9 @@ name: "my_experiment"
 data: # specify your data here
     src: "de"  # src language: expected suffix of train files, e.g. "train.de"
     trg: "en"  # trg language
-    train: "test/data/iwslt/train"  # training data
-    dev: "test/data/iwslt/dev"  # development data for validation
-    test: "test/data/iwslt/test"  # test data for testing final model; optional
+    train: "test/data/toy/train"  # training data
+    dev: "test/data/toy/dev"  # development data for validation
+    test: "test/data/toy/test"  # test data for testing final model; optional
     level: "word" # segmentation level: either "word", "bpe" or "char"
     lowercase: True # lowercase the data, also for validation
     max_sent_length: 30 # filter out longer sentences from training (src+trg)
@@ -44,7 +44,7 @@ training: # specify training details here
     shuffle: True # shuffle the training data, default: True
     use_cuda: False # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31  # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
-    print_valid_sents: 3  # print this many validation sentences during each validation run, default: 3
+    print_valid_sents: [0, 1, 2]  # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_last_ckpts: 3  # keep this many of the latest checkpoints, if -1: all of them, default: 5
 
 model:  # specify your model architecture here

@@ -86,7 +86,7 @@ Tensorboard
 Configurations
 ^^^^^^^^^^^^^^
 - **Where can I find the default values for the settings in the configuration file?**
-   Either check `the default configuration file <https://github.com/joeynmt/joeynmt/blob/master/configs/default.yaml>`_ or :ref:`api`
+   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/master/configs/small.yaml>`_ or :ref:`api`
    for individual modules.
    Please note that there is no guarantee that the default setting is a good setting.
 

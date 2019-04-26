@@ -6,7 +6,7 @@ from joeynmt.vocabulary import Vocabulary
 
 class TestVocabulary(unittest.TestCase):
     def setUp(self):
-        self.file = "test/data/iwslt/train.de"
+        self.file = "test/data/toy/train.de"
         sent = "Die Wahrheit ist, dass die Titanic – obwohl sie alle " \
                "Kinokassenrekorde bricht – nicht gerade die aufregendste " \
                "Geschichte vom Meer ist."
