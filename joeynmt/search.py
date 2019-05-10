@@ -119,209 +119,12 @@ def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
     return ys, None
 
 
-# pylint: disable=too-many-statements
-def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
-                pad_index: int, encoder_output: Tensor,
-                encoder_hidden: Tensor, src_mask: Tensor,
-                max_output_length: int, alpha: float, embed: Embeddings,
-                n_best: int = 1) -> (np.array, np.array):
-    """
-    Beam search with size k. Follows OpenNMT-py implementation.
-    In each decoding step, find the k most likely partial hypotheses.
-
-    :param decoder:
-    :param size: size of the beam
-    :param bos_index:
-    :param eos_index:
-    :param pad_index:
-    :param encoder_output:
-    :param encoder_hidden:
-    :param src_mask:
-    :param max_output_length:
-    :param alpha: `alpha` factor for length penalty
-    :param embed:
-    :param n_best: return this many hypotheses, <= beam
-    :return:
-        - stacked_output: output hypotheses (2d array of indices),
-        - stacked_attention_scores: attention scores (3d array)
-    """
-    # init
-    batch_size = src_mask.size(0)
-    # pylint: disable=protected-access
-    hidden = decoder._init_hidden(encoder_hidden)
-
-    # tile hidden decoder states and encoder output beam_size times
-    hidden = tile(hidden, size, dim=1)  # layers x batch*k x dec_hidden_size
-    att_vectors = None
-
-    encoder_output = tile(encoder_output.contiguous(), size,
-                          dim=0)  # batch*k x src_len x enc_hidden_size
-
-    src_mask = tile(src_mask, size, dim=0)  # batch*k x 1 x src_len
-
-    batch_offset = torch.arange(
-        batch_size, dtype=torch.long, device=encoder_output.device)
-    beam_offset = torch.arange(
-        0,
-        batch_size * size,
-        step=size,
-        dtype=torch.long,
-        device=encoder_output.device)
-    alive_seq = torch.full(
-        [batch_size * size, 1],
-        bos_index,
-        dtype=torch.long,
-        device=encoder_output.device)
-
-    # Give full probability to the first beam on the first step.
-    # pylint: disable=not-callable
-    topk_log_probs = (torch.tensor([0.0] + [float("-inf")] * (size - 1),
-                                   device=encoder_output.device).repeat(
-                                    batch_size))
-
-    # Structure that holds finished hypotheses.
-    hypotheses = [[] for _ in range(batch_size)]
-
-    results = {}
-    results["predictions"] = [[] for _ in range(batch_size)]
-    results["scores"] = [[] for _ in range(batch_size)]
-    results["gold_score"] = [0] * batch_size
-
-    for step in range(max_output_length):
-        decoder_input = alive_seq[:, -1].view(-1, 1)
-
-        # expand current hypotheses
-        # decode one single step
-        # TODO rename prob to prob
-        # prob: logits for final softmax
-        # pylint: disable=unused-variable
-        prob, hidden, att_scores, att_vectors = decoder(
-            encoder_output=encoder_output,
-            encoder_hidden=encoder_hidden,
-            src_mask=src_mask,
-            trg_embed=embed(decoder_input),
-            hidden=hidden,
-            prev_att_vector=att_vectors,
-            unrol_steps=1)
-
-        # batch*k x trg_vocab
-        log_probs = F.log_softmax(prob, dim=-1).squeeze(1)
-
-        # multiply probs by the beam probability (=add logprobs)
-        log_probs += topk_log_probs.view(-1).unsqueeze(1)
-        curr_scores = log_probs
-
-        # compute length penalty
-        if alpha > -1:
-            length_penalty = ((5.0 + (step + 1)) / 6.0) ** alpha
-            curr_scores /= length_penalty
-
-        # flatten log_probs into a list of possibilities
-        curr_scores = curr_scores.reshape(-1, size * decoder.output_size)
-
-        # pick currently best top k hypotheses (flattened order)
-        topk_scores, topk_ids = curr_scores.topk(size, dim=-1)
-
-        if alpha > -1:
-            # recover original log probs
-            topk_log_probs = topk_scores * length_penalty
-
-        # reconstruct beam origin and true word ids from flattened order
-        topk_beam_index = topk_ids.div(decoder.output_size)
-        topk_ids = topk_ids.fmod(decoder.output_size)
-
-        # map beam_index to batch_index in the flat representation
-        batch_index = (
-            topk_beam_index
-            + beam_offset[:topk_beam_index.size(0)].unsqueeze(1))
-        select_indices = batch_index.view(-1)
-
-        # append latest prediction
-        alive_seq = torch.cat(
-            [alive_seq.index_select(0, select_indices),
-             topk_ids.view(-1, 1)], -1)  # batch_size*k x hyp_len
-
-        is_finished = topk_ids.eq(eos_index)
-        if step + 1 == max_output_length:
-            is_finished.fill_(1)
-        # end condition is whether the top beam is finished
-        end_condition = is_finished[:, 0].eq(1)
-
-        # save finished hypotheses
-        if is_finished.any():
-            predictions = alive_seq.view(-1, size, alive_seq.size(-1))
-            for i in range(is_finished.size(0)):
-                b = batch_offset[i]
-                if end_condition[i]:
-                    is_finished[i].fill_(1)
-                finished_hyp = is_finished[i].nonzero().view(-1)
-                # store finished hypotheses for this batch
-                for j in finished_hyp:
-                    hypotheses[b].append((
-                        topk_scores[i, j],
-                        predictions[i, j, 1:])  # ignore start_token
-                    )
-                # if the batch reached the end, save the n_best hypotheses
-                if end_condition[i]:
-                    best_hyp = sorted(
-                        hypotheses[b], key=lambda x: x[0], reverse=True)
-                    for n, (score, pred) in enumerate(best_hyp):
-                        if n >= n_best:
-                            break
-                        results["scores"][b].append(score)
-                        results["predictions"][b].append(pred)
-            non_finished = end_condition.eq(0).nonzero().view(-1)
-            # if all sentences are translated, no need to go further
-            # pylint: disable=len-as-condition
-            if len(non_finished) == 0:
-                break
-            # remove finished batches for the next step
-            topk_log_probs = topk_log_probs.index_select(0, non_finished)
-            batch_index = batch_index.index_select(0, non_finished)
-            batch_offset = batch_offset.index_select(0, non_finished)
-            alive_seq = predictions.index_select(0, non_finished) \
-                .view(-1, alive_seq.size(-1))
-
-            # reorder indices, outputs and masks
-            select_indices = batch_index.view(-1)
-            encoder_output = encoder_output.index_select(0, select_indices)
-            src_mask = src_mask.index_select(0, select_indices)
-
-            if isinstance(hidden, tuple):
-                # for LSTMs, states are tuples of tensors
-                h, c = hidden
-                h = h.index_select(1, select_indices)
-                c = c.index_select(1, select_indices)
-                hidden = (h, c)
-            else:
-                # for GRUs, states are single tensors
-                hidden = hidden.index_select(1, select_indices)
-
-            att_vectors = att_vectors.index_select(0, select_indices)
-
-    def pad_and_stack_hyps(hyps, pad_value):
-        filled = np.ones((len(hyps), max([h.shape[0] for h in hyps])),
-                         dtype=int) * pad_value
-        for j, h in enumerate(hyps):
-            for k, i in enumerate(h):
-                filled[j, k] = i
-        return filled
-
-    # from results to stacked outputs
-    assert n_best == 1
-    # only works for n_best=1 for now
-    final_outputs = pad_and_stack_hyps([r[0].cpu().numpy() for r in
-                                        results["predictions"]],
-                                       pad_value=pad_index)
-
-    # TODO also return attention scores and probabilities
-    return final_outputs, None
-
-
 # pylint: disable=too-many-statements,too-many-branches
-def transformer_beam_search(
-        decoder: Decoder, size: int, bos_index: int, eos_index: int,
-        pad_index: int, encoder_output: Tensor, encoder_hidden: Tensor,
+def beam_search(
+        decoder: Decoder,
+        size: int,
+        bos_index: int, eos_index: int, pad_index: int,
+        encoder_output: Tensor, encoder_hidden: Tensor,
         src_mask: Tensor, max_output_length: int, alpha: float,
         embed: Embeddings, n_best: int = 1) -> (np.array, np.array):
     """
@@ -417,24 +220,15 @@ def transformer_beam_search(
         # decode one single step
         # logits: logits for final softmax
         # pylint: disable=unused-variable
-        # recurrent
-        # logits, hidden, att_scores, att_vectors = decoder(
-        #     encoder_output=encoder_output,
-        #     encoder_hidden=encoder_hidden,
-        #     src_mask=src_mask,
-        #     trg_embed=embed(decoder_input),
-        #     hidden=hidden,
-        #     prev_att_vector=att_vectors,
-        #     unrol_steps=1)
-        # Transformer
         trg_embed = embed(decoder_input)
-        logits, hidden, _, _ = decoder(
-            trg_embed=trg_embed,
+        logits, hidden, att_scores, att_vectors = decoder(
             encoder_output=encoder_output,
-            encoder_hidden=None,
+            encoder_hidden=encoder_hidden,
             src_mask=src_mask,
-            unrol_steps=None,
-            hidden=None,
+            trg_embed=trg_embed,
+            hidden=hidden,
+            prev_att_vector=att_vectors,
+            unrol_steps=1,
             trg_mask=trg_mask  # all ones (Transformer only)
         )
 
@@ -526,7 +320,7 @@ def transformer_beam_search(
             encoder_output = encoder_output.index_select(0, select_indices)
             src_mask = src_mask.index_select(0, select_indices)
 
-            if hidden is not None:
+            if hidden is not None and not transformer:
                 if isinstance(hidden, tuple):
                     # for LSTMs, states are tuples of tensors
                     h, c = hidden

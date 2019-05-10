@@ -14,8 +14,7 @@ from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
-from joeynmt.search import beam_search, greedy, \
-    transformer_greedy, transformer_beam_search
+from joeynmt.search import beam_search, greedy, transformer_greedy
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.batch import Batch
 from joeynmt.helpers import ConfigurationError
@@ -182,18 +181,7 @@ class Model(nn.Module):
                     max_output_length=max_output_length)
             # batch, time, max_src_length
         else:  # beam size
-            if isinstance(self.decoder, TransformerDecoder):
-                stacked_output, stacked_attention_scores = \
-                    transformer_beam_search(
-                        size=beam_size, encoder_output=encoder_output,
-                        encoder_hidden=encoder_hidden,
-                        src_mask=batch.src_mask, embed=self.trg_embed,
-                        max_output_length=max_output_length,
-                        alpha=beam_alpha, eos_index=self.eos_index,
-                        pad_index=self.pad_index, bos_index=self.bos_index,
-                        decoder=self.decoder)
-            else:
-                stacked_output, stacked_attention_scores = \
+            stacked_output, stacked_attention_scores = \
                     beam_search(
                         size=beam_size, encoder_output=encoder_output,
                         encoder_hidden=encoder_hidden,
@@ -213,13 +201,11 @@ class Model(nn.Module):
         :return: string representation
         """
         return "%s(\n" \
-               "\tencoder=%r,\n" \
-               "\tdecoder=%r,\n" \
-               "\tsrc_embed=%r,\n" \
-               "\ttrg_embed=%r)" % (
-                   self.__class__.__name__, str(self.encoder),
-                   str(self.decoder),
-                   self.src_embed, self.trg_embed)
+               "\tencoder=%s,\n" \
+               "\tdecoder=%s,\n" \
+               "\tsrc_embed=%s,\n" \
+               "\ttrg_embed=%s)" % (self.__class__.__name__, self.encoder,
+                   self.decoder, self.src_embed, self.trg_embed)
 
 
 def build_model(cfg: dict = None,

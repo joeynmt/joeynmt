@@ -275,7 +275,8 @@ class RecurrentDecoder(Decoder):
                 src_mask: Tensor,
                 unrol_steps: int,
                 hidden: Tensor = None,
-                prev_att_vector: Tensor = None) \
+                prev_att_vector: Tensor = None,
+                **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
          Unroll the decoder one step at a time for `unrol_steps` steps.
