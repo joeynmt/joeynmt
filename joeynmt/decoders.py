@@ -454,7 +454,9 @@ class TransformerDecoder(Decoder):
         self.layers = nn.ModuleList(layers)
         self.norm = nn.LayerNorm(hidden_size)
         self.pe = PositionalEncoding(hidden_size, dropout=dropout)
-        self._output_size = hidden_size
+
+        self._hidden_size = hidden_size
+        self._output_size = vocab_size
 
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
 

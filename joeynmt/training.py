@@ -286,7 +286,9 @@ class TrainManager:
                             level=self.level, model=self.model,
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
-                            loss_function=self.loss)
+                            loss_function=self.loss,
+                            beam_size=0  # greedy validations
+                        )
 
                     self.tb_writer.add_scalar("valid/valid_loss",
                                               valid_loss, self.steps)

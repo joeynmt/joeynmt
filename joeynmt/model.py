@@ -14,7 +14,8 @@ from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
-from joeynmt.search import beam_search, greedy, transformer_greedy
+from joeynmt.search import beam_search, greedy, \
+    transformer_greedy, transformer_beam_search
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.batch import Batch
 from joeynmt.helpers import ConfigurationError
@@ -54,10 +55,10 @@ class Model(nn.Module):
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
 
-    #pylint: disable=arguments-differ
+    # pylint: disable=arguments-differ
     def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
                 src_lengths: Tensor, trg_mask: Tensor = None) -> (
-            Tensor, Tensor, Tensor, Tensor):
+        Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
         Then produces the target one word at a time.
@@ -80,7 +81,7 @@ class Model(nn.Module):
                            trg_mask=trg_mask)
 
     def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
-            -> (Tensor, Tensor):
+        -> (Tensor, Tensor):
         """
         Encodes the source sentence.
 
@@ -95,7 +96,7 @@ class Model(nn.Module):
                src_mask: Tensor, trg_input: Tensor,
                unrol_steps: int, decoder_hidden: Tensor = None,
                trg_mask: Tensor = None) \
-            -> (Tensor, Tensor, Tensor, Tensor):
+        -> (Tensor, Tensor, Tensor, Tensor):
         """
         Decode, given an encoded source sentence.
 
@@ -117,7 +118,7 @@ class Model(nn.Module):
                             trg_mask=trg_mask)
 
     def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
-            -> Tensor:
+        -> Tensor:
         """
         Compute non-normalized loss and number of tokens for a batch
 
@@ -181,14 +182,27 @@ class Model(nn.Module):
                     max_output_length=max_output_length)
             # batch, time, max_src_length
         else:  # beam size
-            stacked_output, stacked_attention_scores = \
-                beam_search(size=beam_size, encoder_output=encoder_output,
-                            encoder_hidden=encoder_hidden,
-                            src_mask=batch.src_mask, embed=self.trg_embed,
-                            max_output_length=max_output_length,
-                            alpha=beam_alpha, eos_index=self.eos_index,
-                            pad_index=self.pad_index, bos_index=self.bos_index,
-                            decoder=self.decoder)
+            if isinstance(self.decoder, TransformerDecoder):
+                stacked_output, stacked_attention_scores = \
+                    transformer_beam_search(
+                        size=beam_size, encoder_output=encoder_output,
+                        encoder_hidden=encoder_hidden,
+                        src_mask=batch.src_mask, embed=self.trg_embed,
+                        max_output_length=max_output_length,
+                        alpha=beam_alpha, eos_index=self.eos_index,
+                        pad_index=self.pad_index, bos_index=self.bos_index,
+                        decoder=self.decoder)
+            else:
+                stacked_output, stacked_attention_scores = \
+                    beam_search(
+                        size=beam_size, encoder_output=encoder_output,
+                        encoder_hidden=encoder_hidden,
+                        src_mask=batch.src_mask, embed=self.trg_embed,
+                        max_output_length=max_output_length,
+                        alpha=beam_alpha, eos_index=self.eos_index,
+                        pad_index=self.pad_index,
+                        bos_index=self.bos_index,
+                        decoder=self.decoder)
 
         return stacked_output, stacked_attention_scores
 
@@ -242,7 +256,7 @@ def build_model(cfg: dict = None,
     if cfg["encoder"]["type"] == "transformer":
         assert cfg["encoder"]["embeddings"]["embedding_dim"] == \
                cfg["encoder"]["hidden_size"], \
-               "for transformer, emb_size must be hidden_size"
+            "for transformer, emb_size must be hidden_size"
 
         encoder = TransformerEncoder(**cfg["encoder"],
                                      emb_size=src_embed.embedding_dim)

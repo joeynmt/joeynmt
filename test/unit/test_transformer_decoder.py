@@ -35,7 +35,7 @@ class TestTransformerDecoder(TensorTestCase):
         if not hasattr(decoder, "output_size"):
             self.fail("Missing output_size property.")
 
-        self.assertEqual(decoder.output_size, self.hidden_size)
+        self.assertEqual(decoder.output_size, vocab_size)
 
     def test_transformer_decoder_forward(self):
         torch.manual_seed(self.seed)

@@ -39,9 +39,9 @@ training:
     logging_freq: 100
     eval_metric: "bleu"
     model_dir: "transformer_reverse"
-    overwrite: True
+    overwrite: False
     shuffle: True
-    use_cuda: True
+    use_cuda: False
     max_output_length: 30
     print_valid_sents: [0, 3, 6]
     keep_last_ckpts: 2
@@ -57,10 +57,10 @@ model:
         num_layers: 2
         num_heads: 4
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 128
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
+        hidden_size: 128
         ff_size: 256
         dropout: 0.1
     decoder:
@@ -68,9 +68,9 @@ model:
         num_layers: 2
         num_heads: 4
         embeddings:
-            embedding_dim: 64
+            embedding_dim: 128
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 64
+        hidden_size: 128
         ff_size: 256
         dropout: 0.1
