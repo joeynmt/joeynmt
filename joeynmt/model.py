@@ -253,7 +253,7 @@ def build_model(cfg: dict = None,
             padding_idx=trg_padding_idx)
 
     # build encoder
-    if cfg["encoder"]["type"] == "transformer":
+    if cfg["encoder"].get("type", "recurrent") == "transformer":
         assert cfg["encoder"]["embeddings"]["embedding_dim"] == \
                cfg["encoder"]["hidden_size"], \
             "for transformer, emb_size must be hidden_size"
@@ -265,7 +265,7 @@ def build_model(cfg: dict = None,
                                    emb_size=src_embed.embedding_dim)
 
     # build decoder
-    if cfg["decoder"]["type"] == "transformer":
+    if cfg["decoder"].get("type", "recurrent") == "transformer":
         decoder = TransformerDecoder(
             **cfg["decoder"], encoder=encoder, vocab_size=len(trg_vocab),
             emb_size=trg_embed.embedding_dim)

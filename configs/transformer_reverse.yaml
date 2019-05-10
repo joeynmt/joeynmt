@@ -15,7 +15,7 @@ data:
     #trg_vocab: "my_model/trg_vocab.txt"
 
 testing:
-    beam_size: 0
+    beam_size: 5
     alpha: 1.0
 
 training:

@@ -93,8 +93,9 @@ def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
 
     for _ in range(max_output_length):
 
-        # TODO instead of embedding the sequence (again) we could just concatenate the embedding of the new token at the end
-        # TODO but this might have more (peak) memory usage
+        # TODO instead of embedding the sequence (again) we could just
+        #  concatenate the embedding of the new token at the end
+        #  but this might have more (peak) memory usage
         trg_embed = embed(ys)  # embed the BOS-symbol
 
         # pylint: disable=unused-variable
@@ -191,10 +192,10 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
 
         # expand current hypotheses
         # decode one single step
-        # TODO rename out to prob, hidden to out
-        # out: logits for final softmax
+        # TODO rename prob to prob
+        # prob: logits for final softmax
         # pylint: disable=unused-variable
-        out, hidden, att_scores, att_vectors = decoder(
+        prob, hidden, att_scores, att_vectors = decoder(
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
             src_mask=src_mask,
@@ -203,7 +204,8 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
             prev_att_vector=att_vectors,
             unrol_steps=1)
 
-        log_probs = F.log_softmax(out, dim=-1).squeeze(1)  # batch*k x trg_vocab
+        # batch*k x trg_vocab
+        log_probs = F.log_softmax(prob, dim=-1).squeeze(1)
 
         # multiply probs by the beam probability (=add logprobs)
         log_probs += topk_log_probs.view(-1).unsqueeze(1)
@@ -316,14 +318,16 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
     return final_outputs, None
 
 
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements,too-many-branches
 def transformer_beam_search(
         decoder: Decoder, size: int, bos_index: int, eos_index: int,
         pad_index: int, encoder_output: Tensor, encoder_hidden: Tensor,
         src_mask: Tensor, max_output_length: int, alpha: float,
         embed: Embeddings, n_best: int = 1) -> (np.array, np.array):
     """
-    Beam search with size k. Adapted for Transformer.
+    Beam search with size k.
+    Adapted for Transformer.
+
     In each decoding step, find the k most likely partial hypotheses.
 
     :param decoder:
@@ -346,27 +350,28 @@ def transformer_beam_search(
     # init
     transformer = isinstance(decoder, TransformerDecoder)
     batch_size = src_mask.size(0)
-    att_vectors = None  # TODO not used for Transformer, consider removing
+    att_vectors = None  # not used for Transformer
 
-    # Recurrent only: initialize the hidden state
+    # Recurrent models only: initialize RNN hidden state
     # pylint: disable=protected-access
     if hasattr(decoder, "_init_hidden"):
         hidden = decoder._init_hidden(encoder_hidden)
     else:
         hidden = None
 
+    # tile encoder states and decoder initial states beam_size times
+    if hidden is not None:
+        hidden = tile(hidden, size, dim=1)  # layers x batch*k x dec_hidden_size
+
+    encoder_output = tile(encoder_output.contiguous(), size,
+                          dim=0)  # batch*k x src_len x enc_hidden_size
+    src_mask = tile(src_mask, size, dim=0)  # batch*k x 1 x src_len
+
     # Transformer only: create target mask
     if transformer:
         trg_mask = src_mask.new_ones([1, 1])  # transformer only
     else:
         trg_mask = None
-
-    # tile hidden decoder states and encoder output beam_size times
-    if hidden is not None:
-        hidden = tile(hidden, size, dim=1)  # layers x batch*k x dec_hidden_size
-    encoder_output = tile(encoder_output.contiguous(), size,
-                          dim=0)  # batch*k x src_len x enc_hidden_size
-    src_mask = tile(src_mask, size, dim=0)  # batch*k x 1 x src_len
 
     # TODO comment these variables
     batch_offset = torch.arange(
@@ -410,10 +415,10 @@ def transformer_beam_search(
 
         # expand current hypotheses
         # decode one single step
-        # out: logits for final softmax
+        # logits: logits for final softmax
         # pylint: disable=unused-variable
         # recurrent
-        # prob, out, att_scores, att_vectors = decoder(
+        # logits, hidden, att_scores, att_vectors = decoder(
         #     encoder_output=encoder_output,
         #     encoder_hidden=encoder_hidden,
         #     src_mask=src_mask,
@@ -423,7 +428,7 @@ def transformer_beam_search(
         #     unrol_steps=1)
         # Transformer
         trg_embed = embed(decoder_input)
-        prob, out, _, _ = decoder(  # TODO prob and out renamed compared to original beam search
+        logits, hidden, _, _ = decoder(
             trg_embed=trg_embed,
             encoder_output=encoder_output,
             encoder_hidden=None,
@@ -436,9 +441,10 @@ def transformer_beam_search(
         # For the Transformer we made predictions for all time steps up to
         # this point, so we only want to know about the last time step.
         if transformer:
-            prob = prob[:, -1]  # keep only the last time step
+            logits = logits[:, -1]  # keep only the last time step
 
-        log_probs = F.log_softmax(prob, dim=-1).squeeze(1)  # batch*k x trg_vocab
+        # batch*k x trg_vocab
+        log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
 
         # multiply probs by the beam probability (=add logprobs)
         log_probs += topk_log_probs.view(-1).unsqueeze(1)
