@@ -126,6 +126,7 @@ class MyIterator(Iterator):
             sort_within_batch=sort_within_batch)
 
         self.num_sort_batches = num_sort_batches
+        self.batches = []
 
     def create_batches(self):
         if self.train:
@@ -145,10 +146,11 @@ class MyIterator(Iterator):
                                 self.batch_size_fn):
                 self.batches.append(sorted(b, key=self.sort_key))
 
-
+# pylint: disable=global-at-module-level
 global max_src_in_batch, max_tgt_in_batch
 
 
+# pylint: disable=unused-argument,global-variable-undefined
 def token_batch_size_fn(new, count, sofar):
     """Compute batch size based on number of tokens (+padding)"""
     global max_src_in_batch, max_tgt_in_batch

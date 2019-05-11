@@ -15,7 +15,7 @@ data:
     #trg_vocab: "my_model/trg_vocab.txt"
 
 testing:
-    beam_size: 10
+    beam_size: 5
     alpha: 1.0
 
 training:
@@ -28,9 +28,7 @@ training:
     loss: "crossentropy"
     learning_rate: 2
     learning_rate_min: 0.00000001
-#    clip_grad_val: 1.0
     weight_decay: 0.0
-    clip_grad_norm: 1.0
     batch_size: 10
     batch_type: "token"
     patience: 5
