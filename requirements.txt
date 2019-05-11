@@ -4,7 +4,7 @@ matplotlib
 sacrebleu>=1.2.10
 seaborn
 torchtext
-pyyaml
+pyyaml>=5.1
 subword-nmt
 pylint
 tensorboardX
