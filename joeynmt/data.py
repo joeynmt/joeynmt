@@ -101,29 +101,78 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
-def make_data_iter(dataset: Dataset, batch_size: int, train: bool = False,
+class MyIterator(Iterator):
+    """
+    We subclass the torchtext iterator so that we can make batches based
+    on the number of sentences or the total number of tokens.
+    """
+    def create_batches(self):
+        if self.train:
+            def pool(d, random_shuffler):
+                for p in data.batch(d, self.batch_size * 100):  # TODO config
+                    p_batch = data.batch(
+                        sorted(p, key=self.sort_key),
+                        self.batch_size, self.batch_size_fn)
+                    for b in random_shuffler(list(p_batch)):
+                        yield b
+
+            self.batches = pool(self.data(), self.random_shuffler)
+
+        else:
+            self.batches = []
+            for b in data.batch(self.data(), self.batch_size,
+                                self.batch_size_fn):
+                self.batches.append(sorted(b, key=self.sort_key))
+
+
+global max_src_in_batch, max_tgt_in_batch
+
+
+def token_batch_size_fn(new, count, sofar):
+    """Compute batch size based on number of tokens (+padding)"""
+    global max_src_in_batch, max_tgt_in_batch
+    if count == 1:
+        max_src_in_batch = 0
+        max_tgt_in_batch = 0
+    max_src_in_batch = max(max_src_in_batch, len(new.src))
+    max_tgt_in_batch = max(max_tgt_in_batch, len(new.trg) + 2)
+    src_elements = count * max_src_in_batch
+    tgt_elements = count * max_tgt_in_batch
+    return max(src_elements, tgt_elements)
+
+
+def make_data_iter(dataset: Dataset,
+                   batch_size: int,
+                   batch_type: str = "sentence",
+                   train: bool = False,
                    shuffle: bool = False) -> Iterator:
     """
     Returns a torchtext iterator for a torchtext dataset.
 
     :param dataset: torchtext dataset containing src and optionally trg
     :param batch_size: size of the batches the iterator prepares
+    :param batch_type: measure batch size by sentence count or by token count
     :param train: whether it's training time, when turned off,
         bucketing, sorting within batches and shuffling is disabled
     :param shuffle: whether to shuffle the data before each epoch
         (no effect if set to True for testing)
     :return: torchtext iterator
     """
+    batch_size_fn = token_batch_size_fn if batch_type == "token" else None
+
     if train:
         # optionally shuffle and sort during training
-        data_iter = data.BucketIterator(
+        # TODO transformer does not require sort_within_batch
+        data_iter = MyIterator(
             repeat=False, sort=False, dataset=dataset,
-            batch_size=batch_size, train=True, sort_within_batch=True,
+            batch_size=batch_size, batch_size_fn=batch_size_fn,
+            train=True, sort_within_batch=True,
             sort_key=lambda x: len(x.src), shuffle=shuffle)
     else:
         # don't sort/shuffle for validation/inference
-        data_iter = data.Iterator(
-            repeat=False, dataset=dataset, batch_size=batch_size,
+        data_iter = MyIterator(
+            repeat=False, dataset=dataset,
+            batch_size=batch_size, batch_size_fn=batch_size_fn,
             train=False, sort=False)
 
     return data_iter

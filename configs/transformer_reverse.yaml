@@ -39,8 +39,8 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_reverse"
-    overwrite: False
+    model_dir: "transformer_reverse2"
+    overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 30

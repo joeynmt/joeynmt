@@ -119,6 +119,7 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        self.batch_type = train_config.get("batch_type", "sentence")
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
 
         # generation
@@ -221,7 +222,9 @@ class TrainManager:
         :param train_data: training data
         :param valid_data: validation data
         """
-        train_iter = make_data_iter(train_data, batch_size=self.batch_size,
+        train_iter = make_data_iter(train_data,
+                                    batch_size=self.batch_size,
+                                    batch_type=self.batch_type,
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
