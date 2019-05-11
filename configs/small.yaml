@@ -1,76 +1,77 @@
 name: "my_experiment"
 
 data: # specify your data here
-    src: "de"  # src language: expected suffix of train files, e.g. "train.de"
-    trg: "en"  # trg language
-    train: "test/data/toy/train"  # training data
-    dev: "test/data/toy/dev"  # development data for validation
-    test: "test/data/toy/test"  # test data for testing final model; optional
-    level: "word" # segmentation level: either "word", "bpe" or "char"
-    lowercase: True # lowercase the data, also for validation
-    max_sent_length: 30 # filter out longer sentences from training (src+trg)
-    src_voc_min_freq: 1 # src minimum frequency for a token to become part of the vocabulary
-    src_voc_limit: 101  # src vocabulary only includes this many most frequent tokens, default: unlimited
-    trg_voc_min_freq: 1 # trg minimum frequency for a token to become part of the vocabulary
-    trg_voc_limit: 102  # trg vocabulary only includes this many most frequent tokens, default: unlimited
+    src: "de"                       # src language: expected suffix of train files, e.g. "train.de"
+    trg: "en"                       # trg language
+    train: "test/data/toy/train"    # training data
+    dev: "test/data/toy/dev"        # development data for validation
+    test: "test/data/toy/test"      # test data for testing final model; optional
+    level: "word"                   # segmentation level: either "word", "bpe" or "char"
+    lowercase: True                 # lowercase the data, also for validation
+    max_sent_length: 30             # filter out longer sentences from training (src+trg)
+    src_voc_min_freq: 1             # src minimum frequency for a token to become part of the vocabulary
+    src_voc_limit: 101              # src vocabulary only includes this many most frequent tokens, default: unlimited
+    trg_voc_min_freq: 1             # trg minimum frequency for a token to become part of the vocabulary
+    trg_voc_limit: 102              # trg vocabulary only includes this many most frequent tokens, default: unlimited
     #src_vocab: "my_model/src_vocab.txt"  # if specified, load a vocabulary from this file
     #trg_vocab: "my_model/trg_vocab.txt"  # one token per line, line number is index
 
-testing:  # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
-    beam_size: 5  # size of the beam for beam search
-    alpha: 1.0  # length penalty for beam search
+testing:                            # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
+    beam_size: 5                    # size of the beam for beam search
+    alpha: 1.0                      # length penalty for beam search
 
-training: # specify training details here
+training:                           # specify training details here
     #load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
-    random_seed: 42 # set this seed to make training deterministic
-    optimizer: "adam" # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
-    learning_rate: 0.005  # initial learning rate, default: 3.0e-4
-    learning_rate_min: 0.0001  # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
-    clip_grad_val: 1.0  # clip the gradients to this value when they exceed it, optional
-    #clip_grad_norm: 1.0  # norm clipping instead of value clipping
-    weight_decay: 0.1 # l2 regularization, default: 0
-    batch_size: 10  # mini-batch size, required
-    batch_multiplier: 1 # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
-    scheduling: "plateau" # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
-    patience: 5 # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
-    decrease_factor: 0.5  # specific to plateau & exponential scheduler: decrease the learning rate by this factor
-    epochs: 5  # train for this many epochs
-    validation_freq: 10  # validate after this many updates (number of mini-batches), default: 1000
-    logging_freq: 10  # log the training progress after this many updates, default: 100
-    eval_metric: "bleu" # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
-    early_stopping_metric: "loss"  # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "my_model" # directory where models and validation results are stored, required
-    overwrite: True # overwrite existing model directory, default: False. Do not set to True unless for debugging!
-    shuffle: True # shuffle the training data, default: True
-    use_cuda: False # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
-    max_output_length: 31  # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
-    print_valid_sents: [0, 1, 2]  # print this many validation sentences during each validation run, default: [0, 1, 2]
-    keep_last_ckpts: 3  # keep this many of the latest checkpoints, if -1: all of them, default: 5
+    random_seed: 42                 # set this seed to make training deterministic
+    optimizer: "adam"               # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
+    learning_rate: 0.005            # initial learning rate, default: 3.0e-4
+    learning_rate_min: 0.0001       # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
+    clip_grad_val: 1.0              # clip the gradients to this value when they exceed it, optional
+    #clip_grad_norm: 1.0            # norm clipping instead of value clipping
+    weight_decay: 0.1               # l2 regularization, default: 0
+    batch_size: 10                  # mini-batch size, required
+    batch_type: "sentence"          # create batches with sentences ("sentence", default) or tokens ("token")
+    batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
+    scheduling: "plateau"           # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
+    patience: 5                     # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
+    decrease_factor: 0.5            # specific to plateau & exponential scheduler: decrease the learning rate by this factor
+    epochs: 5                       # train for this many epochs
+    validation_freq: 10             # validate after this many updates (number of mini-batches), default: 1000
+    logging_freq: 10                # log the training progress after this many updates, default: 100
+    eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
+    early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
+    model_dir: "my_model"           # directory where models and validation results are stored, required
+    overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
+    shuffle: True                   # shuffle the training data, default: True
+    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+    max_output_length: 31           # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
+    print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
+    keep_last_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5
 
-model:  # specify your model architecture here
-    tied_embeddings: False  # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+model:                              # specify your model architecture here
+    tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     encoder:
-        rnn_type: "gru" # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
+        rnn_type: "gru"             # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
         embeddings:
-            embedding_dim: 16 # size of embeddings
-            scale: False  # scale the embeddings by sqrt of their size, default: False
-            freeze: False  # if True, embeddings are not updated during training
-        hidden_size: 30 # size of RNN
-        bidirectional: True # use a bi-directional encoder, default: True
-        dropout: 0.2  # apply dropout to the inputs to the RNN, default: 0.0
-        num_layers: 3 # stack this many layers of equal size, default: 1
-        freeze: False  # if True, encoder parameters are not updated during training (does not include embedding parameters)
+            embedding_dim: 16       # size of embeddings
+            scale: False            # scale the embeddings by sqrt of their size, default: False
+            freeze: False           # if True, embeddings are not updated during training
+        hidden_size: 30             # size of RNN
+        bidirectional: True         # use a bi-directional encoder, default: True
+        dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
+        num_layers: 3               # stack this many layers of equal size, default: 1
+        freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
     decoder:
         rnn_type: "gru"
         embeddings:
             embedding_dim: 16
             scale: False
-            freeze: False  # if True, embeddings are not updated during training
+            freeze: False           # if True, embeddings are not updated during training
         hidden_size: 30
         dropout: 0.2
-        hidden_dropout: 0.2 # apply dropout to the attention vector, default: 0.0
+        hidden_dropout: 0.2         # apply dropout to the attention vector, default: 0.0
         num_layers: 2
-        input_feeding: True # combine hidden state and attention vector before feeding to rnn, default: True
-        init_hidden: "last" # initialized the decoder hidden state: use linear projection of last encoder state ("bridge") or simply the last state ("last") or zeros ("zero"), default: "bridge"
-        attention: "bahdanau" # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"
-        freeze: False  # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)
+        input_feeding: True         # combine hidden state and attention vector before feeding to rnn, default: True
+        init_hidden: "last"         # initialized the decoder hidden state: use linear projection of last encoder state ("bridge") or simply the last state ("last") or zeros ("zero"), default: "bridge"
+        attention: "bahdanau"       # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"
+        freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)

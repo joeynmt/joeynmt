@@ -15,7 +15,7 @@ data:
     #trg_vocab: "my_model/trg_vocab.txt"
 
 testing:
-    beam_size: 5
+    beam_size: 10
     alpha: 1.0
 
 training:
@@ -32,6 +32,7 @@ training:
     weight_decay: 0.0
     clip_grad_norm: 1.0
     batch_size: 10
+    batch_type: "token"
     patience: 5
     decrease_factor: 0.5
     epochs: 30
