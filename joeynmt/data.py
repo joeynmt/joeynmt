@@ -106,10 +106,31 @@ class MyIterator(Iterator):
     We subclass the torchtext iterator so that we can make batches based
     on the number of sentences or the total number of tokens.
     """
+
+    def __init__(self,
+                 dataset: Dataset,
+                 batch_size: int,
+                 sort_key: object = None,
+                 device: object = None,
+                 batch_size_fn: object = None,
+                 train: bool = True,
+                 repeat: bool = False,
+                 shuffle: bool = None,
+                 sort: bool = None,
+                 sort_within_batch: bool = None,
+                 num_sort_batches: int = 100):
+        super(MyIterator, self).__init__(
+            dataset, batch_size,
+            sort_key=sort_key, device=device, batch_size_fn=batch_size_fn,
+            train=train, repeat=repeat, shuffle=shuffle, sort=sort,
+            sort_within_batch=sort_within_batch)
+
+        self.num_sort_batches = num_sort_batches
+
     def create_batches(self):
         if self.train:
             def pool(d, random_shuffler):
-                for p in data.batch(d, self.batch_size * 100):  # TODO config
+                for p in data.batch(d, self.batch_size * self.num_sort_batches):
                     p_batch = data.batch(
                         sorted(p, key=self.sort_key),
                         self.batch_size, self.batch_size_fn)
