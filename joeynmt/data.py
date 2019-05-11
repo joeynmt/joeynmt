@@ -101,51 +101,6 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
-class MyIterator(Iterator):
-    """
-    We subclass the torchtext iterator so that we can make batches based
-    on the number of sentences or the total number of tokens.
-    """
-
-    def __init__(self,
-                 dataset: Dataset,
-                 batch_size: int,
-                 sort_key: object = None,
-                 device: object = None,
-                 batch_size_fn: object = None,
-                 train: bool = True,
-                 repeat: bool = False,
-                 shuffle: bool = None,
-                 sort: bool = None,
-                 sort_within_batch: bool = None,
-                 num_sort_batches: int = 100):
-        super(MyIterator, self).__init__(
-            dataset, batch_size,
-            sort_key=sort_key, device=device, batch_size_fn=batch_size_fn,
-            train=train, repeat=repeat, shuffle=shuffle, sort=sort,
-            sort_within_batch=sort_within_batch)
-
-        self.num_sort_batches = num_sort_batches
-        self.batches = []
-
-    def create_batches(self):
-        if self.train:
-            def pool(d, random_shuffler):
-                for p in data.batch(d, self.batch_size * self.num_sort_batches):
-                    p_batch = data.batch(
-                        sorted(p, key=self.sort_key),
-                        self.batch_size, self.batch_size_fn)
-                    for b in random_shuffler(list(p_batch)):
-                        yield b
-
-            self.batches = pool(self.data(), self.random_shuffler)
-
-        else:
-            self.batches = []
-            for b in data.batch(self.data(), self.batch_size,
-                                self.batch_size_fn):
-                self.batches.append(sorted(b, key=self.sort_key))
-
 # pylint: disable=global-at-module-level
 global max_src_in_batch, max_tgt_in_batch
 
@@ -181,19 +136,19 @@ def make_data_iter(dataset: Dataset,
         (no effect if set to True for testing)
     :return: torchtext iterator
     """
+
     batch_size_fn = token_batch_size_fn if batch_type == "token" else None
 
     if train:
         # optionally shuffle and sort during training
-        # TODO transformer does not require sort_within_batch
-        data_iter = MyIterator(
+        data_iter = data.BucketIterator(
             repeat=False, sort=False, dataset=dataset,
             batch_size=batch_size, batch_size_fn=batch_size_fn,
             train=True, sort_within_batch=True,
             sort_key=lambda x: len(x.src), shuffle=shuffle)
     else:
         # don't sort/shuffle for validation/inference
-        data_iter = MyIterator(
+        data_iter = data.BucketIterator(
             repeat=False, dataset=dataset,
             batch_size=batch_size, batch_size_fn=batch_size_fn,
             train=False, sort=False)

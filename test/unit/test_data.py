@@ -32,7 +32,6 @@ class TestData(unittest.TestCase):
         # make batches by number of sentences
         train_iter = iter(make_data_iter(
             train_data, batch_size=10, batch_type="sentence"))
-        train_iter = iter(train_iter)
         batch = next(train_iter)
 
         self.assertEqual(batch.src[0].shape[0], 10)
@@ -41,11 +40,12 @@ class TestData(unittest.TestCase):
         # make batches by number of tokens
         train_iter = iter(make_data_iter(
             train_data, batch_size=100, batch_type="token"))
-        train_iter = iter(train_iter)
+        _ = next(train_iter)  # skip a batch
+        _ = next(train_iter)  # skip another batch
         batch = next(train_iter)
 
-        self.assertEqual(batch.src[0].shape[0], 9)
-        self.assertEqual(np.prod(batch.src[0].shape), 99)
+        self.assertEqual(batch.src[0].shape[0], 8)
+        self.assertEqual(np.prod(batch.src[0].shape), 88)
         self.assertLessEqual(np.prod(batch.src[0].shape), 100)
 
     def testDataLoading(self):
