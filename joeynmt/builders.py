@@ -153,6 +153,9 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
             # scheduler step is executed after every epoch
             scheduler_step_at = "epoch"
         elif config["scheduling"].lower() == "noam":
-            scheduler = NoamScheduler(hidden_size, 1, 4000, optimizer)
+            factor = config.get("learning_rate_factor", 1)
+            warmup = config.get("learning_rate_warmup", 4000)
+            scheduler = NoamScheduler(hidden_size, factor, warmup, optimizer)
+
             scheduler_step_at = "step"
     return scheduler, scheduler_step_at

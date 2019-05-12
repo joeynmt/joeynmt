@@ -22,7 +22,7 @@ class Decoder(nn.Module):
     @property
     def output_size(self):
         """
-        Return the output size
+        Return the output size (size of the target vocabulary)
 
         :return:
         """
@@ -273,7 +273,7 @@ class RecurrentDecoder(Decoder):
                 encoder_output: Tensor,
                 encoder_hidden: Tensor,
                 src_mask: Tensor,
-                unrol_steps: int,
+                unroll_steps: int,
                 hidden: Tensor = None,
                 prev_att_vector: Tensor = None,
                 **kwargs) \
@@ -310,7 +310,7 @@ class RecurrentDecoder(Decoder):
             shape (batch_size x encoder.output_size)
         :param src_mask: mask for src states: 0s for padded areas,
             1s for the rest, shape (batch_size, 1, src_length)
-        :param unrol_steps: number of steps to unrol the decoder RNN
+        :param unroll_steps: number of steps to unrol the decoder RNN
         :param hidden: previous decoder hidden state,
             if not given it's initialized as in `self.init_hidden`,
             shape (num_layers, batch_size, hidden_size)
@@ -357,7 +357,7 @@ class RecurrentDecoder(Decoder):
                     [batch_size, 1, self.hidden_size])
 
         # unroll the decoder RNN for `unrol_steps` steps
-        for i in range(unrol_steps):
+        for i in range(unroll_steps):
             prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             prev_att_vector, hidden, att_prob = self._forward_step(
                 prev_embed=prev_embed,
@@ -436,10 +436,27 @@ class TransformerDecoder(Decoder):
     Decoder layers are masked so that an attention head cannot see the future.
     """
 
-    def __init__(self, num_layers=4, num_heads=8,
-                 hidden_size=512, ff_size=2048, dropout=0.1,
-                 vocab_size=1, freeze=False,
+    def __init__(self,
+                 num_layers: int = 4,
+                 num_heads: int = 8,
+                 hidden_size: int = 512,
+                 ff_size: int = 2048,
+                 dropout: float = 0.1,
+                 vocab_size: int = 1,
+                 freeze: bool = False,
                  **kwargs):
+        """
+        Initialize a Transformer decoder.
+
+        :param num_layers: number of Transformer layers
+        :param num_heads: number of heads for each layer
+        :param hidden_size: hidden size
+        :param ff_size: position-wise feed-forward size
+        :param dropout: dropout probability (1-keep)
+        :param vocab_size: size of the output vocabulary
+        :param freeze: set to True keep all decoder parameters fixed
+        :param kwargs:
+        """
         super(TransformerDecoder, self).__init__()
 
         # build all (num_layers) layers
@@ -469,18 +486,21 @@ class TransformerDecoder(Decoder):
                 encoder_output: Tensor = None,
                 encoder_hidden: Tensor = None,
                 src_mask: Tensor = None,
-                unrol_steps: int = None,
+                unroll_steps: int = None,
                 hidden: Tensor = None,
                 trg_mask: Tensor = None,
                 **kwargs):
         """
-        :param trg_embed: target embeddings
+        Transformer decoder forward pass.
+
+        :param trg_embed: embedded targets
         :param encoder_output: source representations
         :param encoder_hidden: unused
         :param src_mask:
-        :param unrol_steps: unused
+        :param unroll_steps: unused
         :param hidden: unused
-        :param trg_mask:
+        :param trg_mask: to mask out target paddings
+                         Note that a subsequent mask is applied here.
         :param kwargs:
         :return:
         """
@@ -489,11 +509,12 @@ class TransformerDecoder(Decoder):
         x = trg_embed
         x = self.pe(x)  # add position encoding
 
-        trg_mask = trg_mask.unsqueeze(-2) & \
-            subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
+        trg_mask = trg_mask & subsequent_mask(
+            trg_embed.size(1)).type_as(trg_mask)
 
         for layer in self.layers:
-            x = layer(x, encoder_output, src_mask, trg_mask)
+            x = layer(x=x, memory=encoder_output,
+                      src_mask=src_mask, trg_mask=trg_mask)
 
         x = self.norm(x)
         output = self.output_layer(x)
@@ -509,10 +530,20 @@ class TransformerDecoder(Decoder):
 class TransformerDecoderLayer(nn.Module):
     """
     Transformer decoder layer.
+
     Consists of self-attention, source-attention, and feed-forward.
     """
 
     def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
+        """
+        Represents a single Transformer decoder layer.
+        It attends to the source representation and the previous decoder states.
+        :param size:
+        :param self_attn:
+        :param src_attn:
+        :param feed_forward:
+        :param dropout:
+        """
         super(TransformerDecoderLayer, self).__init__()
         self.size = size
         self.self_attn = self_attn
@@ -520,8 +551,21 @@ class TransformerDecoderLayer(nn.Module):
         self.feed_forward = feed_forward
         self.sublayer = clones(SublayerConnection(size, dropout), 3)
 
-    def forward(self, x, memory, src_mask, tgt_mask):
-        m = memory
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
+    def forward(self,
+                x: Tensor = None,
+                memory: Tensor = None,
+                src_mask: Tensor = None,
+                trg_mask: Tensor = None):
+        """
+        Forward pass of a single Transformer decoder layer.
+
+        :param x: inputs
+        :param memory: source representations
+        :param src_mask: source mask
+        :param trg_mask: target mask (so as to not condition on future steps)
+        :return:
+        """
+        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, trg_mask))
+        x = self.sublayer[1](x, lambda x: self.src_attn(
+            x, memory, memory, src_mask))
         return self.sublayer[2](x, self.feed_forward)

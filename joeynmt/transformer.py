@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import Tensor
 
 # This contains helper classes for the Transformer.
 # Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
@@ -41,9 +41,15 @@ def subsequent_mask(size):
     return torch.from_numpy(subseq_mask) == 0
 
 
-def attention(query, key, value, mask=None, dropout=None):
+def attention(
+        query: Tensor,
+        key: Tensor,
+        value: Tensor,
+        mask: Tensor = None,
+        dropout: float = None):
     """
     Computes scaled dot-product attention
+
     :param query:
     :param key:
     :param value:
@@ -64,19 +70,25 @@ def attention(query, key, value, mask=None, dropout=None):
 
 # pylint: disable=arguments-differ,too-many-arguments
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, h, d_model, dropout=0.1):
+    def __init__(self,
+                 num_heads: int,
+                 hidden_size: int,
+                 dropout: float = 0.1):
         """
         Multi-headed attention
-        :param h: number of attention heads
-        :param d_model: model size
+
+        :param num_heads: number of attention heads
+        :param hidden_size: model size
         :param dropout:
         """
         super(MultiHeadedAttention, self).__init__()
-        assert d_model % h == 0
+        assert hidden_size % num_heads == 0, \
+            "hidden_size must be divisible by num_heads"
+
         # We assume d_v always equals d_k
-        self.d_k = d_model // h
-        self.h = h
-        self.linears = clones(nn.Linear(d_model, d_model), 4)
+        self.d_k = hidden_size // num_heads
+        self.h = num_heads
+        self.linears = clones(nn.Linear(hidden_size, hidden_size), 4)
         self.attn = None
         self.dropout = nn.Dropout(p=dropout)
 
@@ -174,7 +186,10 @@ class PositionalEncoding(nn.Module):
 
 
 class NoamScheduler:
-    """Optim wrapper that implements rate."""
+    """
+    The Noam learning rate scheduler used in "Attention is all you need"
+    See Eq. 3 in https://arxiv.org/pdf/1706.03762.pdf
+    """
 
     def __init__(self, model_size, factor, warmup, optimizer):
         self.optimizer = optimizer

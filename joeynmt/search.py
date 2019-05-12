@@ -7,7 +7,6 @@ import numpy as np
 from joeynmt.decoders import Decoder
 from joeynmt.decoders import TransformerDecoder
 from joeynmt.embeddings import Embeddings
-
 from joeynmt.helpers import tile
 
 
@@ -15,6 +14,37 @@ __all__ = ["greedy", "transformer_greedy", "beam_search"]
 
 
 def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
+           max_output_length: int, decoder: Decoder,
+           encoder_output: Tensor, encoder_hidden: Tensor)\
+        -> (np.array, np.array):
+    """
+    Greedy decoding. Select the token word highest probability at each time
+    step. This function is a wrapper that calls recurrent_greedy for
+    recurrent decoders and transformer_greedy for transformer decoders.
+
+    :param src_mask: mask for source inputs, 0 for positions after </s>
+    :param embed: target embedding
+    :param bos_index: index of <s> in the vocabulary
+    :param max_output_length: maximum length for the hypotheses
+    :param decoder: decoder to use for greedy decoding
+    :param encoder_output: encoder hidden states for attention
+    :param encoder_hidden: encoder last state for decoder initialization
+    :return:
+    """
+
+    # Transformer greedy decoding
+    if isinstance(decoder, TransformerDecoder):
+        return transformer_greedy(
+            src_mask, embed, bos_index, max_output_length,
+            decoder, encoder_output, encoder_hidden)
+
+    # Recurrent greedy decoding
+    return recurrent_greedy(
+        src_mask, embed, bos_index, max_output_length,
+        decoder, encoder_output, encoder_hidden)
+
+
+def recurrent_greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
            max_output_length: int, decoder: Decoder,
            encoder_output: Tensor, encoder_hidden: Tensor)\
         -> (np.array, np.array):
@@ -43,7 +73,7 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     # pylint: disable=unused-variable
     for t in range(max_output_length):
         # decode one single step
-        out, hidden, att_probs, prev_att_vector = decoder(
+        logits, hidden, att_probs, prev_att_vector = decoder(
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
             src_mask=src_mask,
@@ -51,10 +81,10 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
             hidden=hidden,
             prev_att_vector=prev_att_vector,
             unrol_steps=1)
-        # out: batch x time=1 x vocab (logits)
+        # logits: batch x time=1 x vocab (logits)
 
         # greedy decoding: choose arg max over vocabulary in each step
-        next_word = torch.argmax(out, dim=-1)  # batch x time=1
+        next_word = torch.argmax(logits, dim=-1)  # batch x time=1
         output.append(next_word.squeeze(1).cpu().numpy())
         prev_y = next_word
         attention_scores.append(att_probs.squeeze(1).cpu().numpy())
@@ -64,8 +94,11 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     return stacked_output, stacked_attention_scores
 
 
-def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
-                       encoder_output):
+# pylint: disable=unused-argument
+def transformer_greedy(
+        src_mask: Tensor, embed: Embeddings,
+        bos_index: int, max_output_length: int, decoder: Decoder,
+        encoder_output: Tensor, encoder_hidden: Tensor):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
@@ -76,42 +109,38 @@ def transformer_greedy(src_mask, embed, bos_index, max_output_length, decoder,
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
+    :param encoder_hidden: encoder final state (unused in Transformer)
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
-
-    # model, src, src_mask, max_len, start_symbol):
 
     batch_size = src_mask.size(0)
 
     # start with BOS-symbol for each sentence in the batch
     ys = encoder_output.new_full([batch_size, 1], bos_index, dtype=torch.long)
 
-    # step_mask = trg_mask[:, :ys.size(1)]
-    mask = src_mask.new_ones([1, 1])
+    # a subsequent mask is intersected with this in decoder forward pass
+    trg_mask = src_mask.new_ones([1, 1, 1])
 
     for _ in range(max_output_length):
 
-        # TODO instead of embedding the sequence (again) we could just
-        #  concatenate the embedding of the new token at the end
-        #  but this might have more (peak) memory usage
         trg_embed = embed(ys)  # embed the BOS-symbol
 
         # pylint: disable=unused-variable
         with torch.no_grad():
-            prob, out, _, _ = decoder(
+            logits, out, _, _ = decoder(
                 trg_embed=trg_embed,
                 encoder_output=encoder_output,
                 encoder_hidden=None,
                 src_mask=src_mask,
                 unrol_steps=None,
                 hidden=None,
-                trg_mask=mask
+                trg_mask=trg_mask
             )
 
-            prob = prob[:, -1]
-            _, next_word = torch.max(prob, dim=1)
+            logits = logits[:, -1]
+            _, next_word = torch.max(logits, dim=1)
             next_word = next_word.data
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
 
@@ -172,7 +201,7 @@ def beam_search(
 
     # Transformer only: create target mask
     if transformer:
-        trg_mask = src_mask.new_ones([1, 1])  # transformer only
+        trg_mask = src_mask.new_ones([1, 1, 1])  # transformer only
     else:
         trg_mask = None
 
@@ -229,7 +258,7 @@ def beam_search(
             hidden=hidden,
             prev_att_vector=att_vectors,
             unrol_steps=1,
-            trg_mask=trg_mask  # all ones (Transformer only)
+            trg_mask=trg_mask  # subsequent mask for Transformer only
         )
 
         # For the Transformer we made predictions for all time steps up to

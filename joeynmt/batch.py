@@ -39,7 +39,7 @@ class Batch:
             # trg is used for loss computation, shifted by one since BOS
             self.trg = trg[:, 1:]
             # we exclude the padded areas from the loss computation
-            self.trg_mask = (self.trg != pad_index)
+            self.trg_mask = (self.trg != pad_index).unsqueeze(-1)
             self.ntokens = (self.trg != pad_index).data.sum().item()
 
         if use_cuda:

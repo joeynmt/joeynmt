@@ -28,16 +28,16 @@ training:
     loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00000001
+    learning_rate_factor: 0.25   # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 2000  # warmup steps for Noam scheduler
     weight_decay: 0.0
     batch_size: 250
     batch_type: "token"
-    patience: 5
-    decrease_factor: 0.5
     epochs: 30
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_reverse2"
+    model_dir: "transformer_reverse"
     overwrite: True
     shuffle: True
     use_cuda: True
@@ -53,23 +53,23 @@ model:
     bias_initializer: "zeros"
     encoder:
         type: "transformer"
-        num_layers: 4
+        num_layers: 3
         num_heads: 4
         embeddings:
-            embedding_dim: 256
+            embedding_dim: 64
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 256
-        ff_size: 1024
-        dropout: 0.1
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.2
     decoder:
         type: "transformer"
-        num_layers: 4
+        num_layers: 3
         num_heads: 4
         embeddings:
-            embedding_dim: 256
+            embedding_dim: 64
             scale: True
         # typically ff_size = 4 x hidden_size
-        hidden_size: 256
-        ff_size: 1024
-        dropout: 0.1
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.2
