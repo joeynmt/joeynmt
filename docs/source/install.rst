@@ -28,24 +28,14 @@ Then clone JoeyNMT from GitHub and switch to its root directory:
    (jnmt)$ cd joeynmt
 
 
-Requirements
-------------
+Installing JoeyNMT
+------------------
 
-Install the python requirements with pip:
-
-.. code-block:: bash
-
-   (jnmt)$ pip install --upgrade -r requirements.txt
-
-
-JoeyNMT
--------
-
-Install JoeyNMT:
+Install JoeyNMT and it's requirements:
 
 .. code-block:: bash
 
-   (jnmt)$ python3 setup.py install
+   (jnmt)$ pip3 install .
 
 Run the unit tests to make sure your installation is working:
 
