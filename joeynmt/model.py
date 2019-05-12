@@ -72,11 +72,11 @@ class Model(nn.Module):
         encoder_output, encoder_hidden = self.encode(src=src,
                                                      src_length=src_lengths,
                                                      src_mask=src_mask)
-        unrol_steps = trg_input.size(1)
+        unroll_steps = trg_input.size(1)
         return self.decode(encoder_output=encoder_output,
                            encoder_hidden=encoder_hidden,
                            src_mask=src_mask, trg_input=trg_input,
-                           unrol_steps=unrol_steps,
+                           unroll_steps=unroll_steps,
                            trg_mask=trg_mask)
 
     def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
@@ -93,7 +93,7 @@ class Model(nn.Module):
 
     def decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
                src_mask: Tensor, trg_input: Tensor,
-               unrol_steps: int, decoder_hidden: Tensor = None,
+               unroll_steps: int, decoder_hidden: Tensor = None,
                trg_mask: Tensor = None) \
         -> (Tensor, Tensor, Tensor, Tensor):
         """
@@ -103,7 +103,7 @@ class Model(nn.Module):
         :param encoder_hidden: last encoder state for decoder initialization
         :param src_mask: source mask, 1 at valid tokens
         :param trg_input: target inputs
-        :param unrol_steps: number of steps to unrol the decoder for
+        :param unroll_steps: number of steps to unrol the decoder for
         :param decoder_hidden: decoder hidden state (optional)
         :param trg_mask: mask for target steps
         :return: decoder outputs (outputs, hidden, att_probs, att_vectors)
@@ -112,7 +112,7 @@ class Model(nn.Module):
                             encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             src_mask=src_mask,
-                            unrol_steps=unrol_steps,
+                            unroll_steps=unroll_steps,
                             hidden=decoder_hidden,
                             trg_mask=trg_mask)
 

@@ -80,7 +80,7 @@ def recurrent_greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
             trg_embed=embed(prev_y),
             hidden=hidden,
             prev_att_vector=prev_att_vector,
-            unrol_steps=1)
+            unroll_steps=1)
         # logits: batch x time=1 x vocab (logits)
 
         # greedy decoding: choose arg max over vocabulary in each step
@@ -134,7 +134,7 @@ def transformer_greedy(
                 encoder_output=encoder_output,
                 encoder_hidden=None,
                 src_mask=src_mask,
-                unrol_steps=None,
+                unroll_steps=None,
                 hidden=None,
                 trg_mask=trg_mask
             )
@@ -257,7 +257,7 @@ def beam_search(
             trg_embed=trg_embed,
             hidden=hidden,
             prev_att_vector=att_vectors,
-            unrol_steps=1,
+            unroll_steps=1,
             trg_mask=trg_mask  # subsequent mask for Transformer only
         )
 

@@ -55,7 +55,7 @@ class TestTransformerDecoder(TensorTestCase):
             size=(batch_size, src_time_dim, self.hidden_size))
 
         src_mask = torch.ones(size=(batch_size, 1, src_time_dim)).byte()
-        trg_mask = torch.ones(size=(batch_size, trg_time_dim)).byte()
+        trg_mask = torch.ones(size=(batch_size, trg_time_dim, 1)).byte()
 
         encoder_hidden = None  # unused
         decoder_hidden = None  # unused

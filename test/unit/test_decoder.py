@@ -186,7 +186,7 @@ class TestRecurrentDecoder(TensorTestCase):
         mask = torch.ones(size=(batch_size, 1, time_dim)).byte()
         output, hidden, att_probs, att_vectors = decoder(
             trg_inputs, encoder_hidden=encoder_states[:, -1, :],
-            encoder_output=encoder_states, src_mask=mask, unrol_steps=time_dim,
+            encoder_output=encoder_states, src_mask=mask, unroll_steps=time_dim,
             hidden=None, prev_att_vector=None)
         self.assertEqual(output.shape, torch.Size(
             [batch_size, time_dim, self.vocab_size]))

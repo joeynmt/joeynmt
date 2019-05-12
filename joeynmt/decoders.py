@@ -279,7 +279,7 @@ class RecurrentDecoder(Decoder):
                 **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
-         Unroll the decoder one step at a time for `unrol_steps` steps.
+         Unroll the decoder one step at a time for `unroll_steps` steps.
          For every step, the `_forward_step` function is called internally.
 
          During training, the target inputs (`trg_embed') are already known for
@@ -318,12 +318,12 @@ class RecurrentDecoder(Decoder):
             if not given it's initialized with zeros,
             shape (batch_size, 1, hidden_size)
         :return:
-            - outputs: shape (batch_size, unrol_steps, vocab_size),
+            - outputs: shape (batch_size, unroll_steps, vocab_size),
             - hidden: last hidden state (num_layers, batch_size, hidden_size),
             - att_probs: attention probabilities
-                with shape (batch_size, unrol_steps, src_length),
+                with shape (batch_size, unroll_steps, src_length),
             - att_vectors: attentional vectors
-                with shape (batch_size, unrol_steps, hidden_size)
+                with shape (batch_size, unroll_steps, hidden_size)
         """
 
         # shape checks
@@ -356,7 +356,7 @@ class RecurrentDecoder(Decoder):
                 prev_att_vector = encoder_output.new_zeros(
                     [batch_size, 1, self.hidden_size])
 
-        # unroll the decoder RNN for `unrol_steps` steps
+        # unroll the decoder RNN for `unroll_steps` steps
         for i in range(unroll_steps):
             prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             prev_att_vector, hidden, att_prob = self._forward_step(
@@ -369,11 +369,11 @@ class RecurrentDecoder(Decoder):
             att_probs.append(att_prob)
 
         att_vectors = torch.cat(att_vectors, dim=1)
-        # att_vectors: batch, unrol_steps, hidden_size
+        # att_vectors: batch, unroll_steps, hidden_size
         att_probs = torch.cat(att_probs, dim=1)
-        # att_probs: batch, unrol_steps, src_length
+        # att_probs: batch, unroll_steps, src_length
         outputs = self.output_layer(att_vectors)
-        # outputs: batch, unrol_steps, vocab_size
+        # outputs: batch, unroll_steps, vocab_size
         return outputs, hidden, att_probs, att_vectors
 
     def _init_hidden(self, encoder_final: Tensor = None) \
