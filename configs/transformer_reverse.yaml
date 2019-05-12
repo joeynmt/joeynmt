@@ -24,12 +24,11 @@ training:
     optimizer: "adam"
     adam_betas: [0.9, 0.98]
     scheduling: "noam"
-    schedule_after_loss: True
     loss: "crossentropy"
     learning_rate: 0.001
     learning_rate_min: 0.00000001
-    learning_rate_factor: 0.25   # factor for Noam scheduler (default: 1)
-    learning_rate_warmup: 2000  # warmup steps for Noam scheduler
+    learning_rate_factor: 1   # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 5000  # warmup steps for Noam scheduler
     weight_decay: 0.0
     batch_size: 250
     batch_type: "token"
@@ -42,18 +41,17 @@ training:
     shuffle: True
     use_cuda: True
     max_output_length: 30
-    print_valid_sents: [0, 3, 6]
+    print_valid_sents: [0, 3, 6, 9]
     keep_last_ckpts: 2
 
 model:
     initializer: "xavier"
-    # embedding init matters a lot! should investigate
     embed_initializer: "normal"
     embed_init_weight: 0.05
     bias_initializer: "zeros"
     encoder:
         type: "transformer"
-        num_layers: 3
+        num_layers: 2
         num_heads: 4
         embeddings:
             embedding_dim: 64
@@ -61,10 +59,10 @@ model:
         # typically ff_size = 4 x hidden_size
         hidden_size: 64
         ff_size: 256
-        dropout: 0.2
+        dropout: 0.1
     decoder:
         type: "transformer"
-        num_layers: 3
+        num_layers: 2
         num_heads: 4
         embeddings:
             embedding_dim: 64
@@ -72,4 +70,4 @@ model:
         # typically ff_size = 4 x hidden_size
         hidden_size: 64
         ff_size: 256
-        dropout: 0.2
+        dropout: 0.1

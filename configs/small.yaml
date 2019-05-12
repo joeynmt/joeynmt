@@ -46,7 +46,7 @@ training:                           # specify training details here
     model_dir: "my_model"           # directory where models and validation results are stored, required
     overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
-    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+    use_cuda: True                  # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31           # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
     print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_last_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5

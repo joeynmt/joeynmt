@@ -27,16 +27,16 @@ training:                           # specify training details here
     adam_betas: [0.9, 0.98]         # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
     learning_rate: 0.001            # initial learning rate, default: 3.0e-4
     learning_rate_min: 0.000001     # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
-    learning_rate_factor: 0.25      # factor for Noam scheduler (used with Transformer)
-    learning_rate_warmup: 2000      # warmup steps for Noam scheduler (used with Transformer)
+    learning_rate_factor: 0.5       # factor for Noam scheduler (used with Transformer)
+    learning_rate_warmup: 1000      # warmup steps for Noam scheduler (used with Transformer)
     #clip_grad_val: 1.0             # for Transformer do not clip (so leave commented out)
     #clip_grad_norm: 1.0            # for Transformer do not clip (so leave commented out)
     weight_decay: 0.                # l2 regularization, default: 0
-    batch_size: 200                 # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
+    batch_size: 250                 # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
     batch_type: "token"             # create batches with sentences ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
     scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
-    epochs: 20                      # train for this many epochs
+    epochs: 50                      # train for this many epochs
     validation_freq: 100            # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
@@ -52,30 +52,30 @@ training:                           # specify training details here
 model:                              # specify your model architecture here
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
     bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
-    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
-    embed_init_weight: 0.1         # weight to initialize; for uniform, will use [-weight, weight]
+    embed_initializer: "normal"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_weight: 0.05         # weight to initialize; for uniform, will use [-weight, weight]
     tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     encoder:
         type: "transformer"          # encoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
+        num_layers: 3               # number of layers
+        num_heads: 4                # number of transformer heads
         embeddings:
             embedding_dim: 64       # size of embeddings (for Transformer set equal to hidden_size)
             scale: True             # scale the embeddings by sqrt of their size, default: False
             freeze: False           # if True, embeddings are not updated during training
         hidden_size: 64             # size of hidden layer; must be divisible by number of heads
-        ff_size: 256                # size of position-wise feed-forward layer
-        dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
-        num_layers: 3               # number of layers
-        num_heads: 4                # number of transformer heads
+        ff_size: 128                # size of position-wise feed-forward layer
+        dropout: 0.1                # apply dropout to the inputs to the RNN, default: 0.0
         freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
     decoder:
         type: "transformer"         # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
+        num_layers: 3               # number of layers
+        num_heads: 4                # number of transformer heads
         embeddings:
             embedding_dim: 64
             scale: True
             freeze: False           # if True, embeddings are not updated during training
         hidden_size: 64             # size of hidden layer; must be divisible by number of heads
-        ff_size: 256                # size of position-wise feed-forward layer
-        dropout: 0.2
-        num_layers: 3               # number of layers
-        num_heads: 4                # number of transformer heads
+        ff_size: 128                # size of position-wise feed-forward layer
+        dropout: 0.1
         freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)

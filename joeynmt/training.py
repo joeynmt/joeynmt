@@ -474,17 +474,21 @@ class TrainManager:
         :param references_raw: raw references (list of list of tokens)
         """
         for p in self.log_valid_sents:
+
             if p >= len(sources):
                 continue
+
             self.logger.info("Example #%d", p)
+
             if sources_raw is not None:
-                self.logger.info("\tRaw source: %s", sources_raw[p])
-            self.logger.info("\tSource: %s", sources[p])
+                self.logger.debug("\tRaw source:     %s", sources_raw[p])
             if references_raw is not None:
-                self.logger.info("\tRaw reference: %s", references_raw[p])
-            self.logger.info("\tReference: %s", references[p])
+                self.logger.debug("\tRaw reference:  %s", references_raw[p])
             if hypotheses_raw is not None:
-                self.logger.info("\tRaw hypothesis: %s", hypotheses_raw[p])
+                self.logger.debug("\tRaw hypothesis: %s", hypotheses_raw[p])
+
+            self.logger.info("\tSource:     %s", sources[p])
+            self.logger.info("\tReference:  %s", references[p])
             self.logger.info("\tHypothesis: %s", hypotheses[p])
 
     def _store_outputs(self, hypotheses: List[str]) -> None:

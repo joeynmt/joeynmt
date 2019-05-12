@@ -265,6 +265,7 @@ def beam_search(
         # this point, so we only want to know about the last time step.
         if transformer:
             logits = logits[:, -1]  # keep only the last time step
+            hidden = None           # we don't need to keep it for transformer
 
         # batch*k x trg_vocab
         log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
