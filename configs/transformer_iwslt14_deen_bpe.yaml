@@ -1,4 +1,4 @@
-name: "reverse_experiment"
+name: "iwslt14-deen-bpe-transformer"
 
 data:
     src: "de"
@@ -9,39 +9,42 @@ data:
     level: "bpe"
     lowercase: True
     max_sent_length: 62
-    voc_min_freq: 1
-#    voc_limit: 32000
+    src_voc_min_freq: 1
+    src_voc_limit: 32000
+    trg_voc_min_freq: 1
+    trg_voc_limit: 32000
+   
 
 testing:
-    beam_size: 1
+    beam_size: 5
     alpha: 1.0
 
 training:
-    #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
+    normalization: "tokens"
     adam_betas: [0.9, 0.98]
     scheduling: "noam"
-    schedule_after_loss: True
+    #schedule_after_loss: True
     loss: "crossentropy"
     learning_rate: 0.0
     learning_rate_min: 0.00000001
-#    clip_grad_val: 1.0
     weight_decay: 0.0
     clip_grad_norm: 1.0
     batch_size: 80
     patience: 5
     decrease_factor: 0.5
+    early_stopping_metric: "loss"
     epochs: 100
     validation_freq: 2000
     logging_freq: 500
     eval_metric: "bleu"
-    model_dir: "transformer_iwslt_deen_bpe"
-    overwrite: True
+    model_dir: "iwslt14-deen-bpe-transformer"
+    overwrite: False
     shuffle: True
     use_cuda: True
-    max_output_length: 100
-    print_valid_sents: [1, 2, 3]
+    max_output_length: 80
+    print_valid_sents: [0, 1, 2, 3, 4]
 
 model:
     initializer: "xavier"
