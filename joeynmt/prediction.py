@@ -21,11 +21,14 @@ from joeynmt.vocabulary import Vocabulary
 
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
-def validate_on_data(model: Model, data: Dataset, batch_size: int,
+def validate_on_data(model: Model, data: Dataset,
+                     batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      loss_function: torch.nn.Module = None,
-                     beam_size: int = 0, beam_alpha: int = -1) \
+                     beam_size: int = 0, beam_alpha: int = -1,
+                     batch_type: str = "sentence"
+                     ) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
@@ -46,6 +49,7 @@ def validate_on_data(model: Model, data: Dataset, batch_size: int,
         If 0 then greedy decoding (default).
     :param beam_alpha: beam search alpha for length penalty,
         disabled if set to -1 (default).
+    :param batch_type: validation batch type (sentence or token)
 
     :return:
         - current_valid_score: current validation score [eval_metric],
@@ -58,8 +62,9 @@ def validate_on_data(model: Model, data: Dataset, batch_size: int,
         - decoded_valid: raw validation hypotheses (before post-processing),
         - valid_attention_scores: attention scores for validation hypotheses
     """
-    valid_iter = make_data_iter(dataset=data, batch_size=batch_size,
-                                shuffle=False, train=False)
+    valid_iter = make_data_iter(
+        dataset=data, batch_size=batch_size, batch_type=batch_type,
+        shuffle=False, train=False)
     valid_sources_raw = [s for s in data.src]
     pad_index = model.src_vocab.stoi[PAD_TOKEN]
     # disable dropout

@@ -284,13 +284,15 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                            batch_size=self.batch_size, data=valid_data,
+                            batch_size=self.batch_size,
+                            data=valid_data,
                             eval_metric=self.eval_metric,
                             level=self.level, model=self.model,
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
                             loss_function=self.loss,
-                            beam_size=0  # greedy validations
+                            beam_size=0,  # greedy validations
+                            batch_type=self.batch_type
                         )
 
                     self.tb_writer.add_scalar("valid/valid_loss",
