@@ -4,8 +4,7 @@ import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 
-from joeynmt.decoders import Decoder
-from joeynmt.decoders import TransformerDecoder
+from joeynmt.decoders import Decoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.helpers import tile
 
@@ -32,24 +31,25 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     :return:
     """
 
-    # Transformer greedy decoding
     if isinstance(decoder, TransformerDecoder):
-        return transformer_greedy(
-            src_mask, embed, bos_index, max_output_length,
-            decoder, encoder_output, encoder_hidden)
+        # Transformer greedy decoding
+        greedy_fun = transformer_greedy
+    else:
+        # Recurrent greedy decoding
+        greedy_fun = recurrent_greedy
 
-    # Recurrent greedy decoding
-    return recurrent_greedy(
+    return greedy_fun(
         src_mask, embed, bos_index, max_output_length,
         decoder, encoder_output, encoder_hidden)
 
 
-def recurrent_greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
-           max_output_length: int, decoder: Decoder,
-           encoder_output: Tensor, encoder_hidden: Tensor)\
-        -> (np.array, np.array):
+def recurrent_greedy(
+        src_mask: Tensor, embed: Embeddings, bos_index: int,
+        max_output_length: int, decoder: Decoder,
+        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
     """
     Greedy decoding: in each step, choose the word that gets highest score.
+    Version for recurrent decoder.
 
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding
@@ -98,7 +98,7 @@ def recurrent_greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
 def transformer_greedy(
         src_mask: Tensor, embed: Embeddings,
         bos_index: int, max_output_length: int, decoder: Decoder,
-        encoder_output: Tensor, encoder_hidden: Tensor):
+        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
@@ -158,7 +158,7 @@ def beam_search(
         embed: Embeddings, n_best: int = 1) -> (np.array, np.array):
     """
     Beam search with size k.
-    Adapted for Transformer.
+    Inspired by OpenNMT-py, adapted for Transformer.
 
     In each decoding step, find the k most likely partial hypotheses.
 
@@ -186,7 +186,7 @@ def beam_search(
 
     # Recurrent models only: initialize RNN hidden state
     # pylint: disable=protected-access
-    if hasattr(decoder, "_init_hidden"):
+    if not transformer:
         hidden = decoder._init_hidden(encoder_hidden)
     else:
         hidden = None
@@ -205,15 +205,21 @@ def beam_search(
     else:
         trg_mask = None
 
-    # TODO comment these variables
+    # numbering elements in the batch
     batch_offset = torch.arange(
         batch_size, dtype=torch.long, device=encoder_output.device)
+
+    # numbering elements in the extended batch, i.e. beam size copies of each
+    # batch element
     beam_offset = torch.arange(
         0,
         batch_size * size,
         step=size,
         dtype=torch.long,
         device=encoder_output.device)
+
+    # keeps track of the top beam size hypotheses to expand for each element
+    # in the batch to be further decoded (that are still "alive")
     alive_seq = torch.full(
         [batch_size * size, 1],
         bos_index,
@@ -379,5 +385,4 @@ def beam_search(
                                         results["predictions"]],
                                        pad_value=pad_index)
 
-    # TODO also return attention scores and probabilities
     return final_outputs, None
