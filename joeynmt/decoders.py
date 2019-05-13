@@ -10,9 +10,11 @@ import torch.nn as nn
 from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import freeze_params, clones, ConfigurationError
-from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
-    PositionwiseFeedForward, subsequent_mask, PositionalEncoding
+from joeynmt.helpers import freeze_params, ConfigurationError, subsequent_mask
+from joeynmt.transformer_layers import MultiHeadedAttention, \
+    PositionwiseFeedForward, PositionalEncoding, \
+    TransformerDecoderLayer
+
 
 # pylint: disable=abstract-method
 class Decoder(nn.Module):
@@ -506,8 +508,7 @@ class TransformerDecoder(Decoder):
         """
         assert trg_mask is not None, "trg_mask required for Transformer"
 
-        x = trg_embed
-        x = self.pe(x)  # add position encoding
+        x = self.pe(trg_embed)  # add position encoding to word embedding
 
         trg_mask = trg_mask & subsequent_mask(
             trg_embed.size(1)).type_as(trg_mask)
@@ -525,47 +526,3 @@ class TransformerDecoder(Decoder):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
             self.layers[0].self_attn.h)
-
-
-class TransformerDecoderLayer(nn.Module):
-    """
-    Transformer decoder layer.
-
-    Consists of self-attention, source-attention, and feed-forward.
-    """
-
-    def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
-        """
-        Represents a single Transformer decoder layer.
-        It attends to the source representation and the previous decoder states.
-        :param size:
-        :param self_attn:
-        :param src_attn:
-        :param feed_forward:
-        :param dropout:
-        """
-        super(TransformerDecoderLayer, self).__init__()
-        self.size = size
-        self.self_attn = self_attn
-        self.src_attn = src_attn
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 3)
-
-    def forward(self,
-                x: Tensor = None,
-                memory: Tensor = None,
-                src_mask: Tensor = None,
-                trg_mask: Tensor = None):
-        """
-        Forward pass of a single Transformer decoder layer.
-
-        :param x: inputs
-        :param memory: source representations
-        :param src_mask: source mask
-        :param trg_mask: target mask (so as to not condition on future steps)
-        :return:
-        """
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, trg_mask))
-        x = self.sublayer[1](x, lambda x: self.src_attn(
-            x, memory, memory, src_mask))
-        return self.sublayer[2](x, self.feed_forward)

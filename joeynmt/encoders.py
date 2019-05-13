@@ -5,9 +5,9 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from joeynmt.helpers import freeze_params, clones
-from joeynmt.transformer import SublayerConnection, MultiHeadedAttention, \
-    PositionwiseFeedForward, PositionalEncoding
+from joeynmt.helpers import freeze_params
+from joeynmt.transformer_layers import TransformerEncoderLayer, \
+    MultiHeadedAttention, PositionwiseFeedForward, PositionalEncoding
 
 
 #pylint: disable=abstract-method
@@ -222,28 +222,3 @@ class TransformerEncoder(Encoder):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
             self.layers[0].self_attn.h)
-
-
-class TransformerEncoderLayer(nn.Module):
-    """
-    One Transformer encoder layer has a Multi-head attention layer plus
-    a position-wise feed-forward layer.
-    """
-
-    def __init__(self, size, self_attn, feed_forward, dropout):
-        super(TransformerEncoderLayer, self).__init__()
-        self.self_attn = self_attn
-        self.feed_forward = feed_forward
-        self.sublayer = clones(SublayerConnection(size, dropout), 2)
-        self.size = size
-
-    #pylint: disable=arguments-differ
-    def forward(self, x, mask):
-        """
-
-        :param x:
-        :param mask:
-        :return:
-        """
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
-        return self.sublayer[1](x, self.feed_forward)
