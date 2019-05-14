@@ -89,7 +89,7 @@ class MultiHeadedAttention(nn.Module):
 
         # 3) "Concat" using a view and apply a final linear.
         x = x.transpose(1, 2).contiguous() \
-            .view(batch_size, -1, self.num_heads * self.d_k)
+            .view(batch_size, -1, self.num_heads * self.key_size)
         return self.linears[-1](x)
 
 
