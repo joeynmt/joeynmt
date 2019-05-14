@@ -117,7 +117,7 @@ class Model(nn.Module):
                             trg_mask=trg_mask)
 
     def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
-        -> Tensor:
+            -> Tensor:
         """
         Compute non-normalized loss and number of tokens for a batch
 
@@ -136,9 +136,7 @@ class Model(nn.Module):
         log_probs = F.log_softmax(out, dim=-1)
 
         # compute batch loss
-        batch_loss = loss_function(
-            input=log_probs.contiguous().view(-1, log_probs.size(-1)),
-            target=batch.trg.contiguous().view(-1))
+        batch_loss = loss_function(log_probs, batch.trg)
         # return batch loss = sum over all elements in batch that are not pad
         return batch_loss
 
