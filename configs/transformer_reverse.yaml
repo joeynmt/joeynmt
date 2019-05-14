@@ -43,6 +43,7 @@ training:
     max_output_length: 30
     print_valid_sents: [0, 3, 6, 9]
     keep_last_ckpts: 2
+    label_smoothing: 0.01
 
 model:
     initializer: "xavier"
