@@ -221,4 +221,4 @@ class TransformerEncoder(Encoder):
     def __repr__(self):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
-            self.layers[0].self_attn.h)
+            self.layers[0].self_attn.num_heads)
