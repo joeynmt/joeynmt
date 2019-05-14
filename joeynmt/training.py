@@ -15,7 +15,6 @@ import numpy as np
 
 import torch
 from torch import Tensor
-import torch.nn as nn
 
 from torchtext.data import Dataset
 
@@ -28,7 +27,7 @@ from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     make_logger, set_seed, symlink_update, ConfigurationError
 from joeynmt.model import Model
 from joeynmt.prediction import validate_on_data
-
+from joeynmt.loss import XentLoss
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
@@ -64,7 +63,9 @@ class TrainManager:
         self._log_parameters_list()
 
         # objective
-        self.loss = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
+        self.label_smoothing = train_config.get("label_smoothing", 0.0)
+        self.loss = XentLoss(pad_index=self.pad_index,
+                             smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens"]:
             raise ConfigurationError("Invalid normalization. "
@@ -129,6 +130,7 @@ class TrainManager:
         self.use_cuda = train_config["use_cuda"]
         if self.use_cuda:
             self.model.cuda()
+            self.loss.cuda()
 
         # model parameters
         if "load_model" in train_config.keys():
