@@ -1,7 +1,6 @@
 import torch
 
-from joeynmt.encoders import TransformerEncoder, TransformerEncoderLayer
-from joeynmt.transformer import PositionalEncoding
+from joeynmt.encoders import TransformerEncoder
 from .test_helpers import TensorTestCase
 
 
@@ -37,8 +36,6 @@ class TestTransformerEncoder(TensorTestCase):
         mask = torch.ones([batch_size, time_dim, 1]).byte()
 
         output, hidden = encoder(x, x_length, mask)
-
-        print(output)
 
         self.assertEqual(output.shape, torch.Size(
             [batch_size, time_dim, self.hidden_size]))

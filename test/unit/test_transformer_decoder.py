@@ -1,9 +1,6 @@
 import torch
 
-from joeynmt.encoders import TransformerEncoder, TransformerEncoderLayer
 from joeynmt.decoders import TransformerDecoder, TransformerDecoderLayer
-from joeynmt.embeddings import Embeddings
-from joeynmt.transformer import PositionalEncoding
 from .test_helpers import TensorTestCase
 
 
