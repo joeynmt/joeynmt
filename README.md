@@ -204,10 +204,14 @@ In addition, we compare to a BPE-based GRU model with 32k (Groundhog style).
 Use `scripts/get_iwslt14_bpe.sh` to pre-process the data and `configs/iwslt14_deen_bpe.yaml` to train the model.
 This model is available for download [here](https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/models/iwslt14-deen-bpe/).
 
+We also evaluate using the Transformer. We use 256 hidden units, 4 attention heads, a feed-forward layer size of 1024, and dropout value of 0.3. You can find the settings in `configs/transformer_iwslt14_deen_bpe.yaml`.
+
 Systems | level | dev | test | #params 
 --- | :---: | :---: | :---: | :---: 
-Joey NMT (greedy) | bpe | 27.57 | | 60.69M 
-Joey NMT (beam=5, alpha=1.0) | bpe | 28.55 | 27.34 | 60.69M 
+Joey NMT (greedy)                        | bpe | 27.57 |       | 60.69M 
+Joey NMT (beam=5, alpha=1.0)             | bpe | 28.55 | 27.34 | 60.69M 
+Joey NMT Transformer (greedy)            | bpe | 28.20 | 27.10 | 26.61M
+Joey NMT Transformer (beam=5, alpha=1.0) | bpe | 29.03 | 28.00 | 26.61M
 
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
