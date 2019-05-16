@@ -185,6 +185,7 @@ def test(cfg_file,
             step = "best"
 
     batch_size = cfg["training"]["batch_size"]
+    batch_type = cfg["training"].get("batch_type", "sentence")
     use_cuda = cfg["training"].get("use_cuda", False)
     level = cfg["data"]["level"]
     eval_metric = cfg["training"]["eval_metric"]
@@ -219,7 +220,8 @@ def test(cfg_file,
         #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
-            model, data=data_set, batch_size=batch_size, level=level,
+            model, data=data_set, batch_size=batch_size,
+            batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
             beam_alpha=beam_alpha)
