@@ -1,11 +1,15 @@
 name: "iwslt_deen_bahdanau"
 
 data:
-    src: "de"
-    trg: "en"
-    train: "test/data/iwslt_deen/train"
-    dev: "test/data/iwslt_deen/dev"
-    test: "test/data/iwslt_deen/test"
+    train:
+        src: "test/data/iwslt_deen/train.de"
+        trg: "test/data/iwslt_deen/train.en"
+    dev:
+        src: "test/data/iwslt_deen/dev.de"
+        trg: "test/data/iwslt_deen/dev.en"
+    test:
+        src: "test/data/iwslt_deen/test.de"
+        trg: "test/data/iwslt_deen/test.en"
     level: "word"
     lowercase: True
     max_sent_length: 50

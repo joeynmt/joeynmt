@@ -1,11 +1,15 @@
 name: "experiment"
 
 data:
-    src: "en"
-    trg: "vi"
-    train: "test/data/iwslt_envi/train"
-    dev: "test/data/iwslt_envi/tst2012"
-    test: "test/data/iwslt_envi/tst2013"
+    train:
+        src: "test/data/iwslt_envi/train.en"
+        trg: "test/data/iwslt_envi/train.vi"
+    dev:
+        src: "test/data/iwslt_envi/tst2012.en"
+        trg: "test/data/iwslt_envi/tst2012.vi"
+    test:
+        src: "test/data/iwslt_envi/tst2013.en"
+        trg: "test/data/iwslt_envi/tst2013.vi"
     level: "word"
     lowercase: False
     max_sent_length: 110

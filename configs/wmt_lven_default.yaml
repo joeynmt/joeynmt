@@ -1,11 +1,15 @@
 name: "wmt_lven_default"
 
 data:
-    src: "lv"
-    trg: "en"
-    train: "test/data/lv-en/train.tok.bpe"
-    dev: "test/data/lv-en/dev.tok.bpe"
-    test: "test/data/lv-en/test.tok.bpe"
+    train:
+        src: "test/data/lv-en/train.tok.bpe.lv"
+        trg: "test/data/lv-en/train.tok.bpe.en"
+    dev:
+        src: "test/data/lv-en/dev.tok.bpe.lv"
+        trg: "test/data/lv-en/dev.tok.bpe.en"
+    test:
+        src: "test/data/lv-en/test.tok.bpe.lv"
+        trg: "test/data/lv-en/test.tok.bpe.en"
     level: "bpe"
     lowercase: False
     max_sent_length: 50

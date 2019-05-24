@@ -1,11 +1,15 @@
 name: "iwslt14-deen-bpe"
 
 data:
-    src: "de"
-    trg: "en"
-    train: "test/data/iwslt14/train.bpe.32000"
-    dev: "test/data/iwslt14/valid.bpe.32000" 
-    test: "test/data/iwslt14/test.bpe.32000"
+    train:
+        src: "test/data/iwslt14/train.bpe.32000.de"
+        trg: "test/data/iwslt14/train.bpe.32000.en"
+    dev:
+        src: "test/data/iwslt14/valid.bpe.32000.de"
+        trg: "test/data/iwslt14/valid.bpe.32000.en"
+    test:
+        src: "test/data/iwslt14/test.bpe.32000.de"
+        trg: "test/data/iwslt14/test.bpe.32000.en"
     level: "bpe"
     lowercase: True
     max_sent_length: 62

@@ -1,11 +1,15 @@
 name: "wmt_ende_default"
 
 data:
-    src: "en"
-    trg: "de"
-    train: "test/data/en-de/train.tok.bpe"
-    dev: "test/data/en-de/dev.tok.bpe"
-    test: "test/data/en-de/test.tok.bpe"
+    train:
+        src: "test/data/en-de/train.tok.bpe.en"
+        trg: "test/data/en-de/train.tok.bpe.de"
+    dev:
+        src: "test/data/en-de/dev.tok.bpe.en"
+        trg: "test/data/en-de/dev.tok.bpe.de"
+    test:
+        src: "test/data/en-de/test.tok.bpe.en"
+        trg: "test/data/en-de/test.tok.bpe.de"
     level: "bpe"
     lowercase: False
     max_sent_length: 50
