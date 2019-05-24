@@ -36,11 +36,15 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
         - trg_vocab: target vocabulary extracted from training data
     """
     # load data from files
-    src_lang = data_cfg["src"]
-    trg_lang = data_cfg["trg"]
-    train_path = data_cfg["train"]
-    dev_path = data_cfg["dev"]
-    test_path = data_cfg.get("test", None)
+    train_src = data_cfg["train"]["src"]
+    train_trg = data_cfg["train"]["trg"]
+    dev_src = data_cfg["dev"]["src"]
+    dev_trg = data_cfg["dev"]["trg"]
+    if "test" in data_cfg.keys():
+        test_src = data_cfg["test"].get("src", None)
+        test_trg = data_cfg["test"].get("trg", None)
+    else:
+        test_src, test_trg = None, None
     level = data_cfg["level"]
     lowercase = data_cfg["lowercase"]
     max_sent_length = data_cfg["max_sent_length"]
@@ -59,8 +63,8 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                            batch_first=True, lower=lowercase,
                            include_lengths=True)
 
-    train_data = TranslationDataset(path=train_path,
-                                    exts=("." + src_lang, "." + trg_lang),
+    train_data = TranslationDataset(path="",
+                                    exts=(train_src, train_trg),
                                     fields=(src_field, trg_field),
                                     filter_pred=
                                     lambda x: len(vars(x)['src'])
@@ -82,19 +86,19 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     trg_vocab = build_vocab(field="trg", min_freq=trg_min_freq,
                             max_size=trg_max_size,
                             dataset=train_data, vocab_file=trg_vocab_file)
-    dev_data = TranslationDataset(path=dev_path,
-                                  exts=("." + src_lang, "." + trg_lang),
+    dev_data = TranslationDataset(path="",
+                                  exts=(dev_src, dev_trg),
                                   fields=(src_field, trg_field))
     test_data = None
-    if test_path is not None:
+    if test_src is not None:
         # check if target exists
-        if os.path.isfile(test_path + "." + trg_lang):
-            test_data = TranslationDataset(
-                path=test_path, exts=("." + src_lang, "." + trg_lang),
-                fields=(src_field, trg_field))
+        if test_trg is not None:
+            test_data = TranslationDataset(path="",
+                                           exts=(test_src, test_trg),
+                                           fields=(src_field, trg_field))
         else:
             # no target is given -> create dataset from src only
-            test_data = MonoDataset(path=test_path, ext="." + src_lang,
+            test_data = MonoDataset(path="", ext=test_src,
                                     field=src_field)
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
