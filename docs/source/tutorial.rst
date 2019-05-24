@@ -89,11 +89,15 @@ If you want to use a pre-generated vocabulary, you can load it with ``src_vocab`
 .. code-block:: python
 
     data:
-        src: "src"
-        trg: "trg"
-        train: "test/data/reverse/train"
-        dev: "test/data/reverse/dev"
-        test: "test/data/reverse/test"
+        train:
+            src: "test/data/reverse/train.src"
+            trg: "test/data/reverse/train.trg"
+        dev:
+            src: "test/data/reverse/dev.src"
+            trg: "test/data/reverse/dev.trg"
+        test:
+            src: "test/data/reverse/test.src"
+            trg: "test/data/reverse/test.trg"
         level: "word"
         lowercase: False
         max_sent_length: 25
