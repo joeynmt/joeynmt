@@ -142,6 +142,5 @@ class RecurrentEncoder(Encoder):
         # final: batch x directions*hidden
         return output, hidden_concat
 
-    @property
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.rnn)
