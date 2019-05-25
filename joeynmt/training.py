@@ -125,12 +125,6 @@ class TrainManager:
         if self.use_cuda:
             self.model.cuda()
 
-        # model parameters
-        if "load_model" in train_config.keys():
-            model_load_path = train_config["load_model"]
-            self.logger.info("Loading model from %s", model_load_path)
-            self.init_from_checkpoint(model_load_path)
-
         # initialize training statistics
         self.steps = 0
         # stop training if this flag is True by reaching learning rate minimum
@@ -142,6 +136,12 @@ class TrainManager:
         # comparison function for scores
         self.is_best = lambda score: score < self.best_ckpt_score \
             if self.minimize_metric else score > self.best_ckpt_score
+
+        # model parameters
+        if "load_model" in train_config.keys():
+            model_load_path = train_config["load_model"]
+            self.logger.info("Loading model from %s", model_load_path)
+            self.init_from_checkpoint(model_load_path)
 
     def _save_checkpoint(self) -> None:
         """
