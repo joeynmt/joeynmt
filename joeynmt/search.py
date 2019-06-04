@@ -220,22 +220,22 @@ def beam_search(decoder: Decoder, size: int, bos_index: int, eos_index: int,
             alive_seq = predictions.index_select(0, non_finished) \
                 .view(-1, alive_seq.size(-1))
 
-            # reorder indices, outputs and masks
-            select_indices = batch_index.view(-1)
-            encoder_output = encoder_output.index_select(0, select_indices)
-            src_mask = src_mask.index_select(0, select_indices)
+        # reorder indices, outputs and masks
+        select_indices = batch_index.view(-1)
+        encoder_output = encoder_output.index_select(0, select_indices)
+        src_mask = src_mask.index_select(0, select_indices)
 
-            if isinstance(hidden, tuple):
-                # for LSTMs, states are tuples of tensors
-                h, c = hidden
-                h = h.index_select(1, select_indices)
-                c = c.index_select(1, select_indices)
-                hidden = (h, c)
-            else:
-                # for GRUs, states are single tensors
-                hidden = hidden.index_select(1, select_indices)
+        if isinstance(hidden, tuple):
+            # for LSTMs, states are tuples of tensors
+            h, c = hidden
+            h = h.index_select(1, select_indices)
+            c = c.index_select(1, select_indices)
+            hidden = (h, c)
+        else:
+            # for GRUs, states are single tensors
+            hidden = hidden.index_select(1, select_indices)
 
-            att_vectors = att_vectors.index_select(0, select_indices)
+        att_vectors = att_vectors.index_select(0, select_indices)
 
     def pad_and_stack_hyps(hyps, pad_value):
         filled = np.ones((len(hyps), max([h.shape[0] for h in hyps])),
