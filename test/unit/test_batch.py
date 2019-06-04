@@ -12,17 +12,23 @@ from .test_helpers import TensorTestCase
 class TestData(TensorTestCase):
 
     def setUp(self):
-        self.train_path = "test/data/toy/train"
-        self.dev_path = "test/data/toy/dev"
-        self.test_path = "test/data/toy/test"
         self.levels = ["char", "word"]  # bpe is equivalently processed to word
         self.max_sent_length = 20
 
         # minimal data config
-        self.data_cfg = {"src": "de", "trg": "en", "train": self.train_path,
-                         "dev": self.dev_path, "level": "char",
-                         "lowercase": True,
-                         "max_sent_length": self.max_sent_length}
+        self.data_cfg = {
+            "train": {
+                "src": "test/data/toy/train.de",
+                "trg": "test/data/toy/train.en"
+            },
+            "dev": {
+                "src": "test/data/toy/dev.de",
+                "trg": "test/data/toy/dev.en"
+            },
+            "level": "char",
+            "lowercase": True,
+            "max_sent_length": self.max_sent_length
+        }
 
         # load the data
         self.train_data, self.dev_data, self.test_data, src_vocab, trg_vocab = \

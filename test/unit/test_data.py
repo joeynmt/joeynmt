@@ -6,27 +6,35 @@ from joeynmt.data import MonoDataset, TranslationDataset, load_data
 class TestData(unittest.TestCase):
 
     def setUp(self):
-        self.train_path = "test/data/toy/train"
-        self.dev_path = "test/data/toy/dev"
-        self.test_path = "test/data/toy/test"
         self.levels = ["char", "word"]  # bpe is equivalently processed to word
         self.max_sent_length = 10
 
         # minimal data config
-        self.data_cfg = {"src": "de", "trg": "en", "train": self.train_path,
-                         "dev": self.dev_path,
-                         "max_sent_length": self.max_sent_length}
+        self.data_cfg = {
+            "train": {
+                "src": "test/data/toy/train.de",
+                "trg": "test/data/toy/train.en"
+            },
+            "dev": {
+                "src": "test/data/toy/dev.de",
+                "trg": "test/data/toy/dev.en"
+            },
+            "max_sent_length": self.max_sent_length
+        }
 
     def testDataLoading(self):
         # test all combinations of configuration settings
-        for test_path in [None, self.test_path]:
+        for test_path in [None, "test/data/toy/test"]:
             for level in self.levels:
                 for lowercase in [True, False]:
                     current_cfg = self.data_cfg.copy()
                     current_cfg["level"] = level
                     current_cfg["lowercase"] = lowercase
                     if test_path is not None:
-                        current_cfg["test"] = test_path
+                        current_cfg["test"] = {
+                            "src": test_path+".de",
+                            #"trg": test_path+".en"
+                        }
 
                     # load the data
                     train_data, dev_data, test_data, src_vocab, trg_vocab = \
