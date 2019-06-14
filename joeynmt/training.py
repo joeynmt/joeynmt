@@ -569,11 +569,11 @@ def train(cfg_file: str) -> None:
                                 decoding_description)
         else:
             trainer.logger.info(
-                "No references given for %s.%s -> no evaluation.",
-                cfg["data"]["test"], cfg["data"]["src"])
+                "No references given for %s -> no evaluation.",
+                cfg["data"]["test"]["src"])
 
-        output_path_set = "{}/{}.{}".format(
-            trainer.model_dir, "test", cfg["data"]["trg"])
+        output_path_set = "{}/{}".format(
+            trainer.model_dir, "test.trg")
         with open(output_path_set, mode="w", encoding="utf-8") as f:
             for h in hypotheses:
                 f.write(h + "\n")
