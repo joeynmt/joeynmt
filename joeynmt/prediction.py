@@ -264,13 +264,11 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     def _load_line_as_data(line):
         """ Create a dataset from one line via a temporary file. """
         # write src input to temporary file
-        tmp_name = "tmp"
-        tmp_suffix = ".src"
-        tmp_filename = tmp_name+tmp_suffix
+        tmp_filename = "tmp.src"
         with open(tmp_filename, "w") as tmp_file:
             tmp_file.write("{}\n".format(line))
 
-        test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
+        test_data = MonoDataset(path="", ext=tmp_filename,
                                 field=src_field)
 
         # remove temporary file
