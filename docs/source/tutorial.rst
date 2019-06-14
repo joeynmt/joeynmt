@@ -80,7 +80,7 @@ For the tutorial we'll use `reverse.yaml <https://github.com/joeynmt/joeynmt/tre
 1. Data Section
 ---------------
 
-Here we give the path to the data (".src" is the source suffix, ".trg" is the target suffix)
+Here we give the paths to the data files
 and indicate which segmentation level we want to train on, here simply on the word level, as opposed to the character level.
 The training set will be filtered by ``max_sent_length``, i.e. only examples where source and target contain not more than 25 tokens are retained for training (that's the full data set for us).
 Source and target vocabulary are created from the training data, by keeping ``src_voc_limit`` source tokens that occur at least ``src_voc_min_freq`` times, and equivalently for the target side.
