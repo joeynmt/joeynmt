@@ -34,8 +34,6 @@ We aim to implement the following features (aka the minimalist toolkit of NMT):
 - Attention visualization
 - Learning curve plotting
 
-[Work in progress: Transformer, Multi-Head and Dot still missing.]
-
 ## Coding
 In order to keep the code clean and readable, we make use of:
 - Style checks: pylint with (mostly) PEP8 conventions, see `.pylintrc`.
