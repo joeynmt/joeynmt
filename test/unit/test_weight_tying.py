@@ -9,7 +9,7 @@ from joeynmt.vocabulary import Vocabulary
 import copy
 
 
-class TestRecurrentEncoder(TensorTestCase):
+class TestWeightTying(TensorTestCase):
 
     def setUp(self):
         self.seed = 42
