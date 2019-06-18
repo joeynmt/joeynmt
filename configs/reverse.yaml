@@ -34,7 +34,7 @@ training:
     patience: 5
     decrease_factor: 0.5
     early_stopping_metric: "eval_metric"
-    epochs: 1
+    epochs: 6
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
