@@ -162,7 +162,7 @@ def load_config(path="configs/default.yaml") -> dict:
     :return: configuration dictionary
     """
     with open(path, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile)
+        cfg = yaml.safe_load(ymlfile)
     return cfg
 
 
