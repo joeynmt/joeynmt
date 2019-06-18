@@ -215,6 +215,8 @@ def build_model(cfg: dict = None,
         **cfg["encoder"]["embeddings"], vocab_size=len(src_vocab),
         padding_idx=src_padding_idx)
 
+    # this ties source and target embeddings
+    # for softmax layer tying, see further below
     if cfg.get("tied_embeddings", False):
         if src_vocab.itos == trg_vocab.itos:
             # share embeddings for src and trg
@@ -252,6 +254,15 @@ def build_model(cfg: dict = None,
     model = Model(encoder=encoder, decoder=decoder,
                   src_embed=src_embed, trg_embed=trg_embed,
                   src_vocab=src_vocab, trg_vocab=trg_vocab)
+
+    # tie softmax layer with trg embeddings
+    if cfg.get("tied_softmax", False):
+        if trg_embed.lut.weight.shape[1] == cfg["decoder"]["hidden_size"]:
+            # (also) share trg embeddings and softmax layer:
+            model.decoder.output_layer.weight = trg_embed.lut.weight
+        else:
+            raise ConfigurationError(
+                "Trg embedding size and hidden_size must be equal for tying.")
 
     # custom initialization of model parameters
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
