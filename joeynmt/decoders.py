@@ -466,8 +466,8 @@ class TransformerDecoder(Decoder):
         for _ in range(num_layers):
             layer = TransformerDecoderLayer(
                 hidden_size,
-                MultiHeadedAttention(num_heads, hidden_size),
-                MultiHeadedAttention(num_heads, hidden_size),
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
                 PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
             layers.append(layer)
 

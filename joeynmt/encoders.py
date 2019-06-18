@@ -177,7 +177,7 @@ class TransformerEncoder(Encoder):
         for _ in range(num_layers):
             layer = TransformerEncoderLayer(
                 hidden_size,
-                MultiHeadedAttention(num_heads, hidden_size),
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
                 PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
             layers.append(layer)
 
