@@ -19,7 +19,7 @@ class MultiHeadedAttention(nn.Module):
     def __init__(self,
                  num_heads: int,
                  hidden_size: int,
-                 dropout: float = 0.0,
+                 dropout: float = 0.1,
                  num_linear: int = 4):
         """
         Multi-headed attention
