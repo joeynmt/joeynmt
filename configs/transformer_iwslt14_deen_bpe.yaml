@@ -1,0 +1,71 @@
+name: "iwslt14-deen-bpe-transformer"
+
+data:
+    src: "de"
+    trg: "en"
+    train: "test/data/iwslt14/train.bpe.32000"
+    dev: "test/data/iwslt14/valid.bpe.32000"
+    test: "test/data/iwslt14/test.bpe.32000"
+    level: "bpe"
+    lowercase: True
+    max_sent_length: 62
+
+testing:
+    beam_size: 5
+    alpha: 1.0
+
+training:
+    random_seed: 42
+    optimizer: "adam"
+    normalization: "tokens"
+    adam_betas: [0.9, 0.98]
+    scheduling: "noam"
+    #schedule_after_loss: True
+    loss: "crossentropy"
+    learning_rate: 0.001
+    learning_rate_min: 0.00000001
+    learning_rate_factor: 1     # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 4000  # warmup steps for Noam scheduler
+    weight_decay: 0.0
+    clip_grad_norm: 1.0
+    batch_size: 4096
+    batch_type: "token"
+    early_stopping_metric: "loss"
+    epochs: 100
+    validation_freq: 500
+    logging_freq: 100
+    eval_metric: "bleu"
+    model_dir: "iwslt14-deen-bpe-transformer"
+    overwrite: False
+    shuffle: True
+    use_cuda: True
+    max_output_length: 100
+    print_valid_sents: [0, 1, 2, 3, 4]
+
+model:
+    initializer: "xavier"
+    embed_initializer: "normal"
+    embed_init_weight: 0.05
+    bias_initializer: "zeros"
+    encoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.3
+    decoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.3

@@ -1,15 +1,14 @@
 # coding: utf-8
 
-"""
-Various encoders
-"""
-
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from joeynmt.helpers import freeze_params
+from joeynmt.transformer_layers import TransformerEncoderLayer, \
+    MultiHeadedAttention, PositionwiseFeedForward, PositionalEncoding
+
 
 #pylint: disable=abstract-method
 class Encoder(nn.Module):
@@ -144,3 +143,82 @@ class RecurrentEncoder(Encoder):
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.rnn)
+
+
+class TransformerEncoder(Encoder):
+    """
+    Transformer Encoder
+    """
+
+    #pylint: disable=unused-argument
+    def __init__(self,
+                 hidden_size: int = 512,
+                 ff_size: int = 2048,
+                 num_layers: int = 8,
+                 num_heads: int = 4,
+                 dropout: float = 0.1,
+                 freeze: bool = False,
+                 **kwargs):
+        """
+        Initializes the Transformer.
+        :param hidden_size: hidden size and size of embeddings
+        :param ff_size: position-wise feed-forward layer size.
+          (Typically this is 2*hidden_size.)
+        :param num_layers: number of layers
+        :param num_heads: number of heads for multi-headed attention
+        :param dropout: dropout probability
+        :param freeze: freeze the parameters of the encoder during training
+        :param kwargs:
+        """
+        super(TransformerEncoder, self).__init__()
+
+        # build all (num_layers) layers
+        layers = []
+        for _ in range(num_layers):
+            layer = TransformerEncoderLayer(
+                hidden_size,
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
+                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
+            layers.append(layer)
+
+        self.layers = nn.ModuleList(layers)
+        self.norm = nn.LayerNorm(hidden_size)
+        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+        self._output_size = hidden_size
+
+        if freeze:
+            freeze_params(self)
+
+    #pylint: disable=arguments-differ
+    def forward(self,
+                embed_src: Tensor,
+                src_length: Tensor,
+                mask: Tensor) -> (Tensor, Tensor):
+        """
+        Pass the input (and mask) through each layer in turn.
+        Applies a Transformer encoder to sequence of embeddings x.
+        The input mini-batch x needs to be sorted by src length.
+        x and mask should have the same dimensions [batch, time, dim].
+
+        :param embed_src: embedded src inputs,
+            shape (batch_size, src_len, embed_size)
+        :param src_length: length of src inputs
+            (counting tokens before padding), shape (batch_size)
+        :param mask: indicates padding areas (zeros where padding), shape
+            (batch_size, src_len, embed_size)
+        :return:
+            - output: hidden states with
+                shape (batch_size, max_length, directions*hidden),
+            - hidden_concat: last hidden state with
+                shape (batch_size, directions*hidden)
+        """
+        x = self.pe(embed_src)  # add position encoding to word embeddings
+
+        for layer in self.layers:
+            x = layer(x, mask)
+        return self.norm(x), None
+
+    def __repr__(self):
+        return "%s(num_layers=%r, num_heads=%r)" % (
+            self.__class__.__name__, len(self.layers),
+            self.layers[0].self_attn.num_heads)

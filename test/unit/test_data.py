@@ -1,7 +1,9 @@
 import unittest
 
-from joeynmt.data import MonoDataset, TranslationDataset, load_data
+import numpy as np
 
+from joeynmt.data import MonoDataset, TranslationDataset, load_data, \
+    make_data_iter
 
 class TestData(unittest.TestCase):
 
@@ -16,6 +18,35 @@ class TestData(unittest.TestCase):
         self.data_cfg = {"src": "de", "trg": "en", "train": self.train_path,
                          "dev": self.dev_path,
                          "max_sent_length": self.max_sent_length}
+
+    def testIteratorBatchType(self):
+
+        current_cfg = self.data_cfg.copy()
+        current_cfg["level"] = "word"
+        current_cfg["lowercase"] = False
+
+        # load toy data
+        train_data, dev_data, test_data, src_vocab, trg_vocab = \
+            load_data(current_cfg)
+
+        # make batches by number of sentences
+        train_iter = iter(make_data_iter(
+            train_data, batch_size=10, batch_type="sentence"))
+        batch = next(train_iter)
+
+        self.assertEqual(batch.src[0].shape[0], 10)
+        self.assertEqual(batch.trg[0].shape[0], 10)
+
+        # make batches by number of tokens
+        train_iter = iter(make_data_iter(
+            train_data, batch_size=100, batch_type="token"))
+        _ = next(train_iter)  # skip a batch
+        _ = next(train_iter)  # skip another batch
+        batch = next(train_iter)
+
+        self.assertEqual(batch.src[0].shape[0], 8)
+        self.assertEqual(np.prod(batch.src[0].shape), 88)
+        self.assertLessEqual(np.prod(batch.src[0].shape), 100)
 
     def testDataLoading(self):
         # test all combinations of configuration settings

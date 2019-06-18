@@ -15,7 +15,6 @@ import numpy as np
 
 import torch
 from torch import Tensor
-import torch.nn as nn
 
 from torchtext.data import Dataset
 
@@ -28,6 +27,7 @@ from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     make_logger, set_seed, symlink_update, ConfigurationError
 from joeynmt.model import Model
 from joeynmt.prediction import validate_on_data
+from joeynmt.loss import XentLoss
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
@@ -63,7 +63,9 @@ class TrainManager:
         self._log_parameters_list()
 
         # objective
-        self.loss = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
+        self.label_smoothing = train_config.get("label_smoothing", 0.0)
+        self.loss = XentLoss(pad_index=self.pad_index,
+                             smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens"]:
             raise ConfigurationError("Invalid normalization. "
@@ -71,6 +73,7 @@ class TrainManager:
 
         # optimization
         self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
+
         self.clip_grad_fun = build_gradient_clipper(config=train_config)
         self.optimizer = build_optimizer(config=train_config,
                                          parameters=model.parameters())
@@ -86,6 +89,7 @@ class TrainManager:
                                      "valid options: 'bleu', 'chrf'.")
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
+
         # if we schedule after BLEU/chrf, we want to maximize it, else minimize
         # early_stopping_metric decides on how to find the early stopping point:
         # ckpts are written when there's a new high/low score for this metric
@@ -105,7 +109,8 @@ class TrainManager:
         self.scheduler, self.scheduler_step_at = build_scheduler(
             config=train_config,
             scheduler_mode="min" if self.minimize_metric else "max",
-            optimizer=self.optimizer)
+            optimizer=self.optimizer,
+            hidden_size=config["model"]["encoder"]["hidden_size"])
 
         # data & batch handling
         self.level = config["data"]["level"]
@@ -115,6 +120,7 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        self.batch_type = train_config.get("batch_type", "sentence")
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
 
         # generation
@@ -124,6 +130,7 @@ class TrainManager:
         self.use_cuda = train_config["use_cuda"]
         if self.use_cuda:
             self.model.cuda()
+            self.loss.cuda()
 
         # initialize training statistics
         self.steps = 0
@@ -217,7 +224,9 @@ class TrainManager:
         :param train_data: training data
         :param valid_data: validation data
         """
-        train_iter = make_data_iter(train_data, batch_size=self.batch_size,
+        train_iter = make_data_iter(train_data,
+                                    batch_size=self.batch_size,
+                                    batch_type=self.batch_type,
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
@@ -252,14 +261,20 @@ class TrainManager:
                 count -= 1
                 epoch_loss += batch_loss.detach().cpu().numpy()
 
+                if self.scheduler is not None and \
+                        self.scheduler_step_at == "step":
+                    self.scheduler.step()
+
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f",
+                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f, "
+                        "Lr: %f",
                         epoch_no + 1, self.steps, batch_loss,
-                        elapsed_tokens / elapsed)
+                        elapsed_tokens / elapsed,
+                        self.optimizer.param_groups[0]["lr"])
                     start = time.time()
                     total_valid_duration = 0
 
@@ -271,12 +286,16 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                            batch_size=self.batch_size, data=valid_data,
+                            batch_size=self.batch_size,
+                            data=valid_data,
                             eval_metric=self.eval_metric,
                             level=self.level, model=self.model,
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
-                            loss_function=self.loss)
+                            loss_function=self.loss,
+                            beam_size=0,  # greedy validations
+                            batch_type=self.batch_type
+                        )
 
                     self.tb_writer.add_scalar("valid/valid_loss",
                                               valid_loss, self.steps)
@@ -334,15 +353,15 @@ class TrainManager:
                     self._store_outputs(valid_hypotheses)
 
                     # store attention plots for selected valid sentences
-                    store_attention_plots(attentions=valid_attention_scores,
-                                          targets=valid_hypotheses_raw,
-                                          sources=[s for s in valid_data.src],
-                                          indices=self.log_valid_sents,
-                                          output_prefix="{}/att.{}".format(
-                                              self.model_dir,
-                                              self.steps),
-                                          tb_writer=self.tb_writer,
-                                          steps=self.steps)
+                    if valid_attention_scores:
+                        store_attention_plots(
+                            attentions=valid_attention_scores,
+                            targets=valid_hypotheses_raw,
+                            sources=[s for s in valid_data.src],
+                            indices=self.log_valid_sents,
+                            output_prefix="{}/att.{}".format(
+                                self.model_dir, self.steps),
+                            tb_writer=self.tb_writer, steps=self.steps)
 
                 if self.stop:
                     break
@@ -459,18 +478,22 @@ class TrainManager:
         :param references_raw: raw references (list of list of tokens)
         """
         for p in self.log_valid_sents:
+
             if p >= len(sources):
                 continue
-            self.logger.debug("Example #%d", p)
+
+            self.logger.info("Example #%d", p)
+
             if sources_raw is not None:
-                self.logger.debug("\tRaw source: %s", sources_raw[p])
-            self.logger.debug("\tSource: %s", sources[p])
+                self.logger.debug("\tRaw source:     %s", sources_raw[p])
             if references_raw is not None:
-                self.logger.debug("\tRaw reference: %s", references_raw[p])
-            self.logger.debug("\tReference: %s", references[p])
+                self.logger.debug("\tRaw reference:  %s", references_raw[p])
             if hypotheses_raw is not None:
                 self.logger.debug("\tRaw hypothesis: %s", hypotheses_raw[p])
-            self.logger.debug("\tHypothesis: %s", hypotheses[p])
+
+            self.logger.info("\tSource:     %s", sources[p])
+            self.logger.info("\tReference:  %s", references[p])
+            self.logger.info("\tHypothesis: %s", hypotheses[p])
 
     def _store_outputs(self, hypotheses: List[str]) -> None:
         """
@@ -515,6 +538,8 @@ def train(cfg_file: str) -> None:
     log_data_info(train_data=train_data, valid_data=dev_data,
                   test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab,
                   logging_function=trainer.logger.info)
+
+    trainer.logger.info(str(model))
 
     # store the vocabs
     src_vocab_file = "{}/src_vocab.txt".format(cfg["training"]["model_dir"])
@@ -578,6 +603,7 @@ def train(cfg_file: str) -> None:
             for h in hypotheses:
                 f.write(h + "\n")
         trainer.logger.info("Test translations saved to: %s", output_path_set)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
