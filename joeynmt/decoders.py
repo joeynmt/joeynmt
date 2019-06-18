@@ -10,7 +10,10 @@ import torch.nn as nn
 from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import freeze_params, ConfigurationError
+from joeynmt.helpers import freeze_params, ConfigurationError, subsequent_mask
+from joeynmt.transformer_layers import MultiHeadedAttention, \
+    PositionwiseFeedForward, PositionalEncoding, \
+    TransformerDecoderLayer
 
 
 # pylint: disable=abstract-method
@@ -21,7 +24,7 @@ class Decoder(nn.Module):
     @property
     def output_size(self):
         """
-        Return the output size
+        Return the output size (size of the target vocabulary)
 
         :return:
         """
@@ -272,12 +275,13 @@ class RecurrentDecoder(Decoder):
                 encoder_output: Tensor,
                 encoder_hidden: Tensor,
                 src_mask: Tensor,
-                unrol_steps: int,
+                unroll_steps: int,
                 hidden: Tensor = None,
-                prev_att_vector: Tensor = None) \
+                prev_att_vector: Tensor = None,
+                **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
-         Unroll the decoder one step at a time for `unrol_steps` steps.
+         Unroll the decoder one step at a time for `unroll_steps` steps.
          For every step, the `_forward_step` function is called internally.
 
          During training, the target inputs (`trg_embed') are already known for
@@ -308,7 +312,7 @@ class RecurrentDecoder(Decoder):
             shape (batch_size x encoder.output_size)
         :param src_mask: mask for src states: 0s for padded areas,
             1s for the rest, shape (batch_size, 1, src_length)
-        :param unrol_steps: number of steps to unrol the decoder RNN
+        :param unroll_steps: number of steps to unrol the decoder RNN
         :param hidden: previous decoder hidden state,
             if not given it's initialized as in `self.init_hidden`,
             shape (num_layers, batch_size, hidden_size)
@@ -316,12 +320,12 @@ class RecurrentDecoder(Decoder):
             if not given it's initialized with zeros,
             shape (batch_size, 1, hidden_size)
         :return:
-            - outputs: shape (batch_size, unrol_steps, vocab_size),
+            - outputs: shape (batch_size, unroll_steps, vocab_size),
             - hidden: last hidden state (num_layers, batch_size, hidden_size),
             - att_probs: attention probabilities
-                with shape (batch_size, unrol_steps, src_length),
+                with shape (batch_size, unroll_steps, src_length),
             - att_vectors: attentional vectors
-                with shape (batch_size, unrol_steps, hidden_size)
+                with shape (batch_size, unroll_steps, hidden_size)
         """
 
         # shape checks
@@ -354,8 +358,8 @@ class RecurrentDecoder(Decoder):
                 prev_att_vector = encoder_output.new_zeros(
                     [batch_size, 1, self.hidden_size])
 
-        # unroll the decoder RNN for `unrol_steps` steps
-        for i in range(unrol_steps):
+        # unroll the decoder RNN for `unroll_steps` steps
+        for i in range(unroll_steps):
             prev_embed = trg_embed[:, i].unsqueeze(1)  # batch, 1, emb
             prev_att_vector, hidden, att_prob = self._forward_step(
                 prev_embed=prev_embed,
@@ -367,11 +371,11 @@ class RecurrentDecoder(Decoder):
             att_probs.append(att_prob)
 
         att_vectors = torch.cat(att_vectors, dim=1)
-        # att_vectors: batch, unrol_steps, hidden_size
+        # att_vectors: batch, unroll_steps, hidden_size
         att_probs = torch.cat(att_probs, dim=1)
-        # att_probs: batch, unrol_steps, src_length
+        # att_probs: batch, unroll_steps, src_length
         outputs = self.output_layer(att_vectors)
-        # outputs: batch, unrol_steps, vocab_size
+        # outputs: batch, unroll_steps, vocab_size
         return outputs, hidden, att_probs, att_vectors
 
     def _init_hidden(self, encoder_final: Tensor = None) \
@@ -424,3 +428,101 @@ class RecurrentDecoder(Decoder):
     def __repr__(self):
         return "RecurrentDecoder(rnn=%r, attention=%r)" % (
             self.rnn, self.attention)
+
+
+# pylint: disable=arguments-differ,too-many-arguments
+# pylint: disable=too-many-instance-attributes, unused-argument
+class TransformerDecoder(Decoder):
+    """
+    A transformer decoder with N masked layers.
+    Decoder layers are masked so that an attention head cannot see the future.
+    """
+
+    def __init__(self,
+                 num_layers: int = 4,
+                 num_heads: int = 8,
+                 hidden_size: int = 512,
+                 ff_size: int = 2048,
+                 dropout: float = 0.1,
+                 vocab_size: int = 1,
+                 freeze: bool = False,
+                 **kwargs):
+        """
+        Initialize a Transformer decoder.
+
+        :param num_layers: number of Transformer layers
+        :param num_heads: number of heads for each layer
+        :param hidden_size: hidden size
+        :param ff_size: position-wise feed-forward size
+        :param dropout: dropout probability (1-keep)
+        :param vocab_size: size of the output vocabulary
+        :param freeze: set to True keep all decoder parameters fixed
+        :param kwargs:
+        """
+        super(TransformerDecoder, self).__init__()
+
+        # build all (num_layers) layers
+        layers = []
+        for _ in range(num_layers):
+            layer = TransformerDecoderLayer(
+                hidden_size,
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
+                MultiHeadedAttention(num_heads, hidden_size, dropout),
+                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
+            layers.append(layer)
+
+        self.layers = nn.ModuleList(layers)
+        self.norm = nn.LayerNorm(hidden_size)
+        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+
+        self._hidden_size = hidden_size
+        self._output_size = vocab_size
+
+        self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        if freeze:
+            freeze_params(self)
+
+    def forward(self,
+                trg_embed: Tensor = None,
+                encoder_output: Tensor = None,
+                encoder_hidden: Tensor = None,
+                src_mask: Tensor = None,
+                unroll_steps: int = None,
+                hidden: Tensor = None,
+                trg_mask: Tensor = None,
+                **kwargs):
+        """
+        Transformer decoder forward pass.
+
+        :param trg_embed: embedded targets
+        :param encoder_output: source representations
+        :param encoder_hidden: unused
+        :param src_mask:
+        :param unroll_steps: unused
+        :param hidden: unused
+        :param trg_mask: to mask out target paddings
+                         Note that a subsequent mask is applied here.
+        :param kwargs:
+        :return:
+        """
+        assert trg_mask is not None, "trg_mask required for Transformer"
+
+        x = self.pe(trg_embed)  # add position encoding to word embedding
+
+        trg_mask = trg_mask & subsequent_mask(
+            trg_embed.size(1)).type_as(trg_mask)
+
+        for layer in self.layers:
+            x = layer(x=x, memory=encoder_output,
+                      src_mask=src_mask, trg_mask=trg_mask)
+
+        x = self.norm(x)
+        output = self.output_layer(x)
+
+        return output, x, None, None
+
+    def __repr__(self):
+        return "%s(num_layers=%r, num_heads=%r)" % (
+            self.__class__.__name__, len(self.layers),
+            self.layers[0].self_attn.num_heads)

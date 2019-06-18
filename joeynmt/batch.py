@@ -22,7 +22,7 @@ class Batch:
         :param use_cuda:
         """
         self.src, self.src_lengths = torch_batch.src
-        self.src_mask = (self.src != pad_index).unsqueeze(-2)
+        self.src_mask = (self.src != pad_index).unsqueeze(1)
         self.nseqs = self.src.size(0)
         self.trg_input = None
         self.trg = None
@@ -39,7 +39,7 @@ class Batch:
             # trg is used for loss computation, shifted by one since BOS
             self.trg = trg[:, 1:]
             # we exclude the padded areas from the loss computation
-            self.trg_mask = (self.trg != pad_index)
+            self.trg_mask = (self.trg_input != pad_index).unsqueeze(1)
             self.ntokens = (self.trg != pad_index).data.sum().item()
 
         if use_cuda:

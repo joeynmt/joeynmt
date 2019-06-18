@@ -143,6 +143,22 @@ joeynmt.vocabulary module
     :undoc-members:
     :show-inheritance:
 
+joeynmt.loss module
+-------------------
+
+.. automodule:: joeynmt.loss
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+joeynmt.transformer_layers module
+---------------------------------
+
+.. automodule:: joeynmt.transformer_layers
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

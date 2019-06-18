@@ -105,11 +105,10 @@ def subsequent_mask(size: int) -> Tensor:
     Mask out subsequent positions (to prevent attending to future positions)
     Transformer helper function.
 
-    :param size:
-    :return: Tensor with 0s and 1s
+    :param size: size of mask (2nd and 3rd dim)
+    :return: Tensor with 0s and 1s of shape (1, size, size)
     """
-    attn_shape = (1, size, size)
-    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    mask = np.triu(np.ones((1, size, size)), k=1).astype('uint8')
     return torch.from_numpy(mask) == 0
 
 

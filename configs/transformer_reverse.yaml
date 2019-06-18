@@ -1,0 +1,74 @@
+name: "reverse_experiment"
+
+data:
+    src: "src"
+    trg: "trg"
+    train: "test/data/reverse/train"
+    dev: "test/data/reverse/dev"
+    test: "test/data/reverse/test"
+    level: "word"
+    lowercase: False
+    max_sent_length: 25
+    voc_min_freq: 0
+    voc_limit: 100
+    #src_vocab: "my_model/src_vocab.txt"
+    #trg_vocab: "my_model/trg_vocab.txt"
+
+testing:
+    beam_size: 5
+    alpha: 1.0
+
+training:
+    #load_model: "my_model/3300.params"
+    random_seed: 42
+    optimizer: "adam"
+    adam_betas: [0.9, 0.98]
+    scheduling: "noam"
+    loss: "crossentropy"
+    learning_rate: 0.001
+    learning_rate_min: 0.00000001
+    learning_rate_factor: 1   # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 5000  # warmup steps for Noam scheduler
+    weight_decay: 0.0
+    batch_size: 250
+    batch_type: "token"
+    epochs: 30
+    validation_freq: 1000
+    logging_freq: 100
+    eval_metric: "bleu"
+    model_dir: "transformer_reverse"
+    overwrite: False
+    shuffle: True
+    use_cuda: True
+    max_output_length: 30
+    print_valid_sents: [0, 3, 6, 9]
+    keep_last_ckpts: 2
+    label_smoothing: 0.01
+
+model:
+    initializer: "xavier"
+    embed_initializer: "normal"
+    embed_init_weight: 0.05
+    bias_initializer: "zeros"
+    encoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
+    decoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
