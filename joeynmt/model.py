@@ -263,7 +263,9 @@ def build_model(cfg: dict = None,
             model.decoder.output_layer.weight = trg_embed.lut.weight
         else:
             raise ConfigurationError(
-                "Trg embedding size and hidden_size must be equal for tying.")
+                "For tied_softmax, the decoder embedding_dim and decoder "
+                "hidden_size must be the same."
+                "The decoder must be a Transformer.")
 
     # custom initialization of model parameters
     initialize_model(model, cfg, src_padding_idx, trg_padding_idx)
