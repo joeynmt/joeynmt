@@ -86,3 +86,13 @@ class TestWeightTying(TensorTestCase):
                                model.trg_embed.lut.weight)
         self.assertEqual(model.src_embed.lut.weight.shape,
                          model.trg_embed.lut.weight.shape)
+
+        model.decoder.output_layer.weight.data.fill_(3.)
+        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
+                         6528)
+        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
+                         model.trg_embed.lut.weight.sum().item())
+        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
+                         model.src_embed.lut.weight.sum().item())
+        self.assertEqual(model.src_embed.lut.weight.sum().item(),
+                         model.trg_embed.lut.weight.sum().item())
