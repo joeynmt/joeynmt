@@ -257,7 +257,8 @@ def build_model(cfg: dict = None,
 
     # tie softmax layer with trg embeddings
     if cfg.get("tied_softmax", False):
-        if trg_embed.lut.weight.shape[1] == cfg["decoder"]["hidden_size"]:
+        if trg_embed.lut.weight.shape == \
+                model.decoder.output_layer.weight.shape:
             # (also) share trg embeddings and softmax layer:
             model.decoder.output_layer.weight = trg_embed.lut.weight
         else:
