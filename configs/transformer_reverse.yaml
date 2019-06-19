@@ -40,7 +40,7 @@ training:
     model_dir: "transformer_reverse"
     overwrite: False
     shuffle: True
-    use_cuda: True
+    use_cuda: False
     max_output_length: 30
     print_valid_sents: [0, 3, 6, 9]
     keep_last_ckpts: 2
