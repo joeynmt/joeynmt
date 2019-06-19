@@ -36,7 +36,7 @@ class TestWeightTying(TensorTestCase):
             }
         }
 
-    def test_tied_src_trg_embeddings(self):
+    def test_tied_embeddings(self):
 
         torch.manual_seed(self.seed)
         cfg = copy.deepcopy(self.cfg)
@@ -58,7 +58,6 @@ class TestWeightTying(TensorTestCase):
     def test_tied_softmax(self):
 
         torch.manual_seed(self.seed)
-
         cfg = copy.deepcopy(self.cfg)
         cfg["model"]["decoder"]["type"] = "transformer"
         cfg["model"]["tied_embeddings"] = False
@@ -76,23 +75,33 @@ class TestWeightTying(TensorTestCase):
         self.assertTensorEqual(model.trg_embed.lut.weight,
                                model.decoder.output_layer.weight)
 
+    def test_tied_src_trg_softmax(self):
+
         # test source embedding, target embedding, and softmax tying
+        torch.manual_seed(self.seed)
+        cfg = copy.deepcopy(self.cfg)
+
+        cfg["model"]["decoder"]["type"] = "transformer"
         cfg["model"]["tied_embeddings"] = True
+        cfg["model"]["tied_softmax"] = True
+        cfg["model"]["decoder"]["embeddings"]["embedding_dim"] = 64
         cfg["model"]["encoder"]["embeddings"]["embedding_dim"] = 64
+
+        src_vocab = trg_vocab = self.vocab
         model = build_model(cfg["model"],
                             src_vocab=src_vocab, trg_vocab=trg_vocab)
 
-        self.assertTensorEqual(model.src_embed.lut.weight,
-                               model.trg_embed.lut.weight)
-        self.assertEqual(model.src_embed.lut.weight.shape,
-                         model.trg_embed.lut.weight.shape)
+        src_weight = model.src_embed.lut.weight
+        trg_weight = model.trg_embed.lut.weight
+        output_weight = model.decoder.output_layer.weight
 
-        model.decoder.output_layer.weight.data.fill_(3.)
-        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
-                         6528)
-        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
-                         model.trg_embed.lut.weight.sum().item())
-        self.assertEqual(model.decoder.output_layer.weight.sum().item(),
-                         model.src_embed.lut.weight.sum().item())
-        self.assertEqual(model.src_embed.lut.weight.sum().item(),
-                         model.trg_embed.lut.weight.sum().item())
+        self.assertTensorEqual(src_weight, trg_weight)
+        self.assertTensorEqual(src_weight, output_weight)
+        self.assertEqual(src_weight.shape, trg_weight.shape)
+        self.assertEqual(trg_weight.shape, output_weight.shape)
+
+        output_weight.data.fill_(3.)
+        self.assertEqual(output_weight.sum().item(), 6528)
+        self.assertEqual(output_weight.sum().item(), src_weight.sum().item())
+        self.assertEqual(output_weight.sum().item(), trg_weight.sum().item())
+        self.assertEqual(src_weight.sum().item(), trg_weight.sum().item())
