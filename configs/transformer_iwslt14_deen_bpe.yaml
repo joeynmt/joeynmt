@@ -52,7 +52,7 @@ model:
     embed_initializer: "normal"
     embed_init_weight: 0.05
     bias_initializer: "zeros"
-    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_embeddings: True
     tied_softmax: True
     encoder:
         type: "transformer"
