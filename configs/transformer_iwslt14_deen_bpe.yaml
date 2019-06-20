@@ -24,12 +24,11 @@ training:
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.7
-    #schedule_after_loss: True
     loss: "crossentropy"
     learning_rate: 0.0003
     learning_rate_min: 0.00000001
-    learning_rate_factor: 1     # factor for Noam scheduler (default: 1)
-    learning_rate_warmup: 4000  # warmup steps for Noam scheduler
+#    learning_rate_factor: 1     # factor for Noam scheduler (default: 1)
+#    learning_rate_warmup: 4000  # warmup steps for Noam scheduler
     weight_decay: 0.0
     label_smoothing: 0.1
     batch_size: 4096
