@@ -239,7 +239,7 @@ class TrainManager:
             start = time.time()
             total_valid_duration = 0
             processed_tokens = self.total_tokens
-            count = 0
+            count = self.batch_multiplier - 1
             epoch_loss = 0
 
             for batch in iter(train_iter):
