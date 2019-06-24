@@ -4,9 +4,9 @@ This modules holds methods for generating predictions from a model.
 """
 import os
 import sys
+import logging
 from typing import List, Optional
 import numpy as np
-import logging
 
 import torch
 from torchtext.data import Dataset, Field
@@ -156,6 +156,7 @@ def validate_on_data(model: Model, data: Dataset,
         decoded_valid, valid_attention_scores
 
 
+# pylint: disable-msg=logging-too-many-args
 def test(cfg_file,
          ckpt: str,
          output_path: str = None,
@@ -242,11 +243,11 @@ def test(cfg_file,
             decoding_description = "Greedy decoding" if beam_size == 0 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
-            logger.info("{:4s} {}: {:6.2f} [{}]".format(
-                data_set_name, eval_metric, score, decoding_description))
+            logger.info("{:4s} {}: {:6.2f} [{}]",
+                        data_set_name, eval_metric, score, decoding_description)
         else:
-            logger.info("No references given for {} -> no evaluation.".format(
-                data_set_name))
+            logger.info("No references given for {} -> no evaluation.",
+                        data_set_name)
 
         if save_attention:
             if attention_scores:
@@ -258,7 +259,7 @@ def test(cfg_file,
                                       sources=[s for s in data_set.src],
                                       indices=range(len(hypotheses)),
                                       output_prefix=attention_path)
-                logger.info("Attention plots saved to: {}.xx".format(attention_path))
+                logger.info("Attention plots saved to: {}", attention_path)
             else:
                 logger.warning("Attention scores could not be saved. "
                                "Note that attention scores are not available "
@@ -270,7 +271,7 @@ def test(cfg_file,
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
-            logger.info("Translations saved to: {}".format(output_path_set))
+            logger.info("Translations saved to: {}", output_path_set)
 
 
 def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
