@@ -31,6 +31,7 @@ from joeynmt.loss import XentLoss
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
+from joeynmt.prediction import test
 
 
 # pylint: disable=too-many-instance-attributes
@@ -270,8 +271,8 @@ class TrainManager:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - processed_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f, "
-                        "Lr: %f",
+                        "Epoch %3d Step: %8d Batch Loss: %12.6f "
+                        "Tokens per Sec: %8.0f, Lr: %.6f",
                         epoch_no + 1, self.steps, batch_loss,
                         elapsed_tokens / elapsed,
                         self.optimizer.param_groups[0]["lr"])
@@ -344,8 +345,8 @@ class TrainManager:
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
                     self.logger.info(
-                        'Validation result at epoch %d, step %d: %s: %f, '
-                        'loss: %f, ppl: %f, duration: %.4fs',
+                        'Validation result at epoch %3d, step %8d: %s: %6.2f, '
+                        'loss: %8.4f, ppl: %8.4f, duration: %.4fs',
                             epoch_no+1, self.steps, self.eval_metric,
                             valid_score, valid_loss, valid_ppl, valid_duration)
 
@@ -371,11 +372,11 @@ class TrainManager:
                      self.learning_rate_min)
                 break
 
-            self.logger.info('Epoch %d: total training loss %.2f', epoch_no+1,
+            self.logger.info('Epoch %3d: total training loss %.2f', epoch_no+1,
                              epoch_loss)
         else:
-            self.logger.info('Training ended after %d epochs.', epoch_no+1)
-        self.logger.info('Best validation result at step %d: %f %s.',
+            self.logger.info('Training ended after %3d epochs.', epoch_no+1)
+        self.logger.info('Best validation result at step %8d: %6.2f %s.',
                          self.best_ckpt_iteration, self.best_ckpt_score,
                          self.early_stopping_metric)
 
@@ -398,7 +399,7 @@ class TrainManager:
         else:
             raise NotImplementedError("Only normalize by 'batch' or 'tokens'")
 
-        norm_batch_loss = batch_loss / normalizer
+        norm_batch_loss = batch_loss / float(normalizer)
         # division needed since loss.backward sums the gradients until updated
         norm_batch_multiply = norm_batch_loss / self.batch_multiplier
 
@@ -550,59 +551,12 @@ def train(cfg_file: str) -> None:
     # train the model
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
 
-    # test the model with the best checkpoint
-    if test_data is not None:
-
-        # load checkpoint
-        checkpoint_path = "{}/{}.ckpt".format(
-            trainer.model_dir, trainer.best_ckpt_iteration)
-        try:
-            trainer.init_from_checkpoint(checkpoint_path)
-        except AssertionError:
-            trainer.logger.warning("Checkpoint %s does not exist. "
-                                   "Skipping testing.", checkpoint_path)
-            if trainer.best_ckpt_iteration == 0 \
-                and trainer.best_ckpt_score in [np.inf, -np.inf]:
-                trainer.logger.warning(
-                    "It seems like no checkpoint was written, "
-                    "since no improvement was obtained over the initial model.")
-            return
-
-        # generate hypotheses for test data
-        if "testing" in cfg.keys():
-            beam_size = cfg["testing"].get("beam_size", 0)
-            beam_alpha = cfg["testing"].get("alpha", -1)
-        else:
-            beam_size = 0
-            beam_alpha = -1
-
-        # pylint: disable=unused-variable
-        score, loss, ppl, sources, sources_raw, references, hypotheses, \
-            hypotheses_raw, attention_scores = validate_on_data(
-                data=test_data, batch_size=trainer.batch_size,
-                eval_metric=trainer.eval_metric, level=trainer.level,
-                max_output_length=trainer.max_output_length,
-                model=model, use_cuda=trainer.use_cuda, loss_function=None,
-                beam_size=beam_size, beam_alpha=beam_alpha)
-
-        if "trg" in test_data.fields:
-            decoding_description = "Greedy decoding" if beam_size == 0 else \
-                "Beam search decoding with beam size = {} and alpha = {}"\
-                    .format(beam_size, beam_alpha)
-            trainer.logger.info("Test data result: %f %s [%s]",
-                                score, trainer.eval_metric,
-                                decoding_description)
-        else:
-            trainer.logger.info(
-                "No references given for %s.%s -> no evaluation.",
-                cfg["data"]["test"], cfg["data"]["src"])
-
-        output_path_set = "{}/{}.{}".format(
-            trainer.model_dir, "test", cfg["data"]["trg"])
-        with open(output_path_set, mode="w", encoding="utf-8") as f:
-            for h in hypotheses:
-                f.write(h + "\n")
-        trainer.logger.info("Test translations saved to: %s", output_path_set)
+    # predict with the best model on validation and test
+    # (if test data is available)
+    ckpt = "{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration)
+    output_name = "{:08d}.hyps".format(trainer.best_ckpt_iteration)
+    output_path = os.path.join(trainer.model_dir, output_name)
+    test(cfg_file, ckpt=ckpt, output_path=output_path, logger=trainer.logger)
 
 
 if __name__ == "__main__":
