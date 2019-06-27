@@ -399,7 +399,7 @@ class TrainManager:
         else:
             raise NotImplementedError("Only normalize by 'batch' or 'tokens'")
 
-        norm_batch_loss = batch_loss / float(normalizer)
+        norm_batch_loss = batch_loss / normalizer
         # division needed since loss.backward sums the gradients until updated
         norm_batch_multiply = norm_batch_loss / self.batch_multiplier
 
