@@ -263,7 +263,7 @@ class TrainManager:
                 epoch_loss += batch_loss.detach().cpu().numpy()
 
                 if self.scheduler is not None and \
-                        self.scheduler_step_at == "step":
+                        self.scheduler_step_at == "step" and update:
                     self.scheduler.step()
 
                 # log learning progress
