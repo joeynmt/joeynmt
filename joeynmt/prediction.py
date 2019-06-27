@@ -109,7 +109,7 @@ def validate_on_data(model: Model, data: Dataset,
             # total validation loss
             valid_loss = total_loss
             # exponent of token-level negative log prob
-            valid_ppl = torch.exp(total_loss / float(total_ntokens))
+            valid_ppl = torch.exp(total_loss / total_ntokens)
         else:
             valid_loss = -1
             valid_ppl = -1
