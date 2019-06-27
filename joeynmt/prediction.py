@@ -243,10 +243,10 @@ def test(cfg_file,
             decoding_description = "Greedy decoding" if beam_size == 0 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
-            logger.info("{:4s} {}: {:6.2f} [{}]",
+            logger.info("%4s %s: %6.2f [%s]",
                         data_set_name, eval_metric, score, decoding_description)
         else:
-            logger.info("No references given for {} -> no evaluation.",
+            logger.info("No references given for %s -> no evaluation.",
                         data_set_name)
 
         if save_attention:
@@ -259,7 +259,7 @@ def test(cfg_file,
                                       sources=[s for s in data_set.src],
                                       indices=range(len(hypotheses)),
                                       output_prefix=attention_path)
-                logger.info("Attention plots saved to: {}", attention_path)
+                logger.info("Attention plots saved to: %s", attention_path)
             else:
                 logger.warning("Attention scores could not be saved. "
                                "Note that attention scores are not available "
@@ -271,7 +271,7 @@ def test(cfg_file,
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
-            logger.info("Translations saved to: {}", output_path_set)
+            logger.info("Translations saved to: %s", output_path_set)
 
 
 def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
