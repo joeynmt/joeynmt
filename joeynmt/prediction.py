@@ -184,7 +184,7 @@ def test(cfg_file,
     if "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
 
-    # when checkpoint is not specified, take oldest from model dir
+    # when checkpoint is not specified, take latest (best) from model dir
     if ckpt is None:
         model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
