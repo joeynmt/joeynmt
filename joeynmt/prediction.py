@@ -4,6 +4,7 @@ This modules holds methods for generating predictions from a model.
 """
 import os
 import sys
+import logging
 from typing import List, Optional
 import numpy as np
 
@@ -75,6 +76,7 @@ def validate_on_data(model: Model, data: Dataset,
         valid_attention_scores = []
         total_loss = 0
         total_ntokens = 0
+        total_nseqs = 0
         for valid_batch in iter(valid_iter):
             # run as during training to get validation loss (e.g. xent)
 
@@ -88,6 +90,7 @@ def validate_on_data(model: Model, data: Dataset,
                     batch, loss_function=loss_function)
                 total_loss += batch_loss
                 total_ntokens += batch.ntokens
+                total_nseqs += batch.nseqs
 
             # run as during inference to produce translations
             output, attention_scores = model.run_batch(
@@ -153,10 +156,12 @@ def validate_on_data(model: Model, data: Dataset,
         decoded_valid, valid_attention_scores
 
 
+# pylint: disable-msg=logging-too-many-args
 def test(cfg_file,
          ckpt: str,
          output_path: str = None,
-         save_attention: bool = False) -> None:
+         save_attention: bool = False,
+         logger: logging.Logger = None) -> None:
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
@@ -165,14 +170,21 @@ def test(cfg_file,
     :param ckpt: path to checkpoint to load
     :param output_path: path to output
     :param save_attention: whether to save the computed attention weights
+    :param logger: log output to this logger (creates new logger if not set)
     """
+
+    if logger is None:
+        logger = logging.getLogger(__name__)
+        FORMAT = '%(asctime)-15s - %(message)s'
+        logging.basicConfig(format=FORMAT)
+        logger.setLevel(level=logging.DEBUG)
 
     cfg = load_config(cfg_file)
 
     if "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
 
-    # when checkpoint is not specified, take oldest from model dir
+    # when checkpoint is not specified, take latest (best) from model dir
     if ckpt is None:
         model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
@@ -231,28 +243,35 @@ def test(cfg_file,
             decoding_description = "Greedy decoding" if beam_size == 0 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
-            print("{:4s} {}: {} [{}]".format(
-                data_set_name, eval_metric, score, decoding_description))
+            logger.info("%4s %s: %6.2f [%s]",
+                        data_set_name, eval_metric, score, decoding_description)
         else:
-            print("No references given for {} -> no evaluation.".format(
-                data_set_name))
+            logger.info("No references given for %s -> no evaluation.",
+                        data_set_name)
 
-        if attention_scores is not None and save_attention:
-            attention_path = "{}/{}.{}.att".format(model_dir, data_set_name,
-                                                   step)
-            print("Attention plots saved to: {}.xx".format(attention_path))
-            store_attention_plots(attentions=attention_scores,
-                                  targets=hypotheses_raw,
-                                  sources=[s for s in data_set.src],
-                                  indices=range(len(hypotheses)),
-                                  output_prefix=attention_path)
+        if save_attention:
+            if attention_scores:
+                attention_name = "{}.{}.att".format(data_set_name, step)
+                attention_path = os.path.join(model_dir, attention_name)
+                logger.info("Saving attention plots. This might take a while..")
+                store_attention_plots(attentions=attention_scores,
+                                      targets=hypotheses_raw,
+                                      sources=[s for s in data_set.src],
+                                      indices=range(len(hypotheses)),
+                                      output_prefix=attention_path)
+                logger.info("Attention plots saved to: %s", attention_path)
+            else:
+                logger.warning("Attention scores could not be saved. "
+                               "Note that attention scores are not available "
+                               "when using beam search. "
+                               "Set beam_size to 0 for greedy decoding.")
 
         if output_path is not None:
             output_path_set = "{}.{}".format(output_path, data_set_name)
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
-            print("Translations saved to: {}".format(output_path_set))
+            logger.info("Translations saved to: %s", output_path_set)
 
 
 def translate(cfg_file, ckpt: str, output_path: str = None) -> None:

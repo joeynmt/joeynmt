@@ -29,6 +29,7 @@ training:
     learning_rate_min: 0.00000001
     learning_rate_factor: 1   # factor for Noam scheduler (default: 1)
     learning_rate_warmup: 5000  # warmup steps for Noam scheduler
+    label_smoothing: 0.1
     weight_decay: 0.0
     batch_size: 250
     batch_type: "token"
@@ -39,17 +40,19 @@ training:
     model_dir: "transformer_reverse"
     overwrite: False
     shuffle: True
-    use_cuda: True
+    use_cuda: False
     max_output_length: 30
     print_valid_sents: [0, 3, 6, 9]
     keep_last_ckpts: 2
-    label_smoothing: 0.01
+
 
 model:
     initializer: "xavier"
     embed_initializer: "normal"
     embed_init_weight: 0.05
     bias_initializer: "zeros"
+    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_softmax: True
     encoder:
         type: "transformer"
         num_layers: 2
