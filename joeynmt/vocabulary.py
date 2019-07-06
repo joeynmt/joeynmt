@@ -125,7 +125,6 @@ class Vocabulary:
         sentences, optionally cutting them off at the end-of-sequence token.
 
         :param arrays: 2D array containing indices
-        :param vocabulary: defines mapping of indices to tokens
         :param cut_at_eos: cut the decoded sentences at the first <eos>
         :return: list of list of strings (tokens)
         """
