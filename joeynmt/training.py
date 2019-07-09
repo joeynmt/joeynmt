@@ -557,7 +557,7 @@ def train(cfg_file: str) -> None:
     output_path = os.path.join(trainer.model_dir, output_name)
     test(cfg_file, ckpt=ckpt, output_path=output_path, logger=trainer.logger)
 
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
     parser.add_argument("config", default="configs/default.yaml", type=str,
