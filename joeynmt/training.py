@@ -201,10 +201,11 @@ class TrainManager:
 
         # restore model and optimizer parameters
         self.model.load_state_dict(model_checkpoint["model_state"])
+
         self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
 
         if model_checkpoint["scheduler_state"] is not None and \
-                        self.scheduler is not None:
+                self.scheduler is not None:
             self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
 
         # restore counts

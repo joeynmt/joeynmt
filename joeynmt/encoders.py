@@ -157,6 +157,7 @@ class TransformerEncoder(Encoder):
                  num_layers: int = 8,
                  num_heads: int = 4,
                  dropout: float = 0.1,
+                 emb_dropout: float = 0.1,
                  freeze: bool = False,
                  **kwargs):
         """
@@ -167,23 +168,23 @@ class TransformerEncoder(Encoder):
         :param num_layers: number of layers
         :param num_heads: number of heads for multi-headed attention
         :param dropout: dropout probability
+        :param emb_dropout: dropout probability for embeddings
         :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
         super(TransformerEncoder, self).__init__()
 
         # build all (num_layers) layers
-        layers = []
-        for _ in range(num_layers):
-            layer = TransformerEncoderLayer(
-                hidden_size,
-                MultiHeadedAttention(num_heads, hidden_size, dropout),
-                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
-            layers.append(layer)
+        self.layers = nn.ModuleList([
+            TransformerEncoderLayer(size=hidden_size, ff_size=ff_size,
+                                    num_heads=num_heads, dropout=dropout)
+            for _ in range(num_layers)])
 
-        self.layers = nn.ModuleList(layers)
-        self.norm = nn.LayerNorm(hidden_size)
-        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+        self.layer_norm = nn.LayerNorm(hidden_size)
+        self.pe = PositionalEncoding(hidden_size, dropout=emb_dropout)
+
+        self.emb_dropout = nn.Dropout(p=emb_dropout)
+
         self._output_size = hidden_size
 
         if freeze:
@@ -213,12 +214,13 @@ class TransformerEncoder(Encoder):
                 shape (batch_size, directions*hidden)
         """
         x = self.pe(embed_src)  # add position encoding to word embeddings
+        x = self.emb_dropout(x)
 
         for layer in self.layers:
             x = layer(x, mask)
-        return self.norm(x), None
+        return self.layer_norm(x), None
 
     def __repr__(self):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
-            self.layers[0].self_attn.num_heads)
+            self.layers[0].src_src_att.num_heads)
