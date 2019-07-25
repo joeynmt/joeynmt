@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from joeynmt.helpers import clones
 
 # This contains special layers for the Transformer.
 # Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
@@ -34,8 +33,8 @@ class MultiHeadedAttention(nn.Module):
         self.model_size = size
         self.num_heads = num_heads
 
-        self.q_layer = nn.Linear(size, num_heads * head_size)
         self.k_layer = nn.Linear(size, num_heads * head_size)
+        self.q_layer = nn.Linear(size, num_heads * head_size)
         self.v_layer = nn.Linear(size, num_heads * head_size)
 
         self.output_layer = nn.Linear(size, size)
@@ -70,7 +69,6 @@ class MultiHeadedAttention(nn.Module):
 
         # batch x num_heads x query_len x key_len
         scores = torch.matmul(q, k.transpose(2, 3))
-        # scores = scores.float()
 
         # apply the mask (if we have one)
         # we add a dimension for the heads to it below: [B, 1, 1, M]
@@ -78,7 +76,7 @@ class MultiHeadedAttention(nn.Module):
             scores = scores.masked_fill(~mask.unsqueeze(1), float('-inf'))
 
         # apply attention dropout and compute context vectors.
-        attention = self.softmax(scores)  #.to(q.dtype)
+        attention = self.softmax(scores)
         attention = self.dropout(attention)
 
         # get context vector (select values with attention) and reshape
