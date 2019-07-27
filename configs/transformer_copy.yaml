@@ -41,7 +41,6 @@ training:
     print_valid_sents: [0, 1, 2]
     keep_last_ckpts: 1
 
-
 model:
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
     init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
