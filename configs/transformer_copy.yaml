@@ -1,4 +1,4 @@
-name: "reverse_experiment"
+name: "copy_experiment"
 
 data:
     src: "src"
