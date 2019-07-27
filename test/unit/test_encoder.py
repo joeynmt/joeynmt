@@ -38,19 +38,19 @@ class TestRecurrentEncoder(TensorTestCase):
         encoder = RecurrentEncoder(dropout=drop_prob)
         input_tensor = torch.Tensor([2, 3, 1, -1])
         encoder.train()
-        dropped = encoder.rnn_input_dropout(input=input_tensor)
+        dropped = encoder.emb_dropout(input=input_tensor)
         # eval switches off dropout
         encoder.eval()
-        no_drop = encoder.rnn_input_dropout(input=input_tensor)
+        no_drop = encoder.emb_dropout(input=input_tensor)
         # when dropout is applied, remaining values are divided by drop_prob
         self.assertGreaterEqual((no_drop - (drop_prob*dropped)).abs().sum(), 0)
 
         drop_prob = 1.0
         encoder = RecurrentEncoder(dropout=drop_prob)
-        all_dropped = encoder.rnn_input_dropout(input=input_tensor)
+        all_dropped = encoder.emb_dropout(input=input_tensor)
         self.assertEqual(all_dropped.sum(), 0)
         encoder.eval()
-        none_dropped = encoder.rnn_input_dropout(input=input_tensor)
+        none_dropped = encoder.emb_dropout(input=input_tensor)
         self.assertTensorEqual(no_drop, none_dropped)
         self.assertTensorEqual((no_drop - all_dropped), no_drop)
 

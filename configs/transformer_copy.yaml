@@ -33,7 +33,7 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_copy"
+    model_dir: "models/transformer_copy"
     overwrite: True
     shuffle: True
     use_cuda: False

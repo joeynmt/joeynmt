@@ -242,7 +242,8 @@ def build_model(cfg: dict = None,
                                      emb_dropout=enc_emb_dropout)
     else:
         encoder = RecurrentEncoder(**cfg["encoder"],
-                                   emb_size=src_embed.embedding_dim)
+                                   emb_size=src_embed.embedding_dim,
+                                   emb_dropout=enc_emb_dropout)
 
     # build decoder
     dec_dropout = cfg["decoder"].get("dropout", 0.)
@@ -254,7 +255,7 @@ def build_model(cfg: dict = None,
     else:
         decoder = RecurrentDecoder(
             **cfg["decoder"], encoder=encoder, vocab_size=len(trg_vocab),
-            emb_size=trg_embed.embedding_dim)
+            emb_size=trg_embed.embedding_dim, emb_dropout=dec_emb_dropout)
 
     model = Model(encoder=encoder, decoder=decoder,
                   src_embed=src_embed, trg_embed=trg_embed,
