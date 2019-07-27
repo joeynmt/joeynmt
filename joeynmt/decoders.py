@@ -42,7 +42,7 @@ class RecurrentDecoder(Decoder):
                  hidden_size: int = 0,
                  encoder: Encoder = None,
                  attention: str = "bahdanau",
-                 num_layers: int = 0,
+                 num_layers: int = 1,
                  vocab_size: int = 0,
                  dropout: float = 0.,
                  hidden_dropout: float = 0.,

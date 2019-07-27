@@ -36,8 +36,6 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT):
 - Attention visualization
 - Learning curve plotting
 
-[Work in progress: Transformer, Multi-Head and Dot still missing.]
-
 ## Coding
 In order to keep the code clean and readable, we make use of:
 - Style checks: pylint with (mostly) PEP8 conventions, see `.pylintrc`.
@@ -151,8 +149,7 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
 
 ## Benchmarks
-
-We report benchmark results on WMT and IWSLT datasets [here](benchmarks.md).
+Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
 
 ## Contributing
 Since this codebase is supposed to stay clean and minimalistic, contributions addressing the following are welcome:

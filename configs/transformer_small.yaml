@@ -56,6 +56,7 @@ model:                              # specify your model architecture here
     embed_initializer: "normal"     # initializer for embeddings (xavier, zeros, normal, uniform)
     embed_init_weight: 0.05         # weight to initialize; for uniform, will use [-weight, weight]
     tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_softmax: True
     encoder:
         type: "transformer"          # encoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
         num_layers: 3               # number of layers
