@@ -6,8 +6,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from joeynmt.helpers import freeze_params
-from joeynmt.transformer_layers import TransformerEncoderLayer, \
-    MultiHeadedAttention, PositionwiseFeedForward, PositionalEncoding
+from joeynmt.transformer_layers import \
+    TransformerEncoderLayer, PositionalEncoding
 
 
 #pylint: disable=abstract-method
@@ -27,7 +27,6 @@ class Encoder(nn.Module):
 
 class RecurrentEncoder(Encoder):
     """Encodes a sequence of word embeddings"""
-
     #pylint: disable=unused-argument
     def __init__(self,
                  rnn_type: str = "gru",
@@ -181,8 +180,7 @@ class TransformerEncoder(Encoder):
             for _ in range(num_layers)])
 
         self.layer_norm = nn.LayerNorm(hidden_size)
-        self.pe = PositionalEncoding(hidden_size, dropout=emb_dropout)
-
+        self.pe = PositionalEncoding(hidden_size)
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
         self._output_size = hidden_size

@@ -21,9 +21,6 @@ class Decoder(nn.Module):
     Base decoder class
     """
 
-    def __init__(self):
-        super(Decoder, self).__init__()
-
     @property
     def output_size(self):
         """
