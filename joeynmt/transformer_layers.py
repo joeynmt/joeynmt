@@ -34,8 +34,8 @@ class MultiHeadedAttention(nn.Module):
         self.num_heads = num_heads
 
         self.k_layer = nn.Linear(size, num_heads * head_size)
-        self.q_layer = nn.Linear(size, num_heads * head_size)
         self.v_layer = nn.Linear(size, num_heads * head_size)
+        self.q_layer = nn.Linear(size, num_heads * head_size)
 
         self.output_layer = nn.Linear(size, size)
         self.softmax = nn.Softmax(dim=-1)
