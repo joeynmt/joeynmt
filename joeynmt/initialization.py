@@ -131,11 +131,9 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
         for name, p in model.named_parameters():
 
             if "embed" in name:
-                # print("init embed {:20} {:10}".format(name, str(p.size())))
                 embed_init_fn_(p)
 
             elif "bias" in name:
-                # print("init bias  {:20} {:10}".format(name, str(p.size())))
                 bias_init_fn_(p)
 
             elif len(p.size()) > 1:
@@ -143,7 +141,6 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
                 # RNNs combine multiple matrices is one, which messes up
                 # xavier initialization
                 if init == "xavier" and "rnn" in name:
-                    # print("init lstm  {:20} {:10}".format(name, str(p.size())))
                     n = 1
                     if "encoder" in name:
                         n = 4 if isinstance(model.encoder.rnn, nn.LSTM) else 3
@@ -151,7 +148,6 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
                         n = 4 if isinstance(model.decoder.rnn, nn.LSTM) else 3
                     xavier_uniform_n_(p.data, gain=gain, n=n)
                 else:
-                    # print("init main  {:20} {:10}".format(name, str(p.size())))
                     init_fn_(p)
 
         # zero out paddings

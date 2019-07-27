@@ -88,7 +88,8 @@ class TestRecurrentDecoder(TensorTestCase):
                                    num_layers=self.num_layers,
                                    init_hidden="zero",
                                    input_feeding=False,
-                                   dropout=drop_prob)
+                                   dropout=drop_prob,
+                                   emb_dropout=drop_prob)
         input_tensor = torch.Tensor([2, 3, 1, -1])
         decoder.train()
         dropped = decoder.emb_dropout(input=input_tensor)
@@ -107,7 +108,8 @@ class TestRecurrentDecoder(TensorTestCase):
                                    num_layers=self.num_layers,
                                    init_hidden="zero",
                                    input_feeding=False,
-                                   dropout=drop_prob)
+                                   dropout=drop_prob,
+                                   emb_dropout=drop_prob)
         all_dropped = decoder.emb_dropout(input=input_tensor)
         self.assertEqual(all_dropped.sum(), 0)
         decoder.eval()

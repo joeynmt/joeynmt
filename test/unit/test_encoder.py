@@ -35,7 +35,7 @@ class TestRecurrentEncoder(TensorTestCase):
 
     def test_recurrent_input_dropout(self):
         drop_prob = 0.5
-        encoder = RecurrentEncoder(dropout=drop_prob)
+        encoder = RecurrentEncoder(dropout=drop_prob, emb_dropout=drop_prob)
         input_tensor = torch.Tensor([2, 3, 1, -1])
         encoder.train()
         dropped = encoder.emb_dropout(input=input_tensor)
@@ -46,7 +46,7 @@ class TestRecurrentEncoder(TensorTestCase):
         self.assertGreaterEqual((no_drop - (drop_prob*dropped)).abs().sum(), 0)
 
         drop_prob = 1.0
-        encoder = RecurrentEncoder(dropout=drop_prob)
+        encoder = RecurrentEncoder(dropout=drop_prob, emb_dropout=drop_prob)
         all_dropped = encoder.emb_dropout(input=input_tensor)
         self.assertEqual(all_dropped.sum(), 0)
         encoder.eval()
