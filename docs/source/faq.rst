@@ -165,6 +165,7 @@ Model Extensions
 - **I want to extend Joey NMT -- where do I start? Where do I have to modify the code?**
   Depends on the scope of your extension. In general, we can recommend describing the desired behavior in the config (e.g. 'use_my_feature:True') and then passing this value along the forward pass and modify the model according to it.
   If your just loading more/richer inputs, you will only have to modify the part from the corpus reading to the encoder input. If you want to modify the training objective, you will naturally work in 'loss.py'.
+  Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
 
 Contributing
 ------------
