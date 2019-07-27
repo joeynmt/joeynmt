@@ -179,8 +179,15 @@ For general questions, email us at `joeynmt <at> gmail.com`.
 ## Reference
 If you use Joey NMT in a publication or thesis, please cite the following paper:
 
-Joey NMT: A Minimalist NMT Toolkit for Novices. Julia Kreutzer, Joost Bastings, Stefan Riezler. 2019. Preprint.
-
+    @inproceedings{joeynmt,
+        title = {{Joey NMT}: A Minimalist NMT Toolkit for Novices},
+        author = {Julia Kreutzer, Joost Bastings, Stefan Riezler},
+        booktitle = {Preprint},
+        address = {},
+        month = {},
+        year = {2019},
+        url = {}
+    }
 
 
 ## Naming
