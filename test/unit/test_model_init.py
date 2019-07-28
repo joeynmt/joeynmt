@@ -48,11 +48,8 @@ class TestModelInit(TensorTestCase):
                             src_vocab=src_vocab, trg_vocab=trg_vocab)
 
         def check_layer_norm(m: nn.Module):
-            print(m)
             for name, child in m.named_children():
-                print(name)
                 if isinstance(child, nn.LayerNorm):
-                    print(name, child)
                     self.assertTensorEqual(child.weight,
                                            torch.ones([self.hidden_size]))
                     self.assertTensorEqual(child.bias,
