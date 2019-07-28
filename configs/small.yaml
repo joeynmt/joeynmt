@@ -1,5 +1,7 @@
 name: "my_experiment"
 
+# This configuration serves the purpose of documenting and explaining the settings, *NOT* as an example for good hyperparamter settings.
+
 data: # specify your data here
     src: "de"                       # src language: expected suffix of train files, e.g. "train.de"
     trg: "en"                       # trg language
