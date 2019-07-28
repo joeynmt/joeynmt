@@ -385,6 +385,8 @@ class TrainManager:
                          self.best_ckpt_iteration, self.best_ckpt_score,
                          self.early_stopping_metric)
 
+        self.tb_writer.close()  # close Tensorboard writer
+
     def _train_batch(self, batch: Batch, update: bool = True) -> Tensor:
         """
         Train the model on one batch: Compute the loss, make a gradient step.
