@@ -164,7 +164,7 @@ Code extending the functionalities beyond the basics will most likely not end up
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey, so you can find inspiration and examples on how to modify and extend the code.
 
-- **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper]().
+- **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf).
 - **Self-Regulated Interactive Seq2Seq Learning**. Julia Kreutzer and Stefan Riezler. Published at ACL 2019. [Paper](https://arxiv.org/abs/1907.05190) and [Code](https://github.com/juliakreutzer/joeynmt/tree/acl19). This project augments the standard fully-supervised learning regime by weak and self-supervision for a better trade-off of quality and supervision costs in interactive NMT.
 - **Speech Joey**. [@Sariyusha](https://github.com/Sariyusha) is giving Joey ears for speech translation. [Code](https://github.com/Sariyusha/speech_joey). 
 
@@ -183,10 +183,9 @@ If you use Joey NMT in a publication or thesis, please cite the following paper:
         title = {{Joey NMT}: A Minimalist NMT Toolkit for Novices},
         author = {Julia Kreutzer, Joost Bastings, Stefan Riezler},
         booktitle = {Preprint},
-        address = {},
-        month = {},
+        month = {July},
         year = {2019},
-        url = {}
+        url = {https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf}
     }
 
 
