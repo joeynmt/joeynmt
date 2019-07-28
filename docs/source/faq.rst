@@ -129,12 +129,14 @@ Debugging
 
 Features
 --------
+- **Which models does Joey NMT implement?**
+   For the exact description of the RNN and Transformer model, check out the `paper <https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf>`_.
 - **Why is there no convolutional model?**
    We might add it in the future, but from our experience, the most popular models are recurrent and self-attentional.
 - **How are the parameters initialized?**
    Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
 - **Is there the option to ensemble multiple models?**
-   Not yet.
+   You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/scripts/average_checkpoints.py>`_.
 - **What is a bridge?**
    We call the connection between recurrent encoder and decoder states the *bridge*.
    This can either mean that the decoder states are initialized by copying the last (forward) encoder state (``init_hidden: "last"``),
