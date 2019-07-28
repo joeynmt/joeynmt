@@ -45,7 +45,7 @@ training:                           # specify training details here
     logging_freq: 10                # log the training progress after this many updates, default: 100
     eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "my_model"           # directory where models and validation results are stored, required
+    model_dir: "models/small_model" # directory where models and validation results are stored, required
     overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
     use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.

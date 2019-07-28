@@ -34,7 +34,7 @@ training:
     validation_freq: 2000
     logging_freq: 1000
     eval_metric: "bleu"
-    model_dir: "wmt_lven_default"
+    model_dir: "models/wmt_lven_default"
     overwrite: False
     shuffle: True
     use_cuda: True
