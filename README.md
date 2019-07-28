@@ -103,7 +103,7 @@ Models are saved whenever a new best validation score is reached, in `batch_no.c
 
 
 #### Visualization
-JoeyNMT uses [TensorboardX](https://github.com/lanpa/tensorboardX) to visualize training and validation curves and attention matrices during training.
+JoeyNMT uses Tensorboard to visualize training and validation curves and attention matrices during training.
 Launch [Tensorboard](https://github.com/tensorflow/tensorboard) with `tensorboard --logdir model_dir/tensorboard` (or `python -m tensorboard.main ...`) and then open the url (default: `localhost:6006`) with a browser. 
 
 For a stand-alone plot, run `python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf` to plot curves of validation BLEU and PPL.
