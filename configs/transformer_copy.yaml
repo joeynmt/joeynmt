@@ -1,18 +1,14 @@
-name: "reverse_experiment"
+name: "copy_experiment"
 
 data:
     src: "src"
     trg: "trg"
-    train: "test/data/reverse/train"
-    dev: "test/data/reverse/dev"
-    test: "test/data/reverse/test"
+    train: "test/data/copy/train"
+    dev: "test/data/copy/dev"
+    test: "test/data/copy/test"
     level: "word"
     lowercase: False
-    max_sent_length: 25
-    voc_min_freq: 0
-    voc_limit: 100
-    #src_vocab: "my_model/src_vocab.txt"
-    #trg_vocab: "my_model/trg_vocab.txt"
+    max_sent_length: 21
 
 testing:
     beam_size: 5
@@ -26,22 +22,23 @@ training:
     loss: "crossentropy"
     learning_rate: 0.0002
     learning_rate_min: 0.00000001
+    learning_rate_factor: 2   # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 5000  # warmup steps for Noam scheduler
     label_smoothing: 0.1
     weight_decay: 0.0
-    batch_size: 250
-    batch_type: "token"
+    batch_size: 10
+    batch_type: "sentence"
     epochs: 30
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "models/transformer_reverse"
-    overwrite: False
+    model_dir: "models/transformer_copy"
+    overwrite: True
     shuffle: True
     use_cuda: False
-    max_output_length: 30
-    print_valid_sents: [0, 3, 6, 9]
-    keep_last_ckpts: 2
-
+    max_output_length: 21
+    print_valid_sents: [0, 1, 2]
+    keep_last_ckpts: 1
 
 model:
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
@@ -58,6 +55,7 @@ model:
         embeddings:
             embedding_dim: 64
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 64
         ff_size: 256
@@ -69,6 +67,7 @@ model:
         embeddings:
             embedding_dim: 64
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 64
         ff_size: 256

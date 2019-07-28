@@ -15,10 +15,9 @@ import numpy as np
 
 import torch
 from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
-
-from tensorboardX import SummaryWriter
 
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
@@ -122,6 +121,11 @@ class TrainManager:
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
         self.batch_type = train_config.get("batch_type", "sentence")
+        self.eval_batch_size = train_config.get("eval_batch_size",
+                                                self.batch_size)
+        self.eval_batch_type = train_config.get("eval_batch_type",
+                                                self.batch_type)
+
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
 
         # generation
@@ -201,10 +205,11 @@ class TrainManager:
 
         # restore model and optimizer parameters
         self.model.load_state_dict(model_checkpoint["model_state"])
+
         self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
 
         if model_checkpoint["scheduler_state"] is not None and \
-                        self.scheduler is not None:
+                self.scheduler is not None:
             self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
 
         # restore counts
@@ -287,7 +292,7 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                            batch_size=self.batch_size,
+                            batch_size=self.eval_batch_size,
                             data=valid_data,
                             eval_metric=self.eval_metric,
                             level=self.level, model=self.model,
@@ -295,7 +300,7 @@ class TrainManager:
                             max_output_length=self.max_output_length,
                             loss_function=self.loss,
                             beam_size=0,  # greedy validations
-                            batch_type=self.batch_type
+                            batch_type=self.eval_batch_type
                         )
 
                     self.tb_writer.add_scalar("valid/valid_loss",

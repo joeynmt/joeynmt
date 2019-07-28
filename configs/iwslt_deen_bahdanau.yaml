@@ -30,7 +30,7 @@ training:
     validation_freq: 2359
     logging_freq: 500
     eval_metric: "bleu"
-    model_dir: "iwslt_deen_bahdanau"
+    model_dir: "models/iwslt_deen_bahdanau"
     overwrite: False
     shuffle: True
     use_cuda: True

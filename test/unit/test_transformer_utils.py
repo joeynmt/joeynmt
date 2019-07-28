@@ -17,7 +17,7 @@ class TestTransformerUtils(TensorTestCase):
         emb_size = hidden_size = 12
 
         x = torch.zeros([batch_size, max_time, emb_size])
-        pe = PositionalEncoding(emb_size, dropout=0.)
+        pe = PositionalEncoding(emb_size)
         output = pe(x)
         self.assertEqual(pe.pe.size(2), hidden_size)
         self.assertTensorAlmostEqual(output, pe.pe[:, :x.size(1)])

@@ -3,94 +3,88 @@
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
-
-from joeynmt.helpers import clones
-
-# This contains special layers for the Transformer.
-# Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
 
 
 # pylint: disable=arguments-differ
 class MultiHeadedAttention(nn.Module):
-    """ Multi-headed attention module for Transformer """
+    """
+    Multi-Head Attention module from "Attention is All You Need"
 
-    def __init__(self,
-                 num_heads: int,
-                 hidden_size: int,
-                 dropout: float = 0.1,
-                 num_linear: int = 4):
+    Implementation modified from OpenNMT-py.
+    https://github.com/OpenNMT/OpenNMT-py
+    """
+
+    def __init__(self, num_heads: int, size: int, dropout: float = 0.1):
         """
-        Multi-headed attention
-
-        :param num_heads: number of attention heads
-        :param hidden_size: model size
-        :param dropout:
-        :param num_linear: number of linear layers (default: 4)
+        Create a multi-headed attention layer.
+        :param num_heads: the number of heads
+        :param size: model size (must be divisible by num_heads)
+        :param dropout: probability of dropping a unit
         """
         super(MultiHeadedAttention, self).__init__()
-        assert hidden_size % num_heads == 0, \
-            "hidden_size must be divisible by num_heads"
 
-        # We assume num_linear always equals key_size
-        self.key_size = hidden_size // num_heads
+        assert size % num_heads == 0
+
+        self.head_size = head_size = size // num_heads
+        self.model_size = size
         self.num_heads = num_heads
-        self.linears = clones(nn.Linear(hidden_size, hidden_size), num_linear)
-        self.attn = None
-        self.dropout = nn.Dropout(p=dropout)
 
-    def _score(self, query: Tensor, key: Tensor, value: Tensor,
-              mask: Tensor = None) -> (Tensor, Tensor):
+        self.k_layer = nn.Linear(size, num_heads * head_size)
+        self.v_layer = nn.Linear(size, num_heads * head_size)
+        self.q_layer = nn.Linear(size, num_heads * head_size)
+
+        self.output_layer = nn.Linear(size, size)
+        self.softmax = nn.Softmax(dim=-1)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, k: Tensor, v: Tensor, q: Tensor, mask: Tensor = None):
         """
-        Computes scaled dot-product attention scores.
-        Applying dropout on the attention probabilities.
+        Computes multi-headed attention.
 
-        :param query:
-        :param key:
-        :param value:
-        :param mask: masks areas where there should be no attention
+        :param k: keys   [B, M, D] with M being the sentence length.
+        :param v: values [B, M, D]
+        :param q: query  [B, M, D]
+        :param mask: optional mask [B, 1, M]
         :return:
-            - attention vector
-            - attention probabilities
         """
-        scores = torch.matmul(query, key.transpose(-2, -1)) \
-            / math.sqrt(query.size(-1))
+        batch_size = k.size(0)
+        num_heads = self.num_heads
+
+        # project the queries (q), keys (k), and values (v)
+        k = self.k_layer(k)
+        v = self.v_layer(v)
+        q = self.q_layer(q)
+
+        # reshape q, k, v for our computation to [batch_size, num_heads, ..]
+        k = k.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
+        v = v.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
+        q = q.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
+
+        # compute scores
+        q = q / math.sqrt(self.head_size)
+
+        # batch x num_heads x query_len x key_len
+        scores = torch.matmul(q, k.transpose(2, 3))
+
+        # apply the mask (if we have one)
+        # we add a dimension for the heads to it below: [B, 1, 1, M]
         if mask is not None:
-            scores = scores.masked_fill(mask == 0, -1e9)
-        p_attn = F.softmax(scores, dim=-1)
-        p_attn = self.dropout(p_attn)
-        return torch.matmul(p_attn, value), p_attn
+            scores = scores.masked_fill(~mask.unsqueeze(1), float('-inf'))
 
-    def forward(self, query: Tensor, key: Tensor, value: Tensor,
-                mask: Tensor = None) -> Tensor:
-        """
-        Compute multi-headed attention.
+        # apply attention dropout and compute context vectors.
+        attention = self.softmax(scores)
+        attention = self.dropout(attention)
 
-        :param query:
-        :param key:
-        :param value:
-        :param mask:
-        :return: output vector (linear transformation of context vector)
-        """
+        # get context vector (select values with attention) and reshape
+        # back to [B, M, D]
+        context = torch.matmul(attention, v)
+        context = context.transpose(1, 2).contiguous().view(
+            batch_size, -1, num_heads * self.head_size)
 
-        if mask is not None:
-            # Same mask applied to all h heads.
-            mask = mask.unsqueeze(1)
-        batch_size = query.size(0)
+        output = self.output_layer(context)
 
-        # 1) Do all the linear projections in batch from d_model => h x d_k
-        query, key, value = [l(x).view(
-            batch_size, -1, self.num_heads, self.key_size).transpose(1, 2)
-            for l, x in zip(self.linears, (query, key, value))]
-
-        # 2) Apply attention on all the projected vectors in batch.
-        x, self.attn = self._score(query, key, value, mask=mask)
-
-        # 3) "Concat" using a view and apply a final linear.
-        x = x.transpose(1, 2).contiguous() \
-            .view(batch_size, -1, self.num_heads * self.key_size)
-        return self.linears[-1](x)
+        return output
 
 
 # pylint: disable=arguments-differ
@@ -108,15 +102,18 @@ class PositionwiseFeedForward(nn.Module):
         :param dropout:
         """
         super(PositionwiseFeedForward, self).__init__()
-        self.layer = nn.Sequential(
+        self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
+        self.pwff_layer = nn.Sequential(
             nn.Linear(input_size, ff_size),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(ff_size, input_size)
+            nn.Linear(ff_size, input_size),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
-        return self.layer(x)
+        x_norm = self.layer_norm(x)
+        return self.pwff_layer(x_norm) + x
 
 
 # pylint: disable=arguments-differ
@@ -125,65 +122,41 @@ class PositionalEncoding(nn.Module):
     Pre-compute position encodings (PE).
     In forward pass, this adds the position-encodings to the
     input for as many time steps as necessary.
-    """
 
-    def __init__(self, input_size: int, dropout: float = 0.0,
+    Implementation based on OpenNMT-py.
+    https://github.com/OpenNMT/OpenNMT-py
+    """
+    def __init__(self,
+                 size: int = 0,
                  max_len: int = 5000):
         """
-        :param input_size: dimensionality of the model
+        Positional Encoding with maximum length max_len
+        :param size:
+        :param max_len:
         :param dropout:
-        :param max_len: maximum length for which to pre-compute PE
         """
+        if size % 2 != 0:
+            raise ValueError("Cannot use sin/cos positional encoding with "
+                             "odd dim (got dim={:d})".format(size))
+        pe = torch.zeros(max_len, size)
+        position = torch.arange(0, max_len).unsqueeze(1)
+        div_term = torch.exp((torch.arange(0, size, 2, dtype=torch.float) *
+                              -(math.log(10000.0) / size)))
+        pe[:, 0::2] = torch.sin(position.float() * div_term)
+        pe[:, 1::2] = torch.cos(position.float() * div_term)
+        pe = pe.unsqueeze(0)  # shape: [1, size, max_len]
         super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        # Compute the positional encodings once in log space.
-        pe = torch.zeros(max_len, input_size)
-        position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, input_size, 2, dtype=torch.float32) *
-            -(math.log(10000.0) / input_size))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
+        self.dim = size
 
-    def forward(self, x):
+    def forward(self, emb):
+        """Embed inputs.
+        Args:
+            emb (FloatTensor): Sequence of word vectors
+                ``(seq_len, batch_size, self.dim)``
         """
-        Add PE to x.
-        :param x:
-        :return: x with position encodings added.
-        """
-        x = x + self.pe[:, :x.size(1)]
-        return self.dropout(x)
-
-
-# pylint: disable=arguments-differ
-class ResidualLayer(nn.Module):
-    """
-    Transformer residual connection
-    Applies sublayer to x, layer norm, dropout, then adds x.
-    """
-
-    def __init__(self, size: int, dropout: float = 0.0):
-        """
-        :param size: size of input
-        :param dropout: dropout probability
-        """
-        super(ResidualLayer, self).__init__()
-        self.norm = nn.LayerNorm(size)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: Tensor, sublayer: nn.Module) -> Tensor:
-        """
-        Apply layer norm on input, feed through sublayer module, apply dropout
-        and add to input
-
-        :param x: input
-        :param sublayer: sublayer to build residual connection around
-        :return: tensor in the same shape as input
-        """
-        return x + self.dropout(sublayer(self.norm(x)))
+        # Add position encodings
+        return emb + self.pe[:, :emb.size(1)]
 
 
 class TransformerEncoderLayer(nn.Module):
@@ -192,24 +165,44 @@ class TransformerEncoderLayer(nn.Module):
     a position-wise feed-forward layer.
     """
 
-    def __init__(self, size, self_attn, feed_forward, dropout):
+    def __init__(self,
+                 size: int = 0,
+                 ff_size: int = 0,
+                 num_heads: int = 0,
+                 dropout: float = 0.1):
+        """
+        A single Transformer layer.
+        :param size:
+        :param ff_size:
+        :param num_heads:
+        :param dropout:
+        """
         super(TransformerEncoderLayer, self).__init__()
-        self.self_attn = self_attn
-        self.feed_forward = feed_forward
-        # one residual layer around attention, another one for output layer
-        self.res_layer = clones(ResidualLayer(size, dropout), 2)
+
+        self.layer_norm = nn.LayerNorm(size, eps=1e-6)
+        self.src_src_att = MultiHeadedAttention(num_heads, size,
+                                                dropout=dropout)
+        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size)
+        self.dropout = nn.Dropout(dropout)
         self.size = size
 
     # pylint: disable=arguments-differ
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         """
+        Forward pass for a single transformer encoder layer.
+        First applies layer norm, then self attention,
+        then dropout with residual connection (adding the input to the result),
+        and then a position-wise feed-forward layer.
 
         :param x: layer input
         :param mask: input mask
         :return: output tensor
         """
-        x = self.res_layer[0](x, lambda x: self.self_attn(x, x, x, mask))
-        return self.res_layer[1](x, self.feed_forward)
+        x_norm = self.layer_norm(x)
+        h = self.src_src_att(x_norm, x_norm, x_norm, mask)
+        h = self.dropout(h) + x
+        o = self.feed_forward(h)
+        return o
 
 
 class TransformerDecoderLayer(nn.Module):
@@ -219,27 +212,35 @@ class TransformerDecoderLayer(nn.Module):
     Consists of self-attention, source-attention, and feed-forward.
     """
 
-    def __init__(self, size: int, self_attn: MultiHeadedAttention,
-                 src_attn: MultiHeadedAttention,
-                 feed_forward: PositionwiseFeedForward, dropout: float = 0.0):
+    def __init__(self,
+                 size: int = 0,
+                 ff_size: int = 0,
+                 num_heads: int = 0,
+                 dropout: float = 0.1):
         """
         Represents a single Transformer decoder layer.
+
         It attends to the source representation and the previous decoder states.
 
-        :param size: layer size
-        :param self_attn: self-attention module
-        :param src_attn: src attention module
-        :param feed_forward: feed-forward layer
-        :param dropout: dropout applied between layers
+        :param size: model dimensionality
+        :param ff_size: size of the feed-forward intermediate layer
+        :param num_heads: number of heads
+        :param dropout: dropout to apply to input
         """
         super(TransformerDecoderLayer, self).__init__()
         self.size = size
-        self.self_attn = self_attn
-        self.src_attn = src_attn
-        self.feed_forward = feed_forward
-        # residual layers: one for src attention, one for trg attention,
-        # one for feed-forward layer
-        self.res_layer = clones(ResidualLayer(size, dropout), 3)
+
+        self.trg_trg_att = MultiHeadedAttention(num_heads, size,
+                                                dropout=dropout)
+        self.src_trg_att = MultiHeadedAttention(num_heads, size,
+                                                dropout=dropout)
+
+        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size)
+
+        self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
+        self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
+
+        self.dropout = nn.Dropout(dropout)
 
     # pylint: disable=arguments-differ
     def forward(self,
@@ -256,7 +257,16 @@ class TransformerDecoderLayer(nn.Module):
         :param trg_mask: target mask (so as to not condition on future steps)
         :return: output tensor
         """
-        x = self.res_layer[0](x, lambda x: self.self_attn(x, x, x, trg_mask))
-        x = self.res_layer[1](x, lambda x: self.src_attn(
-            x, memory, memory, src_mask))
-        return self.res_layer[2](x, self.feed_forward)
+        # decoder/target self-attention
+        x_norm = self.x_layer_norm(x)
+        h1 = self.trg_trg_att(x_norm, x_norm, x_norm, mask=trg_mask)
+        h1 = self.dropout(h1) + x
+
+        # source-target attention
+        h1_norm = self.dec_layer_norm(h1)
+        h2 = self.src_trg_att(memory, memory, h1_norm, mask=src_mask)
+
+        # final position-wise feed-forward layer
+        o = self.feed_forward(self.dropout(h2) + h1)
+
+        return o

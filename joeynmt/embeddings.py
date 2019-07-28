@@ -9,12 +9,14 @@ class Embeddings(nn.Module):
     Simple embeddings class
     """
 
+    # pylint: disable=unused-argument
     def __init__(self,
                  embedding_dim: int = 64,
                  scale: bool = False,
                  vocab_size: int = 0,
                  padding_idx: int = 1,
-                 freeze: bool = False):
+                 freeze: bool = False,
+                 **kwargs):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.

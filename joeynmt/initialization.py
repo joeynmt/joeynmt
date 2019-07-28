@@ -133,7 +133,7 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
             if "embed" in name:
                 embed_init_fn_(p)
 
-            elif "bias" in name or "norm" in name:
+            elif "bias" in name:
                 bias_init_fn_(p)
 
             elif len(p.size()) > 1:
@@ -149,9 +149,6 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
                     xavier_uniform_n_(p.data, gain=gain, n=n)
                 else:
                     init_fn_(p)
-
-            else:
-                raise RuntimeError("unexpected init situation")
 
         # zero out paddings
         model.src_embed.lut.weight.data[src_padding_idx].zero_()

@@ -13,15 +13,13 @@ import logging
 from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
-import yaml
 
 import torch
 from torch import nn, Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
-
-from tensorboardX import SummaryWriter
-
+import yaml
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
@@ -189,7 +187,7 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
     :param sources: list of tokenized sources
     :param output_prefix: prefix for attention plots
     :param indices: indices selected for plotting
-    :param tb_writer: tensorboardX writer (optional)
+    :param tb_writer: Tensorboard summary writer (optional)
     :param steps: current training steps, needed for tb_writer
     :param dpi: resolution for images
     """
@@ -205,7 +203,7 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
                                row_labels=src, output_path=plot_file,
                                dpi=100)
             if tb_writer is not None:
-                # lower resolution for tensorboardX
+                # lower resolution for tensorboard
                 fig = plot_heatmap(scores=attention_scores, column_labels=trg,
                                    row_labels=src, output_path=None, dpi=50)
                 tb_writer.add_figure("attention/{}.".format(i), fig,

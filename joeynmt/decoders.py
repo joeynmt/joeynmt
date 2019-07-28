@@ -11,8 +11,7 @@ from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params, ConfigurationError, subsequent_mask
-from joeynmt.transformer_layers import MultiHeadedAttention, \
-    PositionwiseFeedForward, PositionalEncoding, \
+from joeynmt.transformer_layers import PositionalEncoding, \
     TransformerDecoderLayer
 
 
@@ -21,6 +20,7 @@ class Decoder(nn.Module):
     """
     Base decoder class
     """
+
     @property
     def output_size(self):
         """
@@ -45,6 +45,7 @@ class RecurrentDecoder(Decoder):
                  num_layers: int = 1,
                  vocab_size: int = 0,
                  dropout: float = 0.,
+                 emb_dropout: float = 0.,
                  hidden_dropout: float = 0.,
                  init_hidden: str = "bridge",
                  input_feeding: bool = True,
@@ -61,7 +62,8 @@ class RecurrentDecoder(Decoder):
         :param num_layers: number of recurrent layers
         :param vocab_size: target vocabulary size
         :param hidden_dropout: Is applied to the input to the attentional layer.
-        :param dropout: Is applied to the input to the RNN.
+        :param dropout: Is applied between RNN layers.
+        :param emb_dropout: Is applied to the RNN input (word embeddings).
         :param init_hidden: If "bridge" (default), the decoder hidden states are
             initialized from a projection of the last encoder state,
             if "zeros" they are initialized with zeros,
@@ -74,7 +76,7 @@ class RecurrentDecoder(Decoder):
 
         super(RecurrentDecoder, self).__init__()
 
-        self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
+        self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
         self.type = rnn_type
         self.hidden_dropout = torch.nn.Dropout(p=hidden_dropout, inplace=False)
         self.hidden_size = hidden_size
@@ -242,7 +244,7 @@ class RecurrentDecoder(Decoder):
         else:
             rnn_input = prev_embed
 
-        rnn_input = self.rnn_input_dropout(rnn_input)
+        rnn_input = self.emb_dropout(rnn_input)
 
         # rnn_input: batch x 1 x emb+2*enc_size
         _, hidden = self.rnn(rnn_input, hidden)
@@ -444,6 +446,7 @@ class TransformerDecoder(Decoder):
                  hidden_size: int = 512,
                  ff_size: int = 2048,
                  dropout: float = 0.1,
+                 emb_dropout: float = 0.1,
                  vocab_size: int = 1,
                  freeze: bool = False,
                  **kwargs):
@@ -455,29 +458,25 @@ class TransformerDecoder(Decoder):
         :param hidden_size: hidden size
         :param ff_size: position-wise feed-forward size
         :param dropout: dropout probability (1-keep)
+        :param emb_dropout: dropout probability for embeddings
         :param vocab_size: size of the output vocabulary
         :param freeze: set to True keep all decoder parameters fixed
         :param kwargs:
         """
         super(TransformerDecoder, self).__init__()
 
-        # build all (num_layers) layers
-        layers = []
-        for _ in range(num_layers):
-            layer = TransformerDecoderLayer(
-                hidden_size,
-                MultiHeadedAttention(num_heads, hidden_size, dropout),
-                MultiHeadedAttention(num_heads, hidden_size, dropout),
-                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
-            layers.append(layer)
-
-        self.layers = nn.ModuleList(layers)
-        self.norm = nn.LayerNorm(hidden_size)
-        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
-
         self._hidden_size = hidden_size
         self._output_size = vocab_size
 
+        # create num_layers decoder layers and put them in a list
+        self.layers = nn.ModuleList([TransformerDecoderLayer(
+                size=hidden_size, ff_size=ff_size, num_heads=num_heads,
+                dropout=dropout) for _ in range(num_layers)])
+
+        self.pe = PositionalEncoding(hidden_size)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-6)
+
+        self.emb_dropout = nn.Dropout(p=emb_dropout)
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
 
         if freeze:
@@ -509,6 +508,7 @@ class TransformerDecoder(Decoder):
         assert trg_mask is not None, "trg_mask required for Transformer"
 
         x = self.pe(trg_embed)  # add position encoding to word embedding
+        x = self.emb_dropout(x)
 
         trg_mask = trg_mask & subsequent_mask(
             trg_embed.size(1)).type_as(trg_mask)
@@ -517,7 +517,7 @@ class TransformerDecoder(Decoder):
             x = layer(x=x, memory=encoder_output,
                       src_mask=src_mask, trg_mask=trg_mask)
 
-        x = self.norm(x)
+        x = self.layer_norm(x)
         output = self.output_layer(x)
 
         return output, x, None, None
@@ -525,4 +525,4 @@ class TransformerDecoder(Decoder):
     def __repr__(self):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
-            self.layers[0].self_attn.num_heads)
+            self.layers[0].trg_trg_att.num_heads)

@@ -6,8 +6,8 @@ from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from joeynmt.helpers import freeze_params
-from joeynmt.transformer_layers import TransformerEncoderLayer, \
-    MultiHeadedAttention, PositionwiseFeedForward, PositionalEncoding
+from joeynmt.transformer_layers import \
+    TransformerEncoderLayer, PositionalEncoding
 
 
 #pylint: disable=abstract-method
@@ -27,7 +27,6 @@ class Encoder(nn.Module):
 
 class RecurrentEncoder(Encoder):
     """Encodes a sequence of word embeddings"""
-
     #pylint: disable=unused-argument
     def __init__(self,
                  rnn_type: str = "gru",
@@ -35,25 +34,27 @@ class RecurrentEncoder(Encoder):
                  emb_size: int = 1,
                  num_layers: int = 1,
                  dropout: float = 0.,
+                 emb_dropout: float = 0.,
                  bidirectional: bool = True,
                  freeze: bool = False,
                  **kwargs) -> None:
         """
         Create a new recurrent encoder.
 
-        :param rnn_type:
-        :param hidden_size:
-        :param emb_size:
-        :param num_layers:
-        :param dropout:
-        :param bidirectional:
+        :param rnn_type: RNN type: `gru` or `lstm`.
+        :param hidden_size: Size of each RNN.
+        :param emb_size: Size of the word embeddings.
+        :param num_layers: Number of encoder RNN layers.
+        :param dropout:  Is applied between RNN layers.
+        :param emb_dropout: Is applied to the RNN input (word embeddings).
+        :param bidirectional: Use a bi-directional RNN.
         :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
 
         super(RecurrentEncoder, self).__init__()
 
-        self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
+        self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
         self.type = rnn_type
         self.emb_size = emb_size
 
@@ -109,8 +110,8 @@ class RecurrentEncoder(Encoder):
                                          src_length=src_length,
                                          mask=mask)
 
-        # apply dropout ot the rnn input
-        embed_src = self.rnn_input_dropout(embed_src)
+        # apply dropout to the rnn input
+        embed_src = self.emb_dropout(embed_src)
 
         packed = pack_padded_sequence(embed_src, src_length, batch_first=True)
         output, hidden = self.rnn(packed)
@@ -157,6 +158,7 @@ class TransformerEncoder(Encoder):
                  num_layers: int = 8,
                  num_heads: int = 4,
                  dropout: float = 0.1,
+                 emb_dropout: float = 0.1,
                  freeze: bool = False,
                  **kwargs):
         """
@@ -166,24 +168,23 @@ class TransformerEncoder(Encoder):
           (Typically this is 2*hidden_size.)
         :param num_layers: number of layers
         :param num_heads: number of heads for multi-headed attention
-        :param dropout: dropout probability
+        :param dropout: dropout probability for Transformer layers
+        :param emb_dropout: Is applied to the input (word embeddings).
         :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
         super(TransformerEncoder, self).__init__()
 
         # build all (num_layers) layers
-        layers = []
-        for _ in range(num_layers):
-            layer = TransformerEncoderLayer(
-                hidden_size,
-                MultiHeadedAttention(num_heads, hidden_size, dropout),
-                PositionwiseFeedForward(hidden_size, ff_size, dropout), dropout)
-            layers.append(layer)
+        self.layers = nn.ModuleList([
+            TransformerEncoderLayer(size=hidden_size, ff_size=ff_size,
+                                    num_heads=num_heads, dropout=dropout)
+            for _ in range(num_layers)])
 
-        self.layers = nn.ModuleList(layers)
-        self.norm = nn.LayerNorm(hidden_size)
-        self.pe = PositionalEncoding(hidden_size, dropout=dropout)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-6)
+        self.pe = PositionalEncoding(hidden_size)
+        self.emb_dropout = nn.Dropout(p=emb_dropout)
+
         self._output_size = hidden_size
 
         if freeze:
@@ -213,12 +214,13 @@ class TransformerEncoder(Encoder):
                 shape (batch_size, directions*hidden)
         """
         x = self.pe(embed_src)  # add position encoding to word embeddings
+        x = self.emb_dropout(x)
 
         for layer in self.layers:
             x = layer(x, mask)
-        return self.norm(x), None
+        return self.layer_norm(x), None
 
     def __repr__(self):
         return "%s(num_layers=%r, num_heads=%r)" % (
             self.__class__.__name__, len(self.layers),
-            self.layers[0].self_attn.num_heads)
+            self.layers[0].src_src_att.num_heads)

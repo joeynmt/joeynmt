@@ -34,7 +34,7 @@ training:
     validation_freq: 7362
     logging_freq: 1000
     eval_metric: "bleu"
-    model_dir: "wmt_ende_default"
+    model_dir: "models/wmt_ende_default"
     overwrite: False
     shuffle: True
     use_cuda: True
