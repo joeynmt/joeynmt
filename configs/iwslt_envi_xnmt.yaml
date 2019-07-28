@@ -37,7 +37,7 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "iwslt_envi_xnmt"
+    model_dir: "models/iwslt_envi_xnmt"
     overwrite: True
     shuffle: True
     use_cuda: True

@@ -19,7 +19,6 @@ testing:
     alpha: 1.0
 
 training:
-    #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
     adam_betas: [0.9, 0.999]

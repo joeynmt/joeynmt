@@ -39,7 +39,7 @@ training:
     validation_freq: 4000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "models/joeynmt/wmt17_lven_transformer"
+    model_dir: "models/wmt17_lven_transformer"
     overwrite: False
     shuffle: True
     use_cuda: True
