@@ -25,7 +25,7 @@ training:
     patience: 8
     decrease_factor: 0.7
     loss: "crossentropy"
-    learning_rate: 0.0001
+    learning_rate: 0.0002
     learning_rate_min: 0.00000001
     weight_decay: 0.0
     label_smoothing: 0.1
