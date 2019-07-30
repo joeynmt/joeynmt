@@ -1,3 +1,51 @@
+## WMT 17 English-German and Latvian-English
+We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
+We only consider the ``Groundhog`` setting here, where toolkits are used out-of-the-box for creating a Groundhog-like model (1 layer, LSTMs, MLP attention).
+The data is pre-processed as described in the paper ([code](https://github.com/awslabs/sockeye/tree/arxiv_1217/arxiv/code)).
+A shared vocabulary can be built with the [build_vocab.py script](scripts/build_vocab.py).
+Postprocessing is done with [Moses' detokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl), evaluation with `sacrebleu`.
+
+Note that the scores reported for other models might not reflect the current state of the code, but the state at the time of the Sockeye evaluation.
+Please also consider the difference in number of parameters despite "the same" setup: our models are the smallest in numbers of parameters.
+
+### English-German
+Groundhog setting: `configs/wmt_ende_default.yaml`  with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
+
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: | 
+Sockeye (beam=5) | bpe | - | 23.18 | 87.83M 
+OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M 
+Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M  
+
+The Joey NMT model was trained for 4 days (14 epochs).
+
+"Best found" setting with a shared vocabulary: `configs/wmt_ende_best.yaml`  with `tied_embeddings=True`, `hidden_size=1024`, `lr=0.0002`, `init_hidden="bridge"` and `num_layers=4`.
+
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: | 
+Sockeye (beam=5) | bpe | - | 25.55 | ?
+OpenNMT-Py (beam=5) | bpe | - | 21.95 | ? 
+Joey NMT (beam=5) | bpe |  | 26.0  | 187M 
+
+### Latvian-English
+Groundhog setting: `configs/wmt_lven_default.yaml` with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
+
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
+Sockeye (beam=5) | bpe | - | 14.40 | ? 
+OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? 
+Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M 
+
+"Best found" setting with a shared vocabulary: `configs/wmt_lven_best.yaml` with `tied_embeddings=True`, `hidden_size=1024`, `lr=0.0002`, `init_hidden="bridge"` and `num_layers=4`.
+
+Systems | level | dev | test | #params 
+--- | :---: | :---: | :---: | :---: 
+Sockeye (beam=5) | bpe | - | 15.9 | ? 
+OpenNMT-Py (beam=5) | bpe | - | 13.6 | ? 
+Joey NMT (beam=5) | bpe | 20.12 | 15.8 | 182M
+
+
+
 ### IWSLT English-Vietnamese
 
 We compare the RNN model against [Tensorflow NMT](https://github.com/tensorflow/nmt) on the IWSLT15 En-Vi data set as preprocessed by Stanford.
@@ -58,49 +106,4 @@ Joey NMT (beam=5, alpha=1.0)             | bpe | 28.55 | 27.34 | 60.69M
 Joey NMT Transformer (greedy)            | bpe | 31.21 |       | 19.18M
 Joey NMT Transformer (beam=5, alpha=1.0) | bpe | 32.16 | 31.00 | 19.18M
 
-## WMT 17 English-German and Latvian-English
-We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
-We only consider the ``Groundhog`` setting here, where toolkits are used out-of-the-box for creating a Groundhog-like model (1 layer, LSTMs, MLP attention).
-The data is pre-processed as described in the paper ([code](https://github.com/awslabs/sockeye/tree/arxiv_1217/arxiv/code)).
-A shared vocabulary can be built with the [build_vocab.py script](scripts/build_vocab.py).
-Postprocessing is done with [Moses' detokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/detokenizer.perl), evaluation with `sacrebleu`.
-
-Note that the scores reported for other models might not reflect the current state of the code, but the state at the time of the Sockeye evaluation.
-Please also consider the difference in number of parameters despite "the same" setup: our models are the smallest in numbers of parameters.
-
-### English-German
-Groundhog setting: `configs/wmt_ende_default.yaml`  with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
-
-Systems | level | dev | test | #params 
---- | :---: | :---: | :---: | :---: | 
-Sockeye (beam=5) | bpe | - | 23.18 | 87.83M 
-OpenNMT-Py (beam=5) | bpe | - | 18.66 | 87.62M 
-Joey NMT (beam=5) | bpe | 24.33 | 23.45  | 86.37M  
-
-The Joey NMT model was trained for 4 days (14 epochs).
-
-"Best found" setting with a shared vocabulary: `configs/wmt_ende_best.yaml`  with `tied_embeddings=True`, `hidden_size=1024`, `lr=0.0002`, `init_hidden="bridge"` and `num_layers=4`.
-
-Systems | level | dev | test | #params 
---- | :---: | :---: | :---: | :---: | 
-Sockeye (beam=5) | bpe | - | 25.55 | ?
-OpenNMT-Py (beam=5) | bpe | - | 21.95 | ? 
-Joey NMT (beam=5) | bpe |  | 26.0  | 187M 
-
-### Latvian-English
-Groundhog setting: `configs/wmt_lven_default.yaml` with `encoder rnn=500`, `lr=0.0003`, `init_hidden="bridge"`.
-
-Systems | level | dev | test | #params 
---- | :---: | :---: | :---: | :---: 
-Sockeye (beam=5) | bpe | - | 14.40 | ? 
-OpenNMT-Py (beam=5) | bpe | - | 9.98 | ? 
-Joey NMT (beam=5) | bpe | 12.09 | 8.75 | 64.52M 
-
-"Best found" setting with a shared vocabulary: `configs/wmt_lven_best.yaml` with `tied_embeddings=True`, `hidden_size=1024`, `lr=0.0002`, `init_hidden="bridge"` and `num_layers=4`.
-
-Systems | level | dev | test | #params 
---- | :---: | :---: | :---: | :---: 
-Sockeye (beam=5) | bpe | - | 15.9 | ? 
-OpenNMT-Py (beam=5) | bpe | - | 13.6 | ? 
-Joey NMT (beam=5) | bpe | 20.12 | 15.8 | 182M
 
