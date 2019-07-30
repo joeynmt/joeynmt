@@ -1,3 +1,8 @@
+# Benchmarks
+
+Here we provide benchmarks for reference. We provide all the scripts to replicate these results.
+Note that some benchmarks were also reported in our paper: https://arxiv.org/abs/1907.12484
+
 ## WMT 17 English-German and Latvian-English
 We compare against the results for recurrent BPE-based models that were reported in the [Sockeye paper](https://arxiv.org/pdf/1712.05690.pdf). 
 
