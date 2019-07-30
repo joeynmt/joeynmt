@@ -18,7 +18,7 @@ and a decrease in readability.
 
 However, Joey NMT re-implements baselines from major publications.
 
-Check out the detailed [documentation](https://joeynmt.readthedocs.io).
+Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [paper](https://arxiv.org/abs/1907.12484).
 
 ## Contributors
 
@@ -177,17 +177,25 @@ Please leave an issue if you have questions or issues with the code.
 For general questions, email us at `joeynmt <at> gmail.com`.
 
 ## Reference
-If you use Joey NMT in a publication or thesis, please cite the following paper:
+If you use Joey NMT in a publication or thesis, please cite the following [paper](https://arxiv.org/abs/1907.12484):
 
-    @inproceedings{joeynmt,
-        title = {{Joey NMT}: A Minimalist NMT Toolkit for Novices},
-        author = {Julia Kreutzer, Joost Bastings, Stefan Riezler},
-        booktitle = {Preprint},
-        month = {July},
-        year = {2019},
-        url = {https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf}
-    }
-
+```
+@ARTICLE{2019arXiv190712484K,
+author = {{Kreutzer}, Julia and {Bastings}, Joost and {Riezler}, Stefan},
+title = "{Joey NMT: A Minimalist NMT Toolkit for Novices}",
+journal = {arXiv e-prints},
+keywords = {Computer Science - Computation and Language, Computer Science - Machine Learning},
+ year = "2019",
+month = "Jul",
+  eid = {arXiv:1907.12484},
+pages = {arXiv:1907.12484},
+archivePrefix = {arXiv},
+eprint = {1907.12484},
+primaryClass = {cs.CL},
+adsurl = {https://ui.adsabs.harvard.edu/abs/2019arXiv190712484K},
+adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+```
 
 ## Naming
 Joeys are [infant marsupials](https://en.wikipedia.org/wiki/Marsupial#Early_development). 
