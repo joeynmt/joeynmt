@@ -20,6 +20,11 @@ However, Joey NMT re-implements baselines from major publications.
 
 Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [paper](https://arxiv.org/abs/1907.12484).
 
+## Paper (new!)
+
+We released a paper describing Joey NMT: https://arxiv.org/abs/1907.12484
+Please cite it if you use Joey for your research.
+
 ## Contributors
 
 Joey NMT is developed by [Joost Bastings](https://bastings.github.io) (University of Amsterdam) and [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University).
