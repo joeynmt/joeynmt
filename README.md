@@ -23,6 +23,7 @@ Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [
 ## Paper (new!)
 
 We released a paper describing Joey NMT: https://arxiv.org/abs/1907.12484
+
 Please cite it if you use Joey for your research.
 
 ## Contributors
