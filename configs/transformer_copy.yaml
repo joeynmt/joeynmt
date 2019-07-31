@@ -1,4 +1,4 @@
-name: "reverse_experiment"
+name: "copy_experiment"
 
 data:
     src: "src"
@@ -15,7 +15,6 @@ testing:
     alpha: 1.0
 
 training:
-    #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
     adam_betas: [0.9, 0.999]
@@ -33,14 +32,13 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_copy"
+    model_dir: "models/transformer_copy"
     overwrite: True
     shuffle: True
     use_cuda: False
     max_output_length: 21
     print_valid_sents: [0, 1, 2]
     keep_last_ckpts: 1
-
 
 model:
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)

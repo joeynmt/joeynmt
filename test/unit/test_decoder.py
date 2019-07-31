@@ -88,13 +88,14 @@ class TestRecurrentDecoder(TensorTestCase):
                                    num_layers=self.num_layers,
                                    init_hidden="zero",
                                    input_feeding=False,
-                                   dropout=drop_prob)
+                                   dropout=drop_prob,
+                                   emb_dropout=drop_prob)
         input_tensor = torch.Tensor([2, 3, 1, -1])
         decoder.train()
-        dropped = decoder.rnn_input_dropout(input=input_tensor)
+        dropped = decoder.emb_dropout(input=input_tensor)
         # eval switches off dropout
         decoder.eval()
-        no_drop = decoder.rnn_input_dropout(input=input_tensor)
+        no_drop = decoder.emb_dropout(input=input_tensor)
         # when dropout is applied, remaining values are divided by drop_prob
         self.assertGreaterEqual((no_drop - (drop_prob*dropped)).abs().sum(), 0)
 
@@ -107,11 +108,12 @@ class TestRecurrentDecoder(TensorTestCase):
                                    num_layers=self.num_layers,
                                    init_hidden="zero",
                                    input_feeding=False,
-                                   dropout=drop_prob)
-        all_dropped = decoder.rnn_input_dropout(input=input_tensor)
+                                   dropout=drop_prob,
+                                   emb_dropout=drop_prob)
+        all_dropped = decoder.emb_dropout(input=input_tensor)
         self.assertEqual(all_dropped.sum(), 0)
         decoder.eval()
-        none_dropped = decoder.rnn_input_dropout(input=input_tensor)
+        none_dropped = decoder.emb_dropout(input=input_tensor)
         self.assertTensorEqual(no_drop, none_dropped)
         self.assertTensorEqual((no_drop - all_dropped), no_drop)
 

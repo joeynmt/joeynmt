@@ -9,6 +9,7 @@ class Embeddings(nn.Module):
     Simple embeddings class
     """
 
+    # pylint: disable=unused-argument
     def __init__(self,
                  embedding_dim: int = 64,
                  scale: bool = False,
@@ -31,7 +32,6 @@ class Embeddings(nn.Module):
         self.embedding_dim = embedding_dim
         self.scale = scale
         self.vocab_size = vocab_size
-        self.d = vocab_size
         self.lut = nn.Embedding(vocab_size, self.embedding_dim,
                                 padding_idx=padding_idx)
 

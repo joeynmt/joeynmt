@@ -3,20 +3,16 @@
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
-
-from joeynmt.helpers import clones
-
-# This contains special layers for the Transformer.
-# Source: http://nlp.seas.harvard.edu/2018/04/03/attention.html
 
 
 # pylint: disable=arguments-differ
 class MultiHeadedAttention(nn.Module):
     """
     Multi-Head Attention module from "Attention is All You Need"
-    Loosely based on OpenNMT-py.
+
+    Implementation modified from OpenNMT-py.
+    https://github.com/OpenNMT/OpenNMT-py
     """
 
     def __init__(self, num_heads: int, size: int, dropout: float = 0.1):
@@ -34,9 +30,9 @@ class MultiHeadedAttention(nn.Module):
         self.model_size = size
         self.num_heads = num_heads
 
-        self.q_layer = nn.Linear(size, num_heads * head_size)
         self.k_layer = nn.Linear(size, num_heads * head_size)
         self.v_layer = nn.Linear(size, num_heads * head_size)
+        self.q_layer = nn.Linear(size, num_heads * head_size)
 
         self.output_layer = nn.Linear(size, size)
         self.softmax = nn.Softmax(dim=-1)
@@ -70,7 +66,6 @@ class MultiHeadedAttention(nn.Module):
 
         # batch x num_heads x query_len x key_len
         scores = torch.matmul(q, k.transpose(2, 3))
-        # scores = scores.float()
 
         # apply the mask (if we have one)
         # we add a dimension for the heads to it below: [B, 1, 1, M]
@@ -78,7 +73,7 @@ class MultiHeadedAttention(nn.Module):
             scores = scores.masked_fill(~mask.unsqueeze(1), float('-inf'))
 
         # apply attention dropout and compute context vectors.
-        attention = self.softmax(scores)  #.to(q.dtype)
+        attention = self.softmax(scores)
         attention = self.dropout(attention)
 
         # get context vector (select values with attention) and reshape
@@ -133,8 +128,7 @@ class PositionalEncoding(nn.Module):
     """
     def __init__(self,
                  size: int = 0,
-                 max_len: int = 5000,
-                 dropout: float = 0.1):
+                 max_len: int = 5000):
         """
         Positional Encoding with maximum length max_len
         :param size:
@@ -186,7 +180,8 @@ class TransformerEncoderLayer(nn.Module):
         super(TransformerEncoderLayer, self).__init__()
 
         self.layer_norm = nn.LayerNorm(size, eps=1e-6)
-        self.src_src_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
+        self.src_src_att = MultiHeadedAttention(num_heads, size,
+                                                dropout=dropout)
         self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size)
         self.dropout = nn.Dropout(dropout)
         self.size = size

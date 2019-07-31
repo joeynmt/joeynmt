@@ -19,16 +19,13 @@ testing:
     alpha: 1.0
 
 training:
-    #load_model: "my_model/3300.params"
     random_seed: 42
     optimizer: "adam"
-    adam_betas: [0.9, 0.98]
-    scheduling: "noam"
+    adam_betas: [0.9, 0.999]
+    scheduling: "plateau"
     loss: "crossentropy"
-    learning_rate: 0.001
+    learning_rate: 0.0002
     learning_rate_min: 0.00000001
-    learning_rate_factor: 1   # factor for Noam scheduler (default: 1)
-    learning_rate_warmup: 5000  # warmup steps for Noam scheduler
     label_smoothing: 0.1
     weight_decay: 0.0
     batch_size: 250
@@ -37,7 +34,7 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "transformer_reverse"
+    model_dir: "models/transformer_reverse"
     overwrite: False
     shuffle: True
     use_cuda: False
@@ -47,10 +44,11 @@ training:
 
 
 model:
-    initializer: "xavier"
-    embed_initializer: "normal"
-    embed_init_weight: 0.05
-    bias_initializer: "zeros"
+    initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
+    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
+    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
     tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     tied_softmax: True
     encoder:

@@ -230,7 +230,7 @@ def build_model(cfg: dict = None,
             padding_idx=trg_padding_idx)
 
     # build encoder
-    enc_dropout = cfg["encoder"]["dropout"]
+    enc_dropout = cfg["encoder"].get("dropout", 0.)
     enc_emb_dropout = cfg["encoder"]["embeddings"].get("dropout", enc_dropout)
     if cfg["encoder"].get("type", "recurrent") == "transformer":
         assert cfg["encoder"]["embeddings"]["embedding_dim"] == \
@@ -242,10 +242,11 @@ def build_model(cfg: dict = None,
                                      emb_dropout=enc_emb_dropout)
     else:
         encoder = RecurrentEncoder(**cfg["encoder"],
-                                   emb_size=src_embed.embedding_dim)
+                                   emb_size=src_embed.embedding_dim,
+                                   emb_dropout=enc_emb_dropout)
 
     # build decoder
-    dec_dropout = cfg["decoder"]["dropout"]
+    dec_dropout = cfg["decoder"].get("dropout", 0.)
     dec_emb_dropout = cfg["decoder"]["embeddings"].get("dropout", dec_dropout)
     if cfg["decoder"].get("type", "recurrent") == "transformer":
         decoder = TransformerDecoder(
@@ -254,7 +255,7 @@ def build_model(cfg: dict = None,
     else:
         decoder = RecurrentDecoder(
             **cfg["decoder"], encoder=encoder, vocab_size=len(trg_vocab),
-            emb_size=trg_embed.embedding_dim)
+            emb_size=trg_embed.embedding_dim, emb_dropout=dec_emb_dropout)
 
     model = Model(encoder=encoder, decoder=decoder,
                   src_embed=src_embed, trg_embed=trg_embed,

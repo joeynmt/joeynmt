@@ -11,8 +11,7 @@ from torch import Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params, ConfigurationError, subsequent_mask
-from joeynmt.transformer_layers import MultiHeadedAttention, \
-    PositionwiseFeedForward, PositionalEncoding, \
+from joeynmt.transformer_layers import PositionalEncoding, \
     TransformerDecoderLayer
 
 
@@ -21,9 +20,6 @@ class Decoder(nn.Module):
     """
     Base decoder class
     """
-
-    def __init__(self):
-        super(Decoder, self).__init__()
 
     @property
     def output_size(self):
@@ -49,6 +45,7 @@ class RecurrentDecoder(Decoder):
                  num_layers: int = 1,
                  vocab_size: int = 0,
                  dropout: float = 0.,
+                 emb_dropout: float = 0.,
                  hidden_dropout: float = 0.,
                  init_hidden: str = "bridge",
                  input_feeding: bool = True,
@@ -65,7 +62,8 @@ class RecurrentDecoder(Decoder):
         :param num_layers: number of recurrent layers
         :param vocab_size: target vocabulary size
         :param hidden_dropout: Is applied to the input to the attentional layer.
-        :param dropout: Is applied to the input to the RNN.
+        :param dropout: Is applied between RNN layers.
+        :param emb_dropout: Is applied to the RNN input (word embeddings).
         :param init_hidden: If "bridge" (default), the decoder hidden states are
             initialized from a projection of the last encoder state,
             if "zeros" they are initialized with zeros,
@@ -78,7 +76,7 @@ class RecurrentDecoder(Decoder):
 
         super(RecurrentDecoder, self).__init__()
 
-        self.rnn_input_dropout = torch.nn.Dropout(p=dropout, inplace=False)
+        self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
         self.type = rnn_type
         self.hidden_dropout = torch.nn.Dropout(p=hidden_dropout, inplace=False)
         self.hidden_size = hidden_size
@@ -246,7 +244,7 @@ class RecurrentDecoder(Decoder):
         else:
             rnn_input = prev_embed
 
-        rnn_input = self.rnn_input_dropout(rnn_input)
+        rnn_input = self.emb_dropout(rnn_input)
 
         # rnn_input: batch x 1 x emb+2*enc_size
         _, hidden = self.rnn(rnn_input, hidden)

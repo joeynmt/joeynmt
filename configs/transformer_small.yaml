@@ -36,12 +36,12 @@ training:                           # specify training details here
     batch_type: "token"             # create batches with sentences ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
     scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying"
-    epochs: 50                      # train for this many epochs
+    epochs: 1                      # train for this many epochs
     validation_freq: 100            # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "my_trans_model"     # directory where models and validation results are stored, required
+    model_dir: "models/transformer" # directory where models and validation results are stored, required
     overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
     use_cuda: True                  # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
@@ -52,9 +52,10 @@ training:                           # specify training details here
 
 model:                              # specify your model architecture here
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
+    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
     bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
-    embed_initializer: "normal"     # initializer for embeddings (xavier, zeros, normal, uniform)
-    embed_init_weight: 0.05         # weight to initialize; for uniform, will use [-weight, weight]
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
     tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     tied_softmax: True
     encoder:
