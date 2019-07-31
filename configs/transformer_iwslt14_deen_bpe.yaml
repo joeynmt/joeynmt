@@ -13,22 +13,20 @@ data:
     trg_vocab: "test/data/iwslt14/vocab.txt"
 
 testing:
-    beam_size: 1
+    beam_size: 5
     alpha: 1.0
 
 training:
     random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
-    adam_betas: [0.9, 0.98]
+    adam_betas: [0.9, 0.999]
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.7
     loss: "crossentropy"
     learning_rate: 0.0003
     learning_rate_min: 0.00000001
-#    learning_rate_factor: 1     # factor for Noam scheduler (default: 1)
-#    learning_rate_warmup: 4000  # warmup steps for Noam scheduler
     weight_decay: 0.0
     label_smoothing: 0.1
     batch_size: 4096
@@ -38,7 +36,7 @@ training:
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"
-    model_dir: "iwslt14_deen_bpe_transformer"
+    model_dir: "models/iwslt14_deen_bpe_transformer"
     overwrite: False
     shuffle: True
     use_cuda: True
@@ -48,8 +46,9 @@ training:
 
 model:
     initializer: "xavier"
-    embed_initializer: "normal"
-    embed_init_weight: 0.05
+    embed_initializer: "xavier"
+    embed_init_gain: 1.0
+    init_gain: 1.0
     bias_initializer: "zeros"
     tied_embeddings: True
     tied_softmax: True
@@ -60,6 +59,7 @@ model:
         embeddings:
             embedding_dim: 256
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 256
         ff_size: 1024
@@ -71,6 +71,7 @@ model:
         embeddings:
             embedding_dim: 256
             scale: True
+            dropout: 0.
         # typically ff_size = 4 x hidden_size
         hidden_size: 256
         ff_size: 1024
