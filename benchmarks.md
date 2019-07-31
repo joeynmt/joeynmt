@@ -37,6 +37,16 @@ Sockeye (beam=5) | bpe | - | 25.55 | ?
 OpenNMT-Py (beam=5) | bpe | - | 21.95 | ? 
 Joey NMT (beam=5) | bpe |  | 26.0  | 187M 
 
+#### Transformer
+Transformer setting: `configs/transformer_wmt17_ende.yaml` with 6 transformer layers of 512 units, 2048 hidden size, and 8 attention heads in en- and decoder.
+
+Systems | level |  test | #params
+--- | :---: | :---: | :---: 
+Sockeye  | bpe | 27.5 | ?
+Marian  | bpe | 27.4 | ?
+Tensor2Tensor  | bpe | 26.3 | ?
+Joey NMT (beam=5) | bpe | 27.4 | ?
+
 ### Latvian-English
 
 #### Groundhog setting
@@ -58,6 +68,15 @@ Sockeye (beam=5) | bpe | - | 15.9 | ?
 OpenNMT-Py (beam=5) | bpe | - | 13.6 | ? 
 Joey NMT (beam=5) | bpe | 20.12 | 15.8 | 182M
 
+### Transformer
+`configs/transformer_wmt17_lven.yaml` with 6 transformer layers of 512 units, 2048 hidden size, and 8 attention heads in en- and decoder.
+
+Systems | level |  test 
+--- | :---: | :---: 
+Sockeye  | bpe | 18.1
+Marian  | bpe | 217.6 
+Tensor2Tensor  | bpe | 17.7
+Joey NMT (beam=5) | bpe | 18.0
 
 ### IWSLT  German-English
 We compare the RNN against the baseline scores reported in [(Wiseman & Rush, 2016)](https://arxiv.org/pdf/1606.02960.pdf) (W&R), 
