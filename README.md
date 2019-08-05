@@ -188,18 +188,18 @@ If you use Joey NMT in a publication or thesis, please cite the following [paper
 ```
 @ARTICLE{2019arXiv190712484K,
 author = {{Kreutzer}, Julia and {Bastings}, Joost and {Riezler}, Stefan},
-title = "{Joey NMT: A Minimalist NMT Toolkit for Novices}",
+title = {Joey {NMT}: A Minimalist {NMT} Toolkit for Novices},
 journal = {arXiv e-prints},
 keywords = {Computer Science - Computation and Language, Computer Science - Machine Learning},
- year = "2019",
-month = "Jul",
+ year = {2019},
+month = {Jul},
   eid = {arXiv:1907.12484},
 pages = {arXiv:1907.12484},
 archivePrefix = {arXiv},
 eprint = {1907.12484},
 primaryClass = {cs.CL},
 adsurl = {https://ui.adsabs.harvard.edu/abs/2019arXiv190712484K},
-adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+adsnote = {Provided by the {SAO/NASA} Astrophysics Data System}
 }
 ```
 
