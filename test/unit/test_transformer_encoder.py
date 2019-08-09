@@ -38,7 +38,7 @@ class TestTransformerEncoder(TensorTestCase):
 
         # no padding, no mask
         x_length = torch.Tensor([time_dim] * batch_size).int()
-        mask = torch.ones([batch_size, time_dim, 1]).byte()
+        mask = torch.ones([batch_size, time_dim, 1]).bool()
 
         output, hidden = encoder(x, x_length, mask)
 
