@@ -329,9 +329,9 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     max_output_length = cfg["training"].get("max_output_length", None)
 
     # read vocabs
-    src_vocab_file = cfg["training"].get(
+    src_vocab_file = cfg["data"].get(
         "src_vocab", cfg["training"]["model_dir"] + "/src_vocab.txt")
-    trg_vocab_file = cfg["training"].get(
+    trg_vocab_file = cfg["data"].get(
         "trg_vocab", cfg["training"]["model_dir"] + "/trg_vocab.txt")
     src_vocab = Vocabulary(file=src_vocab_file)
     trg_vocab = Vocabulary(file=trg_vocab_file)
