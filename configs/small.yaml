@@ -65,7 +65,7 @@ model:                              # specify your model architecture here
     embed_init_weight: 0.1          # weight to initialize; for uniform, will use [-weight, weight]
     embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
     init_rnn_orthogonal: False      # use orthogonal initialization for recurrent weights (default: False)
-    lstm_forget_gate: 0.            # initialize LSTM forget gate with this value (default: 0.)
+    lstm_forget_gate: 1.0           # initialize LSTM forget gate with this value (default: 1.0)
     tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
     tied_softmax: False             # tie trg embeddings and softmax (for Transformer; can be used together with tied_embeddings), default: False
     encoder:
