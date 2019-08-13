@@ -159,9 +159,10 @@ Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
 
 ## Pre-trained Models
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypothesis):
-- [WMT17 en-de "Groundhog"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_default.tar.gz) (896M)
-- [WMT17 en-de "best"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
-- [WMT17 lv-en "best"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
+- [WMT17 en-de "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
+- [WMT17 lv-en "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
+- [WMT17 en-de Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_transformer.tar.gz) (664M)
+- [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
 
 ## Contributing
 Since this codebase is supposed to stay clean and minimalistic, contributions addressing the following are welcome:
