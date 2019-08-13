@@ -192,7 +192,7 @@ title = {Joey {NMT}: A Minimalist {NMT} Toolkit for Novices},
 journal = {To Appear in EMNLP-ICJNLP 2019: System Demonstrations},
 year = {2019},
 month = {Nov},
-address = {Hongkong}
+address = {Hong Kong}
 url = {https://arxiv.org/abs/1907.12484}
 }
 ```
