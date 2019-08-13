@@ -151,7 +151,7 @@ A screencast of the tutorial is available on [YouTube](https://www.youtube.com/w
 Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
 
 ## Pre-trained Models
-Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypothesis):
+Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
 - [WMT17 en-de "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
 - [WMT17 lv-en "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
 - [WMT17 en-de Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_transformer.tar.gz) (664M)
