@@ -189,7 +189,7 @@ If you use Joey NMT in a publication or thesis, please cite the following [paper
 @ARTICLE{JoeyNMT,
 author = {{Kreutzer}, Julia and {Bastings}, Joost and {Riezler}, Stefan},
 title = {Joey {NMT}: A Minimalist {NMT} Toolkit for Novices},
-journal = {To Appear in EMNLP-ICJNLP 2019: System Demonstrations},
+journal = {To Appear in EMNLP-IJCNLP 2019: System Demonstrations},
 year = {2019},
 month = {Nov},
 address = {Hong Kong}
