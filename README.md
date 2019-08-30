@@ -1,6 +1,6 @@
 # &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
 [![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=master)](https://travis-ci.org/joeynmt/joeynmt)
-
+[![Gitter](https://badges.gitter.im/joeynmt/community.svg)](https://gitter.im/joeynmt/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Goal and Purpose
 Joey NMT framework is developed for educational purposes. 
