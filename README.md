@@ -157,19 +157,23 @@ Pre-trained models from reported benchmarks for download (contains config, vocab
 - [WMT17 en-de Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_transformer.tar.gz) (664M)
 - [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
 
+If you trained JoeyNMT on your own data and would like to share it, please email us so we can add it to the collection of pre-trained models.
+
 ## Contributing
 Since this codebase is supposed to stay clean and minimalistic, contributions addressing the following are welcome:
-- Code correctness
-- Code cleanliness
-- Documentation quality
-- Speed or memory improvements
+- code correctness
+- code cleanliness
+- documentation quality
+- speed or memory improvements
 - resolving issues
+- providing pre-trained models
 
 Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
 
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey, so you can find inspiration and examples on how to modify and extend the code.
 
+- **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. This [repository](https://github.com/jaderabbit/masakhane) contains and explains all the code you need to train JoeyNMT. 
 - **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://arxiv.org/abs/1907.12484).
 - **Self-Regulated Interactive Seq2Seq Learning**. Julia Kreutzer and Stefan Riezler. Published at ACL 2019. [Paper](https://arxiv.org/abs/1907.05190) and [Code](https://github.com/juliakreutzer/joeynmt/tree/acl19). This project augments the standard fully-supervised learning regime by weak and self-supervision for a better trade-off of quality and supervision costs in interactive NMT.
 - **Speech Joey**. [@Sariyusha](https://github.com/Sariyusha) is giving Joey ears for speech translation. [Code](https://github.com/Sariyusha/speech_joey). 
