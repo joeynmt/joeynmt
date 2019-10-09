@@ -312,7 +312,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         # pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
-            model, data=test_data, batch_size=batch_size, 
+            model, data=test_data, batch_size=batch_size,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
