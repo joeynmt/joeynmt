@@ -66,7 +66,7 @@ def validate_on_data(model: Model, data: Dataset,
     valid_iter = make_data_iter(
         dataset=data, batch_size=batch_size, batch_type=batch_type,
         shuffle=False, train=False)
-    valid_sources_raw = [s for s in data.src]
+    valid_sources_raw = data.src
     pad_index = model.src_vocab.stoi[PAD_TOKEN]
     # disable dropout
     model.eval()
@@ -196,8 +196,10 @@ def test(cfg_file,
         except IndexError:
             step = "best"
 
-    batch_size = cfg["training"].get("eval_batch_size", cfg["training"]["batch_size"])
-    batch_type = cfg["training"].get("eval_batch_type", cfg["training"].get("batch_type", "sentence"))
+    batch_size = cfg["training"].get(
+        "eval_batch_size", cfg["training"]["batch_size"])
+    batch_type = cfg["training"].get(
+        "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
     use_cuda = cfg["training"].get("use_cuda", False)
     level = cfg["data"]["level"]
     eval_metric = cfg["training"]["eval_metric"]
@@ -256,7 +258,7 @@ def test(cfg_file,
                 logger.info("Saving attention plots. This might take a while..")
                 store_attention_plots(attentions=attention_scores,
                                       targets=hypotheses_raw,
-                                      sources=[s for s in data_set.src],
+                                      sources=data_set.src,
                                       indices=range(len(hypotheses)),
                                       output_prefix=attention_path)
                 logger.info("Attention plots saved to: %s", attention_path)
@@ -310,7 +312,8 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         # pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
-            model, data=test_data, batch_size=batch_size, batch_type=batch_type, level=level,
+            model, data=test_data, batch_size=batch_size, 
+            batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
             beam_alpha=beam_alpha)
@@ -323,8 +326,10 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
 
-    batch_size = cfg["training"].get("eval_batch_size", cfg["training"].get("batch_size", 1))
-    batch_type = cfg["training"].get("eval_batch_type", cfg["training"].get("batch_type", "sentence"))
+    batch_size = cfg["training"].get(
+        "eval_batch_size", cfg["training"].get("batch_size", 1))
+    batch_type = cfg["training"].get(
+        "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
     use_cuda = cfg["training"].get("use_cuda", False)
     level = cfg["data"]["level"]
     max_output_length = cfg["training"].get("max_output_length", None)
