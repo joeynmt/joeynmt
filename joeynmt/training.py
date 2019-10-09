@@ -363,7 +363,7 @@ class TrainManager:
                         store_attention_plots(
                             attentions=valid_attention_scores,
                             targets=valid_hypotheses_raw,
-                            sources=[s for s in valid_data.src],
+                            sources=valid_data.src,
                             indices=self.log_valid_sents,
                             output_prefix="{}/att.{}".format(
                                 self.model_dir, self.steps),
