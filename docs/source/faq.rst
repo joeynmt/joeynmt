@@ -168,6 +168,12 @@ Model Extensions
   Depends on the scope of your extension. In general, we can recommend describing the desired behavior in the config (e.g. 'use_my_feature:True') and then passing this value along the forward pass and modify the model according to it.
   If your just loading more/richer inputs, you will only have to modify the part from the corpus reading to the encoder input. If you want to modify the training objective, you will naturally work in 'loss.py'.
   Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
+- **How do I integrate a new learning rate scheduler?**
+  1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler.
+  2. You basically need to implement the ``step`` function that implements whatever happens when the scheduler is asked to make a step (either after every validation (``scheduler_step_at="validation"``) or every batch (``scheduler_step_at="step"``)). In that step, the learning rate can
+  be modified just as you like (``rate = self._compute_rate()``). In order to make an effective update of the learning rate, the learning rate for the optimizer's parameter groups have to be set to the new value (``for p in self.optimizer.param_groups: p['lr'] = rate``).
+  3. The last thing that is missing is the parsing of configuration parameters to build the scheduler object. Once again, follow the example of existing schedulers and integrate the code for constructing your new scheduler in the ``build_scheduler`` function.
+  4. Give the new scheduler a try! Integrate it in a basic configuration file and check in the training log and the validation reports whether the learning rate is behaving as desired.
 
 Contributing
 ------------
