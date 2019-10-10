@@ -339,6 +339,7 @@ class TrainManager:
                         valid_ppl=valid_ppl, eval_metric=self.eval_metric,
                         new_best=new_best)
 
+                    # pylint: disable=unnecessary-comprehension
                     self._log_examples(
                         sources_raw=[v for v in valid_sources_raw],
                         sources=valid_sources,
