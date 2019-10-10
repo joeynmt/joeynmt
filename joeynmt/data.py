@@ -107,15 +107,18 @@ global max_src_in_batch, max_tgt_in_batch
 
 # pylint: disable=unused-argument,global-variable-undefined
 def token_batch_size_fn(new, count, sofar):
-    """Compute batch size based on number of tokens (+padding)"""
+    """Compute batch size based on number of tokens (+padding)."""
     global max_src_in_batch, max_tgt_in_batch
     if count == 1:
         max_src_in_batch = 0
         max_tgt_in_batch = 0
     max_src_in_batch = max(max_src_in_batch, len(new.src))
-    max_tgt_in_batch = max(max_tgt_in_batch, len(new.trg) + 2)
     src_elements = count * max_src_in_batch
-    tgt_elements = count * max_tgt_in_batch
+    if hasattr(new, 'trg'):  # for monolingual data sets ("translate" mode)
+        max_tgt_in_batch = max(max_tgt_in_batch, len(new.trg) + 2)
+        tgt_elements = count * max_tgt_in_batch
+    else:
+        tgt_elements = 0
     return max(src_elements, tgt_elements)
 
 

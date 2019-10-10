@@ -340,7 +340,7 @@ class TrainManager:
                         new_best=new_best)
 
                     self._log_examples(
-                        sources_raw=valid_sources_raw,
+                        sources_raw=[v for v in valid_sources_raw],
                         sources=valid_sources,
                         hypotheses_raw=valid_hypotheses_raw,
                         hypotheses=valid_hypotheses,
