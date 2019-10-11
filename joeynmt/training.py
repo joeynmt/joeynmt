@@ -222,6 +222,7 @@ class TrainManager:
         if self.use_cuda:
             self.model.cuda()
 
+    # pylint: disable=unnecessary-comprehension
     def train_and_validate(self, train_data: Dataset, valid_data: Dataset) \
             -> None:
         """
@@ -359,7 +360,6 @@ class TrainManager:
                     self._store_outputs(valid_hypotheses)
 
                     # store attention plots for selected valid sentences
-                    # pylint: disable=unnecessary-comprehension
                     if valid_attention_scores:
                         store_attention_plots(
                             attentions=valid_attention_scores,
