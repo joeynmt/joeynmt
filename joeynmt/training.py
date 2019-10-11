@@ -339,7 +339,6 @@ class TrainManager:
                         valid_ppl=valid_ppl, eval_metric=self.eval_metric,
                         new_best=new_best)
 
-                    # pylint: disable=unnecessary-comprehension
                     self._log_examples(
                         sources_raw=[v for v in valid_sources_raw],
                         sources=valid_sources,
@@ -360,11 +359,12 @@ class TrainManager:
                     self._store_outputs(valid_hypotheses)
 
                     # store attention plots for selected valid sentences
+                    # pylint: disable=unnecessary-comprehension
                     if valid_attention_scores:
                         store_attention_plots(
                             attentions=valid_attention_scores,
                             targets=valid_hypotheses_raw,
-                            sources=valid_data.src,
+                            sources=[s for s in valid_data.src],
                             indices=self.log_valid_sents,
                             output_prefix="{}/att.{}".format(
                                 self.model_dir, self.steps),
