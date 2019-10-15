@@ -268,4 +268,3 @@ class ElanScheduler:
     #pylint: disable=no-self-use
     def state_dict(self):
         return None
-
