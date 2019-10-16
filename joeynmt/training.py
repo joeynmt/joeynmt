@@ -243,9 +243,10 @@ class TrainManager:
 
             self.model.train()
 
+            # Reset statistics for each epoch.
             start = time.time()
             total_valid_duration = 0
-            processed_tokens = self.total_tokens
+            start_tokens = self.total_tokens
             count = self.batch_multiplier - 1
             epoch_loss = 0
 
@@ -275,7 +276,7 @@ class TrainManager:
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
-                    elapsed_tokens = self.total_tokens - processed_tokens
+                    elapsed_tokens = self.total_tokens - start_tokens
                     self.logger.info(
                         "Epoch %3d Step: %8d Batch Loss: %12.6f "
                         "Tokens per Sec: %8.0f, Lr: %.6f",
@@ -284,6 +285,7 @@ class TrainManager:
                         self.optimizer.param_groups[0]["lr"])
                     start = time.time()
                     total_valid_duration = 0
+                    start_tokens = self.total_tokens
 
                 # validate on the entire dev set
                 if self.steps % self.validation_freq == 0 and update:
