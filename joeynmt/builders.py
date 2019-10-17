@@ -163,7 +163,7 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
             min_rate = config.get("learning_rate_min", 1.0e-5)
             decay_rate = config.get("learning_rate_decay", 0.1)
             warmup = config.get("learning_rate_warmup", 4000)
-            peak_rate = config.get("learning_rate_peak", 1.0)
+            peak_rate = config.get("learning_rate_peak", 1.0e-3)
             decay_length = config.get("learning_rate_decay_length", 10000)
             scheduler = ElanScheduler(min_rate=min_rate, decay_rate=decay_rate,
                                       warmup=warmup, optimizer=optimizer,
@@ -223,7 +223,8 @@ class ElanScheduler:
     The decay is exponential up to a given minimum rate.
     """
 
-    def __init__(self, optimizer: torch.optim.Optimizer, peak_rate: float = 1.0,
+    def __init__(self, optimizer: torch.optim.Optimizer,
+                 peak_rate: float = 1.0e-3,
                  decay_length: int = 10000, warmup: int = 4000,
                  decay_rate: float = 0.5, min_rate: float = 1.0e-5):
         """
