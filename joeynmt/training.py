@@ -188,9 +188,13 @@ class TrainManager:
 
         self.ckpt_queue.put(model_path)
 
-        # create/modify symbolic link for best checkpoint
-        symlink_update("{}.ckpt".format(self.steps),
-                       "{}/best.ckpt".format(self.model_dir))
+        best_path = "{}/best.ckpt".format(self.model_dir)
+        try:
+            # create/modify symbolic link for best checkpoint
+            symlink_update("{}.ckpt".format(self.steps), best_path)
+        except OSError:
+            # overwrite best.ckpt
+            torch.save(state, best_path)
 
     def init_from_checkpoint(self, path: str) -> None:
         """
