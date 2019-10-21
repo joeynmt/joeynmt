@@ -110,7 +110,8 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
         - "decaying": see `torch.optim.lr_scheduler.StepLR`
         - "exponential": see `torch.optim.lr_scheduler.ExponentialLR`
         - "noam": see `joeynmt.builders.NoamScheduler`
-        - "elan": see `joeynmt.builders.ElanScheduler`
+        - "warmupexponentialdecay": see
+          `joeynmt.builders.WarmupExponentialDecayScheduler`
 
     If no scheduler is specified, returns (None, None) which will result in
     a constant learning rate.
@@ -159,16 +160,16 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
                                       warmup=warmup, optimizer=optimizer)
 
             scheduler_step_at = "step"
-        elif config["scheduling"].lower() == "elan":
+        elif config["scheduling"].lower() == "warmupexponentialdecay":
             min_rate = config.get("learning_rate_min", 1.0e-5)
             decay_rate = config.get("learning_rate_decay", 0.1)
             warmup = config.get("learning_rate_warmup", 4000)
             peak_rate = config.get("learning_rate_peak", 1.0e-3)
             decay_length = config.get("learning_rate_decay_length", 10000)
-            scheduler = ElanScheduler(min_rate=min_rate, decay_rate=decay_rate,
-                                      warmup=warmup, optimizer=optimizer,
-                                      peak_rate=peak_rate,
-                                      decay_length=decay_length)
+            scheduler = WarmupExponentialDecayScheduler(
+                min_rate=min_rate, decay_rate=decay_rate,
+                warmup=warmup, optimizer=optimizer, peak_rate=peak_rate,
+                decay_length=decay_length)
             scheduler_step_at = "step"
     return scheduler, scheduler_step_at
 
@@ -216,9 +217,9 @@ class NoamScheduler:
         return None
 
 
-class ElanScheduler:
+class WarmupExponentialDecayScheduler:
     """
-    A learning rate scheduler similar to Noam, but modified as proposed by Elan:
+    A learning rate scheduler similar to Noam, but modified:
     Keep the warm up period but make it so that the decay rate can be tuneable.
     The decay is exponential up to a given minimum rate.
     """
