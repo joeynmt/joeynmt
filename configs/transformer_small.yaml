@@ -35,7 +35,7 @@ training:                           # specify training details here
     batch_size: 250                 # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
     batch_type: "token"             # create batches with sentences ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
-    scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer)
+    scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
     epochs: 1                       # train for this many epochs
     validation_freq: 100            # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
