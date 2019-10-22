@@ -152,10 +152,28 @@ Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
 
 ## Pre-trained Models
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
+
+### WMT17
+Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.05690).
+
 - [WMT17 en-de "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
 - [WMT17 lv-en "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
 - [WMT17 en-de Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_transformer.tar.gz) (664M)
 - [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
+
+### Autshumato
+Traing with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
+
+- [Autshumato en-af small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enaf_transformer.tar.gz) (147M)
+- [Autshumato af-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_afen_transformer.tar.gz) (147M)
+- [Autshumato en-nso small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_ennso_transformer.tar.gz) (147M)
+- [Autshumato nso-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_nsoen_transformer.tar.gz) (147M)
+- [Autshumato en-tn small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_entn_transformer.tar.gz) (319M)
+- [Autshumato tn-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_tnen_transformer.tar.gz) (321M)
+- [Autshumato en-ts small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_ents_transformer.tar.gz) (229M)
+- [Autshumato ts-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_tsen_transformer.tar.gz) (229M)
+- [Autshumato en-zu small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enzu_transformer.tar.gz) (147M)
+- [Autshumato zu-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_zuen_transformer.tar.gz) (147M)
 
 If you trained JoeyNMT on your own data and would like to share it, please email us so we can add it to the collection of pre-trained models.
 
