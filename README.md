@@ -54,6 +54,8 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://git
 3. Run the unit tests:
 `python3 -m unittest`
 
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+
 
 ## Usage
 
