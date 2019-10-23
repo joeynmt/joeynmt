@@ -11,7 +11,9 @@ Training
 ^^^^^^^^
 
 - **How can I train the model on GPU/CPU?**
-   Set the ``use_cuda`` flag in the configuration to True for training on GPU (requires CUDA) or to False for training on CPU.
+   First of all, make sure you have the correct version of pytorch installed. 
+   When running on *GPU* you need to manually install the suitable PyTorch version for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+   Then set the ``use_cuda`` flag in the configuration to True for training on GPU (requires CUDA) or to False for training on CPU.
 
 - **How can I stop training?**
    Simply press Control+C.
