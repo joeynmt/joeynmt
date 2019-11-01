@@ -154,7 +154,7 @@ With `use_cuda` we can decide whether to train the model on GPU (True) or CPU (F
 3. Testing Section
 ------------------
 
-Here we only specify which decoding strategy we want to use during testing. If ``beam_size: 0`` the model greedily decodes, otherwise it uses a beam of ``beam_size`` to search for the best output.
+Here we only specify which decoding strategy we want to use during testing. If ``beam_size: 1`` the model greedily decodes, otherwise it uses a beam of ``beam_size`` to search for the best output.
 `alpha` is the length penalty for beam search (proposed in `Wu et al. 2018 <https://arxiv.org/pdf/1609.08144.pdf>`_).
 
 .. code-block:: python
