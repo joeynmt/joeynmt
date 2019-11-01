@@ -13,12 +13,12 @@ class TestTransformerDecoder(TensorTestCase):
         self.ff_size = 24
         self.num_heads = 4
         self.dropout = 0.
-        self.seed = 42
+        seed = 42
+        torch.manual_seed(seed)
 
     def test_transformer_decoder_freeze(self):
-        torch.manual_seed(self.seed)
-        encoder = TransformerDecoder(freeze=True)
-        for n, p in encoder.named_parameters():
+        decoder = TransformerDecoder(freeze=True)
+        for n, p in decoder.named_parameters():
             self.assertFalse(p.requires_grad)
 
     def test_transformer_decoder_output_size(self):
@@ -35,7 +35,6 @@ class TestTransformerDecoder(TensorTestCase):
         self.assertEqual(decoder.output_size, vocab_size)
 
     def test_transformer_decoder_forward(self):
-        torch.manual_seed(self.seed)
         batch_size = 2
         src_time_dim = 4
         trg_time_dim = 5
@@ -114,10 +113,6 @@ class TestTransformerDecoder(TensorTestCase):
 
     def test_transformer_decoder_layers(self):
 
-        torch.manual_seed(self.seed)
-        batch_size = 2
-        src_time_dim = 4
-        trg_time_dim = 5
         vocab_size = 7
 
         decoder = TransformerDecoder(

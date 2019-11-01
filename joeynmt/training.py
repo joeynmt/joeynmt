@@ -51,7 +51,7 @@ class TrainManager:
         self.model_dir = make_model_dir(train_config["model_dir"],
                                         overwrite=train_config.get(
                                             "overwrite", False))
-        self.logger = make_logger(model_dir=self.model_dir)
+        self.logger = make_logger("{}/train.log".format(self.model_dir))
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(log_dir=self.model_dir+"/tensorboard/")
@@ -299,6 +299,7 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
+                            logger=self.logger,
                             batch_size=self.eval_batch_size,
                             data=valid_data,
                             eval_metric=self.eval_metric,
@@ -306,7 +307,7 @@ class TrainManager:
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
                             loss_function=self.loss,
-                            beam_size=0,  # greedy validations
+                            beam_size=1,  # greedy validations
                             batch_type=self.eval_batch_type
                         )
 
@@ -357,10 +358,11 @@ class TrainManager:
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
                     self.logger.info(
-                        'Validation result at epoch %3d, step %8d: %s: %6.2f, '
-                        'loss: %8.4f, ppl: %8.4f, duration: %.4fs',
-                            epoch_no+1, self.steps, self.eval_metric,
-                            valid_score, valid_loss, valid_ppl, valid_duration)
+                        'Validation result (greedy) at epoch %3d, '
+                        'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
+                        'duration: %.4fs', epoch_no+1, self.steps,
+                        self.eval_metric, valid_score, valid_loss,
+                        valid_ppl, valid_duration)
 
                     # store validation set outputs
                     self._store_outputs(valid_hypotheses)
@@ -388,8 +390,9 @@ class TrainManager:
                              epoch_loss)
         else:
             self.logger.info('Training ended after %3d epochs.', epoch_no+1)
-        self.logger.info('Best validation result at step %8d: %6.2f %s.',
-                         self.best_ckpt_iteration, self.best_ckpt_score,
+        self.logger.info('Best validation result (greedy) at step '
+                         '%8d: %6.2f %s.', self.best_ckpt_iteration,
+                         self.best_ckpt_score,
                          self.early_stopping_metric)
 
         self.tb_writer.close()  # close Tensorboard writer

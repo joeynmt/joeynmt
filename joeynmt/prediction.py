@@ -4,14 +4,14 @@ This modules holds methods for generating predictions from a model.
 """
 import os
 import sys
-import logging
 from typing import List, Optional
+from logging import Logger
 import numpy as np
 
 import torch
 from torchtext.data import Dataset, Field
 
-from joeynmt.helpers import bpe_postprocess, load_config, \
+from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model
@@ -23,11 +23,12 @@ from joeynmt.vocabulary import Vocabulary
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
+                     logger: Logger,
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      loss_function: torch.nn.Module = None,
-                     beam_size: int = 0, beam_alpha: int = -1,
+                     beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence"
                      ) \
         -> (float, float, float, List[str], List[List[str]], List[str],
@@ -38,6 +39,7 @@ def validate_on_data(model: Model, data: Dataset,
     also compute the loss.
 
     :param model: model module
+    :param logger: logger
     :param data: dataset for validation
     :param batch_size: validation batch size
     :param use_cuda: if True, use CUDA
@@ -47,7 +49,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param loss_function: loss function that computes a scalar loss
         for given inputs and targets
     :param beam_size: beam size for validation.
-        If 0 then greedy decoding (default).
+        If <2 then greedy decoding (default).
     :param beam_alpha: beam search alpha for length penalty,
         disabled if set to -1 (default).
     :param batch_type: validation batch type (sentence or token)
@@ -63,6 +65,12 @@ def validate_on_data(model: Model, data: Dataset,
         - decoded_valid: raw validation hypotheses (before post-processing),
         - valid_attention_scores: attention scores for validation hypotheses
     """
+    if batch_size > 1000 and batch_type == "sentence":
+        logger.warning(
+            "WARNING: Are you sure you meant to work on huge batches like "
+            "this? 'batch_size' is > 1000 for sentence-batching. "
+            "Consider decreasing it or switching to"
+            " 'eval_batch_type: token'.")
     valid_iter = make_data_iter(
         dataset=data, batch_size=batch_size, batch_type=batch_type,
         shuffle=False, train=False)
@@ -161,7 +169,7 @@ def test(cfg_file,
          ckpt: str,
          output_path: str = None,
          save_attention: bool = False,
-         logger: logging.Logger = None) -> None:
+         logger: Logger = None) -> None:
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
@@ -174,10 +182,7 @@ def test(cfg_file,
     """
 
     if logger is None:
-        logger = logging.getLogger(__name__)
-        FORMAT = '%(asctime)-15s - %(message)s'
-        logging.basicConfig(format=FORMAT)
-        logger.setLevel(level=logging.DEBUG)
+        logger = make_logger()
 
     cfg = load_config(cfg_file)
 
@@ -223,10 +228,10 @@ def test(cfg_file,
 
     # whether to use beam search for decoding, 0: greedy decoding
     if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 0)
+        beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
     else:
-        beam_size = 0
+        beam_size = 1
         beam_alpha = -1
 
     for data_set_name, data_set in data_to_predict.items():
@@ -238,11 +243,11 @@ def test(cfg_file,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha)
+            beam_alpha=beam_alpha, logger=logger)
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
-            decoding_description = "Greedy decoding" if beam_size == 0 else \
+            decoding_description = "Greedy decoding" if beam_size < 2 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
             logger.info("%4s %s: %6.2f [%s]",
@@ -266,7 +271,7 @@ def test(cfg_file,
                 logger.warning("Attention scores could not be saved. "
                                "Note that attention scores are not available "
                                "when using beam search. "
-                               "Set beam_size to 0 for greedy decoding.")
+                               "Set beam_size to 1 for greedy decoding.")
 
         if output_path is not None:
             output_path_set = "{}.{}".format(output_path, data_set_name)
@@ -287,6 +292,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
 
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
+    :param output_path: path to output file
     """
 
     def _load_line_as_data(line):
@@ -307,6 +313,8 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
 
         return test_data
 
+    logger = make_logger()
+
     def _translate_data(test_data):
         """ Translates given dataset, using parameters from outer scope. """
         # pylint: disable=unused-variable
@@ -316,7 +324,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha)
+            beam_alpha=beam_alpha, logger=logger)
         return hypotheses
 
     cfg = load_config(cfg_file)
@@ -365,32 +373,35 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     if use_cuda:
         model.cuda()
 
-    # whether to use beam search for decoding, 0: greedy decoding
+    # whether to use beam search for decoding, <2: greedy decoding
     if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 0)
+        beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
     else:
-        beam_size = 0
+        beam_size = 1
         beam_alpha = -1
 
     if not sys.stdin.isatty():
-        # file given
+        # input file given
         test_data = MonoDataset(path=sys.stdin, ext="", field=src_field)
         hypotheses = _translate_data(test_data)
 
         if output_path is not None:
+            # write to outputfile if given
             output_path_set = "{}".format(output_path)
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
-            print("Translations saved to: {}".format(output_path_set))
+            logger.info("Translations saved to: %s.", output_path_set)
         else:
+            # print to stdout
             for hyp in hypotheses:
                 print(hyp)
 
     else:
         # enter interactive mode
         batch_size = 1
+        batch_type = "sentence"
         while True:
             try:
                 src_input = input("\nPlease enter a source sentence "

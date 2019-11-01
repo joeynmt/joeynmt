@@ -46,25 +46,27 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
     return model_dir
 
 
-def make_logger(model_dir: str, log_file: str = "train.log") -> Logger:
+def make_logger(log_file: str = None) -> Logger:
     """
-    Create a logger for logging the training process.
+    Create a logger for logging the training/testing process.
 
-    :param model_dir: path to logging directory
-    :param log_file: path to logging file
+    :param log_file: path to file where log is stored as well
     :return: logger object
     """
     logger = logging.getLogger(__name__)
     logger.setLevel(level=logging.DEBUG)
-    fh = logging.FileHandler(
-        "{}/{}".format(model_dir, log_file))
-    fh.setLevel(level=logging.DEBUG)
-    logger.addHandler(fh)
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+
+    if log_file is not None:
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(level=logging.DEBUG)
+        logger.addHandler(fh)
+        fh.setFormatter(formatter)
+
     sh = logging.StreamHandler()
     sh.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(message)s')
-    fh.setFormatter(formatter)
     sh.setFormatter(formatter)
+
     logging.getLogger("").addHandler(sh)
     logger.info("Hello! This is Joey-NMT.")
     return logger

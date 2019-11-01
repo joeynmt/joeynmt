@@ -9,7 +9,7 @@ class TestEmbeddings(TensorTestCase):
     def setUp(self):
         self.emb_size = 10
         self.vocab_size = 11
-        self.pad_idx = 2
+        self.pad_idx = 1
         seed = 42
         torch.manual_seed(seed)
 
@@ -67,8 +67,6 @@ class TestEmbeddings(TensorTestCase):
         self.assertTensorEqual(
             torch.index_select(input=weights, index=indices, dim=0)*
             (self.emb_size**0.5), embedded)
-
-
 
     def _fill_embeddings(self, embeddings, weights):
         embeddings.lut.weight.data = weights

@@ -57,6 +57,7 @@ Tuning
    There is no universal answer to this question. We recommend you to check publications that used the same data as you're using (or at least the same language pair and data size)
    and find out how large their models where, how long they trained them etc.
    You might also get inspiration from the benchmarks that we report. Their configuration files can be found in the ``configs`` directory.
+
 - **Which hyperparameters should I change first?**
     As above, there is no universal answer. Some things to consider:
 
@@ -109,11 +110,14 @@ Configurations
 - **My model with configs/small.yaml doesn't perform well.`**
   No surprise! This configuration is created for the purpose of documentation: it contains all parameter settings with a description. It does not perform well on the actual task that it uses. Try the reverse or copy task instead!
 
+- **What does batch_type mean?**
+  The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (`batch_type: "sentence"`), or by a maximum number of tokens (`batch_type: "token"`). For Transformer models, mini-batching is usually done by tokens.
+
 Data
 ^^^^
 - **Does JoeyNMT pre-process my data?**
    JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
-   For that purpose, you might find the tools provided by the Moses decoder useful, as well as the subwordnmt library for BPEs.
+   For that purpose, you might find the tools provided by the Moses decoder useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ library for BPEs.
    However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length)
    that you specify in the data section of the configuration file.
 
@@ -133,18 +137,24 @@ Features
 --------
 - **Which models does Joey NMT implement?**
    For the exact description of the RNN and Transformer model, check out the `paper <https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf>`_.
+
 - **Why is there no convolutional model?**
    We might add it in the future, but from our experience, the most popular models are recurrent and self-attentional.
+
 - **How are the parameters initialized?**
    Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
+
 - **Is there the option to ensemble multiple models?**
    You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/scripts/average_checkpoints.py>`_.
+
 - **What is a bridge?**
    We call the connection between recurrent encoder and decoder states the *bridge*.
    This can either mean that the decoder states are initialized by copying the last (forward) encoder state (``init_hidden: "last"``),
    by learning a projection of the last encoder state (``init_hidden: "bridge"``) or simply zeros (``init_hidden: "zero"``).
+
 - **Does learning rate scheduling matter?**
    Yes! Especially if you start with a high learning rate -- make sure you don't decay it too quickly or slowly.
+
 - **What is early stopping?**
    Early stopping means that we track the quality on the validation set and stop at a good point before complete convergence.
 
@@ -170,6 +180,7 @@ Model Extensions
   Depends on the scope of your extension. In general, we can recommend describing the desired behavior in the config (e.g. 'use_my_feature:True') and then passing this value along the forward pass and modify the model according to it.
   If your just loading more/richer inputs, you will only have to modify the part from the corpus reading to the encoder input. If you want to modify the training objective, you will naturally work in 'loss.py'.
   Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
+
 - **How do I integrate a new learning rate scheduler?**
   1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler.
   2. You basically need to implement the ``step`` function that implements whatever happens when the scheduler is asked to make a step (either after every validation (``scheduler_step_at="validation"``) or every batch (``scheduler_step_at="step"``)). In that step, the learning rate can
@@ -181,6 +192,7 @@ Contributing
 ------------
 - **How can I contribute?**
   Check out the current issues and look for "beginner-friendly" tags and grab one of these.
+
 - **What's in a Pull Request?**
   Opening a pull request means that you have written code that you want to contribute to Joey NMT. In order to communicate what your code does, please write a description of new features, defaults etc.
   Your new code should also pass tests and adher to style guidelines, this will be tested automatically. The code will only be pushed when all issues raised by reviewers have been addressed.
@@ -191,9 +203,12 @@ Miscellaneous
 - **Why should I use JoeyNMT rather than other NMT toolkits?**
   It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all latest features, but rather the core features that make up for 99% of the quality.
   That means for you, once you know how to work with it, we guarantee you the code won't completely change from one day to the next.
+
 - **I found a bug in your code, what should I do?**
   Describe it in an issue on GitHub! And even better: fix it and create a pull request. Open source contributions look good on your CV! ;)
+
 - **How can I check whether my model is significantly better than my baseline model?**
   Run significance tests, e.g. with `Multeval <https://github.com/jhclark/multeval>`_.
+
 - **Where can I find training data?**
   See :ref:`resources`.
