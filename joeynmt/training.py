@@ -51,7 +51,7 @@ class TrainManager:
         self.model_dir = make_model_dir(train_config["model_dir"],
                                         overwrite=train_config.get(
                                             "overwrite", False))
-        self.logger = make_logger(model_dir=self.model_dir)
+        self.logger = make_logger("{}/train.log".format(self.model_dir))
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(log_dir=self.model_dir+"/tensorboard/")
@@ -299,6 +299,7 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
+                            logger=self.logger,
                             batch_size=self.eval_batch_size,
                             data=valid_data,
                             eval_metric=self.eval_metric,
