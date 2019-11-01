@@ -27,7 +27,7 @@ def validate_on_data(model: Model, data: Dataset,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      loss_function: torch.nn.Module = None,
-                     beam_size: int = 0, beam_alpha: int = -1,
+                     beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence"
                      ) \
         -> (float, float, float, List[str], List[List[str]], List[str],
@@ -47,7 +47,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param loss_function: loss function that computes a scalar loss
         for given inputs and targets
     :param beam_size: beam size for validation.
-        If 0 then greedy decoding (default).
+        If <2 then greedy decoding (default).
     :param beam_alpha: beam search alpha for length penalty,
         disabled if set to -1 (default).
     :param batch_type: validation batch type (sentence or token)
@@ -223,10 +223,10 @@ def test(cfg_file,
 
     # whether to use beam search for decoding, 0: greedy decoding
     if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 0)
+        beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
     else:
-        beam_size = 0
+        beam_size = 1
         beam_alpha = -1
 
     for data_set_name, data_set in data_to_predict.items():
@@ -242,7 +242,7 @@ def test(cfg_file,
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
-            decoding_description = "Greedy decoding" if beam_size == 0 else \
+            decoding_description = "Greedy decoding" if beam_size < 2 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
             logger.info("%4s %s: %6.2f [%s]",
@@ -266,7 +266,7 @@ def test(cfg_file,
                 logger.warning("Attention scores could not be saved. "
                                "Note that attention scores are not available "
                                "when using beam search. "
-                               "Set beam_size to 0 for greedy decoding.")
+                               "Set beam_size to 1 for greedy decoding.")
 
         if output_path is not None:
             output_path_set = "{}.{}".format(output_path, data_set_name)
@@ -365,12 +365,12 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     if use_cuda:
         model.cuda()
 
-    # whether to use beam search for decoding, 0: greedy decoding
+    # whether to use beam search for decoding, <2: greedy decoding
     if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 0)
+        beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
     else:
-        beam_size = 0
+        beam_size = 1
         beam_alpha = -1
 
     if not sys.stdin.isatty():
@@ -391,6 +391,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     else:
         # enter interactive mode
         batch_size = 1
+        batch_type = "sentence"
         while True:
             try:
                 src_input = input("\nPlease enter a source sentence "
