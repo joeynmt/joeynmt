@@ -63,6 +63,11 @@ def validate_on_data(model: Model, data: Dataset,
         - decoded_valid: raw validation hypotheses (before post-processing),
         - valid_attention_scores: attention scores for validation hypotheses
     """
+    if batch_size > 1000 and batch_type == "sentence":
+        print("WARNING: Are you sure you meant to create huge batches like "
+              "this? 'eval_batch_size' is > 1000 for sentence-batching. "
+              "Consider decreasing it or switching to"
+              " 'eval_batch_type: token'.")
     valid_iter = make_data_iter(
         dataset=data, batch_size=batch_size, batch_type=batch_type,
         shuffle=False, train=False)
