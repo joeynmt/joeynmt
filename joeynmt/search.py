@@ -85,9 +85,9 @@ def recurrent_greedy(
 
         # greedy decoding: choose arg max over vocabulary in each step
         next_word = torch.argmax(logits, dim=-1)  # batch x time=1
-        output.append(next_word.squeeze(1).cpu().numpy())
+        output.append(next_word.squeeze(1).detach().cpu().numpy())
         prev_y = next_word
-        attention_scores.append(att_probs.squeeze(1).cpu().numpy())
+        attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
         # batch, max_src_lengths
     stacked_output = np.stack(output, axis=1)  # batch, time
     stacked_attention_scores = np.stack(attention_scores, axis=1)
@@ -98,13 +98,13 @@ def recurrent_greedy(
 def transformer_greedy(
         src_mask: Tensor, embed: Embeddings,
         bos_index: int, max_output_length: int, decoder: Decoder,
-        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
+        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, None):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
 
     :param src_mask: mask for source inputs, 0 for positions after </s>
-    :param embed: target embedding
+    :param embed: target embedding layer
     :param bos_index: index of <s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
@@ -125,7 +125,7 @@ def transformer_greedy(
 
     for _ in range(max_output_length):
 
-        trg_embed = embed(ys)  # embed the BOS-symbol
+        trg_embed = embed(ys)  # embed the previous tokens
 
         # pylint: disable=unused-variable
         with torch.no_grad():
@@ -145,7 +145,7 @@ def transformer_greedy(
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
 
     ys = ys[:, 1:]  # remove BOS-symbol
-    return ys, None
+    return ys.detach().cpu().numpy(), None
 
 
 # pylint: disable=too-many-statements,too-many-branches
@@ -173,11 +173,13 @@ def beam_search(
     :param max_output_length:
     :param alpha: `alpha` factor for length penalty
     :param embed:
-    :param n_best: return this many hypotheses, <= beam
+    :param n_best: return this many hypotheses, <= beam (currently only 1)
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
+    assert size > 0, 'Beam size must be >0.'
+    assert n_best <= size, 'Can only return {} best hypotheses.'.format(size)
 
     # init
     transformer = isinstance(decoder, TransformerDecoder)
