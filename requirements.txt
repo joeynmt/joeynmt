@@ -11,4 +11,4 @@ matplotlib
 seaborn
 pyyaml>=5.1
 pylint
-six>=1.12
+six==1.12
