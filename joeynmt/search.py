@@ -229,18 +229,17 @@ def beam_search(
         device=encoder_output.device)
 
     # Give full probability to the first beam on the first step.
-    # pylint: disable=not-callable
-    topk_log_probs = (torch.tensor([0.0] + [float("-inf")] * (size - 1),
-                                   device=encoder_output.device).repeat(
-                                    batch_size))
+    topk_log_probs = torch.zeros(batch_size, size, device=encoder_output.device)
+    topk_log_probs[:, 1:] = float("-inf")
 
     # Structure that holds finished hypotheses.
     hypotheses = [[] for _ in range(batch_size)]
 
-    results = {}
-    results["predictions"] = [[] for _ in range(batch_size)]
-    results["scores"] = [[] for _ in range(batch_size)]
-    results["gold_score"] = [0] * batch_size
+    results = {
+        "predictions": [[] for _ in range(batch_size)],
+        "scores": [[] for _ in range(batch_size)],
+        "gold_score": [0] * batch_size,
+    }
 
     for step in range(max_output_length):
 
@@ -280,7 +279,7 @@ def beam_search(
 
         # multiply probs by the beam probability (=add logprobs)
         log_probs += topk_log_probs.view(-1).unsqueeze(1)
-        curr_scores = log_probs
+        curr_scores = log_probs.clone()
 
         # compute length penalty
         if alpha > -1:
@@ -296,6 +295,8 @@ def beam_search(
         if alpha > -1:
             # recover original log probs
             topk_log_probs = topk_scores * length_penalty
+        else:
+            topk_log_probs = topk_scores.clone()
 
         # reconstruct beam origin and true word ids from flattened order
         topk_beam_index = topk_ids.div(decoder.output_size)
@@ -314,9 +315,9 @@ def beam_search(
 
         is_finished = topk_ids.eq(eos_index)
         if step + 1 == max_output_length:
-            is_finished.fill_(1)
+            is_finished.fill_(True)
         # end condition is whether the top beam is finished
-        end_condition = is_finished[:, 0].eq(1)
+        end_condition = is_finished[:, 0].eq(True)
 
         # save finished hypotheses
         if is_finished.any():
@@ -328,10 +329,13 @@ def beam_search(
                 finished_hyp = is_finished[i].nonzero().view(-1)
                 # store finished hypotheses for this batch
                 for j in finished_hyp:
-                    hypotheses[b].append((
-                        topk_scores[i, j],
-                        predictions[i, j, 1:])  # ignore start_token
-                    )
+                    # Check if the prediction has more than one EOS.
+                    # If it has more than one EOS, it means that the prediction should have already
+                    # been added to the hypotheses, so you don't have to add them again.
+                    if (predictions[i, j, 1:] == eos_index).nonzero().numel() < 2:
+                        hypotheses[b].append(
+                            (topk_scores[i, j], predictions[i, j, 1:])  # ignore start_token
+                        )
                 # if the batch reached the end, save the n_best hypotheses
                 if end_condition[i]:
                     best_hyp = sorted(
@@ -341,7 +345,7 @@ def beam_search(
                             break
                         results["scores"][b].append(score)
                         results["predictions"][b].append(pred)
-            non_finished = end_condition.eq(0).nonzero().view(-1)
+            non_finished = end_condition.eq(False).nonzero().view(-1)
             # if all sentences are translated, no need to go further
             # pylint: disable=len-as-condition
             if len(non_finished) == 0:
