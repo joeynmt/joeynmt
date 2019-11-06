@@ -330,11 +330,14 @@ def beam_search(
                 # store finished hypotheses for this batch
                 for j in finished_hyp:
                     # Check if the prediction has more than one EOS.
-                    # If it has more than one EOS, it means that the prediction should have already
-                    # been added to the hypotheses, so you don't have to add them again.
-                    if (predictions[i, j, 1:] == eos_index).nonzero().numel() < 2:
+                    # If it has more than one EOS, it means that the
+                    # prediction should have already been added to
+                    # the hypotheses, so you don't have to add them again.
+                    if (predictions[i, j, 1:] == eos_index).nonzero().numel() \
+                            < 2:
+                        # ignore start_token
                         hypotheses[b].append(
-                            (topk_scores[i, j], predictions[i, j, 1:])  # ignore start_token
+                            (topk_scores[i, j], predictions[i, j, 1:])
                         )
                 # if the batch reached the end, save the n_best hypotheses
                 if end_condition[i]:
