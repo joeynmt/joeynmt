@@ -38,12 +38,15 @@ Training
    Depends on the size of your data. For most use-cases you want to validate at least once per epoch.
    Say you have 100k training examples and train with mini-batches of size 20, then you should set ``validation_freq`` to 5000 (100k/20) to validate once per epoch.
 
-- **How can I perform domain adaptation?**
+- **How can I perform domain adaptation or fine-tuning?**
+   Both approaches are similar, so we call the fine-tuning data *in-domain* data in the following.
    1. First train your model on one dataset (the *out-of-domain* data).
    2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
     Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
     You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
     In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
+    If you set ``reset_best_ckpt'': True'', previously stored high scores under your metric will be ignored, and if you set ``reset_scheduler'' and ``reset_optimizer'' you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
+    Use this if the scores on your new dev set are lower than on the old dev set, or if you use a different metric or schedule for fine-tuning.
    3. Train the in-domain model.
 
 - **What if training is interrupted and I need to resume it?**
