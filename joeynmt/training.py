@@ -153,7 +153,13 @@ class TrainManager:
         if "load_model" in train_config.keys():
             model_load_path = train_config["load_model"]
             self.logger.info("Loading model from %s", model_load_path)
-            self.init_from_checkpoint(model_load_path)
+            reset_best_ckpt = train_config.get("reset_best_ckpt", False)
+            reset_scheduler = train_config.get("reset_scheduler", False)
+            reset_optimizer = train_config.get("reset_optimizer", False)
+            self.init_from_checkpoint(model_load_path,
+                                      reset_best_ckpt=reset_best_ckpt,
+                                      reset_scheduler=reset_scheduler,
+                                      reset_optimizer=reset_optimizer)
 
     def _save_checkpoint(self) -> None:
         """
@@ -196,7 +202,10 @@ class TrainManager:
             # overwrite best.ckpt
             torch.save(state, best_path)
 
-    def init_from_checkpoint(self, path: str) -> None:
+    def init_from_checkpoint(self, path: str,
+                             reset_best_ckpt: bool = False,
+                             reset_scheduler: bool = False,
+                             reset_optimizer: bool = False) -> None:
         """
         Initialize the trainer from a given checkpoint file.
 
@@ -204,23 +213,41 @@ class TrainManager:
         scheduler and optimizer states, see `self._save_checkpoint`.
 
         :param path: path to checkpoint
+        :param reset_best_ckpt: reset tracking of the best checkpoint,
+                                use for domain adaptation with a new dev
+                                set or when using a new metric for fine-tuning.
+        :param reset_scheduler: reset the learning rate scheduler, and do not
+                                use the one stored in the checkpoint.
+        :param reset_optimizer: reset the optimizer, and do not use the one
+                                stored in the checkpoint.
         """
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
 
         # restore model and optimizer parameters
         self.model.load_state_dict(model_checkpoint["model_state"])
 
-        self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+        if not reset_optimizer:
+            self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+        else:
+            self.logger.info("Reset optimizer.")
 
-        if model_checkpoint["scheduler_state"] is not None and \
-                self.scheduler is not None:
-            self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
+        if not reset_scheduler:
+            if model_checkpoint["scheduler_state"] is not None and \
+                    self.scheduler is not None:
+                self.scheduler.load_state_dict(
+                    model_checkpoint["scheduler_state"])
+        else:
+            self.logger.info("Reset scheduler.")
 
         # restore counts
         self.steps = model_checkpoint["steps"]
         self.total_tokens = model_checkpoint["total_tokens"]
-        self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
-        self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+
+        if not reset_best_ckpt:
+            self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
+            self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+        else:
+            self.logger.info("Reset tracking of the best checkpoint.")
 
         # move parameters to cuda
         if self.use_cuda:
