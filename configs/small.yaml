@@ -8,6 +8,7 @@ data: # specify your data here
     train: "test/data/toy/train"    # training data
     dev: "test/data/toy/dev"        # development data for validation
     test: "test/data/toy/test"      # test data for testing final model; optional
+    random_train_subset: -1         # select this many training examples randomly for training and discard the rest, -1: all
     level: "word"                   # segmentation level: either "word", "bpe" or "char"
     lowercase: True                 # lowercase the data, also for validation
     max_sent_length: 30             # filter out longer sentences from training (src+trg)
