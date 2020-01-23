@@ -91,7 +91,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     if random_train_subset > -1:
         # select this many training examples randomly and discard the rest
         keep_ratio = random_train_subset / len(train_data)
-        keep, discard = train_data.split(
+        keep, _ = train_data.split(
             split_ratio=[keep_ratio, 1 - keep_ratio],
             random_state=random.getstate())
         train_data = keep
