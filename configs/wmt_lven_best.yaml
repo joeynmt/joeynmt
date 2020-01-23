@@ -1,18 +1,20 @@
-name: "wmt_ende_default"
+name: "wmt_lven_best"
 
 data:
-    src: "en"
-    trg: "de"
-    train: "test/data/en-de/train.tok.bpe"
-    dev: "test/data/en-de/dev.tok.bpe"
-    test: "test/data/en-de/test.tok.bpe"
+    src: "lv"
+    trg: "en"
+    train: "test/data/lv-en/train.tok.bpe"
+    dev: "test/data/lv-en/dev.tok.bpe"
+    test: "test/data/lv-en/test.tok.bpe"
     level: "bpe"
     lowercase: False
-    max_sent_length: 50
+    max_sent_length: 100
     src_voc_min_freq: 0
     src_voc_limit: 100000
     trg_voc_min_freq: 0
     trg_voc_limit: 100000
+    src_vocab: "test/data/lv-en/vocab.txt"
+    trg_vocab: "test/data/lv-en/vocab.txt"
 
 testing:
     beam_size: 5
@@ -21,46 +23,48 @@ testing:
 training:
     random_seed: 42
     optimizer: "adam"
-    learning_rate: 0.0003
+    learning_rate: 0.0002
     learning_rate_min: 0.0000005
     weight_decay: 0.0
     clip_grad_norm: 1.0
-    batch_size: 80
+    batch_size: 4096
+    batch_type: "token"
     scheduling: "plateau"
-    patience: 10
-    decrease_factor: 0.5
-    early_stopping_metric: "eval_metric"
+    patience: 4
+    decrease_factor: 0.7
+    early_stopping_metric: "ppl"
     epochs: 20
-    validation_freq: 7362
+    validation_freq: 8000
     logging_freq: 1000
     eval_metric: "bleu"
-    model_dir: "models/wmt_ende_default"
+    model_dir: "wmt_lven_best"
     overwrite: False
     shuffle: True
     use_cuda: True
-    max_output_length: 100
+    max_output_length: 120
     print_valid_sents: [0, 1, 2]
 
 model:
+    tied_embeddings: True
     encoder:
         rnn_type: "lstm"
         embeddings:
-            embedding_dim: 500
+            embedding_dim: 512
             scale: False
-        hidden_size: 500
+        hidden_size: 1024
         bidirectional: True
         dropout: 0.2
-        num_layers: 1
+        num_layers: 4
     decoder:
         rnn_type: "lstm"
         embeddings:
-            embedding_dim: 500
+            embedding_dim: 512
             scale: False
         emb_scale: False
-        hidden_size: 1000
+        hidden_size: 1024
         dropout: 0.2
         hidden_dropout: 0.2
-        num_layers: 1
+        num_layers: 4
         input_feeding: True
         init_hidden: "bridge"
         attention: "bahdanau"

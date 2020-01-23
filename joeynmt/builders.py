@@ -76,8 +76,9 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     weight_decay = config.get("weight_decay", 0)
 
     if optimizer_name == "adam":
+        adam_betas = config.get("adam_betas", (0.9, 0.999))
         optimizer = torch.optim.Adam(parameters, weight_decay=weight_decay,
-                                     lr=learning_rate)
+                                     lr=learning_rate, betas=adam_betas)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters, weight_decay=weight_decay,
                                         lr=learning_rate)
@@ -97,7 +98,8 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     return optimizer
 
 
-def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str) \
+def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
+                    hidden_size: int = 0) \
         -> (Optional[_LRScheduler], Optional[str]):
     """
     Create a learning rate scheduler if specified in config and
@@ -107,6 +109,9 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str) \
         - "plateau": see `torch.optim.lr_scheduler.ReduceLROnPlateau`
         - "decaying": see `torch.optim.lr_scheduler.StepLR`
         - "exponential": see `torch.optim.lr_scheduler.ExponentialLR`
+        - "noam": see `joeynmt.builders.NoamScheduler`
+        - "warmupexponentialdecay": see
+          `joeynmt.builders.WarmupExponentialDecayScheduler`
 
     If no scheduler is specified, returns (None, None) which will result in
     a constant learning rate.
@@ -117,6 +122,7 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str) \
     :param scheduler_mode: "min" or "max", depending on whether the validation
         score should be minimized or maximized.
         Only relevant for "plateau".
+    :param hidden_size: encoder hidden size (required for NoamScheduler)
     :return:
         - scheduler: scheduler object,
         - scheduler_step_at: either "validation" or "epoch"
@@ -147,4 +153,120 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str) \
                 gamma=config.get("decrease_factor", 0.99))
             # scheduler step is executed after every epoch
             scheduler_step_at = "epoch"
+        elif config["scheduling"].lower() == "noam":
+            factor = config.get("learning_rate_factor", 1)
+            warmup = config.get("learning_rate_warmup", 4000)
+            scheduler = NoamScheduler(hidden_size=hidden_size, factor=factor,
+                                      warmup=warmup, optimizer=optimizer)
+
+            scheduler_step_at = "step"
+        elif config["scheduling"].lower() == "warmupexponentialdecay":
+            min_rate = config.get("learning_rate_min", 1.0e-5)
+            decay_rate = config.get("learning_rate_decay", 0.1)
+            warmup = config.get("learning_rate_warmup", 4000)
+            peak_rate = config.get("learning_rate_peak", 1.0e-3)
+            decay_length = config.get("learning_rate_decay_length", 10000)
+            scheduler = WarmupExponentialDecayScheduler(
+                min_rate=min_rate, decay_rate=decay_rate,
+                warmup=warmup, optimizer=optimizer, peak_rate=peak_rate,
+                decay_length=decay_length)
+            scheduler_step_at = "step"
     return scheduler, scheduler_step_at
+
+
+class NoamScheduler:
+    """
+    The Noam learning rate scheduler used in "Attention is all you need"
+    See Eq. 3 in https://arxiv.org/pdf/1706.03762.pdf
+    """
+
+    def __init__(self, hidden_size: int, optimizer: torch.optim.Optimizer,
+                 factor: float = 1, warmup: int = 4000):
+        """
+        Warm-up, followed by learning rate decay.
+
+        :param hidden_size:
+        :param optimizer:
+        :param factor: decay factor
+        :param warmup: number of warmup steps
+        """
+        self.optimizer = optimizer
+        self._step = 0
+        self.warmup = warmup
+        self.factor = factor
+        self.hidden_size = hidden_size
+        self._rate = 0
+
+    def step(self):
+        """Update parameters and rate"""
+        self._step += 1
+        rate = self._compute_rate()
+        for p in self.optimizer.param_groups:
+            p['lr'] = rate
+        self._rate = rate
+
+    def _compute_rate(self):
+        """Implement `lrate` above"""
+        step = self._step
+        return self.factor * \
+            (self.hidden_size ** (-0.5) *
+                min(step ** (-0.5), step * self.warmup ** (-1.5)))
+
+    #pylint: disable=no-self-use
+    def state_dict(self):
+        return None
+
+
+class WarmupExponentialDecayScheduler:
+    """
+    A learning rate scheduler similar to Noam, but modified:
+    Keep the warm up period but make it so that the decay rate can be tuneable.
+    The decay is exponential up to a given minimum rate.
+    """
+
+    def __init__(self, optimizer: torch.optim.Optimizer,
+                 peak_rate: float = 1.0e-3,
+                 decay_length: int = 10000, warmup: int = 4000,
+                 decay_rate: float = 0.5, min_rate: float = 1.0e-5):
+        """
+        Warm-up, followed by exponential learning rate decay.
+
+        :param peak_rate: maximum learning rate at peak after warmup
+        :param optimizer:
+        :param decay_length: decay length after warmup
+        :param decay_rate: decay rate after warmup
+        :param warmup: number of warmup steps
+        :param min_rate: minimum learning rate
+        """
+        self.optimizer = optimizer
+        self._step = 0
+        self.warmup = warmup
+        self.decay_length = decay_length
+        self.peak_rate = peak_rate
+        self._rate = 0
+        self.decay_rate = decay_rate
+        self.min_rate = min_rate
+
+    def step(self):
+        """Update parameters and rate"""
+        self._step += 1
+        rate = self._compute_rate()
+        for p in self.optimizer.param_groups:
+            p['lr'] = rate
+        self._rate = rate
+
+    def _compute_rate(self):
+        """Implement `lrate` above"""
+        step = self._step
+        warmup = self.warmup
+
+        if step < warmup:
+            rate = step * self.peak_rate / warmup
+        else:
+            exponent = (step - warmup) / self.decay_length
+            rate = self.peak_rate * (self.decay_rate ** exponent)
+        return max(rate, self.min_rate)
+
+    #pylint: disable=no-self-use
+    def state_dict(self):
+        return None

@@ -1,0 +1,75 @@
+name: "reverse_experiment"
+
+data:
+    src: "src"
+    trg: "trg"
+    train: "test/data/reverse/train"
+    dev: "test/data/reverse/dev"
+    test: "test/data/reverse/test"
+    level: "word"
+    lowercase: False
+    max_sent_length: 25
+    voc_min_freq: 0
+    voc_limit: 100
+    #src_vocab: "my_model/src_vocab.txt"
+    #trg_vocab: "my_model/trg_vocab.txt"
+
+testing:
+    beam_size: 5
+    alpha: 1.0
+
+training:
+    random_seed: 42
+    optimizer: "adam"
+    adam_betas: [0.9, 0.999]
+    scheduling: "plateau"
+    loss: "crossentropy"
+    learning_rate: 0.0002
+    learning_rate_min: 0.00000001
+    label_smoothing: 0.1
+    weight_decay: 0.0
+    batch_size: 250
+    batch_type: "token"
+    epochs: 30
+    validation_freq: 1000
+    logging_freq: 100
+    eval_metric: "bleu"
+    model_dir: "models/transformer_reverse"
+    overwrite: False
+    shuffle: True
+    use_cuda: False
+    max_output_length: 30
+    print_valid_sents: [0, 3, 6, 9]
+    keep_last_ckpts: 2
+
+
+model:
+    initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
+    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
+    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
+    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_softmax: True
+    encoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
+    decoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1

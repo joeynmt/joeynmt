@@ -1,0 +1,74 @@
+name: "copy_experiment"
+
+data:
+    src: "src"
+    trg: "trg"
+    train: "test/data/copy/train"
+    dev: "test/data/copy/dev"
+    test: "test/data/copy/test"
+    level: "word"
+    lowercase: False
+    max_sent_length: 21
+
+testing:
+    beam_size: 5
+    alpha: 1.0
+
+training:
+    random_seed: 42
+    optimizer: "adam"
+    adam_betas: [0.9, 0.999]
+    scheduling: "plateau"
+    loss: "crossentropy"
+    learning_rate: 0.0002
+    learning_rate_min: 0.00000001
+    learning_rate_factor: 2   # factor for Noam scheduler (default: 1)
+    learning_rate_warmup: 5000  # warmup steps for Noam scheduler
+    label_smoothing: 0.1
+    weight_decay: 0.0
+    batch_size: 10
+    batch_type: "sentence"
+    epochs: 30
+    validation_freq: 1000
+    logging_freq: 100
+    eval_metric: "bleu"
+    model_dir: "models/transformer_copy"
+    overwrite: True
+    shuffle: True
+    use_cuda: False
+    max_output_length: 21
+    print_valid_sents: [0, 1, 2]
+    keep_last_ckpts: 1
+
+model:
+    initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
+    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
+    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
+    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_softmax: True
+    encoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
+    decoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1

@@ -1,0 +1,78 @@
+name: "iwslt14-deen-bpe-transformer"
+
+data:
+    src: "de"
+    trg: "en"
+    train: "test/data/iwslt14/train.bpe.32000"
+    dev: "test/data/iwslt14/valid.bpe.32000"
+    test: "test/data/iwslt14/test.bpe.32000"
+    level: "bpe"
+    lowercase: True
+    max_sent_length: 62
+    src_vocab: "test/data/iwslt14/vocab.txt"
+    trg_vocab: "test/data/iwslt14/vocab.txt"
+
+testing:
+    beam_size: 5
+    alpha: 1.0
+
+training:
+    random_seed: 42
+    optimizer: "adam"
+    normalization: "tokens"
+    adam_betas: [0.9, 0.999]
+    scheduling: "plateau"
+    patience: 5
+    decrease_factor: 0.7
+    loss: "crossentropy"
+    learning_rate: 0.0003
+    learning_rate_min: 0.00000001
+    weight_decay: 0.0
+    label_smoothing: 0.1
+    batch_size: 4096
+    batch_type: "token"
+    early_stopping_metric: "eval_metric"
+    epochs: 100
+    validation_freq: 1000
+    logging_freq: 100
+    eval_metric: "bleu"
+    model_dir: "models/iwslt14_deen_bpe_transformer"
+    overwrite: False
+    shuffle: True
+    use_cuda: True
+    max_output_length: 100
+    print_valid_sents: [0, 1, 2, 3, 4]
+    keep_last_ckpts: 5
+
+model:
+    initializer: "xavier"
+    embed_initializer: "xavier"
+    embed_init_gain: 1.0
+    init_gain: 1.0
+    bias_initializer: "zeros"
+    tied_embeddings: True
+    tied_softmax: True
+    encoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 4
+        embeddings:
+            embedding_dim: 256
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 256
+        ff_size: 1024
+        dropout: 0.3
+    decoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 4
+        embeddings:
+            embedding_dim: 256
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 256
+        ff_size: 1024
+        dropout: 0.3

@@ -1,7 +1,5 @@
 name: "my_experiment"
 
-# This configuration serves the purpose of documenting and explaining the settings, *NOT* as an example for good hyperparamter settings.
-
 data: # specify your data here
     src: "de"                       # src language: expected suffix of train files, e.g. "train.de"
     trg: "en"                       # trg language
@@ -23,37 +21,33 @@ testing:                            # specify which inference algorithm to use f
     alpha: 1.0                      # length penalty for beam search
 
 training:                           # specify training details here
-    #load_model: "models/small_model/60.ckpt" # if given, load a pre-trained model from this checkpoint
+    #load_model: "models/transformer/60.ckpt" # if given, load a pre-trained model from this checkpoint
     reset_best_ckpt: False          # if True, reset the tracking of the best checkpoint and scores. Use for domain adaptation or fine-tuning with new metrics or dev data.
     reset_scheduler: False          # if True, overwrite scheduler in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     reset_optimizer: False          # if True, overwrite optimizer in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     random_seed: 42                 # set this seed to make training deterministic
     optimizer: "adam"               # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
-    adam_betas: [0.9, 0.999]        # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
-    learning_rate: 0.005            # initial learning rate, default: 3.0e-4
-    learning_rate_min: 0.0001       # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
-    #learning_rate_factor: 1        # factor for Noam scheduler (used with Transformer)
-    #learning_rate_warmup: 4000     # warmup steps for Noam scheduler (used with Transformer)
-    clip_grad_val: 1.0              # clip the gradients to this value when they exceed it, optional
-    #clip_grad_norm: 1.0            # norm clipping instead of value clipping
+    adam_betas: [0.9, 0.98]         # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
+    learning_rate: 0.001            # initial learning rate, default: 3.0e-4
+    learning_rate_min: 0.000001     # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
+    learning_rate_factor: 0.5       # factor for Noam scheduler (used with Transformer)
+    learning_rate_warmup: 1000      # warmup steps for Noam scheduler (used with Transformer)
+    #clip_grad_val: 1.0             # for Transformer do not clip (so leave commented out)
+    #clip_grad_norm: 1.0            # for Transformer do not clip (so leave commented out)
     weight_decay: 0.                # l2 regularization, default: 0
-    batch_size: 10                  # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
-    batch_type: "sentence"          # create batches with sentences ("sentence", default) or tokens ("token")
-    eval_batch_size: 10             # mini-batch size for evaluation (see batch_size above)
-    eval_batch_type: "sentence"     # evaluation batch type ("sentence", default) or tokens ("token")
+    batch_size: 250                 # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
+    batch_type: "token"             # create batches with sentences ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
-    scheduling: "plateau"           # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
-    patience: 5                     # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
-    decrease_factor: 0.5            # specific to plateau & exponential scheduler: decrease the learning rate by this factor
+    scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
     epochs: 1                       # train for this many epochs
-    validation_freq: 10             # validate after this many updates (number of mini-batches), default: 1000
+    validation_freq: 100            # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "models/small_model" # directory where models and validation results are stored, required
-    overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
+    model_dir: "models/transformer" # directory where models and validation results are stored, required
+    overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
-    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+    use_cuda: True                  # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31           # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
     print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_last_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5
@@ -61,40 +55,33 @@ training:                           # specify training details here
 
 model:                              # specify your model architecture here
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
-    init_weight: 0.01               # weight to initialize; for uniform, will use [-weight, weight]
     init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
     bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
-    embed_initializer: "normal"     # initializer for embeddings (xavier, zeros, normal, uniform)
-    embed_init_weight: 0.1          # weight to initialize; for uniform, will use [-weight, weight]
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
     embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
-    init_rnn_orthogonal: False      # use orthogonal initialization for recurrent weights (default: False)
-    lstm_forget_gate: 1.            # initialize LSTM forget gate with this value (default: 1.)
     tied_embeddings: False          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
-    tied_softmax: False             # tie trg embeddings and softmax (for Transformer; can be used together with tied_embeddings), default: False
+    tied_softmax: True
     encoder:
-        type: "recurrent"           # encoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
-        rnn_type: "gru"             # type of recurrent unit to use, either "gru" or "lstm", default: "lstm"
+        type: "transformer"          # encoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
+        num_layers: 3               # number of layers
+        num_heads: 4                # number of transformer heads
         embeddings:
-            embedding_dim: 16       # size of embeddings
-            scale: False            # scale the embeddings by sqrt of their size, default: False
+            embedding_dim: 64       # size of embeddings (for Transformer set equal to hidden_size)
+            scale: True             # scale the embeddings by sqrt of their size, default: False
             freeze: False           # if True, embeddings are not updated during training
-        hidden_size: 30             # size of RNN
-        bidirectional: True         # use a bi-directional encoder, default: True
-        dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
-        num_layers: 3               # stack this many layers of equal size, default: 1
+        hidden_size: 64             # size of hidden layer; must be divisible by number of heads
+        ff_size: 128                # size of position-wise feed-forward layer
+        dropout: 0.1                # apply dropout to the inputs to the RNN, default: 0.0
         freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
     decoder:
-        type: "recurrent"           # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
-        rnn_type: "gru"
+        type: "transformer"         # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
+        num_layers: 3               # number of layers
+        num_heads: 4                # number of transformer heads
         embeddings:
-            embedding_dim: 16
-            scale: False
+            embedding_dim: 64
+            scale: True
             freeze: False           # if True, embeddings are not updated during training
-        hidden_size: 30
-        dropout: 0.2
-        hidden_dropout: 0.2         # apply dropout to the attention vector, default: 0.0
-        num_layers: 2
-        input_feeding: True         # combine hidden state and attention vector before feeding to rnn, default: True
-        init_hidden: "last"         # initialized the decoder hidden state: use linear projection of last encoder state ("bridge") or simply the last state ("last") or zeros ("zero"), default: "bridge"
-        attention: "bahdanau"       # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"
+        hidden_size: 64             # size of hidden layer; must be divisible by number of heads
+        ff_size: 128                # size of position-wise feed-forward layer
+        dropout: 0.1
         freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)

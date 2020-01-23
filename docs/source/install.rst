@@ -7,7 +7,7 @@ Installation
 Basics
 ------
 
-First install `Python <https://www.python.org/>`_ >= 3.6, `PyTorch <https://pytorch.org/>`_ >=v.0.4.1 and `git <https://git-scm.com/>`_.
+First install `Python <https://www.python.org/>`_ >= 3.5, `PyTorch <https://pytorch.org/>`_ >=v.0.4.1 and `git <https://git-scm.com/>`_.
 
 Create and activate a `virtual environment <https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments>`_ to install the package into:
 
@@ -28,24 +28,14 @@ Then clone JoeyNMT from GitHub and switch to its root directory:
    (jnmt)$ cd joeynmt
 
 
-Requirements
-------------
+Installing JoeyNMT
+------------------
 
-Install the python requirements with pip:
-
-.. code-block:: bash
-
-   (jnmt)$ pip install --upgrade -r requirements.txt
-
-
-JoeyNMT
--------
-
-Install JoeyNMT:
+Install JoeyNMT and it's requirements:
 
 .. code-block:: bash
 
-   (jnmt)$ python3 setup.py install
+   (jnmt)$ pip3 install .
 
 Run the unit tests to make sure your installation is working:
 
@@ -53,5 +43,6 @@ Run the unit tests to make sure your installation is working:
 
    (jnmt)$ python3 -m unittest
 
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 You're ready to go!

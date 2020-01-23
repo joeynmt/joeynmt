@@ -13,15 +13,13 @@ import logging
 from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
-import yaml
 
 import torch
 from torch import nn, Tensor
+from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
-
-from tensorboardX import SummaryWriter
-
+import yaml
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
@@ -48,25 +46,27 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
     return model_dir
 
 
-def make_logger(model_dir: str, log_file: str = "train.log") -> Logger:
+def make_logger(log_file: str = None) -> Logger:
     """
-    Create a logger for logging the training process.
+    Create a logger for logging the training/testing process.
 
-    :param model_dir: path to logging directory
-    :param log_file: path to logging file
+    :param log_file: path to file where log is stored as well
     :return: logger object
     """
     logger = logging.getLogger(__name__)
     logger.setLevel(level=logging.DEBUG)
-    fh = logging.FileHandler(
-        "{}/{}".format(model_dir, log_file))
-    fh.setLevel(level=logging.DEBUG)
-    logger.addHandler(fh)
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+
+    if log_file is not None:
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(level=logging.DEBUG)
+        logger.addHandler(fh)
+        fh.setFormatter(formatter)
+
     sh = logging.StreamHandler()
     sh.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(message)s')
-    fh.setFormatter(formatter)
     sh.setFormatter(formatter)
+
     logging.getLogger("").addHandler(sh)
     logger.info("Hello! This is Joey-NMT.")
     return logger
@@ -105,11 +105,10 @@ def subsequent_mask(size: int) -> Tensor:
     Mask out subsequent positions (to prevent attending to future positions)
     Transformer helper function.
 
-    :param size:
-    :return: Tensor with 0s and 1s
+    :param size: size of mask (2nd and 3rd dim)
+    :return: Tensor with 0s and 1s of shape (1, size, size)
     """
-    attn_shape = (1, size, size)
-    mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
+    mask = np.triu(np.ones((1, size, size)), k=1).astype('uint8')
     return torch.from_numpy(mask) == 0
 
 
@@ -163,7 +162,7 @@ def load_config(path="configs/default.yaml") -> dict:
     :return: configuration dictionary
     """
     with open(path, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile)
+        cfg = yaml.safe_load(ymlfile)
     return cfg
 
 
@@ -190,7 +189,7 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
     :param sources: list of tokenized sources
     :param output_prefix: prefix for attention plots
     :param indices: indices selected for plotting
-    :param tb_writer: tensorboardX writer (optional)
+    :param tb_writer: Tensorboard summary writer (optional)
     :param steps: current training steps, needed for tb_writer
     :param dpi: resolution for images
     """
@@ -206,7 +205,7 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
                                row_labels=src, output_path=plot_file,
                                dpi=100)
             if tb_writer is not None:
-                # lower resolution for tensorboardX
+                # lower resolution for tensorboard
                 fig = plot_heatmap(scores=attention_scores, column_labels=trg,
                                    row_labels=src, output_path=None, dpi=50)
                 tb_writer.add_figure("attention/{}.".format(i), fig,

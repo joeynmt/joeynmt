@@ -18,7 +18,7 @@ data:
     #trg_vocab: "reverse_model/trg_vocab.txt"
 
 testing:
-    beam_size: 10
+    beam_size: 1
     alpha: 1.0
 
 training:
@@ -29,11 +29,12 @@ training:
     weight_decay: 0.0
     clip_grad_norm: 1.0
     batch_size: 10
+    batch_type: "sentence"
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.5
     early_stopping_metric: "eval_metric"
-    epochs: 6
+    epochs: 1
     validation_freq: 1000
     logging_freq: 100
     eval_metric: "bleu"

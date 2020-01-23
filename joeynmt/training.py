@@ -15,11 +15,9 @@ import numpy as np
 
 import torch
 from torch import Tensor
-import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
 
 from torchtext.data import Dataset
-
-from tensorboardX import SummaryWriter
 
 from joeynmt.model import build_model
 from joeynmt.batch import Batch
@@ -28,9 +26,11 @@ from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     make_logger, set_seed, symlink_update, ConfigurationError
 from joeynmt.model import Model
 from joeynmt.prediction import validate_on_data
+from joeynmt.loss import XentLoss
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
+from joeynmt.prediction import test
 
 
 # pylint: disable=too-many-instance-attributes
@@ -51,7 +51,7 @@ class TrainManager:
         self.model_dir = make_model_dir(train_config["model_dir"],
                                         overwrite=train_config.get(
                                             "overwrite", False))
-        self.logger = make_logger(model_dir=self.model_dir)
+        self.logger = make_logger("{}/train.log".format(self.model_dir))
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(log_dir=self.model_dir+"/tensorboard/")
@@ -63,7 +63,9 @@ class TrainManager:
         self._log_parameters_list()
 
         # objective
-        self.loss = nn.NLLLoss(ignore_index=self.pad_index, reduction='sum')
+        self.label_smoothing = train_config.get("label_smoothing", 0.0)
+        self.loss = XentLoss(pad_index=self.pad_index,
+                             smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens"]:
             raise ConfigurationError("Invalid normalization. "
@@ -71,6 +73,7 @@ class TrainManager:
 
         # optimization
         self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
+
         self.clip_grad_fun = build_gradient_clipper(config=train_config)
         self.optimizer = build_optimizer(config=train_config,
                                          parameters=model.parameters())
@@ -86,6 +89,7 @@ class TrainManager:
                                      "valid options: 'bleu', 'chrf'.")
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
+
         # if we schedule after BLEU/chrf, we want to maximize it, else minimize
         # early_stopping_metric decides on how to find the early stopping point:
         # ckpts are written when there's a new high/low score for this metric
@@ -105,7 +109,8 @@ class TrainManager:
         self.scheduler, self.scheduler_step_at = build_scheduler(
             config=train_config,
             scheduler_mode="min" if self.minimize_metric else "max",
-            optimizer=self.optimizer)
+            optimizer=self.optimizer,
+            hidden_size=config["model"]["encoder"]["hidden_size"])
 
         # data & batch handling
         self.level = config["data"]["level"]
@@ -115,6 +120,12 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        self.batch_type = train_config.get("batch_type", "sentence")
+        self.eval_batch_size = train_config.get("eval_batch_size",
+                                                self.batch_size)
+        self.eval_batch_type = train_config.get("eval_batch_type",
+                                                self.batch_type)
+
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
 
         # generation
@@ -124,12 +135,7 @@ class TrainManager:
         self.use_cuda = train_config["use_cuda"]
         if self.use_cuda:
             self.model.cuda()
-
-        # model parameters
-        if "load_model" in train_config.keys():
-            model_load_path = train_config["load_model"]
-            self.logger.info("Loading model from %s", model_load_path)
-            self.init_from_checkpoint(model_load_path)
+            self.loss.cuda()
 
         # initialize training statistics
         self.steps = 0
@@ -142,6 +148,18 @@ class TrainManager:
         # comparison function for scores
         self.is_best = lambda score: score < self.best_ckpt_score \
             if self.minimize_metric else score > self.best_ckpt_score
+
+        # model parameters
+        if "load_model" in train_config.keys():
+            model_load_path = train_config["load_model"]
+            self.logger.info("Loading model from %s", model_load_path)
+            reset_best_ckpt = train_config.get("reset_best_ckpt", False)
+            reset_scheduler = train_config.get("reset_scheduler", False)
+            reset_optimizer = train_config.get("reset_optimizer", False)
+            self.init_from_checkpoint(model_load_path,
+                                      reset_best_ckpt=reset_best_ckpt,
+                                      reset_scheduler=reset_scheduler,
+                                      reset_optimizer=reset_optimizer)
 
     def _save_checkpoint(self) -> None:
         """
@@ -176,11 +194,18 @@ class TrainManager:
 
         self.ckpt_queue.put(model_path)
 
-        # create/modify symbolic link for best checkpoint
-        symlink_update("{}.ckpt".format(self.steps),
-                       "{}/best.ckpt".format(self.model_dir))
+        best_path = "{}/best.ckpt".format(self.model_dir)
+        try:
+            # create/modify symbolic link for best checkpoint
+            symlink_update("{}.ckpt".format(self.steps), best_path)
+        except OSError:
+            # overwrite best.ckpt
+            torch.save(state, best_path)
 
-    def init_from_checkpoint(self, path: str) -> None:
+    def init_from_checkpoint(self, path: str,
+                             reset_best_ckpt: bool = False,
+                             reset_scheduler: bool = False,
+                             reset_optimizer: bool = False) -> None:
         """
         Initialize the trainer from a given checkpoint file.
 
@@ -188,27 +213,47 @@ class TrainManager:
         scheduler and optimizer states, see `self._save_checkpoint`.
 
         :param path: path to checkpoint
+        :param reset_best_ckpt: reset tracking of the best checkpoint,
+                                use for domain adaptation with a new dev
+                                set or when using a new metric for fine-tuning.
+        :param reset_scheduler: reset the learning rate scheduler, and do not
+                                use the one stored in the checkpoint.
+        :param reset_optimizer: reset the optimizer, and do not use the one
+                                stored in the checkpoint.
         """
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
 
         # restore model and optimizer parameters
         self.model.load_state_dict(model_checkpoint["model_state"])
-        self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
 
-        if model_checkpoint["scheduler_state"] is not None and \
-                        self.scheduler is not None:
-            self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
+        if not reset_optimizer:
+            self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+        else:
+            self.logger.info("Reset optimizer.")
+
+        if not reset_scheduler:
+            if model_checkpoint["scheduler_state"] is not None and \
+                    self.scheduler is not None:
+                self.scheduler.load_state_dict(
+                    model_checkpoint["scheduler_state"])
+        else:
+            self.logger.info("Reset scheduler.")
 
         # restore counts
         self.steps = model_checkpoint["steps"]
         self.total_tokens = model_checkpoint["total_tokens"]
-        self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
-        self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+
+        if not reset_best_ckpt:
+            self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
+            self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+        else:
+            self.logger.info("Reset tracking of the best checkpoint.")
 
         # move parameters to cuda
         if self.use_cuda:
             self.model.cuda()
 
+    # pylint: disable=unnecessary-comprehension
     def train_and_validate(self, train_data: Dataset, valid_data: Dataset) \
             -> None:
         """
@@ -217,7 +262,9 @@ class TrainManager:
         :param train_data: training data
         :param valid_data: validation data
         """
-        train_iter = make_data_iter(train_data, batch_size=self.batch_size,
+        train_iter = make_data_iter(train_data,
+                                    batch_size=self.batch_size,
+                                    batch_type=self.batch_type,
                                     train=True, shuffle=self.shuffle)
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
@@ -227,10 +274,11 @@ class TrainManager:
 
             self.model.train()
 
+            # Reset statistics for each epoch.
             start = time.time()
             total_valid_duration = 0
-            processed_tokens = self.total_tokens
-            count = 0
+            start_tokens = self.total_tokens
+            count = self.batch_multiplier - 1
             epoch_loss = 0
 
             for batch in iter(train_iter):
@@ -252,16 +300,23 @@ class TrainManager:
                 count -= 1
                 epoch_loss += batch_loss.detach().cpu().numpy()
 
+                if self.scheduler is not None and \
+                        self.scheduler_step_at == "step" and update:
+                    self.scheduler.step()
+
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
-                    elapsed_tokens = self.total_tokens - processed_tokens
+                    elapsed_tokens = self.total_tokens - start_tokens
                     self.logger.info(
-                        "Epoch %d Step: %d Batch Loss: %f Tokens per Sec: %f",
+                        "Epoch %3d Step: %8d Batch Loss: %12.6f "
+                        "Tokens per Sec: %8.0f, Lr: %.6f",
                         epoch_no + 1, self.steps, batch_loss,
-                        elapsed_tokens / elapsed)
+                        elapsed_tokens / elapsed,
+                        self.optimizer.param_groups[0]["lr"])
                     start = time.time()
                     total_valid_duration = 0
+                    start_tokens = self.total_tokens
 
                 # validate on the entire dev set
                 if self.steps % self.validation_freq == 0 and update:
@@ -271,12 +326,17 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                            batch_size=self.batch_size, data=valid_data,
+                            logger=self.logger,
+                            batch_size=self.eval_batch_size,
+                            data=valid_data,
                             eval_metric=self.eval_metric,
                             level=self.level, model=self.model,
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
-                            loss_function=self.loss)
+                            loss_function=self.loss,
+                            beam_size=1,  # greedy validations
+                            batch_type=self.eval_batch_type
+                        )
 
                     self.tb_writer.add_scalar("valid/valid_loss",
                                               valid_loss, self.steps)
@@ -315,7 +375,7 @@ class TrainManager:
                         new_best=new_best)
 
                     self._log_examples(
-                        sources_raw=valid_sources_raw,
+                        sources_raw=[v for v in valid_sources_raw],
                         sources=valid_sources,
                         hypotheses_raw=valid_hypotheses_raw,
                         hypotheses=valid_hypotheses,
@@ -325,24 +385,25 @@ class TrainManager:
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
                     self.logger.info(
-                        'Validation result at epoch %d, step %d: %s: %f, '
-                        'loss: %f, ppl: %f, duration: %.4fs',
-                            epoch_no+1, self.steps, self.eval_metric,
-                            valid_score, valid_loss, valid_ppl, valid_duration)
+                        'Validation result (greedy) at epoch %3d, '
+                        'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
+                        'duration: %.4fs', epoch_no+1, self.steps,
+                        self.eval_metric, valid_score, valid_loss,
+                        valid_ppl, valid_duration)
 
                     # store validation set outputs
                     self._store_outputs(valid_hypotheses)
 
                     # store attention plots for selected valid sentences
-                    store_attention_plots(attentions=valid_attention_scores,
-                                          targets=valid_hypotheses_raw,
-                                          sources=[s for s in valid_data.src],
-                                          indices=self.log_valid_sents,
-                                          output_prefix="{}/att.{}".format(
-                                              self.model_dir,
-                                              self.steps),
-                                          tb_writer=self.tb_writer,
-                                          steps=self.steps)
+                    if valid_attention_scores:
+                        store_attention_plots(
+                            attentions=valid_attention_scores,
+                            targets=valid_hypotheses_raw,
+                            sources=[s for s in valid_data.src],
+                            indices=self.log_valid_sents,
+                            output_prefix="{}/att.{}".format(
+                                self.model_dir, self.steps),
+                            tb_writer=self.tb_writer, steps=self.steps)
 
                 if self.stop:
                     break
@@ -352,13 +413,16 @@ class TrainManager:
                      self.learning_rate_min)
                 break
 
-            self.logger.info('Epoch %d: total training loss %.2f', epoch_no+1,
+            self.logger.info('Epoch %3d: total training loss %.2f', epoch_no+1,
                              epoch_loss)
         else:
-            self.logger.info('Training ended after %d epochs.', epoch_no+1)
-        self.logger.info('Best validation result at step %d: %f %s.',
-                         self.best_ckpt_iteration, self.best_ckpt_score,
+            self.logger.info('Training ended after %3d epochs.', epoch_no+1)
+        self.logger.info('Best validation result (greedy) at step '
+                         '%8d: %6.2f %s.', self.best_ckpt_iteration,
+                         self.best_ckpt_score,
                          self.early_stopping_metric)
+
+        self.tb_writer.close()  # close Tensorboard writer
 
     def _train_batch(self, batch: Batch, update: bool = True) -> Tensor:
         """
@@ -459,18 +523,22 @@ class TrainManager:
         :param references_raw: raw references (list of list of tokens)
         """
         for p in self.log_valid_sents:
+
             if p >= len(sources):
                 continue
-            self.logger.debug("Example #%d", p)
+
+            self.logger.info("Example #%d", p)
+
             if sources_raw is not None:
-                self.logger.debug("\tRaw source: %s", sources_raw[p])
-            self.logger.debug("\tSource: %s", sources[p])
+                self.logger.debug("\tRaw source:     %s", sources_raw[p])
             if references_raw is not None:
-                self.logger.debug("\tRaw reference: %s", references_raw[p])
-            self.logger.debug("\tReference: %s", references[p])
+                self.logger.debug("\tRaw reference:  %s", references_raw[p])
             if hypotheses_raw is not None:
                 self.logger.debug("\tRaw hypothesis: %s", hypotheses_raw[p])
-            self.logger.debug("\tHypothesis: %s", hypotheses[p])
+
+            self.logger.info("\tSource:     %s", sources[p])
+            self.logger.info("\tReference:  %s", references[p])
+            self.logger.info("\tHypothesis: %s", hypotheses[p])
 
     def _store_outputs(self, hypotheses: List[str]) -> None:
         """
@@ -516,6 +584,8 @@ def train(cfg_file: str) -> None:
                   test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab,
                   logging_function=trainer.logger.info)
 
+    trainer.logger.info(str(model))
+
     # store the vocabs
     src_vocab_file = "{}/src_vocab.txt".format(cfg["training"]["model_dir"])
     src_vocab.to_file(src_vocab_file)
@@ -525,59 +595,13 @@ def train(cfg_file: str) -> None:
     # train the model
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
 
-    # test the model with the best checkpoint
-    if test_data is not None:
+    # predict with the best model on validation and test
+    # (if test data is available)
+    ckpt = "{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration)
+    output_name = "{:08d}.hyps".format(trainer.best_ckpt_iteration)
+    output_path = os.path.join(trainer.model_dir, output_name)
+    test(cfg_file, ckpt=ckpt, output_path=output_path, logger=trainer.logger)
 
-        # load checkpoint
-        checkpoint_path = "{}/{}.ckpt".format(
-            trainer.model_dir, trainer.best_ckpt_iteration)
-        try:
-            trainer.init_from_checkpoint(checkpoint_path)
-        except AssertionError:
-            trainer.logger.warning("Checkpoint %s does not exist. "
-                                   "Skipping testing.", checkpoint_path)
-            if trainer.best_ckpt_iteration == 0 \
-                and trainer.best_ckpt_score in [np.inf, -np.inf]:
-                trainer.logger.warning(
-                    "It seems like no checkpoint was written, "
-                    "since no improvement was obtained over the initial model.")
-            return
-
-        # generate hypotheses for test data
-        if "testing" in cfg.keys():
-            beam_size = cfg["testing"].get("beam_size", 0)
-            beam_alpha = cfg["testing"].get("alpha", -1)
-        else:
-            beam_size = 0
-            beam_alpha = -1
-
-        # pylint: disable=unused-variable
-        score, loss, ppl, sources, sources_raw, references, hypotheses, \
-            hypotheses_raw, attention_scores = validate_on_data(
-                data=test_data, batch_size=trainer.batch_size,
-                eval_metric=trainer.eval_metric, level=trainer.level,
-                max_output_length=trainer.max_output_length,
-                model=model, use_cuda=trainer.use_cuda, loss_function=None,
-                beam_size=beam_size, beam_alpha=beam_alpha)
-
-        if "trg" in test_data.fields:
-            decoding_description = "Greedy decoding" if beam_size == 0 else \
-                "Beam search decoding with beam size = {} and alpha = {}"\
-                    .format(beam_size, beam_alpha)
-            trainer.logger.info("Test data result: %f %s [%s]",
-                                score, trainer.eval_metric,
-                                decoding_description)
-        else:
-            trainer.logger.info(
-                "No references given for %s.%s -> no evaluation.",
-                cfg["data"]["test"], cfg["data"]["src"])
-
-        output_path_set = "{}/{}.{}".format(
-            trainer.model_dir, "test", cfg["data"]["trg"])
-        with open(output_path_set, mode="w", encoding="utf-8") as f:
-            for h in hypotheses:
-                f.write(h + "\n")
-        trainer.logger.info("Test translations saved to: %s", output_path_set)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
