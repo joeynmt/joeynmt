@@ -27,6 +27,9 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     The training data is filtered to include sentences up to `max_sent_length`
     on source and target side.
 
+    If you set ``random_train_subset``, a random selection of this size is used
+    from the training set instead of the full training set.
+
     :param data_cfg: configuration dictionary for data
         ("data" part of configuation file)
     :return:
