@@ -97,7 +97,7 @@ def recurrent_greedy(
         is_eos = torch.eq(next_word, eos_index)
         finished += is_eos
         # stop predicting if <eos> reached for all elements in batch
-        if finished.sum() == batch_size:
+        if (finished >= 1).sum() == batch_size:
             break
 
     stacked_output = np.stack(output, axis=1)  # batch, time
@@ -163,7 +163,7 @@ def transformer_greedy(
         is_eos = torch.eq(next_word, eos_index)
         finished += is_eos
         # stop predicting if <eos> reached for all elements in batch
-        if finished.sum() == batch_size:
+        if (finished >= 1).sum() == batch_size:
             break
 
     ys = ys[:, 1:]  # remove BOS-symbol
