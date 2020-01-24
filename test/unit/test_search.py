@@ -62,6 +62,7 @@ class TestSearchTransformer(TestSearch):
         encoder_hidden = self._build(batch_size=batch_size)
         output, attention_scores = transformer_greedy(
             src_mask=src_mask, embed=embed, bos_index=self.bos_index,
+            eos_index=self.eos_index,
             max_output_length=max_output_length, decoder=decoder,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         # Transformer greedy doesn't return attention scores
@@ -91,6 +92,7 @@ class TestSearchTransformer(TestSearch):
         # now compare to greedy, they should be the same for beam=1
         greedy_output, _ = transformer_greedy(
             src_mask=src_mask, embed=embed, bos_index=self.bos_index,
+            eos_index=self.eos_index,
             max_output_length=max_output_length, decoder=decoder,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         np.testing.assert_equal(output, greedy_output)
@@ -156,7 +158,8 @@ class TestSearchRecurrent(TestSearch):
 
         output, attention_scores = recurrent_greedy(
             src_mask=src_mask, embed=emb, bos_index=self.bos_index,
-            max_output_length=max_output_length, decoder=decoder,
+            eos_index=self.eos_index, max_output_length=max_output_length,
+            decoder=decoder,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
 
         self.assertEqual(output.shape, (batch_size, max_output_length))
@@ -183,6 +186,7 @@ class TestSearchRecurrent(TestSearch):
 
         greedy_output, _ = recurrent_greedy(
             src_mask=src_mask, embed=emb, bos_index=self.bos_index,
+            eos_index=self.eos_index,
             max_output_length=max_output_length, decoder=decoder,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
 
