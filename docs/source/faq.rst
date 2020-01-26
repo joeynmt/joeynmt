@@ -21,6 +21,9 @@ Training
 - **How can I stop training?**
    Simply press Control+C.
 
+- **My training data is huge and I actually don't want to train on it all. What can I do?**
+    You could use the ``random_train_subset`` parameter in the data section of the configuration to load only a random subset of the training data. If you change the random seed, this selection changes too. So you could train on multiple random subsets and then ensemble the models with ``scripts/average_checkpoints.py``.
+
 - **How can I see how well my model is doing?**
    1. *Training log*: Validation results and training loss (after each epoch and batch) are reported in the training log file ``train.log`` in your model directory.
    2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved. You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/master/scripts/plot_validations.py>`_, e.g.
