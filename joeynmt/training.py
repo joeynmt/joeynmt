@@ -289,7 +289,7 @@ class TrainManager:
             # Reset statistics for each epoch.
             start = time.time()
             total_valid_duration = 0
-            processed_tokens = self.total_tokens
+            start_tokens = self.total_tokens
             self.current_batch_multiplier = self.batch_multiplier
             count = self.current_batch_multiplier - 1
             epoch_loss = 0
@@ -415,7 +415,7 @@ class TrainManager:
                     self.logger.info(
                         'Validation result (greedy) at epoch %3d, '
                         'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
-                        'duration: %.4fs', epoch_no+1, self.steps,
+                        'duration: %.4fs', epoch_no + 1, self.steps,
                         self.eval_metric, valid_score, valid_loss,
                         valid_ppl, valid_duration)
 
@@ -444,7 +444,7 @@ class TrainManager:
             self.logger.info('Epoch %3d: total training loss %.2f', epoch_no + 1,
                              epoch_loss)
         else:
-            self.logger.info('Training ended after %3d epochs.', epoch_no+1)
+            self.logger.info('Training ended after %3d epochs.', epoch_no + 1)
         self.logger.info('Best validation result (greedy) at step '
                          '%8d: %6.2f %s.', self.best_ckpt_iteration,
                          self.best_ckpt_score,
