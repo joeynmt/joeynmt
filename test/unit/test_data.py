@@ -16,14 +16,13 @@ class TestData(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {"src": "de", "trg": "en", "train": self.train_path,
-                         "dev": self.dev_path,
+                         "dev": self.dev_path, "level": "word",
+                         "lowercase": False,
                          "max_sent_length": self.max_sent_length}
 
     def testIteratorBatchType(self):
 
         current_cfg = self.data_cfg.copy()
-        current_cfg["level"] = "word"
-        current_cfg["lowercase"] = False
 
         # load toy data
         train_data, dev_data, test_data, src_vocab, trg_vocab = \
@@ -142,3 +141,18 @@ class TestData(unittest.TestCase):
                             comparison_trg = expected_trgs[level].split()
                     self.assertEqual(train_data.examples[0].src, comparison_src)
                     self.assertEqual(train_data.examples[0].trg, comparison_trg)
+
+    def testRandomSubset(self):
+        # only a random subset should be selected for training
+        current_cfg = self.data_cfg.copy()
+        current_cfg["random_train_subset"] = -1
+
+        # load the data
+        train_data, dev_data, test_data, src_vocab, trg_vocab = \
+            load_data(current_cfg)
+        assert len(train_data) == 382
+
+        current_cfg["random_train_subset"] = 10
+        train_data, dev_data, test_data, src_vocab, trg_vocab = \
+            load_data(current_cfg)
+        assert len(train_data) == 10

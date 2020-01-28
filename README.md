@@ -1,6 +1,6 @@
 # &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
 [![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=master)](https://travis-ci.org/joeynmt/joeynmt)
-
+[![Gitter](https://badges.gitter.im/joeynmt/community.svg)](https://gitter.im/joeynmt/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Goal and Purpose
 Joey NMT framework is developed for educational purposes. 
@@ -20,14 +20,7 @@ However, Joey NMT re-implements baselines from major publications.
 
 Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [paper](https://arxiv.org/abs/1907.12484).
 
-## Paper (new!)
-
-We released a paper describing Joey NMT: https://arxiv.org/abs/1907.12484
-
-Please cite it if you use Joey for your research.
-
 ## Contributors
-
 Joey NMT is developed by [Joost Bastings](https://bastings.github.io) (University of Amsterdam) and [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University).
 
 ## Features
@@ -60,6 +53,8 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://git
 `pip3 install .` (you might want to add `--user` for a local installation).
 3. Run the unit tests:
 `python3 -m unittest`
+
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 
 ## Usage
@@ -158,27 +153,52 @@ A screencast of the tutorial is available on [YouTube](https://www.youtube.com/w
 Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
 
 ## Pre-trained Models
-Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypothesis):
-- [WMT17 en-de "Groundhog"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_default.tar.gz) (896M)
-- [WMT17 en-de "best"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
-- [WMT17 lv-en "best"](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
+Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
+
+### WMT17
+Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.05690).
+
+- [WMT17 en-de "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_best.tar.gz) (2G)
+- [WMT17 lv-en "best" RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_best.tar.gz) (1.9G)
+- [WMT17 en-de Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_ende_transformer.tar.gz) (664M)
+- [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
+
+### Autshumato
+Traing with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
+
+- [Autshumato en-af small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enaf_transformer.tar.gz) (147M)
+- [Autshumato af-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_afen_transformer.tar.gz) (147M)
+- [Autshumato en-nso small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_ennso_transformer.tar.gz) (147M)
+- [Autshumato nso-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_nsoen_transformer.tar.gz) (147M)
+- [Autshumato en-tn small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_entn_transformer.tar.gz) (319M)
+- [Autshumato tn-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_tnen_transformer.tar.gz) (321M)
+- [Autshumato en-ts small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_ents_transformer.tar.gz) (229M)
+- [Autshumato ts-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_tsen_transformer.tar.gz) (229M)
+- [Autshumato en-zu small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enzu_transformer.tar.gz) (147M)
+- [Autshumato zu-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_zuen_transformer.tar.gz) (147M)
+
+If you trained JoeyNMT on your own data and would like to share it, please email us so we can add it to the collection of pre-trained models.
 
 ## Contributing
 Since this codebase is supposed to stay clean and minimalistic, contributions addressing the following are welcome:
-- Code correctness
-- Code cleanliness
-- Documentation quality
-- Speed or memory improvements
+- code correctness
+- code cleanliness
+- documentation quality
+- speed or memory improvements
 - resolving issues
+- providing pre-trained models
 
 Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey for.
 
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey, so you can find inspiration and examples on how to modify and extend the code.
 
-- **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf).
+- **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/jaderabbit/masakhane) contains and explains all the code you need to train JoeyNMT and points to data sources. It also contains benchmark model and configurations that members of Masakhane have built for various African languages.
+- **Slack Joey**. [Code](https://github.com/juliakreutzer/slack-joey) to locally deploy a Joey NMT model as chat bot in a Slack workspace. It's a convenient way to probe your model without having to implement an API. And bad translations for chat messages can be very entertaining, too ;)
+- **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://arxiv.org/abs/1907.12484).
 - **Self-Regulated Interactive Seq2Seq Learning**. Julia Kreutzer and Stefan Riezler. Published at ACL 2019. [Paper](https://arxiv.org/abs/1907.05190) and [Code](https://github.com/juliakreutzer/joeynmt/tree/acl19). This project augments the standard fully-supervised learning regime by weak and self-supervision for a better trade-off of quality and supervision costs in interactive NMT.
-- **Speech Joey**. [@Sariyusha](https://github.com/Sariyusha) is giving Joey ears for speech translation. [Code](https://github.com/Sariyusha/speech_joey). 
+- **Speech Joey**. [@Sariyusha](https://github.com/Sariyusha) is giving Joey ears for speech translation. [Code](https://github.com/Sariyusha/speech_joey).
+- **Hieroglyph Translation**. Joey NMT was used to translate hieroglyphs in [this IWSLT 2019 paper](https://www.cl.uni-heidelberg.de/statnlpgroup/publications/IWSLT2019.pdf) by Philipp Wiesenbach and Stefan Riezler. They gave Joey NMT multi-tasking abilities. 
 
 If you used Joey NMT for a project, publication or built some code on top of it, let us know and we'll link it here.
 
@@ -192,20 +212,14 @@ For general questions, email us at `joeynmt <at> gmail.com`.
 If you use Joey NMT in a publication or thesis, please cite the following [paper](https://arxiv.org/abs/1907.12484):
 
 ```
-@ARTICLE{2019arXiv190712484K,
+@ARTICLE{JoeyNMT,
 author = {{Kreutzer}, Julia and {Bastings}, Joost and {Riezler}, Stefan},
 title = {Joey {NMT}: A Minimalist {NMT} Toolkit for Novices},
-journal = {arXiv e-prints},
-keywords = {Computer Science - Computation and Language, Computer Science - Machine Learning},
- year = {2019},
-month = {Jul},
-  eid = {arXiv:1907.12484},
-pages = {arXiv:1907.12484},
-archivePrefix = {arXiv},
-eprint = {1907.12484},
-primaryClass = {cs.CL},
-adsurl = {https://ui.adsabs.harvard.edu/abs/2019arXiv190712484K},
-adsnote = {Provided by the {SAO/NASA} Astrophysics Data System}
+journal = {To Appear in EMNLP-IJCNLP 2019: System Demonstrations},
+year = {2019},
+month = {Nov},
+address = {Hong Kong}
+url = {https://arxiv.org/abs/1907.12484}
 }
 ```
 

@@ -99,4 +99,4 @@ model:                              # specify your model architecture here
         input_feeding: True         # combine hidden state and attention vector before feeding to rnn, default: True
         init_hidden: "last"         # initialized the decoder hidden state: use linear projection of last encoder state ("bridge") or simply the last state ("last") or zeros ("zero"), default: "bridge"
         attention: "bahdanau"       # attention mechanism, choices: "bahdanau" (MLP attention), "luong" (bilinear attention), default: "bahdanau"
-        freeze: False
+        freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)

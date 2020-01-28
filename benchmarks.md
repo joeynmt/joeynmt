@@ -78,7 +78,7 @@ Marian  | bpe | 217.6
 Tensor2Tensor  | bpe | 17.7
 Joey NMT (beam=5) | bpe | 18.0
 
-### IWSLT  German-English
+## IWSLT  German-English
 We compare the RNN against the baseline scores reported in [(Wiseman & Rush, 2016)](https://arxiv.org/pdf/1606.02960.pdf) (W&R), 
 [(Bahdanau et al., 2017)](https://arxiv.org/pdf/1607.07086.pdf) (B17) with tokenized, lowercased BLEU (using `sacrebleu`).
 Ẁe compare a word-based model of the same size and vocabulary as in W&R and B17.
@@ -118,7 +118,7 @@ Joey NMT Transformer (beam=5, alpha=1.0) | bpe | 32.16 | 31.00 | 19.18M
 
 
 
-### IWSLT English-Vietnamese
+## IWSLT English-Vietnamese
 
 We compare the RNN model against [Tensorflow NMT](https://github.com/tensorflow/nmt) on the IWSLT15 En-Vi data set as preprocessed by Stanford.
 You can download the data with `scripts/get_iwslt15_envi.sh`, and then use `configs/iwslt_envi_luong.yaml` to replicate the experiment.
@@ -139,4 +139,26 @@ xnmt (beam=5)                | 25.0 | 27.3
 Joey NMT (greedy)            | 24.6 | 27.4
 Joey NMT (beam=5, alpha=1.0) | 24.9 | 27.7
 
+## Autshumato 
+
+We built small Transformer models for the South-African languages (af: Afrikaans, nso: Norther Sotho, ts: Xitsonga, tn: Setswana, zu: isiZulu) of the [Autshumato benchmark](http://autshumato.sourceforge.net/) with the data as prepared in the [Uxhumana project](https://github.com/LauraMartinus/ukuxhumana). The training data from the "clean" subdirectory of the Uxhumana repository is additionally tokenized with Moses' tokenizer. 
+The models are evaluated with sacrebleu on the tokenized test sets (beam=5, alpha=1.0, sacrebleu with `--tokenize none`). For comparison to the Uxhumana baselines ([Martinus & Abbott, 2019](https://arxiv.org/pdf/1906.10511.pdf)) built with the Tensor2Tensor base Transformer, we also compare to the results obtained with the international tokenizer.
+
+System | Source language | Target language | **test (`--tokenize none`)** | test (`--tokenize intl`)
+--- | :---: | :---: | :---: | :---:
+Joey NMT | en | af | 23.5 | 24.48
+Uxhumana Transformer | en | af | -- | 20.60
+Joey NMT | af | en | 27.7 | 27.9
+Joey NMT | en | nso | 14.0 | 16.97
+Uxhumana Transformer | en | nso | -- | 10.94
+Joey NMT | nso | en | 9.9 | 12.96
+Joey NMT | en | tn | 15.1 | 19.51
+Uxhumana Transformer | en | tn  | -- | 20.60
+Joey NMT | tn | en | 12.8 | 17.41
+Joey NMT | en | ts | 18.6 | 18.45
+Uxhumana Transformer | en | ts  | -- | 17.98
+Joey NMT | ts | en | 18.7 | 18.7
+Joey NMT | en | zu | 1.4 | 3.64
+Uxhumana Transformer | en | zu  | -- | 1.34
+Joey NMT | zu | en | 6.9 | 8.74
 

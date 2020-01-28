@@ -12,7 +12,7 @@ from joeynmt.helpers import tile
 __all__ = ["greedy", "transformer_greedy", "beam_search"]
 
 
-def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
+def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int, eos_index: int,
            max_output_length: int, decoder: Decoder,
            encoder_output: Tensor, encoder_hidden: Tensor)\
         -> (np.array, np.array):
@@ -24,6 +24,7 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -39,12 +40,12 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
         greedy_fun = recurrent_greedy
 
     return greedy_fun(
-        src_mask, embed, bos_index, max_output_length,
+        src_mask, embed, bos_index, eos_index, max_output_length,
         decoder, encoder_output, encoder_hidden)
 
 
 def recurrent_greedy(
-        src_mask: Tensor, embed: Embeddings, bos_index: int,
+        src_mask: Tensor, embed: Embeddings, bos_index: int, eos_index: int,
         max_output_length: int, decoder: Decoder,
         encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
     """
@@ -54,6 +55,7 @@ def recurrent_greedy(
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -69,6 +71,7 @@ def recurrent_greedy(
     attention_scores = []
     hidden = None
     prev_att_vector = None
+    finished = src_mask.new_zeros((batch_size, 1)).byte()
 
     # pylint: disable=unused-variable
     for t in range(max_output_length):
@@ -85,10 +88,18 @@ def recurrent_greedy(
 
         # greedy decoding: choose arg max over vocabulary in each step
         next_word = torch.argmax(logits, dim=-1)  # batch x time=1
-        output.append(next_word.squeeze(1).cpu().numpy())
+        output.append(next_word.squeeze(1).detach().cpu().numpy())
         prev_y = next_word
-        attention_scores.append(att_probs.squeeze(1).cpu().numpy())
+        attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
         # batch, max_src_lengths
+
+        # check if previous symbol was <eos>
+        is_eos = torch.eq(next_word, eos_index)
+        finished += is_eos
+        # stop predicting if <eos> reached for all elements in batch
+        if (finished >= 1).sum() == batch_size:
+            break
+
     stacked_output = np.stack(output, axis=1)  # batch, time
     stacked_attention_scores = np.stack(attention_scores, axis=1)
     return stacked_output, stacked_attention_scores
@@ -97,15 +108,17 @@ def recurrent_greedy(
 # pylint: disable=unused-argument
 def transformer_greedy(
         src_mask: Tensor, embed: Embeddings,
-        bos_index: int, max_output_length: int, decoder: Decoder,
-        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
+        bos_index: int, eos_index: int,
+        max_output_length: int, decoder: Decoder,
+        encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, None):
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
 
     :param src_mask: mask for source inputs, 0 for positions after </s>
-    :param embed: target embedding
+    :param embed: target embedding layer
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -123,9 +136,11 @@ def transformer_greedy(
     # a subsequent mask is intersected with this in decoder forward pass
     trg_mask = src_mask.new_ones([1, 1, 1])
 
+    finished = src_mask.new_zeros((batch_size)).byte()
+
     for _ in range(max_output_length):
 
-        trg_embed = embed(ys)  # embed the BOS-symbol
+        trg_embed = embed(ys)  # embed the previous tokens
 
         # pylint: disable=unused-variable
         with torch.no_grad():
@@ -144,8 +159,15 @@ def transformer_greedy(
             next_word = next_word.data
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
 
+        # check if previous symbol was <eos>
+        is_eos = torch.eq(next_word, eos_index)
+        finished += is_eos
+        # stop predicting if <eos> reached for all elements in batch
+        if (finished >= 1).sum() == batch_size:
+            break
+
     ys = ys[:, 1:]  # remove BOS-symbol
-    return ys, None
+    return ys.detach().cpu().numpy(), None
 
 
 # pylint: disable=too-many-statements,too-many-branches
@@ -173,11 +195,13 @@ def beam_search(
     :param max_output_length:
     :param alpha: `alpha` factor for length penalty
     :param embed:
-    :param n_best: return this many hypotheses, <= beam
+    :param n_best: return this many hypotheses, <= beam (currently only 1)
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
+    assert size > 0, 'Beam size must be >0.'
+    assert n_best <= size, 'Can only return {} best hypotheses.'.format(size)
 
     # init
     transformer = isinstance(decoder, TransformerDecoder)
@@ -227,18 +251,17 @@ def beam_search(
         device=encoder_output.device)
 
     # Give full probability to the first beam on the first step.
-    # pylint: disable=not-callable
-    topk_log_probs = (torch.tensor([0.0] + [float("-inf")] * (size - 1),
-                                   device=encoder_output.device).repeat(
-                                    batch_size))
+    topk_log_probs = torch.zeros(batch_size, size, device=encoder_output.device)
+    topk_log_probs[:, 1:] = float("-inf")
 
     # Structure that holds finished hypotheses.
     hypotheses = [[] for _ in range(batch_size)]
 
-    results = {}
-    results["predictions"] = [[] for _ in range(batch_size)]
-    results["scores"] = [[] for _ in range(batch_size)]
-    results["gold_score"] = [0] * batch_size
+    results = {
+        "predictions": [[] for _ in range(batch_size)],
+        "scores": [[] for _ in range(batch_size)],
+        "gold_score": [0] * batch_size,
+    }
 
     for step in range(max_output_length):
 
@@ -278,7 +301,7 @@ def beam_search(
 
         # multiply probs by the beam probability (=add logprobs)
         log_probs += topk_log_probs.view(-1).unsqueeze(1)
-        curr_scores = log_probs
+        curr_scores = log_probs.clone()
 
         # compute length penalty
         if alpha > -1:
@@ -294,6 +317,8 @@ def beam_search(
         if alpha > -1:
             # recover original log probs
             topk_log_probs = topk_scores * length_penalty
+        else:
+            topk_log_probs = topk_scores.clone()
 
         # reconstruct beam origin and true word ids from flattened order
         topk_beam_index = topk_ids.div(decoder.output_size)
@@ -312,9 +337,9 @@ def beam_search(
 
         is_finished = topk_ids.eq(eos_index)
         if step + 1 == max_output_length:
-            is_finished.fill_(1)
+            is_finished.fill_(True)
         # end condition is whether the top beam is finished
-        end_condition = is_finished[:, 0].eq(1)
+        end_condition = is_finished[:, 0].eq(True)
 
         # save finished hypotheses
         if is_finished.any():
@@ -326,10 +351,16 @@ def beam_search(
                 finished_hyp = is_finished[i].nonzero().view(-1)
                 # store finished hypotheses for this batch
                 for j in finished_hyp:
-                    hypotheses[b].append((
-                        topk_scores[i, j],
-                        predictions[i, j, 1:])  # ignore start_token
-                    )
+                    # Check if the prediction has more than one EOS.
+                    # If it has more than one EOS, it means that the
+                    # prediction should have already been added to
+                    # the hypotheses, so you don't have to add them again.
+                    if (predictions[i, j, 1:] == eos_index).nonzero().numel() \
+                            < 2:
+                        # ignore start_token
+                        hypotheses[b].append(
+                            (topk_scores[i, j], predictions[i, j, 1:])
+                        )
                 # if the batch reached the end, save the n_best hypotheses
                 if end_condition[i]:
                     best_hyp = sorted(
@@ -339,7 +370,7 @@ def beam_search(
                             break
                         results["scores"][b].append(score)
                         results["predictions"][b].append(pred)
-            non_finished = end_condition.eq(0).nonzero().view(-1)
+            non_finished = end_condition.eq(False).nonzero().view(-1)
             # if all sentences are translated, no need to go further
             # pylint: disable=len-as-condition
             if len(non_finished) == 0:

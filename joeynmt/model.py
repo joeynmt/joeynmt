@@ -161,10 +161,10 @@ class Model(nn.Module):
             max_output_length = int(max(batch.src_lengths.cpu().numpy()) * 1.5)
 
         # greedy decoding
-        if beam_size == 0:
+        if beam_size < 2:
             stacked_output, stacked_attention_scores = greedy(
                     encoder_hidden=encoder_hidden,
-                    encoder_output=encoder_output,
+                    encoder_output=encoder_output, eos_index=self.eos_index,
                     src_mask=batch.src_mask, embed=self.trg_embed,
                     bos_index=self.bos_index, decoder=self.decoder,
                     max_output_length=max_output_length)

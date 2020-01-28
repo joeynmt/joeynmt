@@ -52,7 +52,7 @@ class TrainManager:
         self.model_dir = make_model_dir(train_config["model_dir"],
                                         overwrite=train_config.get(
                                             "overwrite", False))
-        self.logger = make_logger(model_dir=self.model_dir)
+        self.logger = make_logger("{}/train.log".format(self.model_dir))
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(
@@ -156,7 +156,13 @@ class TrainManager:
         if "load_model" in train_config.keys():
             model_load_path = train_config["load_model"]
             self.logger.info("Loading model from %s", model_load_path)
-            self.init_from_checkpoint(model_load_path)
+            reset_best_ckpt = train_config.get("reset_best_ckpt", False)
+            reset_scheduler = train_config.get("reset_scheduler", False)
+            reset_optimizer = train_config.get("reset_optimizer", False)
+            self.init_from_checkpoint(model_load_path,
+                                      reset_best_ckpt=reset_best_ckpt,
+                                      reset_scheduler=reset_scheduler,
+                                      reset_optimizer=reset_optimizer)
 
     def _save_checkpoint(self) -> None:
         """
@@ -191,11 +197,18 @@ class TrainManager:
 
         self.ckpt_queue.put(model_path)
 
-        # create/modify symbolic link for best checkpoint
-        symlink_update("{}.ckpt".format(self.steps),
-                       "{}/best.ckpt".format(self.model_dir))
+        best_path = "{}/best.ckpt".format(self.model_dir)
+        try:
+            # create/modify symbolic link for best checkpoint
+            symlink_update("{}.ckpt".format(self.steps), best_path)
+        except OSError:
+            # overwrite best.ckpt
+            torch.save(state, best_path)
 
-    def init_from_checkpoint(self, path: str) -> None:
+    def init_from_checkpoint(self, path: str,
+                             reset_best_ckpt: bool = False,
+                             reset_scheduler: bool = False,
+                             reset_optimizer: bool = False) -> None:
         """
         Initialize the trainer from a given checkpoint file.
 
@@ -203,28 +216,47 @@ class TrainManager:
         scheduler and optimizer states, see `self._save_checkpoint`.
 
         :param path: path to checkpoint
+        :param reset_best_ckpt: reset tracking of the best checkpoint,
+                                use for domain adaptation with a new dev
+                                set or when using a new metric for fine-tuning.
+        :param reset_scheduler: reset the learning rate scheduler, and do not
+                                use the one stored in the checkpoint.
+        :param reset_optimizer: reset the optimizer, and do not use the one
+                                stored in the checkpoint.
         """
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
 
         # restore model and optimizer parameters
         self.model.load_state_dict(model_checkpoint["model_state"])
 
-        self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+        if not reset_optimizer:
+            self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+        else:
+            self.logger.info("Reset optimizer.")
 
-        if model_checkpoint["scheduler_state"] is not None and \
-                self.scheduler is not None:
-            self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
+        if not reset_scheduler:
+            if model_checkpoint["scheduler_state"] is not None and \
+                    self.scheduler is not None:
+                self.scheduler.load_state_dict(
+                    model_checkpoint["scheduler_state"])
+        else:
+            self.logger.info("Reset scheduler.")
 
         # restore counts
         self.steps = model_checkpoint["steps"]
         self.total_tokens = model_checkpoint["total_tokens"]
-        self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
-        self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+
+        if not reset_best_ckpt:
+            self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
+            self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+        else:
+            self.logger.info("Reset tracking of the best checkpoint.")
 
         # move parameters to cuda
         if self.use_cuda:
             self.model.cuda()
 
+    # pylint: disable=unnecessary-comprehension
     def train_and_validate(self, train_data: Dataset, valid_data: Dataset) \
             -> None:
         """
@@ -254,6 +286,7 @@ class TrainManager:
 
             self.model.train()
 
+            # Reset statistics for each epoch.
             start = time.time()
             total_valid_duration = 0
             processed_tokens = self.total_tokens
@@ -302,7 +335,7 @@ class TrainManager:
                 # log learning progress
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
-                    elapsed_tokens = self.total_tokens - processed_tokens
+                    elapsed_tokens = self.total_tokens - start_tokens
                     self.logger.info(
                         "Epoch %3d Step: %8d Batch Loss: %12.6f "
                         "Tokens per Sec: %8.0f, Lr: %.6f",
@@ -311,6 +344,7 @@ class TrainManager:
                         self.optimizer.param_groups[0]["lr"])
                     start = time.time()
                     total_valid_duration = 0
+                    start_tokens = self.total_tokens
 
                 # validate on the entire dev set
                 if self.steps % self.validation_freq == 0 and update:
@@ -320,6 +354,7 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
+                            logger=self.logger,
                             batch_size=self.eval_batch_size,
                             data=valid_data,
                             eval_metric=self.eval_metric,
@@ -327,7 +362,7 @@ class TrainManager:
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
                             loss_function=self.loss,
-                            beam_size=0,  # greedy validations
+                            beam_size=1,  # greedy validations
                             batch_type=self.eval_batch_type
                         )
 
@@ -368,7 +403,7 @@ class TrainManager:
                         new_best=new_best)
 
                     self._log_examples(
-                        sources_raw=valid_sources_raw,
+                        sources_raw=[v for v in valid_sources_raw],
                         sources=valid_sources,
                         hypotheses_raw=valid_hypotheses_raw,
                         hypotheses=valid_hypotheses,
@@ -378,10 +413,11 @@ class TrainManager:
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
                     self.logger.info(
-                        'Validation result at epoch %3d, step %8d: %s: %6.2f, '
-                        'loss: %8.4f, ppl: %8.4f, duration: %.4fs',
-                        epoch_no + 1, self.steps, self.eval_metric,
-                        valid_score, valid_loss, valid_ppl, valid_duration)
+                        'Validation result (greedy) at epoch %3d, '
+                        'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
+                        'duration: %.4fs', epoch_no+1, self.steps,
+                        self.eval_metric, valid_score, valid_loss,
+                        valid_ppl, valid_duration)
 
                     # store validation set outputs
                     self._store_outputs(valid_hypotheses)
@@ -408,9 +444,10 @@ class TrainManager:
             self.logger.info('Epoch %3d: total training loss %.2f', epoch_no + 1,
                              epoch_loss)
         else:
-            self.logger.info('Training ended after %3d epochs.', epoch_no + 1)
-        self.logger.info('Best validation result at step %8d: %6.2f %s.',
-                         self.best_ckpt_iteration, self.best_ckpt_score,
+            self.logger.info('Training ended after %3d epochs.', epoch_no+1)
+        self.logger.info('Best validation result (greedy) at step '
+                         '%8d: %6.2f %s.', self.best_ckpt_iteration,
+                         self.best_ckpt_score,
                          self.early_stopping_metric)
 
         self.tb_writer.close()  # close Tensorboard writer
