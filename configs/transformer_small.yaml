@@ -21,7 +21,10 @@ testing:                            # specify which inference algorithm to use f
     alpha: 1.0                      # length penalty for beam search
 
 training:                           # specify training details here
-    #load_model: "my_model/50.ckpt" # if given, load a pre-trained model from this checkpoint
+    #load_model: "models/transformer/60.ckpt" # if given, load a pre-trained model from this checkpoint
+    reset_best_ckpt: False          # if True, reset the tracking of the best checkpoint and scores. Use for domain adaptation or fine-tuning with new metrics or dev data.
+    reset_scheduler: False          # if True, overwrite scheduler in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
+    reset_optimizer: False          # if True, overwrite optimizer in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     random_seed: 42                 # set this seed to make training deterministic
     optimizer: "adam"               # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
     adam_betas: [0.9, 0.98]         # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
@@ -35,16 +38,17 @@ training:                           # specify training details here
     batch_size: 250                 # mini-batch size as number of sentences (when batch_type is "sentence"; default) or total number of tokens (when batch_type is "token")
     batch_type: "token"             # create batches with sentences ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
-    scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer)
-    epochs: 1                       # train for this many epochs
+    normalization: "batch"          # loss normalization of a mini-batch, default: "batch" (by number of sequences in batch), other options: "tokens" (by number of tokens in batch), "sum" (don't normalize, sum up loss)
+    scheduling: "noam"              # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
+    epochs: 10                      # train for this many epochs
     validation_freq: 100            # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     eval_metric: "bleu"             # validation metric, default: "bleu", other options: "chrf", "token_accuracy", "sequence_accuracy"
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
     model_dir: "models/transformer" # directory where models and validation results are stored, required
-    overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
+    overwrite: True                 # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
-    use_cuda: True                  # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31           # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
     print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_last_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5
@@ -81,4 +85,4 @@ model:                              # specify your model architecture here
         hidden_size: 64             # size of hidden layer; must be divisible by number of heads
         ff_size: 128                # size of position-wise feed-forward layer
         dropout: 0.1
-        freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)
+        freeze: False

@@ -69,9 +69,9 @@ class TrainManager:
         self.loss = XentLoss(pad_index=self.pad_index,
                              smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
-        if self.normalization not in ["batch", "tokens"]:
-            raise ConfigurationError("Invalid normalization. "
-                                     "Valid options: 'batch', 'tokens'.")
+        if self.normalization not in ["batch", "tokens", "sum"]:
+            raise ConfigurationError("Invalid normalization option."
+                                     "Valid options: 'batch', 'tokens', 'sum'.")
 
         # optimization
         self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
@@ -431,15 +431,19 @@ class TrainManager:
             normalizer = batch.nseqs
         elif self.normalization == "tokens":
             normalizer = batch.ntokens
+        elif self.normalization == "sum":
+            normalizer = 1
         else:
-            raise NotImplementedError("Only normalize by 'batch' or 'tokens'")
+            raise NotImplementedError(
+                "Only normalize by 'batch' or 'tokens' or summation of loss 'sum' implemented")
 
         norm_batch_loss = batch_loss / normalizer
 
         if update:
             if self.current_batch_multiplier > 1:
                 norm_batch_loss = self.norm_batch_loss_accumulated + norm_batch_loss
-                norm_batch_loss = norm_batch_loss / self.current_batch_multiplier
+                norm_batch_loss = norm_batch_loss / \
+                    self.current_batch_multiplier if self.normalization != "sum" else norm_batch_loss
 
             norm_batch_loss.backward()
 
