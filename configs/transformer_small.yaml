@@ -85,4 +85,4 @@ model:                              # specify your model architecture here
         hidden_size: 64             # size of hidden layer; must be divisible by number of heads
         ff_size: 128                # size of position-wise feed-forward layer
         dropout: 0.1
-        freeze: False
+        freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)
