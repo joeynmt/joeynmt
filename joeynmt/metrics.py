@@ -39,13 +39,22 @@ def token_accuracy(hypotheses, references, level="word"):
     :param level: segmentation level, either "word", "bpe", or "char"
     :return:
     """
+    def split_by_space(input):
+        """
+        Helper method to split the input based on spaces.
+        Follows the same as list(input)
+        :param input: string
+        :return: list of strings
+        """
+        return input.split(" ")
+
     correct_tokens = 0
     all_tokens = 0
-    split_char = " " if level in ["word", "bpe"] else ""
+    split_func = split_by_space if level in ["word", "bpe"] else list
     assert len(hypotheses) == len(references)
     for hyp, ref in zip(hypotheses, references):
         all_tokens += len(hyp)
-        for h_i, r_i in zip(hyp.split(split_char), ref.split(split_char)):
+        for h_i, r_i in zip(split_func(hyp), split_func(ref)):
             # min(len(h), len(r)) tokens considered
             if h_i == r_i:
                 correct_tokens += 1
