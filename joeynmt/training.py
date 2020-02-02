@@ -274,7 +274,6 @@ class TrainManager:
         leftover_batch_size = len(
             train_data) % (self.batch_multiplier * self.batch_size)
 
-
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
 
@@ -478,7 +477,7 @@ class TrainManager:
             if self.current_batch_multiplier > 1:
                 norm_batch_loss = self.norm_batch_loss_accumulated + norm_batch_loss
                 norm_batch_loss = norm_batch_loss / \
-                    self.current_batch_multiplier if self.normalization != "sum" else norm_batch_loss
+                    self.current_batch_multiplier if self.normalization != "none" else norm_batch_loss
 
             norm_batch_loss.backward()
 
