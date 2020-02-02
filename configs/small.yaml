@@ -43,7 +43,7 @@ training:                           # specify training details here
     eval_batch_size: 10             # mini-batch size for evaluation (see batch_size above)
     eval_batch_type: "sentence"     # evaluation batch type ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
-    normalization: "batch"          # loss normalization of a mini-batch, default: "batch" (by number of sequences in batch), other options: "tokens" (by number of tokens in batch), "sum" (don't normalize, sum up loss)
+    normalization: "batch"           # loss normalization of a mini-batch, default: "batch" (by number of sequences in batch), other options: "tokens" (by number of tokens in batch), "none" (don't normalize, sum up loss)
     scheduling: "plateau"           # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
     patience: 5                     # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
     decrease_factor: 0.5            # specific to plateau & exponential scheduler: decrease the learning rate by this factor

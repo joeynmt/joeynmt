@@ -69,9 +69,9 @@ class TrainManager:
         self.loss = XentLoss(pad_index=self.pad_index,
                              smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
-        if self.normalization not in ["batch", "tokens", "sum"]:
+        if self.normalization not in ["batch", "tokens", "none"]:
             raise ConfigurationError("Invalid normalization option."
-                                     "Valid options: 'batch', 'tokens', 'sum'.")
+                                     "Valid options: 'batch', 'tokens', 'none'.")
 
         # optimization
         self.learning_rate_min = train_config.get("learning_rate_min", 1.0e-8)
@@ -275,7 +275,7 @@ class TrainManager:
             train_data) % (self.batch_multiplier * self.batch_size)
 
         # Problem occurs if count can't be counted down to 0
-        batch_mutliplier_problem = self.batch_size * \
+        batch_multiplier_problem = self.batch_size * \
             self.batch_multiplier - leftover_batch_size >= self.batch_size
 
         for epoch_no in range(self.epochs):
@@ -306,7 +306,7 @@ class TrainManager:
                 # memory-6794e10db672
 
                 # Set current_batch_mutliplier to fit number of leftover examples for last batch in epoch
-                if self.batch_multiplier > 1 and batch_mutliplier_problem and i == len(train_iter) - math.ceil(leftover_batch_size / self.batch_size):
+                if self.batch_multiplier > 1 and batch_multiplier_problem and i == len(train_iter) - math.ceil(leftover_batch_size / self.batch_size):
                     self.current_batch_multiplier = math.ceil(
                         leftover_batch_size / self.batch_size)
                     count = self.current_batch_multiplier - 1
@@ -458,6 +458,7 @@ class TrainManager:
 
         :param batch: training batch
         :param update: if False, only store gradient. if True also make update
+        :param count: number of portions (batch_size) left before update
         :return: loss for batch (sum)
         """
         batch_loss = self.model.get_loss_for_batch(
@@ -468,11 +469,11 @@ class TrainManager:
             normalizer = batch.nseqs
         elif self.normalization == "tokens":
             normalizer = batch.ntokens
-        elif self.normalization == "sum":
+        elif self.normalization == "none":
             normalizer = 1
         else:
             raise NotImplementedError(
-                "Only normalize by 'batch' or 'tokens' or summation of loss 'sum' implemented")
+                "Only normalize by 'batch' or 'tokens' or summation of loss 'none' implemented")
 
         norm_batch_loss = batch_loss / normalizer
 
@@ -499,7 +500,7 @@ class TrainManager:
             if count == self.current_batch_multiplier - 1:
                 self.norm_batch_loss_accumulated = norm_batch_loss
             else:
-                # accumalte loss of current batch_size * batch_multiplier loss
+                # accumulate loss of current batch_size * batch_multiplier loss
                 self.norm_batch_loss_accumulated += norm_batch_loss
         # increment token counter
         self.total_tokens += batch.ntokens
