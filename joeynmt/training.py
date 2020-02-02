@@ -274,9 +274,6 @@ class TrainManager:
         leftover_batch_size = len(
             train_data) % (self.batch_multiplier * self.batch_size)
 
-        # Problem occurs if count can't be counted down to 0
-        batch_multiplier_problem = self.batch_size * \
-            self.batch_multiplier - leftover_batch_size >= self.batch_size
 
         for epoch_no in range(self.epochs):
             self.logger.info("EPOCH %d", epoch_no + 1)
@@ -306,7 +303,7 @@ class TrainManager:
                 # memory-6794e10db672
 
                 # Set current_batch_mutliplier to fit number of leftover examples for last batch in epoch
-                if self.batch_multiplier > 1 and batch_multiplier_problem and i == len(train_iter) - math.ceil(leftover_batch_size / self.batch_size):
+                if self.batch_multiplier > 1 and i == len(train_iter) - math.ceil(leftover_batch_size / self.batch_size):
                     self.current_batch_multiplier = math.ceil(
                         leftover_batch_size / self.batch_size)
                     count = self.current_batch_multiplier - 1
