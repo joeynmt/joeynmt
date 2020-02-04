@@ -39,14 +39,14 @@ def token_accuracy(hypotheses, references, level="word"):
     :param level: segmentation level, either "word", "bpe", or "char"
     :return:
     """
-    def split_by_space(input):
+    def split_by_space(string):
         """
         Helper method to split the input based on spaces.
-        Follows the same as list(input)
-        :param input: string
+        Follows the same structure as list(inp)
+        :param string: string
         :return: list of strings
         """
-        return input.split(" ")
+        return string.split(" ")
 
     correct_tokens = 0
     all_tokens = 0
