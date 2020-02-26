@@ -12,4 +12,4 @@ seaborn
 pyyaml>=5.1
 pylint
 six==1.12
-wrapt==1.11
+wrapt==1.11.1
