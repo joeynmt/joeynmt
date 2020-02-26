@@ -141,7 +141,7 @@ Joey NMT (beam=5, alpha=1.0) | 24.9 | 27.7
 
 ## Autshumato 
 
-We built small Transformer models for the South-African languages (af: Afrikaans, nso: Norther Sotho, ts: Xitsonga, tn: Setswana, zu: isiZulu) of the [Autshumato benchmark](http://autshumato.sourceforge.net/) with the data as prepared in the [Uxhumana project](https://github.com/LauraMartinus/ukuxhumana). The training data from the "clean" subdirectory of the Uxhumana repository is additionally tokenized with Moses' tokenizer. 
+We built small Transformer models for the South-African languages (af: Afrikaans, nso: Northern Sotho, ts: Xitsonga, tn: Setswana, zu: isiZulu) of the [Autshumato benchmark](http://autshumato.sourceforge.net/) with the data as prepared in the [Uxhumana project](https://github.com/LauraMartinus/ukuxhumana). The training data from the "clean" subdirectory of the Uxhumana repository is additionally tokenized with Moses' tokenizer. 
 The models are evaluated with sacrebleu on the tokenized test sets (beam=5, alpha=1.0, sacrebleu with `--tokenize none`). For comparison to the Uxhumana baselines ([Martinus & Abbott, 2019](https://arxiv.org/pdf/1906.10511.pdf)) built with the Tensor2Tensor base Transformer, we also compare to the results obtained with the international tokenizer.
 
 System | Source language | Target language | **test (`--tokenize none`)** | test (`--tokenize intl`)
