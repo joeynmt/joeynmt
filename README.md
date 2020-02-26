@@ -150,7 +150,7 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
 
 ## Benchmarks
-Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
+Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). Please also check the [https://github.com/masakhane-io/masakhane](Masakhane repository) for benchmarks and available models for African languages.
 
 ## Pre-trained Models
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
@@ -164,7 +164,7 @@ Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.0
 - [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
 
 ### Autshumato
-Traing with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
+Training with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
 
 - [Autshumato en-af small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enaf_transformer.tar.gz) (147M)
 - [Autshumato af-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_afen_transformer.tar.gz) (147M)
