@@ -182,7 +182,8 @@ class TransformerEncoderLayer(nn.Module):
         self.layer_norm = nn.LayerNorm(size, eps=1e-6)
         self.src_src_att = MultiHeadedAttention(num_heads, size,
                                                 dropout=dropout)
-        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size)
+        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size,
+                                                    dropout=dropout)
         self.dropout = nn.Dropout(dropout)
         self.size = size
 
@@ -235,7 +236,8 @@ class TransformerDecoderLayer(nn.Module):
         self.src_trg_att = MultiHeadedAttention(num_heads, size,
                                                 dropout=dropout)
 
-        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size)
+        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size,
+                                                    dropout=dropout)
 
         self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
         self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
