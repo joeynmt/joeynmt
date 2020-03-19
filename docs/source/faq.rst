@@ -4,6 +4,17 @@
 Frequently Asked Questions
 ==========================
 
+Documentation
+-------------
+- **Are there any Notebooks for Joey?**
+    Check out the `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation.
+
+- **Is there a bunch of scripts to run all those Joey commands?**
+    ICheck out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
+
+- **I can't find the information I'm looking for. What now?**
+    Open an issue on GitHub or post a question on gitter.
+
 Usage
 -----
 
@@ -135,6 +146,7 @@ Data
    For that purpose, you might find the tools provided by the Moses decoder useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ library for BPEs.
    However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length)
    that you specify in the data section of the configuration file.
+   You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/master/scripts/preprocess.sh>`_.
 
 Debugging
 ^^^^^^^^^
