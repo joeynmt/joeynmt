@@ -145,9 +145,10 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 
 
 ## Documentation and Tutorial
-[The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation]() and [FAQs]().
-
-A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
+- [The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation](https://joeynmt.readthedocs.io/en/latest/api.html) and [FAQs](https://joeynmt.readthedocs.io/en/latest/faq.html).
+- A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
+- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
+- Matthias Müller wrote a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) for installation, data download and preparation, model training and evaluation.
 
 ## Benchmarks
 Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). Please also check the [https://github.com/masakhane-io/masakhane](Masakhane repository) for benchmarks and available models for African languages.
@@ -193,6 +194,7 @@ Code extending the functionalities beyond the basics will most likely not end up
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey, so you can find inspiration and examples on how to modify and extend the code.
 
+- **Joey Toy Models**. [@bricksdont](https://github.com/bricksdont) built a [collection of scripts] (https://github.com/bricksdont/joeynmt-toy-models) showing how to install JoeyNMT, preprocess data, train and evaluate models. This is a great starting point for anyone who wants to run systematic experiments, tends to forget python calls, or doesn't like to run notebook cells! 
 - **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/jaderabbit/masakhane) contains and explains all the code you need to train JoeyNMT and points to data sources. It also contains benchmark models and configurations that members of Masakhane have built for various African languages.
 - **Slack Joey**. [Code](https://github.com/juliakreutzer/slack-joey) to locally deploy a Joey NMT model as chat bot in a Slack workspace. It's a convenient way to probe your model without having to implement an API. And bad translations for chat messages can be very entertaining, too ;)
 - **Flask Joey**. [@kevindegila](https://github.com/kevindegila) built a [flask interface to Joey](https://github.com/kevindegila/flask-joey), so you can deploy your trained model in a web app and query it in the browser. 
