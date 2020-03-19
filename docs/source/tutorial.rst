@@ -6,6 +6,8 @@ Tutorial
 
 In this tutorial you learn to build a recurrent neural translation system for a toy translation task, how to train, tune and test it.
 
+Instead of following the example here, you might also run the `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project or the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that both walk you through the installation, data preparation, training, evaluation.
+
 
 1. Data Preparation
 ===================
