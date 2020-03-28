@@ -156,6 +156,13 @@ Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). 
 ## Pre-trained Models
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
 
+### IWSLT14 de-en
+- [IWSLT14 de-en BPE RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/iwslt14-deen-bpe.tar.gz) (641M)
+- [IWSLT14 de-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt14_deen_bpe.tar.gz) (210M)
+
+### IWSLT15 en-vi
+- [IWSLT15 en-vi Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt15_envi.tar.gz) (186M)
+
 ### WMT17
 Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.05690).
 
