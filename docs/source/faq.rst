@@ -10,7 +10,7 @@ Documentation
     Check out the `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation.
 
 - **Is there a bunch of scripts to run all those Joey commands?**
-    ICheck out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
+    Check out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
 
 - **I can't find the information I'm looking for. What now?**
     Open an issue on GitHub or post a question on gitter.
@@ -58,16 +58,16 @@ Training
 - **How can I perform domain adaptation or fine-tuning?**
    Both approaches are similar, so we call the fine-tuning data *in-domain* data in the following.
    
-   1. First train your model on one dataset (the *out-of-domain* data).
+     1. First train your model on one dataset (the *out-of-domain* data).
    
-   2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
-   Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
-    You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
-    In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
-    If you set ``reset_best_ckpt'': True'', previously stored high scores under your metric will be ignored, and if you set ``reset_scheduler'' and ``reset_optimizer'' you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
-    Use this if the scores on your new dev set are lower than on the old dev set, or if you use a different metric or schedule for fine-tuning.
+     2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
+        Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
+        You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
+        In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
+        If you set ``reset_best_ckpt'': True'', previously stored high scores under your metric will be ignored, and if you set ``reset_scheduler'' and ``reset_optimizer'' you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
+        Use this if the scores on your new dev set are lower than on the old dev set, or if you use a different metric or schedule for fine-tuning.
     
-   3. Train the in-domain model.
+     3. Train the in-domain model.
 
 - **What if training is interrupted and I need to resume it?**
    Modify the configuration to load the latest checkpoint (``load_model``) and the vocabularies (``src_vocab``, ``trg_vocab``) and to write the model into a new directory (``model_dir``).
@@ -137,16 +137,18 @@ Configurations
   The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (`batch_type: "sentence"`), or by a maximum number of tokens (`batch_type: "token"`). For Transformer models, mini-batching is usually done by tokens.
 
 - **Do I need a warm-up scheduler with the Transformer architecture?**
-   No. The 'Noam scheduler' that was introduced with the original Transformer architecture works well for the data sets (several millions) described in the `paper (Vaswani et al. 2017)<https://arxiv.org/pdf/1706.03762.pdf>_`. However, on different data it might require a careful tuning of the warm-up schedule. We experienced good performance with the plateau scheduler as well, which is usally easier to tune. `Popel and Bojar (2018)<https://ufal.mff.cuni.cz/pbml/110/art-popel-bojar.pdf>_` give further tips on how to tune the hyper-parameters for the Transformer.
+   No. The 'Noam scheduler' that was introduced with the original Transformer architecture works well for the data sets (several millions) described in the `paper (Vaswani et al. 2017) <https://arxiv.org/pdf/1706.03762.pdf>`_. However, on different data it might require a careful tuning of the warm-up schedule. We experienced good performance with the plateau scheduler as well, which is usally easier to tune. `Popel and Bojar (2018) <https://ufal.mff.cuni.cz/pbml/110/art-popel-bojar.pdf>`_ give further tips on how to tune the hyper-parameters for the Transformer.
 
 Data
 ^^^^
 - **Does JoeyNMT pre-process my data?**
-   JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
-   For that purpose, you might find the tools provided by the Moses decoder useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ library for BPEs.
-   However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length)
-   that you specify in the data section of the configuration file.
-   You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/master/scripts/preprocess.sh>`_.
+    JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
+    For that purpose, you might find the tools provided by the Moses decoder useful (standard , as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh>`_.
+    However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length) that you specify in the data section of the configuration file.
+    You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/master/scripts/preprocess.sh>`_.
+
+- **Does JoeyNMT post-process your data?**
+  JoeyNMT does generally *not* perform any post-processing like detokenization, recasing or the like. The only exception is when you run it with ´level='bpe'´ -- then it *merges* the BPEs for your convenience. This holds for computing validation BLEU and test BLEU scores, so that they're not computed on subwords, but the previously split tokens.
 
 Debugging
 ^^^^^^^^^
@@ -206,41 +208,58 @@ Features
 Model Extensions
 ----------------
 - **I want to extend Joey NMT -- where do I start? Where do I have to modify the code?**
-  Depends on the scope of your extension. In general, we can recommend describing the desired behavior in the config (e.g. 'use_my_feature:True') and then passing this value along the forward pass and modify the model according to it.
-  If your just loading more/richer inputs, you will only have to modify the part from the corpus reading to the encoder input. If you want to modify the training objective, you will naturally work in 'loss.py'.
-  Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
+    Depends on the scope of your extension. In general, we can recommend describing the desired behavior in the config (e.g. 'use_my_feature:True') and then passing this value along the forward pass and modify the model according to it.
+    If your just loading more/richer inputs, you will only have to modify the part from the corpus reading to the encoder input. If you want to modify the training objective, you will naturally work in 'loss.py'.
+    Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
 
 - **How do I integrate a new learning rate scheduler?**
-   1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler. 
+    1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler. 
   
-   2. You basically need to implement the ``step`` function that implements whatever happens when the scheduler is asked to make a step (either after every validation (``scheduler_step_at="validation"``) or every batch (``scheduler_step_at="step"``)). In that step, the learning rate can be modified just as you like (``rate = self._compute_rate()``). In order to make an effective update of the learning rate, the learning rate for the optimizer's parameter groups have to be set to the new value (``for p in self.optimizer.param_groups: p['lr'] = rate``).
+    2. You basically need to implement the ``step`` function that implements whatever happens when the scheduler is asked to make a step (either after every validation (``scheduler_step_at="validation"``) or every batch (``scheduler_step_at="step"``)). In that step, the learning rate can be modified just as you like (``rate = self._compute_rate()``). In order to make an effective update of the learning rate, the learning rate for the optimizer's parameter groups have to be set to the new value (``for p in self.optimizer.param_groups: p['lr'] = rate``).
   
-   3. The last thing that is missing is the parsing of configuration parameters to build the scheduler object. Once again, follow the example of existing schedulers and integrate the code for constructing your new scheduler in the ``build_scheduler`` function.
+    3. The last thing that is missing is the parsing of configuration parameters to build the scheduler object. Once again, follow the example of existing schedulers and integrate the code for constructing your new scheduler in the ``build_scheduler`` function.
   
-   4. Give the new scheduler a try! Integrate it in a basic configuration file and check in the training log and the validation reports whether the learning rate is behaving as desired.
+    4. Give the new scheduler a try! Integrate it in a basic configuration file and check in the training log and the validation reports whether the learning rate is behaving as desired.
   
 
 Contributing
 ------------
 - **How can I contribute?**
-  Check out the current issues and look for "beginner-friendly" tags and grab one of these.
+    Check out the current issues and look for "beginner-friendly" tags and grab one of these.
 
 - **What's in a Pull Request?**
-  Opening a pull request means that you have written code that you want to contribute to Joey NMT. In order to communicate what your code does, please write a description of new features, defaults etc.
-  Your new code should also pass tests and adher to style guidelines, this will be tested automatically. The code will only be pushed when all issues raised by reviewers have been addressed.
-  See also `here <https://help.github.com/en/articles/about-pull-requests>`_.
+    Opening a pull request means that you have written code that you want to contribute to Joey NMT. In order to communicate what your code does, please write a description of new features, defaults etc.
+    Your new code should also pass tests and adher to style guidelines, this will be tested automatically. The code will only be pushed when all issues raised by reviewers have been addressed.
+    See also `here <https://help.github.com/en/articles/about-pull-requests>`_.
+
+Evaluation
+----------
+- **Which quality metrics does JoeyNMT report?**
+    JoeyNMT reports `BLEU <https://www.aclweb.org/anthology/P02-1040.pdf>`_, `chrF <https://www.aclweb.org/anthology/W15-3049.pdf>`_, sentence- and token-level accuracy. You can choose which of those to report with setting `eval_metric` accordingly. As a default, we recommend BLEU since it is a standard metric. However, not all BLEU implementations compute the score in the same way, as discussed `in this paper by Matt Post <https://www.aclweb.org/anthology/W18-6319/>`_. So the scores that you obtain might not be comparable to those published in a paper, *even* if the data is identical! 
+    
+- **Which library is JoeyNMT using to compute BLEU scores?**
+    JoeyNMT uses `sacrebleu <ttps://github.com/mjpost/sacrebleu>`_ to compute BLEU and chrF scores.
+    It uses the `raw_corpus_bleu <https://github.com/mjpost/sacrebleu/blob/f54908ac00879f666c92f4174367bcd3a8723197/sacrebleu/sacrebleu.py#L653>`_ scoring function that excludes special de/tokenization or smoothing. This is done to respect the tokenization that is inherent in the provided input data. However, that means that the BLEU score you get out of Joey is *dependent on your input tokenization*, so be careful when comparing it to scores you find in literature.
+    
+- **Can I publish the BLEU scores JoeyNMT reports on my test set?**
+    As described in the two preceding questions, BLEU reporting has to be handled with care, since it depends on tokenizers and implementations. Generally, whenever you report BLEU scores, report as well how you computed them. This is essential for reproducability of results and future comparisons. If you compare to previous benchmarks or scores, first find out how these were computed.
+    Our recommendation is as follows:
+      1. Use the scores that Joey reports on your validation set for tuning and selecting the best model. 
+      2. Then translate your test set once (in "translate" mode), and post-process the produced translations accordingly, e.g., detokenize it, restore casing.
+      3. Use the BLEU scoring library of your choice, this is the one that is reported in previous benchmarks, or e.g. sacrebleu (see above). Make sure to set tokenization flags correctly.
+      4. Report these scores together with a description of how you computed them, ideally provide a script with your code.  
 
 Miscellaneous
 -------------
 - **Why should I use JoeyNMT rather than other NMT toolkits?**
-  It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all latest features, but rather the core features that make up for 99% of the quality.
+    It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all latest features, but rather the core features that make up for 99% of the quality.
   That means for you, once you know how to work with it, we guarantee you the code won't completely change from one day to the next.
 
 - **I found a bug in your code, what should I do?**
-  Describe it in an issue on GitHub! And even better: fix it and create a pull request. Open source contributions look good on your CV! ;)
+    Describe it in an issue on GitHub! And even better: fix it and create a pull request. Open source contributions look good on your CV! ;)
 
 - **How can I check whether my model is significantly better than my baseline model?**
-  Run significance tests, e.g. with `Multeval <https://github.com/jhclark/multeval>`_.
+    Run significance tests, e.g. with `Multeval <https://github.com/jhclark/multeval>`_.
 
 - **Where can I find training data?**
-  See :ref:`resources`.
+    See :ref:`resources`.
