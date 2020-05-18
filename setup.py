@@ -1,9 +1,7 @@
+#!/usr/bin/env python
 from setuptools import setup, find_packages
-#from distutils.core import Extension
 import sys
 import os
-
-#sys.path.append("./joeynmt")
 
 with open("requirements.txt", encoding="utf-8") as req_fp:
   install_requires = req_fp.readlines()
