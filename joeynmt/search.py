@@ -12,7 +12,7 @@ from joeynmt.helpers import tile
 __all__ = ["greedy", "transformer_greedy", "beam_search"]
 
 
-def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
+def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int, eos_index: int,
            max_output_length: int, decoder: Decoder,
            encoder_output: Tensor, encoder_hidden: Tensor)\
         -> (np.array, np.array):
@@ -24,6 +24,7 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -39,12 +40,12 @@ def greedy(src_mask: Tensor, embed: Embeddings, bos_index: int,
         greedy_fun = recurrent_greedy
 
     return greedy_fun(
-        src_mask, embed, bos_index, max_output_length,
+        src_mask, embed, bos_index, eos_index, max_output_length,
         decoder, encoder_output, encoder_hidden)
 
 
 def recurrent_greedy(
-        src_mask: Tensor, embed: Embeddings, bos_index: int,
+        src_mask: Tensor, embed: Embeddings, bos_index: int, eos_index: int,
         max_output_length: int, decoder: Decoder,
         encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, np.array):
     """
@@ -54,6 +55,7 @@ def recurrent_greedy(
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -69,6 +71,7 @@ def recurrent_greedy(
     attention_scores = []
     hidden = None
     prev_att_vector = None
+    finished = src_mask.new_zeros((batch_size, 1)).byte()
 
     # pylint: disable=unused-variable
     for t in range(max_output_length):
@@ -89,6 +92,14 @@ def recurrent_greedy(
         prev_y = next_word
         attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
         # batch, max_src_lengths
+
+        # check if previous symbol was <eos>
+        is_eos = torch.eq(next_word, eos_index)
+        finished += is_eos
+        # stop predicting if <eos> reached for all elements in batch
+        if (finished >= 1).sum() == batch_size:
+            break
+
     stacked_output = np.stack(output, axis=1)  # batch, time
     stacked_attention_scores = np.stack(attention_scores, axis=1)
     return stacked_output, stacked_attention_scores
@@ -97,7 +108,8 @@ def recurrent_greedy(
 # pylint: disable=unused-argument
 def transformer_greedy(
         src_mask: Tensor, embed: Embeddings,
-        bos_index: int, max_output_length: int, decoder: Decoder,
+        bos_index: int, eos_index: int,
+        max_output_length: int, decoder: Decoder,
         encoder_output: Tensor, encoder_hidden: Tensor) -> (np.array, None):
     """
     Special greedy function for transformer, since it works differently.
@@ -106,6 +118,7 @@ def transformer_greedy(
     :param src_mask: mask for source inputs, 0 for positions after </s>
     :param embed: target embedding layer
     :param bos_index: index of <s> in the vocabulary
+    :param eos_index: index of </s> in the vocabulary
     :param max_output_length: maximum length for the hypotheses
     :param decoder: decoder to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
@@ -122,6 +135,8 @@ def transformer_greedy(
 
     # a subsequent mask is intersected with this in decoder forward pass
     trg_mask = src_mask.new_ones([1, 1, 1])
+
+    finished = src_mask.new_zeros((batch_size)).byte()
 
     for _ in range(max_output_length):
 
@@ -143,6 +158,13 @@ def transformer_greedy(
             _, next_word = torch.max(logits, dim=1)
             next_word = next_word.data
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
+
+        # check if previous symbol was <eos>
+        is_eos = torch.eq(next_word, eos_index)
+        finished += is_eos
+        # stop predicting if <eos> reached for all elements in batch
+        if (finished >= 1).sum() == batch_size:
+            break
 
     ys = ys[:, 1:]  # remove BOS-symbol
     return ys.detach().cpu().numpy(), None

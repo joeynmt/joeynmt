@@ -8,6 +8,7 @@ data: # specify your data here
     train: "test/data/toy/train"    # training data
     dev: "test/data/toy/dev"        # development data for validation
     test: "test/data/toy/test"      # test data for testing final model; optional
+    random_train_subset: -1         # select this many training examples randomly for training and discard the rest, -1: all
     level: "word"                   # segmentation level: either "word", "bpe" or "char"
     lowercase: True                 # lowercase the data, also for validation
     max_sent_length: 30             # filter out longer sentences from training (src+trg)
@@ -42,6 +43,7 @@ training:                           # specify training details here
     eval_batch_size: 10             # mini-batch size for evaluation (see batch_size above)
     eval_batch_type: "sentence"     # evaluation batch type ("sentence", default) or tokens ("token")
     batch_multiplier: 1             # increase the effective batch size with values >1 to batch_multiplier*batch_size without increasing memory consumption by making updates only every batch_multiplier batches
+    normalization: "batch"           # loss normalization of a mini-batch, default: "batch" (by number of sequences in batch), other options: "tokens" (by number of tokens in batch), "none" (don't normalize, sum up loss)
     scheduling: "plateau"           # learning rate scheduling, optional, if not specified stays constant, options: "plateau", "exponential", "decaying", "noam" (for Transformer), "warmupexponentialdecay"
     patience: 5                     # specific to plateau scheduler: wait for this many validations without improvement before decreasing the learning rate
     decrease_factor: 0.5            # specific to plateau & exponential scheduler: decrease the learning rate by this factor

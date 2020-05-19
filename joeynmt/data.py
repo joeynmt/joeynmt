@@ -3,6 +3,7 @@
 Data module
 """
 import sys
+import random
 import os
 import os.path
 from typing import Optional
@@ -25,6 +26,9 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
 
     The training data is filtered to include sentences up to `max_sent_length`
     on source and target side.
+
+    If you set ``random_train_subset``, a random selection of this size is used
+    from the training set instead of the full training set.
 
     :param data_cfg: configuration dictionary for data
         ("data" part of configuation file)
@@ -82,6 +86,16 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     trg_vocab = build_vocab(field="trg", min_freq=trg_min_freq,
                             max_size=trg_max_size,
                             dataset=train_data, vocab_file=trg_vocab_file)
+
+    random_train_subset = data_cfg.get("random_train_subset", -1)
+    if random_train_subset > -1:
+        # select this many training examples randomly and discard the rest
+        keep_ratio = random_train_subset / len(train_data)
+        keep, _ = train_data.split(
+            split_ratio=[keep_ratio, 1 - keep_ratio],
+            random_state=random.getstate())
+        train_data = keep
+
     dev_data = TranslationDataset(path=dev_path,
                                   exts=("." + src_lang, "." + trg_lang),
                                   fields=(src_field, trg_field))

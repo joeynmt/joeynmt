@@ -145,15 +145,23 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 
 
 ## Documentation and Tutorial
-[The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation]() and [FAQs]().
-
-A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
+- [The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation](https://joeynmt.readthedocs.io/en/latest/api.html) and [FAQs](https://joeynmt.readthedocs.io/en/latest/faq.html).
+- A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc).
+- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
+- Matthias Müller wrote a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) for installation, data download and preparation, model training and evaluation.
 
 ## Benchmarks
-Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md).
+Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). Please also check the [https://github.com/masakhane-io/masakhane](Masakhane repository) for benchmarks and available models for African languages.
 
 ## Pre-trained Models
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
+
+### IWSLT14 de-en
+- [IWSLT14 de-en BPE RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/iwslt14-deen-bpe.tar.gz) (641M)
+- [IWSLT14 de-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt14_deen_bpe.tar.gz) (210M)
+
+### IWSLT15 en-vi
+- [IWSLT15 en-vi Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt15_envi.tar.gz) (186M)
 
 ### WMT17
 Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.05690).
@@ -164,7 +172,7 @@ Following the pre-processing of the [Sockeye paper](https://arxiv.org/abs/1712.0
 - [WMT17 lv-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/wmt_lven_transformer.tar.gz) (650M)
 
 ### Autshumato
-Traing with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
+Training with data provided in the [Ukuxhumana project](https://github.com/LauraMartinus/ukuxhumana), with additional tokenization of the training data with the [Moses tokenizer](https://github.com/moses-smt/mosesdecoder/blob/master/scripts/tokenizer/tokenizer.perl).
 
 - [Autshumato en-af small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_enaf_transformer.tar.gz) (147M)
 - [Autshumato af-en small Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/autshumato_afen_transformer.tar.gz) (147M)
@@ -193,7 +201,10 @@ Code extending the functionalities beyond the basics will most likely not end up
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey, so you can find inspiration and examples on how to modify and extend the code.
 
-- **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/jaderabbit/masakhane) contains and explains all the code you need to train JoeyNMT and points to data sources. 
+- **Joey Toy Models**. [@bricksdont](https://github.com/bricksdont) built a [collection of scripts] (https://github.com/bricksdont/joeynmt-toy-models) showing how to install JoeyNMT, preprocess data, train and evaluate models. This is a great starting point for anyone who wants to run systematic experiments, tends to forget python calls, or doesn't like to run notebook cells! 
+- **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/jaderabbit/masakhane) contains and explains all the code you need to train JoeyNMT and points to data sources. It also contains benchmark models and configurations that members of Masakhane have built for various African languages.
+- **Slack Joey**. [Code](https://github.com/juliakreutzer/slack-joey) to locally deploy a Joey NMT model as chat bot in a Slack workspace. It's a convenient way to probe your model without having to implement an API. And bad translations for chat messages can be very entertaining, too ;)
+- **Flask Joey**. [@kevindegila](https://github.com/kevindegila) built a [flask interface to Joey](https://github.com/kevindegila/flask-joey), so you can deploy your trained model in a web app and query it in the browser. 
 - **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://arxiv.org/abs/1907.12484).
 - **Self-Regulated Interactive Seq2Seq Learning**. Julia Kreutzer and Stefan Riezler. Published at ACL 2019. [Paper](https://arxiv.org/abs/1907.05190) and [Code](https://github.com/juliakreutzer/joeynmt/tree/acl19). This project augments the standard fully-supervised learning regime by weak and self-supervision for a better trade-off of quality and supervision costs in interactive NMT.
 - **Speech Joey**. [@Sariyusha](https://github.com/Sariyusha) is giving Joey ears for speech translation. [Code](https://github.com/Sariyusha/speech_joey).
