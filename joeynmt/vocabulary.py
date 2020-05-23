@@ -117,7 +117,7 @@ class Vocabulary:
             s = self.itos[i]
             if cut_at_eos and s == EOS_TOKEN:
                 break
-            elif skip_pad and s == PAD_TOKEN:
+            if skip_pad and s == PAD_TOKEN:
                 continue
             sentence.append(s)
         return sentence
