@@ -38,7 +38,7 @@ Training Management
 ===================
 
 The training process is managed by the `TrainManager <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/training.py#L37>`_.
-The manager receives a model and the he following steps are done:configuration as input and sets up the logger, the learning rate scheduling, the optimizer, counters for update steps, keeps track of the currently best checkpoint and decides when to stop training.
+The manager receives a model and the following steps are done:configuration as input and sets up the logger, the learning rate scheduling, the optimizer, counters for update steps, keeps track of the currently best checkpoint and decides when to stop training.
 Most of the hyperparameters in the "training" section of the configuration file are turned into attributes of the TrainManager.
 
 
