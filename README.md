@@ -21,7 +21,7 @@ However, Joey NMT re-implements baselines from major publications.
 Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [paper](https://arxiv.org/abs/1907.12484).
 
 ## Contributors
-Joey NMT is developed by [Joost Bastings](https://bastings.github.io) (University of Amsterdam) and [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University).
+Joey NMT is developed by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](http://www.cl.uni-heidelberg.de/~kreutzer/) (Heidelberg University).
 
 ## Features
 Joey NMT implements the following features (aka the minimalist toolkit of NMT):
@@ -226,14 +226,19 @@ For general questions, email us at `joeynmt <at> gmail.com`.
 If you use Joey NMT in a publication or thesis, please cite the following [paper](https://arxiv.org/abs/1907.12484):
 
 ```
-@ARTICLE{JoeyNMT,
-author = {{Kreutzer}, Julia and {Bastings}, Joost and {Riezler}, Stefan},
-title = {Joey {NMT}: A Minimalist {NMT} Toolkit for Novices},
-journal = {To Appear in EMNLP-IJCNLP 2019: System Demonstrations},
-year = {2019},
-month = {Nov},
-address = {Hong Kong}
-url = {https://arxiv.org/abs/1907.12484}
+@inproceedings{kreutzer-etal-2019-joey,
+    title = "Joey {NMT}: A Minimalist {NMT} Toolkit for Novices",
+    author = "Kreutzer, Julia  and
+      Bastings, Jasmijn  and
+      Riezler, Stefan",
+    booktitle = "Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP): System Demonstrations",
+    month = nov,
+    year = "2019",
+    address = "Hong Kong, China",
+    publisher = "Association for Computational Linguistics",
+    url = "https://www.aclweb.org/anthology/D19-3019",
+    doi = "10.18653/v1/D19-3019",
+    pages = "109--114",
 }
 ```
 
