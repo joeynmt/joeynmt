@@ -22,8 +22,8 @@ print(sys.path)
 # -- Project information -----------------------------------------------------
 
 project = 'Joey NMT'
-copyright = '2018, Joost Bastings and Julia Kreutzer'
-author = 'Joost Bastings and Julia Kreutzer'
+copyright = '2018, Jasmijn Bastings and Julia Kreutzer'
+author = 'Jasmijn Bastings and Julia Kreutzer'
 
 # The short X.Y version
 version = ''
