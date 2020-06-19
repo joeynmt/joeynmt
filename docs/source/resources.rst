@@ -17,7 +17,7 @@ A comprehensive list of NMT toolkits, ordered by deep learning backend can be fo
 Tutorials
 ---------
 - `The Annotated Transformer <http://nlp.seas.harvard.edu/2018/04/03/attention.html>`_ by Alexander Rush
-- `The Annotated Encoder-Decoder <https://bastings.github.io/annotated_encoder_decoder/>`_ by Joost Bastings
+- `The Annotated Encoder-Decoder <https://bastings.github.io/annotated_encoder_decoder/>`_ by Jasmijn Bastings
 - Graham Neubig: `Neural Machine Translation and Sequence-to-sequence Models: A Tutorial. <https://arxiv.org/pdf/1703.01619.pdf>`_
 - Philipp Koehn: `Neural Machine Translation. <https://arxiv.org/pdf/1709.07809.pdf>`_
 - `Video recording <https://www.youtube.com/watch?v=IxQtK2SjWWM>`_ of Chris Manning's lecture on "NMT and Models with Attention" at Stanford (2017)
