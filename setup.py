@@ -10,7 +10,7 @@ setup(
   name='joeynmt',
   version='0.0.1',
   description='Minimalist NMT for educational purposes',
-  author='Joost Bastings and Julia Kreutzer',
+  author='Jasmijn Bastings and Julia Kreutzer',
   url='https://github.com/joeynmt/joeynmt',
   license='Apache License',
   install_requires=install_requires,
