@@ -29,7 +29,8 @@ def validate_on_data(model: Model, data: Dataset,
                      level: str, eval_metric: Optional[str],
                      loss_function: torch.nn.Module = None,
                      beam_size: int = 1, beam_alpha: int = -1,
-                     batch_type: str = "sentence"
+                     batch_type: str = "sentence",
+                     postprocess: bool = True
                      ) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
@@ -53,6 +54,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param beam_alpha: beam search alpha for length penalty,
         disabled if set to -1 (default).
     :param batch_type: validation batch type (sentence or token)
+    :param postprocess: if True, remove BPE segmentation from translations
 
     :return:
         - current_valid_score: current validation score [eval_metric],
@@ -133,7 +135,7 @@ def validate_on_data(model: Model, data: Dataset,
         valid_hypotheses = [join_char.join(t) for t in decoded_valid]
 
         # post-process
-        if level == "bpe":
+        if level == "bpe" and postprocess:
             valid_sources = [bpe_postprocess(s) for s in valid_sources]
             valid_references = [bpe_postprocess(v)
                                 for v in valid_references]
@@ -230,9 +232,11 @@ def test(cfg_file,
     if "testing" in cfg.keys():
         beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
+        postprocess = cfg["testing"].get("postprocess", True)
     else:
         beam_size = 1
         beam_alpha = -1
+        postprocess = True
 
     for data_set_name, data_set in data_to_predict.items():
 
@@ -243,7 +247,7 @@ def test(cfg_file,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, logger=logger)
+            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
@@ -324,7 +328,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, logger=logger)
+            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
         return hypotheses
 
     cfg = load_config(cfg_file)
@@ -377,9 +381,11 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     if "testing" in cfg.keys():
         beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
+        postprocess = cfg["testing"].get("postprocess", True)
     else:
         beam_size = 1
         beam_alpha = -1
+        postprocess = True
 
     if not sys.stdin.isatty():
         # input file given

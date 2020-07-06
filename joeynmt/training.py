@@ -375,7 +375,8 @@ class TrainManager:
                             max_output_length=self.max_output_length,
                             loss_function=self.loss,
                             beam_size=1,  # greedy validations
-                            batch_type=self.eval_batch_type
+                            batch_type=self.eval_batch_type,
+                            postprocess=True # always remove BPE for validation
                         )
 
                     self.tb_writer.add_scalar("valid/valid_loss",
