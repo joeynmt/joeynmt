@@ -186,7 +186,7 @@ Features
    Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
 
 - **Is there the option to ensemble multiple models?**
-   You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/scripts/average_checkpoints.py>`_.
+   You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/master/scripts/average_checkpoints.py>`_.
 
 - **What is a bridge?**
    We call the connection between recurrent encoder and decoder states the *bridge*.
