@@ -126,6 +126,9 @@ def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
+    if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+        torch.backends.cudnn.deterministic = True
+        torch.cuda.manual_seed_all(seed)
 
 
 def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
