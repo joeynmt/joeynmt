@@ -1,0 +1,89 @@
+name: "jparacrawl-enja-sp-transformer"
+
+data:
+  src: "en"
+  trg: "ja"
+  train: "test/data/jparacrawl/train.sp.32000"
+  dev: "test/data/jparacrawl/dev.sp.32000"
+  test: "test/data/iwslt17/test.sp.32000"
+  random_train_subset: -1
+  level: "bpe"
+  lowercase: False
+  max_sent_length: 250
+  src_voc_min_freq: 1
+  src_voc_limit: 32000
+  trg_voc_min_freq: 1
+  trg_voc_limit: 32000
+  src_vocab: "test/data/jparacrawl/vocab.en"
+  trg_vocab: "test/data/jparacrawl/vocab.ja"
+
+testing:
+  beam_size: 6
+  alpha: 1.0
+  postproccess: True
+  bpe_type: "sentencepiece"
+  sacrebleu:
+    remove_whitespace: False
+    tokenize: "ja-mecab"
+
+training:
+  random_seed: 42
+  optimizer: "adam"
+  normalization: "tokens"
+  adam_betas: [0.9, 0.98]
+  scheduling: "plateau"
+  patience: 5
+  decrease_factor: 0.7
+  loss: "crossentropy"
+  learning_rate: 0.001
+  learning_rate_min: 1.0e-09
+  learning_rate_warmup: 4000
+  clip_grad_norm: 1.0
+  weight_decay: 0.0
+  label_smoothing: 0.1
+  batch_multiplier: 16
+  batch_size: 5000
+  batch_type: "token"
+  early_stopping_metric: "eval_metric"
+  epochs: 5
+  validation_freq: 1000
+  logging_freq: 100
+  eval_metric: "bleu"
+  model_dir: "models/jparacrawl_enja_sp"
+  overwrite: True
+  shuffle: True
+  use_cuda: True
+  max_output_length: 100
+  print_valid_sents: [2000, 2001, 2002, 2003, 2004]
+  keep_last_ckpts: 8
+
+model:
+  initializer: "xavier"
+  embed_initializer: "xavier"
+  embed_init_gain: 1.0
+  init_gain: 1.0
+  bias_initializer: "zeros"
+  tied_embeddings: False
+  tied_softmax: False
+  encoder:
+    type: "transformer"
+    num_layers: 6
+    num_heads: 8
+    embeddings:
+      embedding_dim: 512
+      scale: True
+      dropout: 0.
+    hidden_size: 512
+    ff_size: 2048
+    dropout: 0.3
+  decoder:
+    type: "transformer"
+    num_layers: 6
+    num_heads: 8
+    embeddings:
+      embedding_dim: 512
+      scale: True
+      dropout: 0.
+    hidden_size: 512
+    ff_size: 2048
+    dropout: 0.3
