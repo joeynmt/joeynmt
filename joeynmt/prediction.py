@@ -5,7 +5,8 @@ This modules holds methods for generating predictions from a model.
 import os
 import sys
 from typing import List, Optional
-from logging import Logger
+import logging
+#from logging import Logger
 import numpy as np
 
 import torch
@@ -20,10 +21,12 @@ from joeynmt.data import load_data, make_data_iter, MonoDataset
 from joeynmt.constants import UNK_TOKEN, PAD_TOKEN, EOS_TOKEN
 from joeynmt.vocabulary import Vocabulary
 
+logger = logging.getLogger(__name__)
+
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
-                     logger: Logger,
+                     #logger: Logger, # don't pass logger
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
@@ -40,7 +43,7 @@ def validate_on_data(model: Model, data: Dataset,
     also compute the loss.
 
     :param model: model module
-    :param logger: logger
+    #:param logger: logger # don't pass logger
     :param data: dataset for validation
     :param batch_size: validation batch size
     :param use_cuda: if True, use CUDA
@@ -170,8 +173,8 @@ def validate_on_data(model: Model, data: Dataset,
 def test(cfg_file,
          ckpt: str,
          output_path: str = None,
-         save_attention: bool = False,
-         logger: Logger = None) -> None:
+         save_attention: bool = False) -> None:
+         #logger: Logger = None # don't pass logger
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
@@ -180,13 +183,12 @@ def test(cfg_file,
     :param ckpt: path to checkpoint to load
     :param output_path: path to output
     :param save_attention: whether to save the computed attention weights
-    :param logger: log output to this logger (creates new logger if not set)
     """
 
-    if logger is None:
-        logger = make_logger()
-
     cfg = load_config(cfg_file)
+
+    if len(logger.handlers) == 0:
+        make_logger(f'{cfg["training"]["model_dir"]}/test.log')
 
     if "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
@@ -247,7 +249,7 @@ def test(cfg_file,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
+            beam_alpha=beam_alpha, postprocess=postprocess)
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
@@ -317,8 +319,6 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
 
         return test_data
 
-    logger = make_logger()
-
     def _translate_data(test_data):
         """ Translates given dataset, using parameters from outer scope. """
         # pylint: disable=unused-variable
@@ -328,10 +328,13 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
+            beam_alpha=beam_alpha, postprocess=postprocess)
         return hypotheses
 
     cfg = load_config(cfg_file)
+
+    #logger = make_logger()
+    make_logger(f'{cfg["training"]["model_dir"]}/translation.log')
 
     # when checkpoint is not specified, take oldest from model dir
     if ckpt is None:

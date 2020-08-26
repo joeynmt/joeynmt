@@ -10,7 +10,7 @@ import errno
 import shutil
 import random
 import logging
-from logging import Logger
+#from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
 
@@ -46,44 +46,49 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
     return model_dir
 
 
-def make_logger(log_file: str = None) -> Logger:
+def make_logger(log_file: str = None) -> None:
     """
     Create a logger for logging the training/testing process.
 
     :param log_file: path to file where log is stored as well
     :return: logger object
     """
-    logger = logging.getLogger(__name__)
-    logger.setLevel(level=logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s %(message)s')
+    logger = logging.getLogger("") # root logger
 
-    if log_file is not None:
-        fh = logging.FileHandler(log_file)
-        fh.setLevel(level=logging.DEBUG)
-        logger.addHandler(fh)
-        fh.setFormatter(formatter)
+    # add handlers only once.
+    if len(logger.handlers) == 0:
+        logger.setLevel(level=logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
-    sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
-    sh.setFormatter(formatter)
+        if log_file is not None:
+            fh = logging.FileHandler(log_file)
+            fh.setLevel(level=logging.DEBUG)
+            logger.addHandler(fh)
+            fh.setFormatter(formatter)
 
-    logging.getLogger("").addHandler(sh)
-    logger.info("Hello! This is Joey-NMT.")
-    return logger
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.INFO)
+        sh.setFormatter(formatter)
+
+        #logging.getLogger("").addHandler(sh)
+        logger.addHandler(sh)
+        logger.info("Hello! This is Joey-NMT.")
+        #return logger
 
 
-def log_cfg(cfg: dict, logger: Logger, prefix: str = "cfg") -> None:
+def log_cfg(cfg: dict, prefix: str = "cfg") -> None:
     """
     Write configuration to log.
 
     :param cfg: configuration to log
-    :param logger: logger that defines where log is written to
+    #:param logger: logger that defines where log is written to
     :param prefix: prefix for logging
     """
+    logger = logging.getLogger(__name__)
     for k, v in cfg.items():
         if isinstance(v, dict):
             p = '.'.join([prefix, k])
-            log_cfg(v, logger, prefix=p)
+            log_cfg(v, prefix=p)
         else:
             p = '.'.join([prefix, k])
             logger.info("{:34s} : {}".format(p, v))
@@ -124,8 +129,8 @@ def set_seed(seed: int) -> None:
 
 
 def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
-                  src_vocab: Vocabulary, trg_vocab: Vocabulary,
-                  logging_function: Callable[[str], None]) -> None:
+                  src_vocab: Vocabulary, trg_vocab: Vocabulary) -> None:
+                  #logging_function: Callable[[str], None]
     """
     Log statistics of data and vocabulary.
 
@@ -134,24 +139,25 @@ def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
     :param test_data:
     :param src_vocab:
     :param trg_vocab:
-    :param logging_function:
+    #:param logging_function:
     """
-    logging_function(
+    logger = logging.getLogger(__name__)
+    logger.info(
         "Data set sizes: \n\ttrain %d,\n\tvalid %d,\n\ttest %d",
             len(train_data), len(valid_data),
             len(test_data) if test_data is not None else 0)
 
-    logging_function("First training example:\n\t[SRC] %s\n\t[TRG] %s",
+    logger.info("First training example:\n\t[SRC] %s\n\t[TRG] %s",
         " ".join(vars(train_data[0])['src']),
         " ".join(vars(train_data[0])['trg']))
 
-    logging_function("First 10 words (src): %s", " ".join(
+    logger.info("First 10 words (src): %s", " ".join(
         '(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10])))
-    logging_function("First 10 words (trg): %s", " ".join(
+    logger.info("First 10 words (trg): %s", " ".join(
         '(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10])))
 
-    logging_function("Number of Src words (types): %d", len(src_vocab))
-    logging_function("Number of Trg words (types): %d", len(trg_vocab))
+    logger.info("Number of Src words (types): %d", len(src_vocab))
+    logger.info("Number of Trg words (types): %d", len(trg_vocab))
 
 
 def load_config(path="configs/default.yaml") -> dict:

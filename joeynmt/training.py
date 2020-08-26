@@ -8,6 +8,7 @@ import argparse
 import time
 import shutil
 from typing import List
+import logging
 import os
 import queue
 
@@ -33,6 +34,8 @@ from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
 from joeynmt.prediction import test
 
+logger = logging.getLogger(__name__)
+
 
 # pylint: disable=too-many-instance-attributes
 class TrainManager:
@@ -49,10 +52,9 @@ class TrainManager:
         train_config = config["training"]
 
         # files for logging and storing
-        self.model_dir = make_model_dir(train_config["model_dir"],
-                                        overwrite=train_config.get(
-                                            "overwrite", False))
-        self.logger = make_logger("{}/train.log".format(self.model_dir))
+        self.model_dir = train_config["model_dir"]
+        assert os.path.exists(self.model_dir)
+        #self.logger = make_logger("{}/train.log".format(self.model_dir))
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(
@@ -163,7 +165,7 @@ class TrainManager:
         # model parameters
         if "load_model" in train_config.keys():
             model_load_path = train_config["load_model"]
-            self.logger.info("Loading model from %s", model_load_path)
+            logger.info("Loading model from %s", model_load_path)
             reset_best_ckpt = train_config.get("reset_best_ckpt", False)
             reset_scheduler = train_config.get("reset_scheduler", False)
             reset_optimizer = train_config.get("reset_optimizer", False)
@@ -200,7 +202,7 @@ class TrainManager:
             try:
                 os.remove(to_delete)
             except FileNotFoundError:
-                self.logger.warning("Wanted to delete old checkpoint %s but "
+                logger.warning("Wanted to delete old checkpoint %s but "
                                     "file does not exist.", to_delete)
 
         self.ckpt_queue.put(model_path)
@@ -240,7 +242,7 @@ class TrainManager:
         if not reset_optimizer:
             self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
         else:
-            self.logger.info("Reset optimizer.")
+            logger.info("Reset optimizer.")
 
         if not reset_scheduler:
             if model_checkpoint["scheduler_state"] is not None and \
@@ -248,7 +250,7 @@ class TrainManager:
                 self.scheduler.load_state_dict(
                     model_checkpoint["scheduler_state"])
         else:
-            self.logger.info("Reset scheduler.")
+            logger.info("Reset scheduler.")
 
         # restore counts
         self.steps = model_checkpoint["steps"]
@@ -258,7 +260,7 @@ class TrainManager:
             self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
             self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
         else:
-            self.logger.info("Reset tracking of the best checkpoint.")
+            logger.info("Reset tracking of the best checkpoint.")
 
         # move parameters to cuda
         if self.use_cuda:
@@ -286,7 +288,7 @@ class TrainManager:
             train_data) % (self.batch_multiplier * self.batch_size)
 
         for epoch_no in range(self.epochs):
-            self.logger.info("EPOCH %d", epoch_no + 1)
+            logger.info("EPOCH %d", epoch_no + 1)
 
             if self.scheduler is not None and self.scheduler_step_at == "epoch":
                 self.scheduler.step(epoch=epoch_no)
@@ -348,7 +350,7 @@ class TrainManager:
                 if self.steps % self.logging_freq == 0 and update:
                     elapsed = time.time() - start - total_valid_duration
                     elapsed_tokens = self.total_tokens - start_tokens
-                    self.logger.info(
+                    logger.info(
                         "Epoch %3d Step: %8d Batch Loss: %12.6f "
                         "Tokens per Sec: %8.0f, Lr: %.6f",
                         epoch_no + 1, self.steps, batch_loss,
@@ -366,7 +368,7 @@ class TrainManager:
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
-                            logger=self.logger,
+                            #logger=self.logger, # don't pass logger
                             batch_size=self.eval_batch_size,
                             data=valid_data,
                             eval_metric=self.eval_metric,
@@ -397,11 +399,11 @@ class TrainManager:
                     if self.is_best(ckpt_score):
                         self.best_ckpt_score = ckpt_score
                         self.best_ckpt_iteration = self.steps
-                        self.logger.info(
+                        logger.info(
                             'Hooray! New best validation result [%s]!',
                             self.early_stopping_metric)
                         if self.ckpt_queue.maxsize > 0:
-                            self.logger.info("Saving new checkpoint.")
+                            logger.info("Saving new checkpoint.")
                             new_best = True
                             self._save_checkpoint()
 
@@ -425,7 +427,7 @@ class TrainManager:
 
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
-                    self.logger.info(
+                    logger.info(
                         'Validation result (greedy) at epoch %3d, '
                         'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
                         'duration: %.4fs', epoch_no + 1, self.steps,
@@ -449,16 +451,16 @@ class TrainManager:
                 if self.stop:
                     break
             if self.stop:
-                self.logger.info(
+                logger.info(
                     'Training ended since minimum lr %f was reached.',
                     self.learning_rate_min)
                 break
 
-            self.logger.info('Epoch %3d: total training loss %.2f',
+            logger.info('Epoch %3d: total training loss %.2f',
                              epoch_no + 1, epoch_loss)
         else:
-            self.logger.info('Training ended after %3d epochs.', epoch_no + 1)
-        self.logger.info('Best validation result (greedy) at step '
+            logger.info('Training ended after %3d epochs.', epoch_no + 1)
+        logger.info('Best validation result (greedy) at step '
                          '%8d: %6.2f %s.', self.best_ckpt_iteration,
                          self.best_ckpt_score,
                          self.early_stopping_metric)
@@ -559,10 +561,10 @@ class TrainManager:
         model_parameters = filter(lambda p: p.requires_grad,
                                   self.model.parameters())
         n_params = sum([np.prod(p.size()) for p in model_parameters])
-        self.logger.info("Total params: %d", n_params)
+        logger.info("Total params: %d", n_params)
         trainable_params = [n for (n, p) in self.model.named_parameters()
                             if p.requires_grad]
-        self.logger.info("Trainable parameters: %s", sorted(trainable_params))
+        logger.debug("Trainable parameters: %s", sorted(trainable_params))
         assert trainable_params
 
     def _log_examples(self, sources: List[str], hypotheses: List[str],
@@ -585,18 +587,18 @@ class TrainManager:
             if p >= len(sources):
                 continue
 
-            self.logger.info("Example #%d", p)
+            logger.info("Example #%d", p)
 
             if sources_raw is not None:
-                self.logger.debug("\tRaw source:     %s", sources_raw[p])
+                logger.debug("\tRaw source:     %s", sources_raw[p])
             if references_raw is not None:
-                self.logger.debug("\tRaw reference:  %s", references_raw[p])
+                logger.debug("\tRaw reference:  %s", references_raw[p])
             if hypotheses_raw is not None:
-                self.logger.debug("\tRaw hypothesis: %s", hypotheses_raw[p])
+                logger.debug("\tRaw hypothesis: %s", hypotheses_raw[p])
 
-            self.logger.info("\tSource:     %s", sources[p])
-            self.logger.info("\tReference:  %s", references[p])
-            self.logger.info("\tHypothesis: %s", hypotheses[p])
+            logger.info("\tSource:     %s", sources[p])
+            logger.info("\tReference:  %s", references[p])
+            logger.info("\tHypothesis: %s", hypotheses[p])
 
     def _store_outputs(self, hypotheses: List[str]) -> None:
         """
@@ -619,6 +621,11 @@ def train(cfg_file: str) -> None:
     """
     cfg = load_config(cfg_file)
 
+    # make logger
+    model_dir = make_model_dir(cfg["training"]["model_dir"],
+                   overwrite=cfg["training"].get("overwrite", False))
+    make_logger(f"{model_dir}/train.log")
+
     # set the random seed
     set_seed(seed=cfg["training"].get("random_seed", 42))
 
@@ -636,13 +643,14 @@ def train(cfg_file: str) -> None:
     shutil.copy2(cfg_file, trainer.model_dir + "/config.yaml")
 
     # log all entries of config
-    log_cfg(cfg, trainer.logger)
+    log_cfg(cfg) #,logger
 
     log_data_info(train_data=train_data, valid_data=dev_data,
-                  test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab,
-                  logging_function=trainer.logger.info)
+                  test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab)
+                  #logging_function=logger.info)
 
-    trainer.logger.info(str(model))
+    #trainer.logger.info(str(model))
+    logger.info(str(model))
 
     # store the vocabs
     src_vocab_file = "{}/src_vocab.txt".format(cfg["training"]["model_dir"])
@@ -658,7 +666,7 @@ def train(cfg_file: str) -> None:
     ckpt = "{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration)
     output_name = "{:08d}.hyps".format(trainer.best_ckpt_iteration)
     output_path = os.path.join(trainer.model_dir, output_name)
-    test(cfg_file, ckpt=ckpt, output_path=output_path, logger=trainer.logger)
+    test(cfg_file, ckpt=ckpt, output_path=output_path) #, logger=trainer.logger)
 
 
 if __name__ == "__main__":

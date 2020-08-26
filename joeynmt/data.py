@@ -7,6 +7,7 @@ import random
 import os
 import os.path
 from typing import Optional
+import logging
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
@@ -14,6 +15,8 @@ from torchtext.data import Dataset, Iterator, Field
 
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 from joeynmt.vocabulary import build_vocab, Vocabulary
+
+logger = logging.getLogger(__name__)
 
 
 def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
@@ -51,6 +54,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
 
     tok_fun = lambda s: list(s) if level == "char" else s.split()
 
+    logger.info("loading training data...")
     src_field = data.Field(init_token=None, eos_token=EOS_TOKEN,
                            pad_token=PAD_TOKEN, tokenize=tok_fun,
                            batch_first=True, lower=lowercase,
@@ -80,6 +84,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
 
+    logger.info("building vocabulary...")
     src_vocab = build_vocab(field="src", min_freq=src_min_freq,
                             max_size=src_max_size,
                             dataset=train_data, vocab_file=src_vocab_file)
@@ -96,11 +101,13 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
             random_state=random.getstate())
         train_data = keep
 
+    logger.info("loading dev data...")
     dev_data = TranslationDataset(path=dev_path,
                                   exts=("." + src_lang, "." + trg_lang),
                                   fields=(src_field, trg_field))
     test_data = None
     if test_path is not None:
+        logger.info("loading test data...")
         # check if target exists
         if os.path.isfile(test_path + "." + trg_lang):
             test_data = TranslationDataset(
@@ -112,6 +119,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                                     field=src_field)
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
+    logger.info("data loaded.")
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
