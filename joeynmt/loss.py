@@ -43,7 +43,7 @@ class XentLoss(nn.Module):
         # give padding probability of 0 everywhere
         smooth_dist[:, self.pad_index] = 0
         # masking out padding area (sum of probabilities for padding area = 0)
-        padding_positions = torch.nonzero(targets.data == self.pad_index)
+        padding_positions = torch.nonzero(targets.data == self.pad_index, as_tuple=False)
         # pylint: disable=len-as-condition
         if len(padding_positions) > 0:
             smooth_dist.index_fill_(0, padding_positions.squeeze(), 0.0)

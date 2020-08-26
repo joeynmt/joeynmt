@@ -348,14 +348,14 @@ def beam_search(
                 b = batch_offset[i]
                 if end_condition[i]:
                     is_finished[i].fill_(1)
-                finished_hyp = is_finished[i].nonzero().view(-1)
+                finished_hyp = is_finished[i].nonzero(as_tuple=False).view(-1)
                 # store finished hypotheses for this batch
                 for j in finished_hyp:
                     # Check if the prediction has more than one EOS.
                     # If it has more than one EOS, it means that the
                     # prediction should have already been added to
                     # the hypotheses, so you don't have to add them again.
-                    if (predictions[i, j, 1:] == eos_index).nonzero().numel() \
+                    if (predictions[i, j, 1:] == eos_index).nonzero(as_tuple=False).numel() \
                             < 2:
                         # ignore start_token
                         hypotheses[b].append(
@@ -370,7 +370,7 @@ def beam_search(
                             break
                         results["scores"][b].append(score)
                         results["predictions"][b].append(pred)
-            non_finished = end_condition.eq(False).nonzero().view(-1)
+            non_finished = end_condition.eq(False).nonzero(as_tuple=False).view(-1)
             # if all sentences are translated, no need to go further
             # pylint: disable=len-as-condition
             if len(non_finished) == 0:
