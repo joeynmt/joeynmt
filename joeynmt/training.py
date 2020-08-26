@@ -115,6 +115,16 @@ class TrainManager:
                 "Invalid setting for 'early_stopping_metric', "
                 "valid options: 'loss', 'ppl', 'eval_metric'.")
 
+        # eval options
+        test_config = config["testing"]
+        self.bpe_type = test_config.get("bpe_type", "subword-nmt")
+        self.sacrebleu = {"remove_whitespace": True, "tokenizer": "13a"}
+        if "sacrebleu" in config["testing"].keys():
+            self.sacrebleu["remove_whitespace"] = test_config["sacrebleu"] \
+                .get("remove_whitespace", True)
+            self.sacrebleu["tokenize"] = test_config["sacrebleu"] \
+                .get("tokenize", "13a")
+
         # learning rate scheduling
         self.scheduler, self.scheduler_step_at = build_scheduler(
             config=train_config,
@@ -378,7 +388,9 @@ class TrainManager:
                             loss_function=self.loss,
                             beam_size=1,  # greedy validations
                             batch_type=self.eval_batch_type,
-                            postprocess=True # always remove BPE for validation
+                            postprocess=True,   # always remove BPE for validation
+                            bpe_type=self.bpe_type, # "subword-nmt" or "sentencepiece"
+                            sacrebleu=self.sacrebleu    # sacrebleu options
                         )
 
                     self.tb_writer.add_scalar("valid/valid_loss",

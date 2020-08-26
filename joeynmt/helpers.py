@@ -175,14 +175,21 @@ def load_config(path="configs/default.yaml") -> dict:
     return cfg
 
 
-def bpe_postprocess(string) -> str:
+def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
     """
     Post-processor for BPE output. Recombines BPE-split tokens.
 
     :param string:
+    :param bpe_type: one of {"sentencepiece", "subword-nmt"}
     :return: post-processed string
     """
-    return string.replace("@@ ", "")
+    #return string.replace("@@ ", "")
+    if bpe_type == "sentencepiece": #if "▁" in string:
+        return string.replace(" ", "").replace("▁", " ").strip()
+    elif bpe_type == "subword-nmt": #elif "@@" in string:
+        return string.replace("@@ ", "").strip()
+    else:
+        return string.strip()
 
 
 def store_attention_plots(attentions: np.array, targets: List[List[str]],

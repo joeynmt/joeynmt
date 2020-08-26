@@ -33,8 +33,10 @@ def validate_on_data(model: Model, data: Dataset,
                      loss_function: torch.nn.Module = None,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
-                     postprocess: bool = True
-                     ) \
+                     postprocess: bool = True,
+                     bpe_type: str = "subword-nmt",
+                     sacrebleu: dict = {"remove_whitespace": True,
+                                        "tokenize": "13a"}) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
@@ -58,6 +60,8 @@ def validate_on_data(model: Model, data: Dataset,
         disabled if set to -1 (default).
     :param batch_type: validation batch type (sentence or token)
     :param postprocess: if True, remove BPE segmentation from translations
+    :param bpe_type: bpe type, one of {"subword-nmt", "sentencepiece"}
+    :param sacrebleu: sacrebleu options
 
     :return:
         - current_valid_score: current validation score [eval_metric],
@@ -139,10 +143,10 @@ def validate_on_data(model: Model, data: Dataset,
 
         # post-process
         if level == "bpe" and postprocess:
-            valid_sources = [bpe_postprocess(s) for s in valid_sources]
-            valid_references = [bpe_postprocess(v)
+            valid_sources = [bpe_postprocess(s, bpe_type=bpe_type) for s in valid_sources]
+            valid_references = [bpe_postprocess(v, bpe_type=bpe_type)
                                 for v in valid_references]
-            valid_hypotheses = [bpe_postprocess(v) for
+            valid_hypotheses = [bpe_postprocess(v, bpe_type=bpe_type) for
                                 v in valid_hypotheses]
 
         # if references are given, evaluate against them
@@ -152,12 +156,15 @@ def validate_on_data(model: Model, data: Dataset,
             current_valid_score = 0
             if eval_metric.lower() == 'bleu':
                 # this version does not use any tokenization
-                current_valid_score = bleu(valid_hypotheses, valid_references)
+                current_valid_score = bleu(
+                    valid_hypotheses, valid_references, tokenize=sacrebleu["tokenize"])
             elif eval_metric.lower() == 'chrf':
-                current_valid_score = chrf(valid_hypotheses, valid_references)
+                current_valid_score = chrf(valid_hypotheses, valid_references,
+                                           remove_whitespace=sacrebleu["remove_whitespace"])
             elif eval_metric.lower() == 'token_accuracy':
-                current_valid_score = token_accuracy(
-                    valid_hypotheses, valid_references, level=level)
+                current_valid_score = token_accuracy( # supply List[List[str]] before join!
+                    [t for t in decoded_valid], [t for t in data.trg])
+            #        valid_hypotheses, valid_references, level=level)
             elif eval_metric.lower() == 'sequence_accuracy':
                 current_valid_score = sequence_accuracy(
                     valid_hypotheses, valid_references)
@@ -235,10 +242,19 @@ def test(cfg_file,
         beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
         postprocess = cfg["testing"].get("postprocess", True)
+        bpe_type = cfg["testing"].get("bpe_type", "subword-nmt")
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
+        if "sacrebleu" in cfg["testing"].keys():
+            sacrebleu["remove_whitespace"] = cfg["testing"]["sacrebleu"]\
+                .get("remove_whitespace", True)
+            sacrebleu["tokenize"] = cfg["testing"]["sacrebleu"]\
+                .get("tokenize", "13a")
     else:
         beam_size = 1
         beam_alpha = -1
         postprocess = True
+        bpe_type = "subword-nmt"
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
 
     for data_set_name, data_set in data_to_predict.items():
 
@@ -249,15 +265,19 @@ def test(cfg_file,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, postprocess=postprocess)
+            beam_alpha=beam_alpha, postprocess=postprocess,
+            bpe_type=bpe_type, sacrebleu=sacrebleu)
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
             decoding_description = "Greedy decoding" if beam_size < 2 else \
                 "Beam search decoding with beam size = {} and alpha = {}".\
                     format(beam_size, beam_alpha)
-            logger.info("%4s %s: %6.2f [%s]",
-                        data_set_name, eval_metric, score, decoding_description)
+            tokenizer_info = f"[{sacrebleu['tokenize']}]" \
+                if eval_metric == "bleu" else ""
+            logger.info("%4s %s%s: %6.2f [%s]",
+                        data_set_name, eval_metric, tokenizer_info,
+                        score, decoding_description)
         else:
             logger.info("No references given for %s -> no evaluation.",
                         data_set_name)
@@ -328,7 +348,8 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, postprocess=postprocess)
+            beam_alpha=beam_alpha, postprocess=postprocess,
+            bpe_type=bpe_type, sacrebleu=sacrebleu)
         return hypotheses
 
     cfg = load_config(cfg_file)
@@ -385,10 +406,19 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         beam_size = cfg["testing"].get("beam_size", 1)
         beam_alpha = cfg["testing"].get("alpha", -1)
         postprocess = cfg["testing"].get("postprocess", True)
+        bpe_type = cfg["testing"].get("bpe_type", "subword-nmt")
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
+        if cfg["testing"].haskey("sacrebleu"):
+            sacrebleu["remove_whitespace"] = cfg["testing"]["sacrebleu"]\
+                .get("remove_whitespace", True)
+            sacrebleu["tokenize"] = cfg["testing"]["sacrebleu"]\
+                .get("tokenize", "13a")
     else:
         beam_size = 1
         beam_alpha = -1
         postprocess = True
+        bpe_type = "subword-nmt"
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
 
     if not sys.stdin.isatty():
         # input file given
