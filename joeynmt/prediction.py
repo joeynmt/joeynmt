@@ -180,7 +180,8 @@ def validate_on_data(model: Model, data: Dataset,
 def test(cfg_file,
          ckpt: str,
          output_path: str = None,
-         save_attention: bool = False) -> None:
+         save_attention: bool = False,
+         datasets: dict = None) -> None:
          #logger: Logger = None # don't pass logger
     """
     Main test function. Handles loading a model from checkpoint, generating
@@ -222,10 +223,14 @@ def test(cfg_file,
     max_output_length = cfg["training"].get("max_output_length", None)
 
     # load the data
-    _, dev_data, test_data, src_vocab, trg_vocab = load_data(
-        data_cfg=cfg["data"])
-
-    data_to_predict = {"dev": dev_data, "test": test_data}
+    if datasets is None:
+        _, dev_data, test_data, src_vocab, trg_vocab = load_data(
+            data_cfg=cfg["data"], datasets=["dev", "test"])
+        data_to_predict = {"dev": dev_data, "test": test_data}
+    else: # avoid to load data again
+        data_to_predict = {"dev": datasets["dev"], "test": datasets["test"]}
+        src_vocab = datasets["src_vocab"]
+        trg_vocab = datasets["trg_vocab"]
 
     # load model state from disk
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
@@ -257,7 +262,10 @@ def test(cfg_file,
         sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
 
     for data_set_name, data_set in data_to_predict.items():
+        if data_set is None:
+            continue
 
+        logger.info(f"Decoding on {data_set_name} set...")
         #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
