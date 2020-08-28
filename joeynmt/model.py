@@ -88,6 +88,7 @@ class Model(nn.Module):
             return encoder_output, encoder_hidden, None, None
 
         elif return_type == "decode":
+
             outputs, hidden, att_probs, att_vectors = self._decode(
                 trg_input=kwargs["trg_input"],
                 encoder_output=kwargs["encoder_output"],
@@ -97,6 +98,7 @@ class Model(nn.Module):
                 decoder_hidden=kwargs["decoder_hidden"],
                 att_vector=kwargs.get("att_vector", None),
                 trg_mask=kwargs.get("trg_mask", None))
+
             # return decoder outputs
             return outputs, hidden, att_probs, att_vectors
 
@@ -200,6 +202,15 @@ class Model(nn.Module):
                "\tsrc_embed=%s,\n" \
                "\ttrg_embed=%s)" % (self.__class__.__name__, self.encoder,
                                     self.decoder, self.src_embed, self.trg_embed)
+
+
+class _DataParallel(nn.DataParallel):
+    """ DataParallel wrapper to pass through the model attributes """
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
 
 
 def build_model(cfg: dict = None,

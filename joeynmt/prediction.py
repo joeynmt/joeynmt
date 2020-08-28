@@ -15,7 +15,7 @@ from torchtext.data import Dataset, Field
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
-from joeynmt.model import build_model, Model
+from joeynmt.model import build_model, Model, _DataParallel
 from joeynmt.search import run_batch
 from joeynmt.batch import Batch
 from joeynmt.data import load_data, make_data_iter, MonoDataset
@@ -31,6 +31,7 @@ def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
+                     n_gpu: int,
                      compute_loss: bool = False,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
@@ -75,6 +76,7 @@ def validate_on_data(model: Model, data: Dataset,
         - decoded_valid: raw validation hypotheses (before post-processing),
         - valid_attention_scores: attention scores for validation hypotheses
     """
+    assert batch_size >= n_gpu, "batch_size must be bigger than n_gpu."
     if batch_size > 1000 and batch_type == "sentence":
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like "
@@ -108,6 +110,8 @@ def validate_on_data(model: Model, data: Dataset,
                     return_type="loss", src=batch.src, trg=batch.trg,
                     trg_input=batch.trg_input, trg_mask=batch.trg_mask,
                     src_mask=batch.src_mask, src_length=batch.src_length)
+                if n_gpu > 1:
+                    batch_loss = batch_loss.mean() # average on multi-gpu
                 total_loss += batch_loss
                 total_ntokens += batch.ntokens
                 total_nseqs += batch.nseqs
@@ -193,6 +197,7 @@ def test(cfg_file,
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
     :param output_path: path to output
+    :param datasets: datasets to predict
     :param save_attention: whether to save the computed attention weights
     """
 
@@ -220,7 +225,12 @@ def test(cfg_file,
         "eval_batch_size", cfg["training"]["batch_size"])
     batch_type = cfg["training"].get(
         "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
-    use_cuda = cfg["training"].get("use_cuda", False)
+    use_cuda = cfg["training"].get("use_cuda", False) and torch.cuda.is_available()
+    n_gpu = torch.cuda.device_count() if use_cuda else 0
+    device = torch.device("cuda" if use_cuda else "cpu")
+    logger.info(f"Process device: {device}, n_gpu: {n_gpu}, "
+                f"batch_size per device: {batch_size // n_gpu}")
+
     level = cfg["data"]["level"]
     eval_metric = cfg["training"]["eval_metric"]
     max_output_length = cfg["training"].get("max_output_length", None)
@@ -244,6 +254,10 @@ def test(cfg_file,
 
     if use_cuda:
         model.cuda()
+
+    # multi-gpu eval
+    if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
+        model = _DataParallel(model)
 
     # whether to use beam search for decoding, 0: greedy decoding
     if "testing" in cfg.keys():
@@ -277,7 +291,7 @@ def test(cfg_file,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu)
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu)
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
@@ -360,7 +374,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu)
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu)
         return hypotheses
 
     cfg = load_config(cfg_file)
@@ -377,7 +391,11 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         "eval_batch_size", cfg["training"].get("batch_size", 1))
     batch_type = cfg["training"].get(
         "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
-    use_cuda = cfg["training"].get("use_cuda", False)
+    use_cuda = cfg["training"].get("use_cuda", False) and torch.cuda.is_available()
+    n_gpu = 1 if use_cuda else 0 # in multi-gpu, batch_size must be bigger than n_gpu!
+    device = torch.device("cuda" if use_cuda else "cpu")
+    logger.debug(f"Process device: {device}, n_gpu: {n_gpu}")
+
     level = cfg["data"]["level"]
     max_output_length = cfg["training"].get("max_output_length", None)
 

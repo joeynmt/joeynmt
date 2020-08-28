@@ -26,7 +26,7 @@ from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     store_attention_plots, load_checkpoint, make_model_dir, \
     make_logger, set_seed, symlink_update, ConfigurationError
-from joeynmt.model import Model
+from joeynmt.model import Model, _DataParallel
 from joeynmt.prediction import validate_on_data
 from joeynmt.loss import XentLoss
 from joeynmt.data import load_data, make_data_iter
@@ -140,9 +140,11 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        # per-device batch_size = self.batch_size // self.n_gpu
         self.batch_type = train_config.get("batch_type", "sentence")
         self.eval_batch_size = train_config.get("eval_batch_size",
                                                 self.batch_size)
+        # per-device eval_batch_size = self.eval_batch_size // self.n_gpu
         self.eval_batch_type = train_config.get("eval_batch_type",
                                                 self.batch_type)
 
@@ -153,10 +155,33 @@ class TrainManager:
         self.max_output_length = train_config.get("max_output_length", None)
 
         # CPU / GPU
-        self.use_cuda = train_config["use_cuda"]
+        self.use_cuda = train_config["use_cuda"] and torch.cuda.is_available()
+        self.n_gpu = torch.cuda.device_count() if self.use_cuda else 0
+        self.device = torch.device("cuda" if self.use_cuda else "cpu")
         if self.use_cuda:
             self.model.cuda()
             #self.loss.cuda()
+
+        # fp16
+        self.fp16 = train_config.get("fp16", False)
+        if self.fp16:
+            try:
+                from apex import amp
+                global amp
+                amp.register_half_function(torch, "einsum")
+            except ImportError:
+                raise ImportError(
+                    "Please install apex from "
+                    "https://www.github.com/nvidia/apex to use fp16 training.")
+            # opt level: one of {"O0", "O1", "O2", "O3"}
+            # see https://nvidia.github.io/apex/amp.html#opt-levels
+            fp16_opt_level = 'O1'
+            self.model, self.optimizer = amp.initialize(self.model, self.optimizer,
+                                                        opt_level=fp16_opt_level)
+
+        # multi-gpu training (should be after apex fp16 initialization)
+        if self.n_gpu > 1:
+            self.model = _DataParallel(self.model)
 
         # initialize accumalted batch loss (needed for batch_multiplier)
         #self.norm_batch_loss_accumulated = 0
@@ -196,15 +221,18 @@ class TrainManager:
 
         """
         model_path = "{}/{}.ckpt".format(self.model_dir, self.steps)
+        model_state_dict = self.model.module.state_dict() if \
+            isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
         state = {
             "steps": self.steps,
             "total_tokens": self.total_tokens,
             "best_ckpt_score": self.best_ckpt_score,
             "best_ckpt_iteration": self.best_ckpt_iteration,
-            "model_state": self.model.state_dict(),
+            "model_state": model_state_dict,
             "optimizer_state": self.optimizer.state_dict(),
             "scheduler_state": self.scheduler.state_dict() if
             self.scheduler is not None else None,
+            'amp_state': amp.state_dict() if self.fp16 else None
         }
         torch.save(state, model_path)
         if self.ckpt_queue.full():
@@ -276,6 +304,10 @@ class TrainManager:
         if self.use_cuda:
             self.model.cuda()
 
+        # fp16
+        if self.fp16 and model_checkpoint.get("amp_state", None) is not None:
+            amp.load_state_dict(checkpoint['amp_state'])
+
     # pylint: disable=unnecessary-comprehension
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
@@ -301,8 +333,8 @@ class TrainManager:
         #     batch_loss = 0.0
         #     for i, batch in enumerate(iter(train_iter)):
         #
-        #         # - gradients accumulated automatically!
-        #         # - loss.backward() inside _train_step()
+        #         # gradient accumulation:
+        #         # loss.backward() inside _train_step()
         #         epoch_loss += self._train_step(inputs)
         #
         #         if (i + 1) % self.batch_multiplier == 0:
@@ -315,6 +347,16 @@ class TrainManager:
         #
         #     # leftovers are just ignored.
         #################################################################
+
+        logger.info(
+            f"Train stats:\n"
+            f"\tdevice: {self.device}\n"
+            f"\tn_gpu: {self.n_gpu}\n"
+            f"\t16-bits training: {self.fp16}\n"
+            f"\tgradient accumulation: {self.batch_multiplier}\n"
+            f"\tbatch size per device: {self.batch_size // self.n_gpu}\n"
+            f"\ttotal batch size (w. parallel & accumulation): "
+            f"{self.batch_size * self.batch_multiplier}")
 
         for epoch_no in range(self.epochs):
             logger.info("EPOCH %d", epoch_no + 1)
@@ -343,7 +385,10 @@ class TrainManager:
                 if (i + 1) % self.batch_multiplier == 0:
                     # clip gradients (in-place)
                     if self.clip_grad_fun is not None:
-                        self.clip_grad_fun(params=self.model.parameters())
+                        if self.fp16:
+                            self.clip_grad_fun(params=amp.master_params(self.optimizer))
+                        else:
+                            self.clip_grad_fun(params=self.model.parameters())
 
                     # make gradient step
                     self.optimizer.step()
@@ -420,6 +465,10 @@ class TrainManager:
             trg_input=batch.trg_input, src_mask=batch.src_mask,
             src_length=batch.src_length, trg_mask=batch.trg_mask)
 
+        # average on multi-gpu parallel training
+        if self.n_gpu > 1:
+            batch_loss = batch_loss.mean()
+
         # normalize batch loss
         if self.normalization == "batch":
             normalizer = batch.nseqs
@@ -438,7 +487,11 @@ class TrainManager:
             norm_batch_loss = norm_batch_loss / self.batch_multiplier
 
         # accumulate gradients
-        norm_batch_loss.backward()
+        if self.fp16:
+            with amp.scale_loss(norm_batch_loss, self.optimizer) as scaled_loss:
+                scaled_loss.backward()
+        else:
+            norm_batch_loss.backward()
 
         # increment token counter
         self.total_tokens += batch.ntokens
@@ -464,7 +517,8 @@ class TrainManager:
                 batch_type=self.eval_batch_type,
                 postprocess=True,   # always remove BPE for validation
                 bpe_type=self.bpe_type, # "subword-nmt" or "sentencepiece"
-                sacrebleu=self.sacrebleu    # sacrebleu options
+                sacrebleu=self.sacrebleu,    # sacrebleu options
+                n_gpu=self.n_gpu
             )
 
         self.tb_writer.add_scalar("valid/valid_loss", valid_loss, self.steps)

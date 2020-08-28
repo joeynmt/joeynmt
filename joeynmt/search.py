@@ -9,7 +9,6 @@ from joeynmt.model import Model
 from joeynmt.batch import Batch
 from joeynmt.helpers import tile
 
-
 __all__ = ["greedy", "transformer_greedy", "beam_search", "run_batch"]
 
 
@@ -127,6 +126,8 @@ def transformer_greedy(
 
     # a subsequent mask is intersected with this in decoder forward pass
     trg_mask = src_mask.new_ones([1, 1, 1])
+    if isinstance(model, torch.nn.DataParallel):
+        trg_mask = torch.stack([src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
     finished = src_mask.new_zeros(batch_size).byte()
 
@@ -214,6 +215,8 @@ def beam_search(model: Model, size: int,
     # Transformer only: create target mask
     if transformer:
         trg_mask = src_mask.new_ones([1, 1, 1])  # transformer only
+        if isinstance(model, torch.nn.DataParallel):
+            trg_mask = torch.stack([src_mask.new_ones([1, 1]) for _ in model.device_ids])
     else:
         trg_mask = None
 
