@@ -68,8 +68,8 @@ class TrainManager:
 
         # objective
         self.label_smoothing = train_config.get("label_smoothing", 0.0)
-        self.loss = XentLoss(pad_index=self.pad_index,
-                             smoothing=self.label_smoothing)
+        self.model.loss_function = XentLoss(pad_index=self.pad_index,
+                                            smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens", "none"]:
             raise ConfigurationError("Invalid normalization option."
@@ -156,7 +156,7 @@ class TrainManager:
         self.use_cuda = train_config["use_cuda"]
         if self.use_cuda:
             self.model.cuda()
-            self.loss.cuda()
+            #self.loss.cuda()
 
         # initialize accumalted batch loss (needed for batch_multiplier)
         #self.norm_batch_loss_accumulated = 0
@@ -393,13 +393,12 @@ class TrainManager:
                 break
 
             logger.info('Epoch %3d: total training loss %.2f',
-                             epoch_no + 1, epoch_loss)
+                        epoch_no + 1, epoch_loss)
         else:
             logger.info('Training ended after %3d epochs.', epoch_no + 1)
-        logger.info('Best validation result (greedy) at step '
-                         '%8d: %6.2f %s.', self.best_ckpt_iteration,
-                         self.best_ckpt_score,
-                         self.early_stopping_metric)
+        logger.info('Best validation result (greedy) at step %8d: %6.2f %s.',
+                    self.best_ckpt_iteration, self.best_ckpt_score,
+                    self.early_stopping_metric)
 
         self.tb_writer.close()  # close Tensorboard writer
 
@@ -414,8 +413,12 @@ class TrainManager:
         self.model.train()
 
         # get loss
-        batch_loss = self.model.get_loss_for_batch(
-            batch=batch, loss_function=self.loss)
+        #batch_loss = self.model.get_loss_for_batch(
+        #    batch=batch, loss_function=self.loss)
+        batch_loss, _, _, _ = self.model(
+            return_type="loss", src=batch.src, trg=batch.trg,
+            trg_input=batch.trg_input, src_mask=batch.src_mask,
+            src_length=batch.src_length, trg_mask=batch.trg_mask)
 
         # normalize batch loss
         if self.normalization == "batch":
@@ -456,7 +459,7 @@ class TrainManager:
                 level=self.level, model=self.model,
                 use_cuda=self.use_cuda,
                 max_output_length=self.max_output_length,
-                loss_function=self.loss,
+                compute_loss=True,
                 beam_size=1,  # greedy validations
                 batch_type=self.eval_batch_type,
                 postprocess=True,   # always remove BPE for validation

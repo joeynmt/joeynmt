@@ -2,9 +2,6 @@
 """
 Module to represents whole models
 """
-
-import numpy as np
-
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
@@ -14,9 +11,7 @@ from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.constants import PAD_TOKEN, EOS_TOKEN, BOS_TOKEN
-from joeynmt.search import beam_search, greedy
 from joeynmt.vocabulary import Vocabulary
-from joeynmt.batch import Batch
 from joeynmt.helpers import ConfigurationError
 
 
@@ -53,11 +48,62 @@ class Model(nn.Module):
         self.bos_index = self.trg_vocab.stoi[BOS_TOKEN]
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
+        self.loss_function = None # set by the TrainManager
+
+    def forward(self, return_type: str = None, **kwargs) \
+            -> (Tensor, Tensor, Tensor, Tensor):
+        """ Interface for multi-gpu
+
+        :param return_type: one of {"loss", "encode", "decode"}
+        """
+        if return_type is None:
+            raise ValueError("Please specify return_type: "
+                             "{`loss`, `encode`, `decode`}.")
+
+        elif return_type == "loss":
+            assert self.loss_function is not None
+
+            out, _, _, _ = self._encode_decode(
+                src=kwargs["src"],
+                trg_input=kwargs["trg_input"],
+                src_mask=kwargs["src_mask"],
+                src_length=kwargs["src_length"],
+                trg_mask=kwargs["trg_mask"])
+
+            # compute log probs
+            log_probs = F.log_softmax(out, dim=-1)
+
+            # compute batch loss
+            batch_loss = self.loss_function(log_probs, kwargs["trg"])
+
+            # return batch loss = sum over all elements in batch that are not pad
+            return batch_loss, None, None, None
+
+        elif return_type == "encode":
+            encoder_output, encoder_hidden = self._encode(
+                src=kwargs["src"],
+                src_length=kwargs["src_length"],
+                src_mask=kwargs["src_mask"])
+            # return encoder outputs
+            return encoder_output, encoder_hidden, None, None
+
+        elif return_type == "decode":
+            outputs, hidden, att_probs, att_vectors = self._decode(
+                trg_input=kwargs["trg_input"],
+                encoder_output=kwargs["encoder_output"],
+                encoder_hidden=kwargs["encoder_hidden"],
+                src_mask=kwargs["src_mask"],
+                unroll_steps=kwargs["unroll_steps"],
+                decoder_hidden=kwargs["decoder_hidden"],
+                att_vector=kwargs.get("att_vector", None),
+                trg_mask=kwargs.get("trg_mask", None))
+            # return decoder outputs
+            return outputs, hidden, att_probs, att_vectors
 
     # pylint: disable=arguments-differ
-    def forward(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-                src_lengths: Tensor, trg_mask: Tensor = None) -> (
-        Tensor, Tensor, Tensor, Tensor):
+    def _encode_decode(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
+                       src_length: Tensor, trg_mask: Tensor = None) \
+            -> (Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
         Then produces the target one word at a time.
@@ -65,22 +111,22 @@ class Model(nn.Module):
         :param src: source input
         :param trg_input: target input
         :param src_mask: source mask
-        :param src_lengths: length of source inputs
+        :param src_length: length of source inputs
         :param trg_mask: target mask
         :return: decoder outputs
         """
-        encoder_output, encoder_hidden = self.encode(src=src,
-                                                     src_length=src_lengths,
-                                                     src_mask=src_mask)
+        encoder_output, encoder_hidden = self._encode(src=src,
+                                                      src_length=src_length,
+                                                      src_mask=src_mask)
         unroll_steps = trg_input.size(1)
-        return self.decode(encoder_output=encoder_output,
-                           encoder_hidden=encoder_hidden,
-                           src_mask=src_mask, trg_input=trg_input,
-                           unroll_steps=unroll_steps,
-                           trg_mask=trg_mask)
+        return self._decode(encoder_output=encoder_output,
+                            encoder_hidden=encoder_hidden,
+                            src_mask=src_mask, trg_input=trg_input,
+                            unroll_steps=unroll_steps,
+                            trg_mask=trg_mask)
 
-    def encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
-        -> (Tensor, Tensor):
+    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
+            -> (Tensor, Tensor):
         """
         Encodes the source sentence.
 
@@ -91,11 +137,11 @@ class Model(nn.Module):
         """
         return self.encoder(self.src_embed(src), src_length, src_mask)
 
-    def decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
-               src_mask: Tensor, trg_input: Tensor,
-               unroll_steps: int, decoder_hidden: Tensor = None,
-               trg_mask: Tensor = None) \
-        -> (Tensor, Tensor, Tensor, Tensor):
+    def _decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
+                src_mask: Tensor, trg_input: Tensor,
+                unroll_steps: int, decoder_hidden: Tensor = None,
+                att_vector: Tensor = None, trg_mask: Tensor = None) \
+            -> (Tensor, Tensor, Tensor, Tensor):
         """
         Decode, given an encoded source sentence.
 
@@ -105,6 +151,7 @@ class Model(nn.Module):
         :param trg_input: target inputs
         :param unroll_steps: number of steps to unrol the decoder for
         :param decoder_hidden: decoder hidden state (optional)
+        :param att_vector: previous attention vector (optional)
         :param trg_mask: mask for target steps
         :return: decoder outputs (outputs, hidden, att_probs, att_vectors)
         """
@@ -114,74 +161,32 @@ class Model(nn.Module):
                             src_mask=src_mask,
                             unroll_steps=unroll_steps,
                             hidden=decoder_hidden,
+                            prev_att_vector=att_vector,
                             trg_mask=trg_mask)
 
-    def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
-            -> Tensor:
-        """
-        Compute non-normalized loss and number of tokens for a batch
-
-        :param batch: batch to compute loss for
-        :param loss_function: loss function, computes for input and target
-            a scalar loss for the complete batch
-        :return: batch_loss: sum of losses over non-pad elements in the batch
-        """
-        # pylint: disable=unused-variable
-        out, hidden, att_probs, _ = self.forward(
-            src=batch.src, trg_input=batch.trg_input,
-            src_mask=batch.src_mask, src_lengths=batch.src_lengths,
-            trg_mask=batch.trg_mask)
-
-        # compute log probs
-        log_probs = F.log_softmax(out, dim=-1)
-
-        # compute batch loss
-        batch_loss = loss_function(log_probs, batch.trg)
-        # return batch loss = sum over all elements in batch that are not pad
-        return batch_loss
-
-    def run_batch(self, batch: Batch, max_output_length: int, beam_size: int,
-                  beam_alpha: float) -> (np.array, np.array):
-        """
-        Get outputs and attentions scores for a given batch
-
-        :param batch: batch to generate hypotheses for
-        :param max_output_length: maximum length of hypotheses
-        :param beam_size: size of the beam for beam search, if 0 use greedy
-        :param beam_alpha: alpha value for beam search
-        :return: stacked_output: hypotheses for batch,
-            stacked_attention_scores: attention scores for batch
-        """
-        encoder_output, encoder_hidden = self.encode(
-            batch.src, batch.src_lengths,
-            batch.src_mask)
-
-        # if maximum output length is not globally specified, adapt to src len
-        if max_output_length is None:
-            max_output_length = int(max(batch.src_lengths.cpu().numpy()) * 1.5)
-
-        # greedy decoding
-        if beam_size < 2:
-            stacked_output, stacked_attention_scores = greedy(
-                    encoder_hidden=encoder_hidden,
-                    encoder_output=encoder_output, eos_index=self.eos_index,
-                    src_mask=batch.src_mask, embed=self.trg_embed,
-                    bos_index=self.bos_index, decoder=self.decoder,
-                    max_output_length=max_output_length)
-            # batch, time, max_src_length
-        else:  # beam size
-            stacked_output, stacked_attention_scores = \
-                    beam_search(
-                        size=beam_size, encoder_output=encoder_output,
-                        encoder_hidden=encoder_hidden,
-                        src_mask=batch.src_mask, embed=self.trg_embed,
-                        max_output_length=max_output_length,
-                        alpha=beam_alpha, eos_index=self.eos_index,
-                        pad_index=self.pad_index,
-                        bos_index=self.bos_index,
-                        decoder=self.decoder)
-
-        return stacked_output, stacked_attention_scores
+#    def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
+#            -> Tensor:
+#        """
+#        Compute non-normalized loss and number of tokens for a batch
+#
+#        :param batch: batch to compute loss for
+#        :param loss_function: loss function, computes for input and target
+#            a scalar loss for the complete batch
+#        :return: batch_loss: sum of losses over non-pad elements in the batch
+#        """
+#        # pylint: disable=unused-variable
+#        out, hidden, att_probs, _ = self.encode_decode(
+#            src=batch.src, trg_input=batch.trg_input,
+#            src_mask=batch.src_mask, src_length=batch.src_length,
+#            trg_mask=batch.trg_mask)
+#
+#        # compute log probs
+#        log_probs = F.log_softmax(out, dim=-1)
+#
+#        # compute batch loss
+#        batch_loss = loss_function(log_probs, batch.trg)
+#        # return batch loss = sum over all elements in batch that are not pad
+#        return batch_loss
 
     def __repr__(self) -> str:
         """
@@ -194,7 +199,7 @@ class Model(nn.Module):
                "\tdecoder=%s,\n" \
                "\tsrc_embed=%s,\n" \
                "\ttrg_embed=%s)" % (self.__class__.__name__, self.encoder,
-                   self.decoder, self.src_embed, self.trg_embed)
+                                    self.decoder, self.src_embed, self.trg_embed)
 
 
 def build_model(cfg: dict = None,

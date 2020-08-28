@@ -16,6 +16,7 @@ from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model
+from joeynmt.search import run_batch
 from joeynmt.batch import Batch
 from joeynmt.data import load_data, make_data_iter, MonoDataset
 from joeynmt.constants import UNK_TOKEN, PAD_TOKEN, EOS_TOKEN
@@ -30,7 +31,7 @@ def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
-                     loss_function: torch.nn.Module = None,
+                     compute_loss: bool = False,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
                      postprocess: bool = True,
@@ -41,7 +42,7 @@ def validate_on_data(model: Model, data: Dataset,
             List[str], List[List[str]], List[np.array]):
     """
     Generate translations for the given data.
-    If `loss_function` is not None and references are given,
+    If `compute_loss` is True and references are given,
     also compute the loss.
 
     :param model: model module
@@ -52,7 +53,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param max_output_length: maximum length for generated hypotheses
     :param level: segmentation level, one of "char", "bpe", "word"
     :param eval_metric: evaluation metric, e.g. "bleu"
-    :param loss_function: loss function that computes a scalar loss
+    :param compute_loss: whether to computes a scalar loss
         for given inputs and targets
     :param beam_size: beam size for validation.
         If <2 then greedy decoding (default).
@@ -99,20 +100,22 @@ def validate_on_data(model: Model, data: Dataset,
 
             batch = Batch(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
-            sort_reverse_index = batch.sort_by_src_lengths()
+            sort_reverse_index = batch.sort_by_src_length()
 
             # run as during training with teacher forcing
-            if loss_function is not None and batch.trg is not None:
-                batch_loss = model.get_loss_for_batch(
-                    batch, loss_function=loss_function)
+            if compute_loss and batch.trg is not None:
+                batch_loss, _, _, _ = model(
+                    return_type="loss", src=batch.src, trg=batch.trg,
+                    trg_input=batch.trg_input, trg_mask=batch.trg_mask,
+                    src_mask=batch.src_mask, src_length=batch.src_length)
                 total_loss += batch_loss
                 total_ntokens += batch.ntokens
                 total_nseqs += batch.nseqs
 
             # run as during inference to produce translations
-            output, attention_scores = model.run_batch(
-                batch=batch, beam_size=beam_size, beam_alpha=beam_alpha,
-                max_output_length=max_output_length)
+            output, attention_scores = run_batch(
+                model=model, batch=batch, beam_size=beam_size,
+                beam_alpha=beam_alpha, max_output_length=max_output_length)
 
             # sort outputs back to original order
             all_outputs.extend(output[sort_reverse_index])
@@ -122,7 +125,7 @@ def validate_on_data(model: Model, data: Dataset,
 
         assert len(all_outputs) == len(data)
 
-        if loss_function is not None and total_ntokens > 0:
+        if compute_loss and total_ntokens > 0:
             # total validation loss
             valid_loss = total_loss
             # exponent of token-level negative log prob
@@ -272,7 +275,7 @@ def test(cfg_file,
             model, data=data_set, batch_size=batch_size,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
-            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
+            use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
             bpe_type=bpe_type, sacrebleu=sacrebleu)
         #pylint: enable=unused-variable
@@ -355,7 +358,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
             model, data=test_data, batch_size=batch_size,
             batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
-            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
+            use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
             bpe_type=bpe_type, sacrebleu=sacrebleu)
         return hypotheses
