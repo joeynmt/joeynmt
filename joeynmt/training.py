@@ -12,7 +12,7 @@ import logging
 import os
 import queue
 
-import math
+#import math
 import numpy as np
 
 import torch
@@ -147,7 +147,7 @@ class TrainManager:
                                                 self.batch_type)
 
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
-        self.current_batch_multiplier = self.batch_multiplier
+        #self.current_batch_multiplier = self.batch_multiplier
 
         # generation
         self.max_output_length = train_config.get("max_output_length", None)
@@ -159,7 +159,7 @@ class TrainManager:
             self.loss.cuda()
 
         # initialize accumalted batch loss (needed for batch_multiplier)
-        self.norm_batch_loss_accumulated = 0
+        #self.norm_batch_loss_accumulated = 0
         # initialize training statistics
         self.steps = 0
         # stop training if this flag is True by reaching learning rate minimum
@@ -213,7 +213,7 @@ class TrainManager:
                 os.remove(to_delete)
             except FileNotFoundError:
                 logger.warning("Wanted to delete old checkpoint %s but "
-                                    "file does not exist.", to_delete)
+                               "file does not exist.", to_delete)
 
         self.ckpt_queue.put(model_path)
 
@@ -292,10 +292,29 @@ class TrainManager:
                                     batch_type=self.batch_type,
                                     train=True, shuffle=self.shuffle)
 
-        # For last batch in epoch batch_multiplier needs to be adjusted
-        # to fit the number of leftover training examples
-        leftover_batch_size = len(
-            train_data) % (self.batch_multiplier * self.batch_size)
+        #################################################################
+        # simplify accumulation logic:
+        #################################################################
+        # for epoch in range(epochs):
+        #     self.model.zero_grad()
+        #     epoch_loss = 0.0
+        #     batch_loss = 0.0
+        #     for i, batch in enumerate(iter(train_iter)):
+        #
+        #         # - gradients accumulated automatically!
+        #         # - loss.backward() inside _train_step()
+        #         epoch_loss += self._train_step(inputs)
+        #
+        #         if (i + 1) % self.batch_multiplier == 0:
+        #             self.optimizer.step()     # update!
+        #             self.model.zero_grad()    # reset gradients
+        #             self.steps += 1           # increment counter
+        #
+        #             epoch_loss += batch_loss  # add batch loss
+        #             batch_loss = 0            # reset batch loss
+        #
+        #     # leftovers are just ignored.
+        #################################################################
 
         for epoch_no in range(self.epochs):
             logger.info("EPOCH %d", epoch_no + 1)
@@ -309,156 +328,61 @@ class TrainManager:
             start = time.time()
             total_valid_duration = 0
             start_tokens = self.total_tokens
-            self.current_batch_multiplier = self.batch_multiplier
-            self.optimizer.zero_grad()
-            count = self.current_batch_multiplier - 1
+            self.model.zero_grad()
             epoch_loss = 0
+            batch_loss = 0
 
             for i, batch in enumerate(iter(train_iter)):
-                # reactivate training
-                self.model.train()
                 # create a Batch object from torchtext batch
                 batch = Batch(batch, self.pad_index, use_cuda=self.use_cuda)
 
-                # only update every batch_multiplier batches
-                # see https://medium.com/@davidlmorton/
-                # increasing-mini-batch-size-without-increasing-
-                # memory-6794e10db672
+                # get batch loss
+                batch_loss += self._train_step(batch)
 
-                # Set current_batch_mutliplier to fit
-                # number of leftover examples for last batch in epoch
-                # Only works if batch_type == sentence
-                if self.batch_type == "sentence":
-                    if self.batch_multiplier > 1 and i == len(train_iter) - \
-                            math.ceil(leftover_batch_size / self.batch_size):
-                        self.current_batch_multiplier = math.ceil(
-                            leftover_batch_size / self.batch_size)
-                        count = self.current_batch_multiplier - 1
+                # update!
+                if (i + 1) % self.batch_multiplier == 0:
+                    # clip gradients (in-place)
+                    if self.clip_grad_fun is not None:
+                        self.clip_grad_fun(params=self.model.parameters())
 
-                update = count == 0
-                # print(count, update, self.steps)
-                batch_loss = self._train_batch(
-                    batch, update=update, count=count)
+                    # make gradient step
+                    self.optimizer.step()
 
-                # Only save finaly computed batch_loss of full batch
-                if update:
-                    self.tb_writer.add_scalar("train/train_batch_loss",
-                                              batch_loss, self.steps)
-
-                count = self.batch_multiplier if update else count
-                count -= 1
-
-                # Only add complete batch_loss of full mini-batch to epoch_loss
-                if update:
-                    epoch_loss += batch_loss.detach().cpu().numpy()
-
-                if self.scheduler is not None and \
-                        self.scheduler_step_at == "step" and update:
-                    self.scheduler.step()
-
-                # log learning progress
-                if self.steps % self.logging_freq == 0 and update:
-                    elapsed = time.time() - start - total_valid_duration
-                    elapsed_tokens = self.total_tokens - start_tokens
-                    logger.info(
-                        "Epoch %3d Step: %8d Batch Loss: %12.6f "
-                        "Tokens per Sec: %8.0f, Lr: %.6f",
-                        epoch_no + 1, self.steps, batch_loss,
-                        elapsed_tokens / elapsed,
-                        self.optimizer.param_groups[0]["lr"])
-                    start = time.time()
-                    total_valid_duration = 0
-                    start_tokens = self.total_tokens
-
-                # validate on the entire dev set
-                if self.steps % self.validation_freq == 0 and update:
-                    valid_start_time = time.time()
-
-                    valid_score, valid_loss, valid_ppl, valid_sources, \
-                        valid_sources_raw, valid_references, valid_hypotheses, \
-                        valid_hypotheses_raw, valid_attention_scores = \
-                        validate_on_data(
-                            #logger=self.logger, # don't pass logger
-                            batch_size=self.eval_batch_size,
-                            data=valid_data,
-                            eval_metric=self.eval_metric,
-                            level=self.level, model=self.model,
-                            use_cuda=self.use_cuda,
-                            max_output_length=self.max_output_length,
-                            loss_function=self.loss,
-                            beam_size=1,  # greedy validations
-                            batch_type=self.eval_batch_type,
-                            postprocess=True,   # always remove BPE for validation
-                            bpe_type=self.bpe_type, # "subword-nmt" or "sentencepiece"
-                            sacrebleu=self.sacrebleu    # sacrebleu options
-                        )
-
-                    self.tb_writer.add_scalar("valid/valid_loss",
-                                              valid_loss, self.steps)
-                    self.tb_writer.add_scalar("valid/valid_score",
-                                              valid_score, self.steps)
-                    self.tb_writer.add_scalar("valid/valid_ppl",
-                                              valid_ppl, self.steps)
-
-                    if self.early_stopping_metric == "loss":
-                        ckpt_score = valid_loss
-                    elif self.early_stopping_metric in ["ppl", "perplexity"]:
-                        ckpt_score = valid_ppl
-                    else:
-                        ckpt_score = valid_score
-
-                    new_best = False
-                    if self.is_best(ckpt_score):
-                        self.best_ckpt_score = ckpt_score
-                        self.best_ckpt_iteration = self.steps
-                        logger.info(
-                            'Hooray! New best validation result [%s]!',
-                            self.early_stopping_metric)
-                        if self.ckpt_queue.maxsize > 0:
-                            logger.info("Saving new checkpoint.")
-                            new_best = True
-                            self._save_checkpoint()
-
+                    # decay lr
                     if self.scheduler is not None \
-                            and self.scheduler_step_at == "validation":
-                        self.scheduler.step(ckpt_score)
+                            and self.scheduler_step_at == "step":
+                        self.scheduler.step()
 
-                    # append to validation report
-                    self._add_report(
-                        valid_score=valid_score, valid_loss=valid_loss,
-                        valid_ppl=valid_ppl, eval_metric=self.eval_metric,
-                        new_best=new_best)
+                    # reset gradients
+                    self.model.zero_grad()
 
-                    self._log_examples(
-                        sources_raw=[v for v in valid_sources_raw],
-                        sources=valid_sources,
-                        hypotheses_raw=valid_hypotheses_raw,
-                        hypotheses=valid_hypotheses,
-                        references=valid_references
-                    )
+                    # increment step counter
+                    self.steps += 1
 
-                    valid_duration = time.time() - valid_start_time
-                    total_valid_duration += valid_duration
-                    logger.info(
-                        'Validation result (greedy) at epoch %3d, '
-                        'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
-                        'duration: %.4fs', epoch_no + 1, self.steps,
-                        self.eval_metric, valid_score, valid_loss,
-                        valid_ppl, valid_duration)
+                    # log learning progress
+                    if self.steps % self.logging_freq == 0:
+                        self.tb_writer.add_scalar("train/train_batch_loss",
+                                                  batch_loss, self.steps)
+                        elapsed = time.time() - start - total_valid_duration
+                        elapsed_tokens = self.total_tokens - start_tokens
+                        logger.info(
+                            "Epoch %3d Step: %8d Batch Loss: %12.6f "
+                            "Tokens per Sec: %8.0f, Lr: %.6f",
+                            epoch_no + 1, self.steps, batch_loss,
+                            elapsed_tokens / elapsed,
+                            self.optimizer.param_groups[0]["lr"])
+                        start = time.time()
+                        total_valid_duration = 0
+                        start_tokens = self.total_tokens
 
-                    # store validation set outputs
-                    self._store_outputs(valid_hypotheses)
+                    # Only add complete loss of full mini-batch to epoch_loss
+                    epoch_loss += batch_loss    # accumulate epoch_loss
+                    batch_loss = 0              # rest batch_loss
 
-                    # store attention plots for selected valid sentences
-                    if valid_attention_scores:
-                        store_attention_plots(
-                            attentions=valid_attention_scores,
-                            targets=valid_hypotheses_raw,
-                            sources=[s for s in valid_data.src],
-                            indices=self.log_valid_sents,
-                            output_prefix="{}/att.{}".format(
-                                self.model_dir, self.steps),
-                            tb_writer=self.tb_writer, steps=self.steps)
+                    # validate on the entire dev set
+                    if self.steps % self.validation_freq == 0:
+                        valid_duration = self._validate(valid_data, epoch_no)
+                        total_valid_duration += valid_duration
 
                 if self.stop:
                     break
@@ -479,16 +403,17 @@ class TrainManager:
 
         self.tb_writer.close()  # close Tensorboard writer
 
-    def _train_batch(self, batch: Batch, update: bool = True,
-                     count: int = 1) -> Tensor:
+    def _train_step(self, batch: Batch) -> Tensor:
         """
         Train the model on one batch: Compute the loss, make a gradient step.
 
         :param batch: training batch
-        :param update: if False, only store gradient. if True also make update
-        :param count: number of portions (batch_size) left before update
         :return: loss for batch (sum)
         """
+        # reactivate training
+        self.model.train()
+
+        # get loss
         batch_loss = self.model.get_loss_for_batch(
             batch=batch, loss_function=self.loss)
 
@@ -506,38 +431,102 @@ class TrainManager:
 
         norm_batch_loss = batch_loss / normalizer
 
-        if update:
-            if self.current_batch_multiplier > 1:
-                norm_batch_loss = self.norm_batch_loss_accumulated + \
-                    norm_batch_loss
-                norm_batch_loss = norm_batch_loss / \
-                    self.current_batch_multiplier if \
-                    self.normalization != "none" else \
-                    norm_batch_loss
+        if self.batch_multiplier > 1:
+            norm_batch_loss = norm_batch_loss / self.batch_multiplier
 
-            norm_batch_loss.backward()
+        # accumulate gradients
+        norm_batch_loss.backward()
 
-            if self.clip_grad_fun is not None:
-                # clip gradients (in-place)
-                self.clip_grad_fun(params=self.model.parameters())
-
-            # make gradient step
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-            # increment step counter
-            self.steps += 1
-
-        else:
-            if count == self.current_batch_multiplier - 1:
-                self.norm_batch_loss_accumulated = norm_batch_loss
-            else:
-                # accumulate loss of current batch_size * batch_multiplier loss
-                self.norm_batch_loss_accumulated += norm_batch_loss
         # increment token counter
         self.total_tokens += batch.ntokens
 
-        return norm_batch_loss
+        return norm_batch_loss.item()
+
+    def _validate(self, valid_data, epoch_no):
+        valid_start_time = time.time()
+
+        valid_score, valid_loss, valid_ppl, valid_sources, \
+        valid_sources_raw, valid_references, valid_hypotheses, \
+        valid_hypotheses_raw, valid_attention_scores = \
+            validate_on_data(
+                #logger=self.logger, # don't pass logger
+                batch_size=self.eval_batch_size,
+                data=valid_data,
+                eval_metric=self.eval_metric,
+                level=self.level, model=self.model,
+                use_cuda=self.use_cuda,
+                max_output_length=self.max_output_length,
+                loss_function=self.loss,
+                beam_size=1,  # greedy validations
+                batch_type=self.eval_batch_type,
+                postprocess=True,   # always remove BPE for validation
+                bpe_type=self.bpe_type, # "subword-nmt" or "sentencepiece"
+                sacrebleu=self.sacrebleu    # sacrebleu options
+            )
+
+        self.tb_writer.add_scalar("valid/valid_loss", valid_loss, self.steps)
+        self.tb_writer.add_scalar("valid/valid_score", valid_score, self.steps)
+        self.tb_writer.add_scalar("valid/valid_ppl", valid_ppl, self.steps)
+
+        if self.early_stopping_metric == "loss":
+            ckpt_score = valid_loss
+        elif self.early_stopping_metric in ["ppl", "perplexity"]:
+            ckpt_score = valid_ppl
+        else:
+            ckpt_score = valid_score
+
+        new_best = False
+        if self.is_best(ckpt_score):
+            self.best_ckpt_score = ckpt_score
+            self.best_ckpt_iteration = self.steps
+            logger.info('Hooray! New best validation result [%s]!',
+                        self.early_stopping_metric)
+            if self.ckpt_queue.maxsize > 0:
+                logger.info("Saving new checkpoint.")
+                new_best = True
+                self._save_checkpoint()
+
+        if self.scheduler is not None \
+                and self.scheduler_step_at == "validation":
+            self.scheduler.step(ckpt_score)
+
+        # append to validation report
+        self._add_report(
+            valid_score=valid_score, valid_loss=valid_loss,
+            valid_ppl=valid_ppl, eval_metric=self.eval_metric,
+            new_best=new_best)
+
+        self._log_examples(
+            sources_raw=[v for v in valid_sources_raw],
+            sources=valid_sources,
+            hypotheses_raw=valid_hypotheses_raw,
+            hypotheses=valid_hypotheses,
+            references=valid_references
+        )
+
+        valid_duration = time.time() - valid_start_time
+        logger.info(
+            'Validation result (greedy) at epoch %3d, '
+            'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
+            'duration: %.4fs', epoch_no + 1, self.steps,
+            self.eval_metric, valid_score, valid_loss,
+            valid_ppl, valid_duration)
+
+        # store validation set outputs
+        self._store_outputs(valid_hypotheses)
+
+        # store attention plots for selected valid sentences
+        if valid_attention_scores:
+            store_attention_plots(
+                attentions=valid_attention_scores,
+                targets=valid_hypotheses_raw,
+                sources=[s for s in valid_data.src],
+                indices=self.log_valid_sents,
+                output_prefix="{}/att.{}".format(
+                    self.model_dir, self.steps),
+                tb_writer=self.tb_writer, steps=self.steps)
+
+        return valid_duration
 
     def _add_report(self, valid_score: float, valid_ppl: float,
                     valid_loss: float, eval_metric: str,
