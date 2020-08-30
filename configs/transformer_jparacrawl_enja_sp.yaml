@@ -42,20 +42,21 @@ training:
   weight_decay: 0.0
   label_smoothing: 0.1
   batch_multiplier: 16
-  batch_size: 5000
+  batch_size: 4096 # 1024 per device
   batch_type: "token"
   early_stopping_metric: "eval_metric"
-  epochs: 5
-  validation_freq: 1000
-  logging_freq: 100
+  epochs: 10
+  validation_freq: 200
+  logging_freq: 20
   eval_metric: "bleu"
-  model_dir: "models/jparacrawl_enja_sp"
+  model_dir: "models/jparacrawl_enja_sp_transformer_4gpu"
   overwrite: True
   shuffle: True
   use_cuda: True
+  fp16: True
   max_output_length: 100
   print_valid_sents: [2000, 2001, 2002, 2003, 2004]
-  keep_last_ckpts: 8
+  keep_last_ckpts: 5
 
 model:
   initializer: "xavier"
