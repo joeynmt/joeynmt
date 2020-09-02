@@ -69,9 +69,9 @@ class TestData(TensorTestCase):
             b = Batch(torch_batch=b, pad_index=self.pad_index)
             if total_samples == 0:
                 self.assertTensorEqual(b.src, expected_src0)
-                self.assertTensorEqual(b.src_lengths, expected_src0_len)
+                self.assertTensorEqual(b.src_length, expected_src0_len)
                 self.assertTensorEqual(b.trg, expected_trg0)
-                self.assertTensorEqual(b.trg_lengths, expected_trg0_len)
+                self.assertTensorEqual(b.trg_length, expected_trg0_len)
             total_samples += b.nseqs
             self.assertLessEqual(b.nseqs, batch_size)
         self.assertEqual(total_samples, len(self.train_data))
@@ -117,18 +117,18 @@ class TestData(TensorTestCase):
 
             # test the sorting by src length
             self.assertEqual(type(b), Batch)
-            before_sort = b.src_lengths
-            b.sort_by_src_lengths()
-            after_sort = b.src_lengths
+            before_sort = b.src_length
+            b.sort_by_src_length()
+            after_sort = b.src_length
             self.assertTensorEqual(torch.sort(before_sort, descending=True)[0],
                                    after_sort)
             self.assertEqual(type(b), Batch)
 
             if total_samples == 0:
                 self.assertTensorEqual(b.src, expected_src0)
-                self.assertTensorEqual(b.src_lengths, expected_src0_len)
+                self.assertTensorEqual(b.src_length, expected_src0_len)
                 self.assertTensorEqual(b.trg, expected_trg0)
-                self.assertTensorEqual(b.trg_lengths, expected_trg0_len)
+                self.assertTensorEqual(b.trg_length, expected_trg0_len)
             total_samples += b.nseqs
             self.assertLessEqual(b.nseqs, batch_size)
         self.assertEqual(total_samples, len(self.dev_data))

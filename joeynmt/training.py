@@ -179,10 +179,6 @@ class TrainManager:
             self.model, self.optimizer = amp.initialize(self.model, self.optimizer,
                                                         opt_level=fp16_opt_level)
 
-        # multi-gpu training (should be after apex fp16 initialization)
-        if self.n_gpu > 1:
-            self.model = _DataParallel(self.model)
-
         # initialize accumalted batch loss (needed for batch_multiplier)
         #self.norm_batch_loss_accumulated = 0
         # initialize training statistics
@@ -208,6 +204,10 @@ class TrainManager:
                                       reset_best_ckpt=reset_best_ckpt,
                                       reset_scheduler=reset_scheduler,
                                       reset_optimizer=reset_optimizer)
+
+        # multi-gpu training (should be after apex fp16 initialization)
+        if self.n_gpu > 1:
+            self.model = _DataParallel(self.model)
 
     def _save_checkpoint(self) -> None:
         """
@@ -306,7 +306,7 @@ class TrainManager:
 
         # fp16
         if self.fp16 and model_checkpoint.get("amp_state", None) is not None:
-            amp.load_state_dict(checkpoint['amp_state'])
+            amp.load_state_dict(model_checkpoint['amp_state'])
 
     # pylint: disable=unnecessary-comprehension
     # pylint: disable=too-many-branches
@@ -335,14 +335,14 @@ class TrainManager:
         #
         #         # gradient accumulation:
         #         # loss.backward() inside _train_step()
-        #         epoch_loss += self._train_step(inputs)
+        #         batch_loss += self._train_step(inputs)
         #
         #         if (i + 1) % self.batch_multiplier == 0:
         #             self.optimizer.step()     # update!
         #             self.model.zero_grad()    # reset gradients
         #             self.steps += 1           # increment counter
         #
-        #             epoch_loss += batch_loss  # add batch loss
+        #             epoch_loss += batch_loss  # accumulate batch loss
         #             batch_loss = 0            # reset batch loss
         #
         #     # leftovers are just ignored.
@@ -411,7 +411,7 @@ class TrainManager:
                         elapsed = time.time() - start - total_valid_duration
                         elapsed_tokens = self.total_tokens - start_tokens
                         logger.info(
-                            "Epoch %3d Step: %8d Batch Loss: %12.6f "
+                            "Epoch %3d, Step: %8d, Batch Loss: %12.6f, "
                             "Tokens per Sec: %8.0f, Lr: %.6f",
                             epoch_no + 1, self.steps, batch_loss,
                             elapsed_tokens / elapsed,

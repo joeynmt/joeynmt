@@ -34,7 +34,7 @@ class TestMetrics(TensorTestCase):
             ref = ["あれがテストです。"]
             score = bleu(hyp, ref, tokenize="ja-mecab")
             self.assertAlmostEqual(score, 39.764, places=3)
-        except ModuleNotFoundError as e:
+        except Exception as e:
             raise unittest.SkipTest(f"{e} Skip.")
 
     def test_token_acc_level_char(self):

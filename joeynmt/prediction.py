@@ -204,7 +204,10 @@ def test(cfg_file,
     cfg = load_config(cfg_file)
 
     if len(logger.handlers) == 0:
-        make_logger(f'{cfg["training"]["model_dir"]}/test.log')
+         log_file = None
+         if os.path.exists(cfg["training"]["model_dir"]):
+             log_file = f'{cfg["training"]["model_dir"]}/test.log'
+         make_logger(log_file)
 
     if "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
@@ -282,7 +285,9 @@ def test(cfg_file,
         if data_set is None:
             continue
 
-        logger.info(f"Decoding on {data_set_name} set...")
+        dataset_filepath = cfg["data"][data_set_name] + "." + cfg["data"]["trg"]
+        logger.info(f"Decoding on {data_set_name} set ({dataset_filepath})...")
+
         #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
@@ -380,7 +385,10 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
     cfg = load_config(cfg_file)
 
     #logger = make_logger()
-    make_logger(f'{cfg["training"]["model_dir"]}/translation.log')
+    log_file = None
+    if os.path.exists(cfg["training"]["model_dir"]):
+        log_file = f'{cfg["training"]["model_dir"]}/translation.log'
+    make_logger(log_file)
 
     # when checkpoint is not specified, take oldest from model dir
     if ckpt is None:

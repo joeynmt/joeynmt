@@ -88,7 +88,6 @@ class Model(nn.Module):
             return encoder_output, encoder_hidden, None, None
 
         elif return_type == "decode":
-
             outputs, hidden, att_probs, att_vectors = self._decode(
                 trg_input=kwargs["trg_input"],
                 encoder_output=kwargs["encoder_output"],
