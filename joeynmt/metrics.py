@@ -4,6 +4,7 @@ This module holds various MT evaluation metrics.
 """
 
 import sacrebleu
+from nltk.translate.meteor_score import meteor_score
 
 
 def chrf(hypotheses, references):
@@ -74,3 +75,15 @@ def sequence_accuracy(hypotheses, references):
     correct_sequences = sum([1 for (hyp, ref) in zip(hypotheses, references)
                              if hyp == ref])
     return (correct_sequences / len(hypotheses))*100 if hypotheses else 0.0
+
+def meteor(references, hypothesis):
+    """
+    
+    calculates the METEOR score for hypothesis with multiple references 
+    
+    :param hypotheses: list of hypotheses (strings)
+    :param references: list of references (strings)
+    
+
+    """
+    return meteor_score(references, hypothesis)
