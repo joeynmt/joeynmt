@@ -13,3 +13,4 @@ pyyaml>=5.1
 pylint
 six==1.12
 wrapt==1.11.1
+nltk == 3.5
