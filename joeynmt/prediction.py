@@ -158,6 +158,10 @@ def validate_on_data(model: Model, data: Dataset,
             elif eval_metric.lower() == 'sequence_accuracy':
                 current_valid_score = sequence_accuracy(
                     valid_hypotheses, valid_references)
+	    elif eval_metric.lower() == 'meteor':
+		current_valid_score = meteor(
+                    valid_hypotheses, valid_references)
+		
         else:
             current_valid_score = -1
 
