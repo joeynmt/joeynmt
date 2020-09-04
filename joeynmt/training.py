@@ -90,10 +90,11 @@ class TrainManager:
         if self.eval_metric not in ['bleu',
                                     'chrf',
                                     'token_accuracy',
-                                    'sequence_accuracy']:
+                                    'sequence_accuracy',
+                                   'meteor']:
             raise ConfigurationError("Invalid setting for 'eval_metric', "
                                      "valid options: 'bleu', 'chrf', "
-                                     "'token_accuracy', 'sequence_accuracy'.")
+                                     "'token_accuracy', 'sequence_accuracy', 'meteor'.")
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
 
@@ -103,7 +104,7 @@ class TrainManager:
         if self.early_stopping_metric in ["ppl", "loss"]:
             self.minimize_metric = True
         elif self.early_stopping_metric == "eval_metric":
-            if self.eval_metric in ["bleu", "chrf"]:
+            if self.eval_metric in ["bleu", "chrf", 'meteor']:
                 self.minimize_metric = False
             # eval metric that has to get minimized (not yet implemented)
             else:
