@@ -4,6 +4,8 @@ This module holds various MT evaluation metrics.
 """
 
 import sacrebleu
+import nltk
+nltk.download('wordnet')
 from nltk.translate.meteor_score import meteor_score
 
 
