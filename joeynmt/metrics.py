@@ -76,7 +76,7 @@ def sequence_accuracy(hypotheses, references):
                              if hyp == ref])
     return (correct_sequences / len(hypotheses))*100 if hypotheses else 0.0
 
-def meteor(references, hypothesis):
+def meteor(references, hypotheses):
     """
     
     calculates the METEOR score for hypothesis with multiple references 
@@ -84,6 +84,12 @@ def meteor(references, hypothesis):
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)
     
-
     """
-    return meteor_score(references, hypothesis)
+    score = 0
+    for ref, hyp in zip(references, hypotheses):
+        print(ref)
+        print(hyp)
+        m_score = meteor_score(references = [ref], hypothesis = hyp)
+        print(m_score)
+        score += m_score
+    return (m_score/len(hypotheses)) * 100
