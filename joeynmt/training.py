@@ -88,6 +88,7 @@ class TrainManager:
             maxsize=train_config.get("keep_last_ckpts", 5))
         self.eval_metrics = train_config.get("eval_metrics", "bleu")
         for eval_metric in self.eval_metrics:
+            print(self.eval_metrics, eval_metric)
             if eval_metric not in ['bleu',
                                         'chrf',
                                         'token_accuracy',
@@ -95,7 +96,7 @@ class TrainManager:
                                     'meteor']:
                 raise ConfigurationError("Invalid setting for 'eval_metric', "
                                         "valid options: 'bleu', 'chrf', "
-                                        "'token_accuracy', 'sequence_accuracy', 'meteor'.")
+                                        "'token_accuracy', 'sequence_accuracy', 'meteor'. " + eval_metric)
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
 
