@@ -86,9 +86,11 @@ class TrainManager:
         self.log_valid_sents = train_config.get("print_valid_sents", [0, 1, 2])
         self.ckpt_queue = queue.Queue(
             maxsize=train_config.get("keep_last_ckpts", 5))
-        self.eval_metrics = train_config.get("eval_metrics", "bleu")
+        self.eval_metrics = train_config.get("eval_metrics", ["bleu"])
         for eval_metric in self.eval_metrics:
+            print("***************")
             print(self.eval_metrics, eval_metric)
+            print("***************")
             if eval_metric not in ['bleu',
                                         'chrf',
                                         'token_accuracy',
