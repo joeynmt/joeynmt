@@ -92,4 +92,4 @@ def meteor(references, hypotheses):
     for ref, hyp in zip(references, hypotheses):
         m_score = meteor_score(references = [ref], hypothesis = hyp)
         score += m_score
-    return (m_score/len(hypotheses)) * 100
+    return (score/len(hypotheses)) * 100
