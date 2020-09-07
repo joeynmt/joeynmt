@@ -26,13 +26,14 @@ def validate_on_data(model: Model, data: Dataset,
                      logger: Logger,
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
-                     level: str, eval_metric: Optional[str],
+                     level: str,
+                     eval_metrics: Optional[List[str]],
                      loss_function: torch.nn.Module = None,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
                      postprocess: bool = True
                      ) \
-        -> (float, float, float, List[str], List[List[str]], List[str],
+        -> (List[float], float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
     Generate translations for the given data.
@@ -146,25 +147,28 @@ def validate_on_data(model: Model, data: Dataset,
         if valid_references:
             assert len(valid_hypotheses) == len(valid_references)
 
-            current_valid_score = 0
-            if eval_metric.lower() == 'bleu':
-                # this version does not use any tokenization
-                current_valid_score = bleu(valid_hypotheses, valid_references)
-            elif eval_metric.lower() == 'chrf':
-                current_valid_score = chrf(valid_hypotheses, valid_references)
-            elif eval_metric.lower() == 'token_accuracy':
-                current_valid_score = token_accuracy(
-                    valid_hypotheses, valid_references, level=level)
-            elif eval_metric.lower() == 'sequence_accuracy':
-                current_valid_score = sequence_accuracy(
-                    valid_hypotheses, valid_references)
-            elif eval_metric.lower() == 'meteor':
-                current_valid_score = meteor(
-                    valid_hypotheses, valid_references)
+            current_valid_scores = []
+            for eval_metric in eval_metrics:
+                current_valid_score = 0
+                if eval_metric.lower() == 'bleu':
+                    # this version does not use any tokenization
+                    current_valid_score = bleu(valid_hypotheses, valid_references)
+                elif eval_metric.lower() == 'chrf':
+                    current_valid_score = chrf(valid_hypotheses, valid_references)
+                elif eval_metric.lower() == 'token_accuracy':
+                    current_valid_score = token_accuracy(
+                        valid_hypotheses, valid_references, level=level)
+                elif eval_metric.lower() == 'sequence_accuracy':
+                    current_valid_score = sequence_accuracy(
+                        valid_hypotheses, valid_references)
+                elif eval_metric.lower() == 'meteor':
+                    current_valid_score = meteor(
+                        valid_hypotheses, valid_references)
+                current_valid_scores.append(current_valid_score)
         else:
             current_valid_score = -1
 
-    return current_valid_score, valid_loss, valid_ppl, valid_sources, \
+    return current_valid_scores, valid_loss, valid_ppl, valid_sources, \
         valid_sources_raw, valid_references, valid_hypotheses, \
         decoded_valid, valid_attention_scores
 

@@ -86,15 +86,16 @@ class TrainManager:
         self.log_valid_sents = train_config.get("print_valid_sents", [0, 1, 2])
         self.ckpt_queue = queue.Queue(
             maxsize=train_config.get("keep_last_ckpts", 5))
-        self.eval_metric = train_config.get("eval_metric", "bleu")
-        if self.eval_metric not in ['bleu',
-                                    'chrf',
-                                    'token_accuracy',
-                                    'sequence_accuracy',
-                                   'meteor']:
-            raise ConfigurationError("Invalid setting for 'eval_metric', "
-                                     "valid options: 'bleu', 'chrf', "
-                                     "'token_accuracy', 'sequence_accuracy', 'meteor'.")
+        self.eval_metrics = train_config.get("eval_metrics", "bleu")
+        for eval_metric in self.eval_metrics:
+            if eval_metric not in ['bleu',
+                                        'chrf',
+                                        'token_accuracy',
+                                        'sequence_accuracy',
+                                    'meteor']:
+                raise ConfigurationError("Invalid setting for 'eval_metric', "
+                                        "valid options: 'bleu', 'chrf', "
+                                        "'token_accuracy', 'sequence_accuracy', 'meteor'.")
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
 
@@ -104,11 +105,12 @@ class TrainManager:
         if self.early_stopping_metric in ["ppl", "loss"]:
             self.minimize_metric = True
         elif self.early_stopping_metric == "eval_metric":
-            if self.eval_metric in ["bleu", "chrf", 'meteor']:
-                self.minimize_metric = False
-            # eval metric that has to get minimized (not yet implemented)
-            else:
-                self.minimize_metric = True
+            for eval_metric in self.eval_metrics:
+                if self.eval_metric in ["bleu", "chrf", 'meteor']:
+                    self.minimize_metric = False
+                # eval metric that has to get minimized (not yet implemented)
+                else:
+                    self.minimize_metric = True
         else:
             raise ConfigurationError(
                 "Invalid setting for 'early_stopping_metric', "
@@ -363,14 +365,14 @@ class TrainManager:
                 if self.steps % self.validation_freq == 0 and update:
                     valid_start_time = time.time()
 
-                    valid_score, valid_loss, valid_ppl, valid_sources, \
+                    valid_scores, valid_loss, valid_ppl, valid_sources, \
                         valid_sources_raw, valid_references, valid_hypotheses, \
                         valid_hypotheses_raw, valid_attention_scores = \
                         validate_on_data(
                             logger=self.logger,
                             batch_size=self.eval_batch_size,
                             data=valid_data,
-                            eval_metric=self.eval_metric,
+                            eval_metrics=self.eval_metrics,
                             level=self.level, model=self.model,
                             use_cuda=self.use_cuda,
                             max_output_length=self.max_output_length,
@@ -382,7 +384,8 @@ class TrainManager:
 
                     self.tb_writer.add_scalar("valid/valid_loss",
                                               valid_loss, self.steps)
-                    self.tb_writer.add_scalar("valid/valid_score",
+                    for idx, valid_score in enumerate(valid_scores):
+                        self.tb_writer.add_scalar("valid/valid_score" + self.eval_metrics[idx],
                                               valid_score, self.steps)
                     self.tb_writer.add_scalar("valid/valid_ppl",
                                               valid_ppl, self.steps)
@@ -392,7 +395,7 @@ class TrainManager:
                     elif self.early_stopping_metric in ["ppl", "perplexity"]:
                         ckpt_score = valid_ppl
                     else:
-                        ckpt_score = valid_score
+                        ckpt_score = valid_scores[0]
 
                     new_best = False
                     if self.is_best(ckpt_score):
@@ -411,10 +414,11 @@ class TrainManager:
                         self.scheduler.step(ckpt_score)
 
                     # append to validation report
-                    self._add_report(
-                        valid_score=valid_score, valid_loss=valid_loss,
-                        valid_ppl=valid_ppl, eval_metric=self.eval_metric,
-                        new_best=new_best)
+                    for idx, valid_score in enumerate(valid_scores):
+                        self._add_report(
+                            valid_score=valid_score, valid_loss=valid_loss,
+                            valid_ppl=valid_ppl, eval_metric=self.eval_metrics[idx],
+                            new_best=new_best)
 
                     self._log_examples(
                         sources_raw=[v for v in valid_sources_raw],
@@ -426,12 +430,13 @@ class TrainManager:
 
                     valid_duration = time.time() - valid_start_time
                     total_valid_duration += valid_duration
-                    self.logger.info(
-                        'Validation result (greedy) at epoch %3d, '
-                        'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
-                        'duration: %.4fs', epoch_no + 1, self.steps,
-                        self.eval_metric, valid_score, valid_loss,
-                        valid_ppl, valid_duration)
+                    for idx, valid_score in enumerate(valid_scores):
+                        self.logger.info(
+                            'Validation result (greedy) at epoch %3d, '
+                            'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
+                            'duration: %.4fs', epoch_no + 1, self.steps,
+                            self.eval_metrics[idx], valid_score, valid_loss,
+                            valid_ppl, valid_duration)
 
                     # store validation set outputs
                     self._store_outputs(valid_hypotheses)
