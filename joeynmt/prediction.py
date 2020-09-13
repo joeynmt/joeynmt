@@ -249,49 +249,49 @@ def test(cfg_file,
         for eval_metric in eval_metrics:
 
 
-        #pylint: disable=unused-variable
-        score, loss, ppl, sources, sources_raw, references, hypotheses, \
-        hypotheses_raw, attention_scores = validate_on_data(
-            model, data=data_set, batch_size=batch_size,
-            batch_type=batch_type, level=level,
-            max_output_length=max_output_length, eval_metric=eval_metric,
-            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
-        #pylint: enable=unused-variable
+            #pylint: disable=unused-variable
+            score, loss, ppl, sources, sources_raw, references, hypotheses, \
+            hypotheses_raw, attention_scores = validate_on_data(
+                model, data=data_set, batch_size=batch_size,
+                batch_type=batch_type, level=level,
+                max_output_length=max_output_length, eval_metric=eval_metric,
+                use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
+                beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
+            #pylint: enable=unused-variable
 
-        if "trg" in data_set.fields:
-            decoding_description = "Greedy decoding" if beam_size < 2 else \
-                "Beam search decoding with beam size = {} and alpha = {}".\
-                    format(beam_size, beam_alpha)
-            logger.info("%4s %s: %6.2f [%s]",
-                        data_set_name, eval_metric, score, decoding_description)
-        else:
-            logger.info("No references given for %s -> no evaluation.",
-                        data_set_name)
-
-        if save_attention:
-            if attention_scores:
-                attention_name = "{}.{}.att".format(data_set_name, step)
-                attention_path = os.path.join(model_dir, attention_name)
-                logger.info("Saving attention plots. This might take a while..")
-                store_attention_plots(attentions=attention_scores,
-                                      targets=hypotheses_raw,
-                                      sources=data_set.src,
-                                      indices=range(len(hypotheses)),
-                                      output_prefix=attention_path)
-                logger.info("Attention plots saved to: %s", attention_path)
+            if "trg" in data_set.fields:
+                decoding_description = "Greedy decoding" if beam_size < 2 else \
+                    "Beam search decoding with beam size = {} and alpha = {}".\
+                        format(beam_size, beam_alpha)
+                logger.info("%4s %s: %6.2f [%s]",
+                            data_set_name, eval_metric, score, decoding_description)
             else:
-                logger.warning("Attention scores could not be saved. "
-                               "Note that attention scores are not available "
-                               "when using beam search. "
-                               "Set beam_size to 1 for greedy decoding.")
+                logger.info("No references given for %s -> no evaluation.",
+                            data_set_name)
 
-        if output_path is not None:
-            output_path_set = "{}.{}".format(output_path, data_set_name)
-            with open(output_path_set, mode="w", encoding="utf-8") as out_file:
-                for hyp in hypotheses:
-                    out_file.write(hyp + "\n")
-            logger.info("Translations saved to: %s", output_path_set)
+            if save_attention:
+                if attention_scores:
+                    attention_name = "{}.{}.att".format(data_set_name, step)
+                    attention_path = os.path.join(model_dir, attention_name)
+                    logger.info("Saving attention plots. This might take a while..")
+                    store_attention_plots(attentions=attention_scores,
+                                        targets=hypotheses_raw,
+                                        sources=data_set.src,
+                                        indices=range(len(hypotheses)),
+                                        output_prefix=attention_path)
+                    logger.info("Attention plots saved to: %s", attention_path)
+                else:
+                    logger.warning("Attention scores could not be saved. "
+                                "Note that attention scores are not available "
+                                "when using beam search. "
+                                "Set beam_size to 1 for greedy decoding.")
+
+            if output_path is not None:
+                output_path_set = "{}.{}".format(output_path, data_set_name)
+                with open(output_path_set, mode="w", encoding="utf-8") as out_file:
+                    for hyp in hypotheses:
+                        out_file.write(hyp + "\n")
+                logger.info("Translations saved to: %s", output_path_set)
 
 
 def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
