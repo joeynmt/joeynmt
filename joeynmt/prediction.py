@@ -216,7 +216,7 @@ def test(cfg_file,
         "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
     use_cuda = cfg["training"].get("use_cuda", False)
     level = cfg["data"]["level"]
-    eval_metric = cfg["training"]["eval_metric"]
+    eval_metrics = cfg["training"]["eval_metrics"]
     max_output_length = cfg["training"].get("max_output_length", None)
 
     # load the data
@@ -246,18 +246,19 @@ def test(cfg_file,
         postprocess = True
 
     for data_set_name, data_set in data_to_predict.items():
-        for eval_metric in eval_metrics:
+        
 
+        #pylint: disable=unused-variable
+        scores, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores = validate_on_data(
+            model, data=data_set, batch_size=batch_size,
+            batch_type=batch_type, level=level,
+            max_output_length=max_output_length, eval_metrics=eval_metrics,
+            use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
+            beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
+        #pylint: enable=unused-variable
 
-            #pylint: disable=unused-variable
-            score, loss, ppl, sources, sources_raw, references, hypotheses, \
-            hypotheses_raw, attention_scores = validate_on_data(
-                model, data=data_set, batch_size=batch_size,
-                batch_type=batch_type, level=level,
-                max_output_length=max_output_length, eval_metric=eval_metric,
-                use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
-                beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
-            #pylint: enable=unused-variable
+        for score, eval_metric in zip(scores, eval_metrics):
 
             if "trg" in data_set.fields:
                 decoding_description = "Greedy decoding" if beam_size < 2 else \
@@ -269,29 +270,29 @@ def test(cfg_file,
                 logger.info("No references given for %s -> no evaluation.",
                             data_set_name)
 
-            if save_attention:
-                if attention_scores:
-                    attention_name = "{}.{}.att".format(data_set_name, step)
-                    attention_path = os.path.join(model_dir, attention_name)
-                    logger.info("Saving attention plots. This might take a while..")
-                    store_attention_plots(attentions=attention_scores,
-                                        targets=hypotheses_raw,
-                                        sources=data_set.src,
-                                        indices=range(len(hypotheses)),
-                                        output_prefix=attention_path)
-                    logger.info("Attention plots saved to: %s", attention_path)
-                else:
-                    logger.warning("Attention scores could not be saved. "
-                                "Note that attention scores are not available "
-                                "when using beam search. "
-                                "Set beam_size to 1 for greedy decoding.")
+        if save_attention:
+            if attention_scores:
+                attention_name = "{}.{}.att".format(data_set_name, step)
+                attention_path = os.path.join(model_dir, attention_name)
+                logger.info("Saving attention plots. This might take a while..")
+                store_attention_plots(attentions=attention_scores,
+                                    targets=hypotheses_raw,
+                                    sources=data_set.src,
+                                    indices=range(len(hypotheses)),
+                                    output_prefix=attention_path)
+                logger.info("Attention plots saved to: %s", attention_path)
+            else:
+                logger.warning("Attention scores could not be saved. "
+                            "Note that attention scores are not available "
+                            "when using beam search. "
+                            "Set beam_size to 1 for greedy decoding.")
 
-            if output_path is not None:
-                output_path_set = "{}.{}".format(output_path, data_set_name)
-                with open(output_path_set, mode="w", encoding="utf-8") as out_file:
-                    for hyp in hypotheses:
-                        out_file.write(hyp + "\n")
-                logger.info("Translations saved to: %s", output_path_set)
+        if output_path is not None:
+            output_path_set = "{}.{}".format(output_path, data_set_name)
+            with open(output_path_set, mode="w", encoding="utf-8") as out_file:
+                for hyp in hypotheses:
+                    out_file.write(hyp + "\n")
+            logger.info("Translations saved to: %s", output_path_set)
 
 
 def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
@@ -335,7 +336,7 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=test_data, batch_size=batch_size,
             batch_type=batch_type, level=level,
-            max_output_length=max_output_length, eval_metric="",
+            max_output_length=max_output_length, eval_metrics=[""],
             use_cuda=use_cuda, loss_function=None, beam_size=beam_size,
             beam_alpha=beam_alpha, logger=logger, postprocess=postprocess)
         return hypotheses
