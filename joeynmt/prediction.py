@@ -246,6 +246,8 @@ def test(cfg_file,
         postprocess = True
 
     for data_set_name, data_set in data_to_predict.items():
+        for eval_metric in eval_metrics:
+
 
         #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
