@@ -18,7 +18,7 @@ def chrf(hypotheses, references):
     :param references: list of references (strings)
     :return:
     """
-    return sacrebleu.corpus_chrf(hypotheses=hypotheses, references=references)
+    return sacrebleu.corpus_chrf(hypotheses=hypotheses, references=[references])
 
 
 def bleu(hypotheses, references):
@@ -81,15 +81,12 @@ def sequence_accuracy(hypotheses, references):
 
 def meteor(references, hypotheses):
     """
-    
     calculates the METEOR score for hypothesis with multiple references 
-    
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)
-    
     """
     score = 0
     for ref, hyp in zip(references, hypotheses):
-        m_score = meteor_score(references = [ref], hypothesis = hyp)
+        m_score = meteor_score(references=[ref], hypothesis=hyp)
         score += m_score
     return (score/len(hypotheses)) * 100
