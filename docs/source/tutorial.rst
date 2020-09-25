@@ -62,7 +62,7 @@ The Moses toolkit provides a set of useful `scripts <https://github.com/moses-sm
 For a standard pipeline, follow for example the one described in the `Sockeye paper <https://arxiv.org/pdf/1712.05690.pdf>`_.
 
 In addition, you might want to build the NMT model not on the basis of words, but rather sub-words or characters (the ``level`` in JoeyNMT configurations).
-Currently, JoeyNMT supports word-based, character-based models and sub-word models with byte-pair-encodings (BPE) as learned with `subword-nmt <https://github.com/rsennrich/subword-nmt>`_.
+Currently, JoeyNMT supports word-based, character-based models and sub-word models with byte-pair-encodings (BPE) as learned with `subword-nmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_.
 
 
 2. Configuration
@@ -409,9 +409,9 @@ The evaluation for our reverse model should look like this:
 
 ::
 
-    test bleu: 98.48812178559285 [Beam search decoding with beam size = 10 and alpha = 1.0]
+    test bleu[13a]: 98.48812178559285 [Beam search decoding with beam size = 10 and alpha = 1.0]
     Translations saved to: reverse_model/test_predictions.test
-    dev  bleu: 98.80524689263555 [Beam search decoding with beam size = 10 and alpha = 1.0]
+    dev  bleu[13a]: 98.80524689263555 [Beam search decoding with beam size = 10 and alpha = 1.0]
     Translations saved to: reverse_model/test_predictions.dev
 
 Once again you can see that the reverse task is relatively easy to learn, while for translation high BLEU scores like this would be miraculous/suspicious.

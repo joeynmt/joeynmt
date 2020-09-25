@@ -162,3 +162,24 @@ Joey NMT | en | zu | 1.4 | 3.64
 Uxhumana Transformer | en | zu  | -- | 1.34
 Joey NMT | zu | en | 6.9 | 8.74
 
+
+## JparaCrawl 
+
+We compare the transformer model trained on [JparaCrawl](http://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/) ver2.0 against their official pretrained models which use [fairseq](https://github.com/pytorch/fairseq) framework.
+Here, we provide the BLEU score measured on [kftt](http://www.phontron.com/kftt/) test set and [iwslt17](https://wit3.fbk.eu/mt.php?release=2017-01-trnted) test set. We evaluated en->ja by sacrebleu with `--tokenize ja-mecab`, and ja->en with `--tokenize intl` option. Note that their official models are trained on JparaCrawl ver1.0, whereas we trained our models on pre-processed JapraCrawl ver2.0 (see [get_jparacrawl.sh](scripts/get_jparacrawl.sh) and [preprocess_jparacrawl.py](scripts/preprocess_jparacrawl.py) for details). 
+
+### kftt test
+Systems | en->ja | ja->en | #params 
+ --- | :---: | :---: | :---: 
+Joey NMT | 14.8 | 13.3 | 93.2M
+Fairseq base | 14.5 | 14.2 | 93.2M
+Fairseq big  | 15.6 | 15.3 | 274.5M
+
+### iwslt17 test
+Systems | en->ja | ja->en | #params 
+ --- | :---: | :---: | :---: 
+Joey NMT | 12.1 | 12.0 | 93.2M
+Fairseq base | 10.9 | 12.1 | 93.2M
+Fairseq big  | 11.4 | 13.0 | 274.5M
+
+

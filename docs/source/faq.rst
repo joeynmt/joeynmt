@@ -27,7 +27,8 @@ Training
    Then set the ``use_cuda`` flag in the configuration to True for training on GPU (requires CUDA) or to False for training on CPU.
 
 - **Does Joey NMT support multi-GPU processing?**
-   At the current stage, the code does not support multi-GPU processing. Contributions welcome :)
+   ~~At the current stage, the code does not support multi-GPU processing. Contributions welcome :)~~
+   [UPDATE] In version 0.0.2, we integrated multi-gpu and half-precision support.
 
 - **How can I stop training?**
    Simply press Control+C.
@@ -143,7 +144,7 @@ Data
 ^^^^
 - **Does JoeyNMT pre-process my data?**
     JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
-    For that purpose, you might find the  `tools provided by the Moses decoder <https://github.com/moses-smt/mosesdecoder/tree/master/scripts>`_ useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh>`_.
+    For that purpose, you might find the  `tools provided by the Moses decoder <https://github.com/moses-smt/mosesdecoder/tree/master/scripts>`_ useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh>`_.
     However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length) that you specify in the data section of the configuration file.
     You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/master/scripts/preprocess.sh>`_.
 
@@ -235,7 +236,7 @@ Model Extensions
     3. The last thing that is missing is the parsing of configuration parameters to build the scheduler object. Once again, follow the example of existing schedulers and integrate the code for constructing your new scheduler in the ``build_scheduler`` function.
   
     4. Give the new scheduler a try! Integrate it in a basic configuration file and check in the training log and the validation reports whether the learning rate is behaving as desired.
-  
+
 
 Miscellaneous
 -------------
@@ -281,17 +282,3 @@ Evaluation
       3. Use the BLEU scoring library of your choice, this is the one that is reported in previous benchmarks, or e.g. sacrebleu (see above). Make sure to set tokenization flags correctly.
       4. Report these scores together with a description of how you computed them, ideally provide a script with your code.  
 
-Miscellaneous
--------------
-- **Why should I use JoeyNMT rather than other NMT toolkits?**
-    It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all latest features, but rather the core features that make up for 99% of the quality.
-  That means for you, once you know how to work with it, we guarantee you the code won't completely change from one day to the next.
-
-- **I found a bug in your code, what should I do?**
-    Describe it in an issue on GitHub! And even better: fix it and create a pull request. Open source contributions look good on your CV! ;)
-
-- **How can I check whether my model is significantly better than my baseline model?**
-    Run significance tests, e.g. with `Multeval <https://github.com/jhclark/multeval>`_.
-
-- **Where can I find training data?**
-    See :ref:`resources`.
