@@ -54,7 +54,7 @@ class TrainManager:
         # files for logging and storing
         self.model_dir = train_config["model_dir"]
         assert os.path.exists(self.model_dir)
-        #self.logger = make_logger("{}/train.log".format(self.model_dir))
+
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(
@@ -149,7 +149,6 @@ class TrainManager:
                                                 self.batch_type)
 
         self.batch_multiplier = train_config.get("batch_multiplier", 1)
-        #self.current_batch_multiplier = self.batch_multiplier
 
         # generation
         self.max_output_length = train_config.get("max_output_length", None)
@@ -160,7 +159,6 @@ class TrainManager:
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
         if self.use_cuda:
             self.model.cuda()
-            #self.loss.cuda()
 
         # fp16
         self.fp16 = train_config.get("fp16", False)
@@ -179,8 +177,6 @@ class TrainManager:
             self.model, self.optimizer = amp.initialize(self.model, self.optimizer,
                                                         opt_level=fp16_opt_level)
 
-        # initialize accumalted batch loss (needed for batch_multiplier)
-        #self.norm_batch_loss_accumulated = 0
         # initialize training statistics
         self.steps = 0
         # stop training if this flag is True by reaching learning rate minimum
@@ -449,7 +445,7 @@ class TrainManager:
 
     def _train_step(self, batch: Batch) -> Tensor:
         """
-        Train the model on one batch: Compute the loss, make a gradient step.
+        Train the model on one batch: Compute the loss.
 
         :param batch: training batch
         :return: loss for batch (sum)
@@ -505,7 +501,6 @@ class TrainManager:
         valid_sources_raw, valid_references, valid_hypotheses, \
         valid_hypotheses_raw, valid_attention_scores = \
             validate_on_data(
-                #logger=self.logger, # don't pass logger
                 batch_size=self.eval_batch_size,
                 data=valid_data,
                 eval_metric=self.eval_metric,
@@ -513,11 +508,11 @@ class TrainManager:
                 use_cuda=self.use_cuda,
                 max_output_length=self.max_output_length,
                 compute_loss=True,
-                beam_size=1,  # greedy validations
+                beam_size=1,                # greedy validations
                 batch_type=self.eval_batch_type,
-                postprocess=True,   # always remove BPE for validation
-                bpe_type=self.bpe_type, # "subword-nmt" or "sentencepiece"
-                sacrebleu=self.sacrebleu,    # sacrebleu options
+                postprocess=True,           # always remove BPE for validation
+                bpe_type=self.bpe_type,     # "subword-nmt" or "sentencepiece"
+                sacrebleu=self.sacrebleu,   # sacrebleu options
                 n_gpu=self.n_gpu
             )
 
@@ -682,7 +677,8 @@ def train(cfg_file: str) -> None:
     # make logger
     model_dir = make_model_dir(cfg["training"]["model_dir"],
                    overwrite=cfg["training"].get("overwrite", False))
-    make_logger(f"{model_dir}/train.log")
+    version = make_logger(f"{model_dir}/train.log")
+    # version number could be saved in model checkpoints
 
     # set the random seed
     set_seed(seed=cfg["training"].get("random_seed", 42))
@@ -701,13 +697,11 @@ def train(cfg_file: str) -> None:
     shutil.copy2(cfg_file, trainer.model_dir + "/config.yaml")
 
     # log all entries of config
-    log_cfg(cfg) #,logger
+    log_cfg(cfg)
 
     log_data_info(train_data=train_data, valid_data=dev_data,
                   test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab)
-                  #logging_function=logger.info)
 
-    #trainer.logger.info(str(model))
     logger.info(str(model))
 
     # store the vocabs

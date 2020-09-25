@@ -6,7 +6,6 @@ import os
 import sys
 from typing import List, Optional
 import logging
-#from logging import Logger
 import numpy as np
 
 import torch
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
-                     #logger: Logger, # don't pass logger
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
@@ -171,7 +169,6 @@ def validate_on_data(model: Model, data: Dataset,
             elif eval_metric.lower() == 'token_accuracy':
                 current_valid_score = token_accuracy( # supply List[List[str]] before join!
                     [t for t in decoded_valid], [t for t in data.trg])
-            #        valid_hypotheses, valid_references, level=level)
             elif eval_metric.lower() == 'sequence_accuracy':
                 current_valid_score = sequence_accuracy(
                     valid_hypotheses, valid_references)
@@ -189,7 +186,6 @@ def test(cfg_file,
          output_path: str = None,
          save_attention: bool = False,
          datasets: dict = None) -> None:
-         #logger: Logger = None # don't pass logger
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
@@ -207,7 +203,7 @@ def test(cfg_file,
          log_file = None
          if os.path.exists(cfg["training"]["model_dir"]):
              log_file = f'{cfg["training"]["model_dir"]}/test.log'
-         make_logger(log_file)
+         version = make_logger(log_file)
 
     if "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
@@ -232,7 +228,7 @@ def test(cfg_file,
     n_gpu = torch.cuda.device_count() if use_cuda else 0
     device = torch.device("cuda" if use_cuda else "cpu")
     logger.info(f"Process device: {device}, n_gpu: {n_gpu}, "
-                f"batch_size per device: {batch_size // n_gpu}")
+    f"batch_size per device: {batch_size // n_gpu if n_gpu > 0 else batch_size}")
 
     level = cfg["data"]["level"]
     eval_metric = cfg["training"]["eval_metric"]
@@ -384,11 +380,10 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
 
     cfg = load_config(cfg_file)
 
-    #logger = make_logger()
     log_file = None
     if os.path.exists(cfg["training"]["model_dir"]):
         log_file = f'{cfg["training"]["model_dir"]}/translation.log'
-    make_logger(log_file)
+    version = make_logger(log_file)
 
     # when checkpoint is not specified, take oldest from model dir
     if ckpt is None:

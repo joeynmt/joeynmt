@@ -10,9 +10,9 @@ import errno
 import shutil
 import random
 import logging
-#from logging import Logger
 from typing import Callable, Optional, List
 import numpy as np
+import pkg_resources
 
 import torch
 from torch import nn, Tensor
@@ -46,14 +46,15 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
     return model_dir
 
 
-def make_logger(log_file: str = None) -> None:
+def make_logger(log_file: str = None) -> str:
     """
     Create a logger for logging the training/testing process.
 
     :param log_file: path to file where log is stored as well
-    :return: logger object
+    :return: joeynmt version number
     """
     logger = logging.getLogger("") # root logger
+    version = pkg_resources.require("joeynmt")[0].version
 
     # add handlers only once.
     if len(logger.handlers) == 0:
@@ -70,10 +71,10 @@ def make_logger(log_file: str = None) -> None:
         sh.setLevel(logging.INFO)
         sh.setFormatter(formatter)
 
-        #logging.getLogger("").addHandler(sh)
         logger.addHandler(sh)
-        logger.info("Hello! This is Joey-NMT.")
-        #return logger
+        logger.info(f"Hello! This is Joey-NMT (version {version}).")
+
+    return version
 
 
 def log_cfg(cfg: dict, prefix: str = "cfg") -> None:
@@ -183,7 +184,6 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
     :param bpe_type: one of {"sentencepiece", "subword-nmt"}
     :return: post-processed string
     """
-    #return string.replace("@@ ", "")
     if bpe_type == "sentencepiece": #if "▁" in string:
         return string.replace(" ", "").replace("▁", " ").strip()
     elif bpe_type == "subword-nmt": #elif "@@" in string:

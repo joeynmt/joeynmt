@@ -54,6 +54,11 @@ class Model(nn.Module):
             -> (Tensor, Tensor, Tensor, Tensor):
         """ Interface for multi-gpu
 
+        For DataParallel, We need to encapsulate all model call: model.encode(),
+        model.decode(), and model.encode_decode() by model.__call__().
+        model.__call__() triggers model.forward() together with pre hooks
+        and post hooks, which take care of multi-gpu distribution.
+
         :param return_type: one of {"loss", "encode", "decode"}
         """
         if return_type is None:
@@ -164,30 +169,6 @@ class Model(nn.Module):
                             hidden=decoder_hidden,
                             prev_att_vector=att_vector,
                             trg_mask=trg_mask)
-
-#    def get_loss_for_batch(self, batch: Batch, loss_function: nn.Module) \
-#            -> Tensor:
-#        """
-#        Compute non-normalized loss and number of tokens for a batch
-#
-#        :param batch: batch to compute loss for
-#        :param loss_function: loss function, computes for input and target
-#            a scalar loss for the complete batch
-#        :return: batch_loss: sum of losses over non-pad elements in the batch
-#        """
-#        # pylint: disable=unused-variable
-#        out, hidden, att_probs, _ = self.encode_decode(
-#            src=batch.src, trg_input=batch.trg_input,
-#            src_mask=batch.src_mask, src_length=batch.src_length,
-#            trg_mask=batch.trg_mask)
-#
-#        # compute log probs
-#        log_probs = F.log_softmax(out, dim=-1)
-#
-#        # compute batch loss
-#        batch_loss = loss_function(log_probs, batch.trg)
-#        # return batch loss = sum over all elements in batch that are not pad
-#        return batch_loss
 
     def __repr__(self) -> str:
         """

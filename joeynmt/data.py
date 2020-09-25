@@ -49,6 +49,10 @@ def load_data(data_cfg: dict, datasets: list = ["train", "dev", "test"])\
     train_path = data_cfg.get("train", None)
     dev_path = data_cfg.get("dev", None)
     test_path = data_cfg.get("test", None)
+
+    if train_path is None and dev_path is None and test_path is None:
+        raise ValueError('Please specify at least one data source path.')
+
     level = data_cfg["level"]
     lowercase = data_cfg["lowercase"]
     max_sent_length = data_cfg["max_sent_length"]
@@ -95,6 +99,9 @@ def load_data(data_cfg: dict, datasets: list = ["train", "dev", "test"])\
 
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
+
+    assert (train_data is not None) or (src_vocab_file is not None)
+    assert (train_data is not None) or (trg_vocab_file is not None)
 
     logger.info("building vocabulary...")
     src_vocab = build_vocab(field="src", min_freq=src_min_freq,
