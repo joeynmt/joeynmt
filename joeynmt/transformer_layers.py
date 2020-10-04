@@ -22,7 +22,7 @@ class MultiHeadedAttention(nn.Module):
         :param size: model size (must be divisible by num_heads)
         :param dropout: probability of dropping a unit
         """
-        super(MultiHeadedAttention, self).__init__()
+        super().__init__()
 
         assert size % num_heads == 0
 
@@ -101,7 +101,7 @@ class PositionwiseFeedForward(nn.Module):
         :param ff_size: dimensionality of intermediate representation
         :param dropout:
         """
-        super(PositionwiseFeedForward, self).__init__()
+        super().__init__()
         self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
         self.pwff_layer = nn.Sequential(
             nn.Linear(input_size, ff_size),
@@ -145,7 +145,7 @@ class PositionalEncoding(nn.Module):
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
         pe = pe.unsqueeze(0)  # shape: [1, size, max_len]
-        super(PositionalEncoding, self).__init__()
+        super().__init__()
         self.register_buffer('pe', pe)
         self.dim = size
 
@@ -177,7 +177,7 @@ class TransformerEncoderLayer(nn.Module):
         :param num_heads:
         :param dropout:
         """
-        super(TransformerEncoderLayer, self).__init__()
+        super().__init__()
 
         self.layer_norm = nn.LayerNorm(size, eps=1e-6)
         self.src_src_att = MultiHeadedAttention(num_heads, size,
@@ -228,7 +228,7 @@ class TransformerDecoderLayer(nn.Module):
         :param num_heads: number of heads
         :param dropout: dropout to apply to input
         """
-        super(TransformerDecoderLayer, self).__init__()
+        super().__init__()
         self.size = size
 
         self.trg_trg_att = MultiHeadedAttention(num_heads, size,

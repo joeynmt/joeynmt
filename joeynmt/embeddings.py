@@ -27,7 +27,7 @@ class Embeddings(nn.Module):
         :param padding_idx:
         :param freeze: freeze the embeddings during training
         """
-        super(Embeddings, self).__init__()
+        super().__init__()
 
         self.embedding_dim = embedding_dim
         self.scale = scale

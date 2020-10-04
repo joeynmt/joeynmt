@@ -14,7 +14,7 @@ class XentLoss(nn.Module):
     """
 
     def __init__(self, pad_index: int, smoothing: float = 0.0):
-        super(XentLoss, self).__init__()
+        super().__init__()
         self.smoothing = smoothing
         self.pad_index = pad_index
         if self.smoothing <= 0.0:
