@@ -34,7 +34,7 @@ class BahdanauAttention(AttentionMechanism):
         :param query_size: size of the query
         """
 
-        super(BahdanauAttention, self).__init__()
+        super().__init__()
 
         self.key_layer = nn.Linear(key_size, hidden_size, bias=False)
         self.query_layer = nn.Linear(query_size, hidden_size, bias=False)
@@ -146,7 +146,7 @@ class LuongAttention(AttentionMechanism):
         :param key_size: size of the attention input keys
         """
 
-        super(LuongAttention, self).__init__()
+        super().__init__()
         self.key_layer = nn.Linear(in_features=key_size,
                                    out_features=hidden_size,
                                    bias=False)

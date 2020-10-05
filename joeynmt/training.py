@@ -99,13 +99,15 @@ class TrainManager:
         self.early_stopping_metric = train_config.get("early_stopping_metric",
                                                       "eval_metric")
 
-        # if we schedule after BLEU/chrf, we want to maximize it, else minimize
         # early_stopping_metric decides on how to find the early stopping point:
-        # ckpts are written when there's a new high/low score for this metric
+        # ckpts are written when there's a new high/low score for this metric.
+        # If we schedule after BLEU/chrf/accuracy, we want to maximize the
+        # score, else we want to minimize it.
         if self.early_stopping_metric in ["ppl", "loss"]:
             self.minimize_metric = True
         elif self.early_stopping_metric == "eval_metric":
-            if self.eval_metric in ["bleu", "chrf"]:
+            if self.eval_metric in ["bleu", "chrf",
+                                    "token_accuracy", "sequence_accuracy"]:
                 self.minimize_metric = False
             # eval metric that has to get minimized (not yet implemented)
             else:

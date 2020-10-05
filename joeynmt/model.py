@@ -37,7 +37,7 @@ class Model(nn.Module):
         :param src_vocab: source vocabulary
         :param trg_vocab: target vocabulary
         """
-        super(Model, self).__init__()
+        super().__init__()
 
         self.src_embed = src_embed
         self.trg_embed = trg_embed

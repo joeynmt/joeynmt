@@ -52,7 +52,7 @@ class RecurrentEncoder(Encoder):
         :param kwargs:
         """
 
-        super(RecurrentEncoder, self).__init__()
+        super().__init__()
 
         self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
         self.type = rnn_type
@@ -173,7 +173,7 @@ class TransformerEncoder(Encoder):
         :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
-        super(TransformerEncoder, self).__init__()
+        super().__init__()
 
         # build all (num_layers) layers
         self.layers = nn.ModuleList([

@@ -228,4 +228,4 @@ class MonoDataset(Dataset):
 
         src_file.close()
 
-        super(MonoDataset, self).__init__(examples, fields, **kwargs)
+        super().__init__(examples, fields, **kwargs)

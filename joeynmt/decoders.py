@@ -74,7 +74,7 @@ class RecurrentDecoder(Decoder):
         :param kwargs:
         """
 
-        super(RecurrentDecoder, self).__init__()
+        super().__init__()
 
         self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
         self.type = rnn_type
@@ -463,7 +463,7 @@ class TransformerDecoder(Decoder):
         :param freeze: set to True keep all decoder parameters fixed
         :param kwargs:
         """
-        super(TransformerDecoder, self).__init__()
+        super().__init__()
 
         self._hidden_size = hidden_size
         self._output_size = vocab_size
