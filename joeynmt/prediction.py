@@ -35,8 +35,7 @@ def validate_on_data(model: Model, data: Dataset,
                      batch_type: str = "sentence",
                      postprocess: bool = True,
                      bpe_type: str = "subword-nmt",
-                     sacrebleu: dict = {"remove_whitespace": True,
-                                        "tokenize": "13a"}) \
+                     sacrebleu: dict = None) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
@@ -75,6 +74,8 @@ def validate_on_data(model: Model, data: Dataset,
         - valid_attention_scores: attention scores for validation hypotheses
     """
     assert batch_size >= n_gpu, "batch_size must be bigger than n_gpu."
+    if sacrebleu is None:   # assign default value
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
     if batch_size > 1000 and batch_type == "sentence":
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like "
@@ -148,11 +149,12 @@ def validate_on_data(model: Model, data: Dataset,
 
         # post-process
         if level == "bpe" and postprocess:
-            valid_sources = [bpe_postprocess(s, bpe_type=bpe_type) for s in valid_sources]
+            valid_sources = [bpe_postprocess(s, bpe_type=bpe_type)
+                             for s in valid_sources]
             valid_references = [bpe_postprocess(v, bpe_type=bpe_type)
                                 for v in valid_references]
-            valid_hypotheses = [bpe_postprocess(v, bpe_type=bpe_type) for
-                                v in valid_hypotheses]
+            valid_hypotheses = [bpe_postprocess(v, bpe_type=bpe_type)
+                                for v in valid_hypotheses]
 
         # if references are given, evaluate against them
         if valid_references:
@@ -162,13 +164,14 @@ def validate_on_data(model: Model, data: Dataset,
             if eval_metric.lower() == 'bleu':
                 # this version does not use any tokenization
                 current_valid_score = bleu(
-                    valid_hypotheses, valid_references, tokenize=sacrebleu["tokenize"])
+                    valid_hypotheses, valid_references,
+                    tokenize=sacrebleu["tokenize"])
             elif eval_metric.lower() == 'chrf':
                 current_valid_score = chrf(valid_hypotheses, valid_references,
-                                           remove_whitespace=sacrebleu["remove_whitespace"])
+                    remove_whitespace=sacrebleu["remove_whitespace"])
             elif eval_metric.lower() == 'token_accuracy':
-                current_valid_score = token_accuracy( # supply List[List[str]] before join!
-                    [t for t in decoded_valid], [t for t in data.trg])
+                current_valid_score = token_accuracy(   # supply List[List[str]]
+                    list(decoded_valid), list(data.trg))
             elif eval_metric.lower() == 'sequence_accuracy':
                 current_valid_score = sequence_accuracy(
                     valid_hypotheses, valid_references)
@@ -178,6 +181,70 @@ def validate_on_data(model: Model, data: Dataset,
     return current_valid_score, valid_loss, valid_ppl, valid_sources, \
         valid_sources_raw, valid_references, valid_hypotheses, \
         decoded_valid, valid_attention_scores
+
+
+def parse_test_args(cfg, mode="test"):
+    """
+    parse test args
+    :param cfg: config object
+    :param mode: 'test' or 'translate'
+    :return:
+    """
+    if "test" not in cfg["data"].keys():
+        raise ValueError("Test data must be specified in config.")
+
+    batch_size = cfg["training"].get(
+        "eval_batch_size", cfg["training"].get("batch_size", 1))
+    batch_type = cfg["training"].get(
+        "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
+    use_cuda = (cfg["training"].get("use_cuda", False)
+                and torch.cuda.is_available())
+    device = torch.device("cuda" if use_cuda else "cpu")
+    if mode == 'test':
+        n_gpu = torch.cuda.device_count() if use_cuda else 0
+        logger.info("Process device: %s, n_gpu: %d, batch_size per device: %d",
+            device, n_gpu, batch_size // n_gpu if n_gpu > 1 else batch_size)
+        eval_metric = cfg["training"]["eval_metric"]
+
+    elif mode == 'translate':
+        # in multi-gpu, batch_size must be bigger than n_gpu!
+        n_gpu = 1 if use_cuda else 0
+        logger.debug("Process device: %s, n_gpu: %d", device, n_gpu)
+        eval_metric = ""
+
+    level = cfg["data"]["level"]
+    max_output_length = cfg["training"].get("max_output_length", None)
+
+    # whether to use beam search for decoding, 0: greedy decoding
+    if "testing" in cfg.keys():
+        beam_size = cfg["testing"].get("beam_size", 1)
+        beam_alpha = cfg["testing"].get("alpha", -1)
+        postprocess = cfg["testing"].get("postprocess", True)
+        bpe_type = cfg["testing"].get("bpe_type", "subword-nmt")
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
+        if "sacrebleu" in cfg["testing"].keys():
+            sacrebleu["remove_whitespace"] = cfg["testing"]["sacrebleu"] \
+                .get("remove_whitespace", True)
+            sacrebleu["tokenize"] = cfg["testing"]["sacrebleu"] \
+                .get("tokenize", "13a")
+
+    else:
+        beam_size = 1
+        beam_alpha = -1
+        postprocess = True
+        bpe_type = "subword-nmt"
+        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
+
+    decoding_description = "Greedy decoding" if beam_size < 2 else \
+        "Beam search decoding with beam size = {} and alpha = {}". \
+            format(beam_size, beam_alpha)
+    tokenizer_info = f"[{sacrebleu['tokenize']}]" \
+        if eval_metric == "bleu" else ""
+
+    return batch_size, batch_type, use_cuda, n_gpu, level, \
+           eval_metric, max_output_length, beam_size, beam_alpha, \
+           postprocess, bpe_type, sacrebleu, decoding_description, \
+           tokenizer_info
 
 
 # pylint: disable-msg=logging-too-many-args
@@ -198,51 +265,34 @@ def test(cfg_file,
     """
 
     cfg = load_config(cfg_file)
+    model_dir = cfg["training"]["model_dir"]
 
     if len(logger.handlers) == 0:
-         log_file = None
-         if os.path.exists(cfg["training"]["model_dir"]):
-             log_file = f'{cfg["training"]["model_dir"]}/test.log'
-         version = make_logger(log_file)
-
-    if "test" not in cfg["data"].keys():
-        raise ValueError("Test data must be specified in config.")
+        _ = make_logger(model_dir, mode="test")   # version string returned
 
     # when checkpoint is not specified, take latest (best) from model dir
     if ckpt is None:
-        model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
-        if ckpt is None:
-            raise FileNotFoundError("No checkpoint found in directory {}."
-                                    .format(model_dir))
         try:
             step = ckpt.split(model_dir+"/")[1].split(".ckpt")[0]
         except IndexError:
             step = "best"
-
-    batch_size = cfg["training"].get(
-        "eval_batch_size", cfg["training"]["batch_size"])
-    batch_type = cfg["training"].get(
-        "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
-    use_cuda = cfg["training"].get("use_cuda", False) and torch.cuda.is_available()
-    n_gpu = torch.cuda.device_count() if use_cuda else 0
-    device = torch.device("cuda" if use_cuda else "cpu")
-    logger.info(f"Process device: {device}, n_gpu: {n_gpu}, "
-    f"batch_size per device: {batch_size // n_gpu if n_gpu > 0 else batch_size}")
-
-    level = cfg["data"]["level"]
-    eval_metric = cfg["training"]["eval_metric"]
-    max_output_length = cfg["training"].get("max_output_length", None)
 
     # load the data
     if datasets is None:
         _, dev_data, test_data, src_vocab, trg_vocab = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
-    else: # avoid to load data again
+    else:   # avoid to load data again
         data_to_predict = {"dev": datasets["dev"], "test": datasets["test"]}
         src_vocab = datasets["src_vocab"]
         trg_vocab = datasets["trg_vocab"]
+
+    # parse test args
+    batch_size, batch_type, use_cuda, n_gpu, level, eval_metric, \
+        max_output_length, beam_size, beam_alpha, postprocess, \
+        bpe_type, sacrebleu, decoding_description, tokenizer_info \
+        = parse_test_args(cfg, mode="test")
 
     # load model state from disk
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
@@ -258,31 +308,12 @@ def test(cfg_file,
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
         model = _DataParallel(model)
 
-    # whether to use beam search for decoding, 0: greedy decoding
-    if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 1)
-        beam_alpha = cfg["testing"].get("alpha", -1)
-        postprocess = cfg["testing"].get("postprocess", True)
-        bpe_type = cfg["testing"].get("bpe_type", "subword-nmt")
-        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
-        if "sacrebleu" in cfg["testing"].keys():
-            sacrebleu["remove_whitespace"] = cfg["testing"]["sacrebleu"]\
-                .get("remove_whitespace", True)
-            sacrebleu["tokenize"] = cfg["testing"]["sacrebleu"]\
-                .get("tokenize", "13a")
-    else:
-        beam_size = 1
-        beam_alpha = -1
-        postprocess = True
-        bpe_type = "subword-nmt"
-        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
-
     for data_set_name, data_set in data_to_predict.items():
         if data_set is None:
             continue
 
-        dataset_filepath = cfg["data"][data_set_name] + "." + cfg["data"]["trg"]
-        logger.info(f"Decoding on {data_set_name} set ({dataset_filepath})...")
+        dataset_file = cfg["data"][data_set_name] + "." + cfg["data"]["trg"]
+        logger.info("Decoding on %s set (%s)...", data_set_name, dataset_file)
 
         #pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
@@ -296,11 +327,6 @@ def test(cfg_file,
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
-            decoding_description = "Greedy decoding" if beam_size < 2 else \
-                "Beam search decoding with beam size = {} and alpha = {}".\
-                    format(beam_size, beam_alpha)
-            tokenizer_info = f"[{sacrebleu['tokenize']}]" \
-                if eval_metric == "bleu" else ""
             logger.info("%4s %s%s: %6.2f [%s]",
                         data_set_name, eval_metric, tokenizer_info,
                         score, decoding_description)
@@ -333,7 +359,7 @@ def test(cfg_file,
             logger.info("Translations saved to: %s", output_path_set)
 
 
-def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
+def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or
@@ -379,34 +405,18 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
         return hypotheses
 
     cfg = load_config(cfg_file)
+    model_dir = cfg["training"]["model_dir"]
 
-    log_file = None
-    if os.path.exists(cfg["training"]["model_dir"]):
-        log_file = f'{cfg["training"]["model_dir"]}/translation.log'
-    version = make_logger(log_file)
+    _ = make_logger(model_dir, mode="translate")
+    # version string returned
 
     # when checkpoint is not specified, take oldest from model dir
     if ckpt is None:
-        model_dir = cfg["training"]["model_dir"]
         ckpt = get_latest_checkpoint(model_dir)
 
-    batch_size = cfg["training"].get(
-        "eval_batch_size", cfg["training"].get("batch_size", 1))
-    batch_type = cfg["training"].get(
-        "eval_batch_type", cfg["training"].get("batch_type", "sentence"))
-    use_cuda = cfg["training"].get("use_cuda", False) and torch.cuda.is_available()
-    n_gpu = 1 if use_cuda else 0 # in multi-gpu, batch_size must be bigger than n_gpu!
-    device = torch.device("cuda" if use_cuda else "cpu")
-    logger.debug(f"Process device: {device}, n_gpu: {n_gpu}")
-
-    level = cfg["data"]["level"]
-    max_output_length = cfg["training"].get("max_output_length", None)
-
     # read vocabs
-    src_vocab_file = cfg["data"].get(
-        "src_vocab", cfg["training"]["model_dir"] + "/src_vocab.txt")
-    trg_vocab_file = cfg["data"].get(
-        "trg_vocab", cfg["training"]["model_dir"] + "/trg_vocab.txt")
+    src_vocab_file = cfg["data"].get("src_vocab", model_dir + "/src_vocab.txt")
+    trg_vocab_file = cfg["data"].get("trg_vocab", model_dir + "/trg_vocab.txt")
     src_vocab = Vocabulary(file=src_vocab_file)
     trg_vocab = Vocabulary(file=trg_vocab_file)
 
@@ -423,6 +433,11 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
                       include_lengths=True)
     src_field.vocab = src_vocab
 
+    # parse test args
+    batch_size, batch_type, use_cuda, n_gpu, level, _, \
+        max_output_length, beam_size, beam_alpha, postprocess, \
+        bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
+
     # load model state from disk
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
@@ -432,25 +447,6 @@ def translate(cfg_file, ckpt: str, output_path: str = None) -> None:
 
     if use_cuda:
         model.cuda()
-
-    # whether to use beam search for decoding, <2: greedy decoding
-    if "testing" in cfg.keys():
-        beam_size = cfg["testing"].get("beam_size", 1)
-        beam_alpha = cfg["testing"].get("alpha", -1)
-        postprocess = cfg["testing"].get("postprocess", True)
-        bpe_type = cfg["testing"].get("bpe_type", "subword-nmt")
-        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
-        if cfg["testing"].haskey("sacrebleu"):
-            sacrebleu["remove_whitespace"] = cfg["testing"]["sacrebleu"]\
-                .get("remove_whitespace", True)
-            sacrebleu["tokenize"] = cfg["testing"]["sacrebleu"]\
-                .get("tokenize", "13a")
-    else:
-        beam_size = 1
-        beam_alpha = -1
-        postprocess = True
-        bpe_type = "subword-nmt"
-        sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
 
     if not sys.stdin.isatty():
         # input file given

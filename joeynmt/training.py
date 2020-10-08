@@ -10,9 +10,9 @@ import shutil
 from typing import List
 import logging
 import os
+import sys
 import queue
 
-#import math
 import numpy as np
 
 import torch
@@ -33,6 +33,14 @@ from joeynmt.data import load_data, make_data_iter
 from joeynmt.builders import build_optimizer, build_scheduler, \
     build_gradient_clipper
 from joeynmt.prediction import test
+
+# for fp16 training
+try:
+    from apex import amp
+    amp.register_half_function(torch, "einsum")
+except ImportError as no_apex:
+    # error handling in TrainManager object construction
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +70,11 @@ class TrainManager:
 
         # model
         self.model = model
-        self.pad_index = self.model.pad_index
-        self.bos_index = self.model.bos_index
         self._log_parameters_list()
 
         # objective
         self.label_smoothing = train_config.get("label_smoothing", 0.0)
-        self.model.loss_function = XentLoss(pad_index=self.pad_index,
+        self.model.loss_function = XentLoss(pad_index=self.model.pad_index,
                                             smoothing=self.label_smoothing)
         self.normalization = train_config.get("normalization", "batch")
         if self.normalization not in ["batch", "tokens", "none"]:
@@ -165,43 +171,32 @@ class TrainManager:
         # fp16
         self.fp16 = train_config.get("fp16", False)
         if self.fp16:
-            try:
-                from apex import amp
-                global amp
-                amp.register_half_function(torch, "einsum")
-            except ImportError:
+            if 'apex' not in sys.modules:
                 raise ImportError(
                     "Please install apex from "
-                    "https://www.github.com/nvidia/apex to use fp16 training.")
+                    "https://www.github.com/nvidia/apex "
+                    "to use fp16 training.") from no_apex
+            self.model, self.optimizer = amp.initialize(
+                self.model, self.optimizer, opt_level='O1')
             # opt level: one of {"O0", "O1", "O2", "O3"}
             # see https://nvidia.github.io/apex/amp.html#opt-levels
-            fp16_opt_level = 'O1'
-            self.model, self.optimizer = amp.initialize(self.model, self.optimizer,
-                                                        opt_level=fp16_opt_level)
 
         # initialize training statistics
-        self.steps = 0
-        # stop training if this flag is True by reaching learning rate minimum
-        self.stop = False
-        self.total_tokens = 0
-        self.best_ckpt_iteration = 0
-        # initial values for best scores
-        self.best_ckpt_score = np.inf if self.minimize_metric else -np.inf
-        # comparison function for scores
-        self.is_best = lambda score: score < self.best_ckpt_score \
-            if self.minimize_metric else score > self.best_ckpt_score
+        self.stats = self.TrainStatistics(
+            steps=0,
+            stop=False,
+            total_tokens=0,
+            best_ckpt_iter=0,
+            best_ckpt_score=np.inf if self.minimize_metric else -np.inf,
+            minimize_metric=self.minimize_metric
+        )
 
         # model parameters
         if "load_model" in train_config.keys():
-            model_load_path = train_config["load_model"]
-            logger.info("Loading model from %s", model_load_path)
-            reset_best_ckpt = train_config.get("reset_best_ckpt", False)
-            reset_scheduler = train_config.get("reset_scheduler", False)
-            reset_optimizer = train_config.get("reset_optimizer", False)
-            self.init_from_checkpoint(model_load_path,
-                                      reset_best_ckpt=reset_best_ckpt,
-                                      reset_scheduler=reset_scheduler,
-                                      reset_optimizer=reset_optimizer)
+            self.init_from_checkpoint(train_config["load_model"],
+                reset_best_ckpt=train_config.get("reset_best_ckpt", False),
+                reset_scheduler=train_config.get("reset_scheduler", False),
+                reset_optimizer=train_config.get("reset_optimizer", False))
 
         # multi-gpu training (should be after apex fp16 initialization)
         if self.n_gpu > 1:
@@ -218,14 +213,15 @@ class TrainManager:
         and optimizer and scheduler states.
 
         """
-        model_path = "{}/{}.ckpt".format(self.model_dir, self.steps)
-        model_state_dict = self.model.module.state_dict() if \
-            isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
+        model_path = "{}/{}.ckpt".format(self.model_dir, self.stats.steps)
+        model_state_dict = self.model.module.state_dict() \
+            if isinstance(self.model, torch.nn.DataParallel) \
+            else self.model.state_dict()
         state = {
-            "steps": self.steps,
-            "total_tokens": self.total_tokens,
-            "best_ckpt_score": self.best_ckpt_score,
-            "best_ckpt_iteration": self.best_ckpt_iteration,
+            "steps": self.stats.steps,
+            "total_tokens": self.stats.total_tokens,
+            "best_ckpt_score": self.stats.best_ckpt_score,
+            "best_ckpt_iteration": self.stats.best_ckpt_iter,
             "model_state": model_state_dict,
             "optimizer_state": self.optimizer.state_dict(),
             "scheduler_state": self.scheduler.state_dict() if
@@ -246,7 +242,7 @@ class TrainManager:
         best_path = "{}/best.ckpt".format(self.model_dir)
         try:
             # create/modify symbolic link for best checkpoint
-            symlink_update("{}.ckpt".format(self.steps), best_path)
+            symlink_update("{}.ckpt".format(self.stats.steps), best_path)
         except OSError:
             # overwrite best.ckpt
             torch.save(state, best_path)
@@ -270,6 +266,7 @@ class TrainManager:
         :param reset_optimizer: reset the optimizer, and do not use the one
                                 stored in the checkpoint.
         """
+        logger.info("Loading model from %s", path)
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
 
         # restore model and optimizer parameters
@@ -289,12 +286,12 @@ class TrainManager:
             logger.info("Reset scheduler.")
 
         # restore counts
-        self.steps = model_checkpoint["steps"]
-        self.total_tokens = model_checkpoint["total_tokens"]
+        self.stats.steps = model_checkpoint["steps"]
+        self.stats.total_tokens = model_checkpoint["total_tokens"]
 
         if not reset_best_ckpt:
-            self.best_ckpt_score = model_checkpoint["best_ckpt_score"]
-            self.best_ckpt_iteration = model_checkpoint["best_ckpt_iteration"]
+            self.stats.best_ckpt_score = model_checkpoint["best_ckpt_score"]
+            self.stats.best_ckpt_iter = model_checkpoint["best_ckpt_iteration"]
         else:
             logger.info("Reset tracking of the best checkpoint.")
 
@@ -347,14 +344,16 @@ class TrainManager:
         #################################################################
 
         logger.info(
-            f"Train stats:\n"
-            f"\tdevice: {self.device}\n"
-            f"\tn_gpu: {self.n_gpu}\n"
-            f"\t16-bits training: {self.fp16}\n"
-            f"\tgradient accumulation: {self.batch_multiplier}\n"
-            f"\tbatch size per device: {self.batch_size // self.n_gpu}\n"
-            f"\ttotal batch size (w. parallel & accumulation): "
-            f"{self.batch_size * self.batch_multiplier}")
+            "Train stats:\n"
+            "\tdevice: %s\n"
+            "\tn_gpu: %d\n"
+            "\t16-bits training: %r\n"
+            "\tgradient accumulation: %d\n"
+            "\tbatch size per device: %d\n"
+            "\ttotal batch size (w. parallel & accumulation): %d",
+            self.device, self.n_gpu, self.fp16, self.batch_multiplier,
+            self.batch_size // self.n_gpu if self.n_gpu > 1 else self.batch_size,
+            self.batch_size * self.batch_multiplier)
 
         for epoch_no in range(self.epochs):
             logger.info("EPOCH %d", epoch_no + 1)
@@ -367,14 +366,15 @@ class TrainManager:
             # Reset statistics for each epoch.
             start = time.time()
             total_valid_duration = 0
-            start_tokens = self.total_tokens
+            start_tokens = self.stats.total_tokens
             self.model.zero_grad()
             epoch_loss = 0
             batch_loss = 0
 
             for i, batch in enumerate(iter(train_iter)):
                 # create a Batch object from torchtext batch
-                batch = Batch(batch, self.pad_index, use_cuda=self.use_cuda)
+                batch = Batch(batch, self.model.pad_index,
+                              use_cuda=self.use_cuda)
 
                 # get batch loss
                 batch_loss += self._train_step(batch)
@@ -384,7 +384,8 @@ class TrainManager:
                     # clip gradients (in-place)
                     if self.clip_grad_fun is not None:
                         if self.fp16:
-                            self.clip_grad_fun(params=amp.master_params(self.optimizer))
+                            self.clip_grad_fun(
+                                params=amp.master_params(self.optimizer))
                         else:
                             self.clip_grad_fun(params=self.model.parameters())
 
@@ -400,36 +401,36 @@ class TrainManager:
                     self.model.zero_grad()
 
                     # increment step counter
-                    self.steps += 1
+                    self.stats.steps += 1
 
                     # log learning progress
-                    if self.steps % self.logging_freq == 0:
+                    if self.stats.steps % self.logging_freq == 0:
                         self.tb_writer.add_scalar("train/train_batch_loss",
-                                                  batch_loss, self.steps)
+                                                  batch_loss, self.stats.steps)
                         elapsed = time.time() - start - total_valid_duration
-                        elapsed_tokens = self.total_tokens - start_tokens
+                        elapsed_tokens = self.stats.total_tokens - start_tokens
                         logger.info(
                             "Epoch %3d, Step: %8d, Batch Loss: %12.6f, "
                             "Tokens per Sec: %8.0f, Lr: %.6f",
-                            epoch_no + 1, self.steps, batch_loss,
+                            epoch_no + 1, self.stats.steps, batch_loss,
                             elapsed_tokens / elapsed,
                             self.optimizer.param_groups[0]["lr"])
                         start = time.time()
                         total_valid_duration = 0
-                        start_tokens = self.total_tokens
+                        start_tokens = self.stats.total_tokens
 
                     # Only add complete loss of full mini-batch to epoch_loss
                     epoch_loss += batch_loss    # accumulate epoch_loss
                     batch_loss = 0              # rest batch_loss
 
                     # validate on the entire dev set
-                    if self.steps % self.validation_freq == 0:
+                    if self.stats.steps % self.validation_freq == 0:
                         valid_duration = self._validate(valid_data, epoch_no)
                         total_valid_duration += valid_duration
 
-                if self.stop:
+                if self.stats.stop:
                     break
-            if self.stop:
+            if self.stats.stop:
                 logger.info(
                     'Training ended since minimum lr %f was reached.',
                     self.learning_rate_min)
@@ -440,7 +441,7 @@ class TrainManager:
         else:
             logger.info('Training ended after %3d epochs.', epoch_no + 1)
         logger.info('Best validation result (greedy) at step %8d: %6.2f %s.',
-                    self.best_ckpt_iteration, self.best_ckpt_score,
+                    self.stats.best_ckpt_iter, self.stats.best_ckpt_score,
                     self.early_stopping_metric)
 
         self.tb_writer.close()  # close Tensorboard writer
@@ -492,7 +493,7 @@ class TrainManager:
             norm_batch_loss.backward()
 
         # increment token counter
-        self.total_tokens += batch.ntokens
+        self.stats.total_tokens += batch.ntokens
 
         return norm_batch_loss.item()
 
@@ -518,9 +519,12 @@ class TrainManager:
                 n_gpu=self.n_gpu
             )
 
-        self.tb_writer.add_scalar("valid/valid_loss", valid_loss, self.steps)
-        self.tb_writer.add_scalar("valid/valid_score", valid_score, self.steps)
-        self.tb_writer.add_scalar("valid/valid_ppl", valid_ppl, self.steps)
+        self.tb_writer.add_scalar(
+            "valid/valid_loss", valid_loss, self.stats.steps)
+        self.tb_writer.add_scalar(
+            "valid/valid_score", valid_score, self.stats.steps)
+        self.tb_writer.add_scalar(
+            "valid/valid_ppl", valid_ppl, self.stats.steps)
 
         if self.early_stopping_metric == "loss":
             ckpt_score = valid_loss
@@ -530,9 +534,9 @@ class TrainManager:
             ckpt_score = valid_score
 
         new_best = False
-        if self.is_best(ckpt_score):
-            self.best_ckpt_score = ckpt_score
-            self.best_ckpt_iteration = self.steps
+        if self.stats.is_best(ckpt_score):
+            self.stats.best_ckpt_score = ckpt_score
+            self.stats.best_ckpt_iter = self.stats.steps
             logger.info('Hooray! New best validation result [%s]!',
                         self.early_stopping_metric)
             if self.ckpt_queue.maxsize > 0:
@@ -562,7 +566,7 @@ class TrainManager:
         logger.info(
             'Validation result (greedy) at epoch %3d, '
             'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
-            'duration: %.4fs', epoch_no + 1, self.steps,
+            'duration: %.4fs', epoch_no + 1, self.stats.steps,
             self.eval_metric, valid_score, valid_loss,
             valid_ppl, valid_duration)
 
@@ -577,8 +581,8 @@ class TrainManager:
                 sources=[s for s in valid_data.src],
                 indices=self.log_valid_sents,
                 output_prefix="{}/att.{}".format(
-                    self.model_dir, self.steps),
-                tb_writer=self.tb_writer, steps=self.steps)
+                    self.model_dir, self.stats.steps),
+                tb_writer=self.tb_writer, steps=self.stats.steps)
 
         return valid_duration
 
@@ -600,13 +604,13 @@ class TrainManager:
             current_lr = param_group['lr']
 
         if current_lr < self.learning_rate_min:
-            self.stop = True
+            self.stats.stop = True
 
         with open(self.valid_report_file, 'a') as opened_file:
             opened_file.write(
                 "Steps: {}\tLoss: {:.5f}\tPPL: {:.5f}\t{}: {:.5f}\t"
                 "LR: {:.8f}\t{}\n".format(
-                    self.steps, valid_loss, valid_ppl, eval_metric,
+                    self.stats.steps, valid_loss, valid_ppl, eval_metric,
                     valid_score, current_lr, "*" if new_best else ""))
 
     def _log_parameters_list(self) -> None:
@@ -662,10 +666,36 @@ class TrainManager:
         :param hypotheses: list of strings
         """
         current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
-                                                        self.steps)
+                                                        self.stats.steps)
         with open(current_valid_output_file, 'w') as opened_file:
             for hyp in hypotheses:
                 opened_file.write("{}\n".format(hyp))
+
+    class TrainStatistics:
+        def __init__(self, steps: int = 0, stop: bool = False,
+                     total_tokens: int = 0, best_ckpt_iter: int = 0,
+                     best_ckpt_score: float = np.inf,
+                     minimize_metric: bool = True) -> None:
+            # global update step counter
+            self.steps = steps
+            # stop training if this flag is True
+            # by reaching learning rate minimum
+            self.stop = stop
+            # number of total tokens seen so far
+            self.total_tokens = total_tokens
+            # store iteration point of best ckpt
+            self.best_ckpt_iter = best_ckpt_iter
+            # initial values for best scores
+            self.best_ckpt_score = best_ckpt_score
+            # minimize or maximize score
+            self.minimize_metric = minimize_metric
+
+        def is_best(self, score):
+            if self.minimize_metric:
+                is_best = score < self.best_ckpt_score
+            else:
+                is_best = score > self.best_ckpt_score
+            return is_best
 
 
 def train(cfg_file: str) -> None:
@@ -679,8 +709,8 @@ def train(cfg_file: str) -> None:
     # make logger
     model_dir = make_model_dir(cfg["training"]["model_dir"],
                    overwrite=cfg["training"].get("overwrite", False))
-    version = make_logger(f"{model_dir}/train.log")
-    # version number could be saved in model checkpoints
+    _ = make_logger(model_dir, mode="train")    # version string returned
+    # TODO: save version number in model checkpoints
 
     # set the random seed
     set_seed(seed=cfg["training"].get("random_seed", 42))
@@ -696,7 +726,7 @@ def train(cfg_file: str) -> None:
     trainer = TrainManager(model=model, config=cfg)
 
     # store copy of original training config in model dir
-    shutil.copy2(cfg_file, trainer.model_dir + "/config.yaml")
+    shutil.copy2(cfg_file, model_dir + "/config.yaml")
 
     # log all entries of config
     log_cfg(cfg)
@@ -717,12 +747,13 @@ def train(cfg_file: str) -> None:
 
     # predict with the best model on validation and test
     # (if test data is available)
-    ckpt = "{}/{}.ckpt".format(trainer.model_dir, trainer.best_ckpt_iteration)
-    output_name = "{:08d}.hyps".format(trainer.best_ckpt_iteration)
-    output_path = os.path.join(trainer.model_dir, output_name)
+    ckpt = "{}/{}.ckpt".format(model_dir, trainer.stats.best_ckpt_iter)
+    output_name = "{:08d}.hyps".format(trainer.stats.best_ckpt_iter)
+    output_path = os.path.join(model_dir, output_name)
     datasets_to_test = {"dev": dev_data, "test": test_data,
                         "src_vocab": src_vocab, "trg_vocab": trg_vocab}
-    test(cfg_file, ckpt=ckpt, output_path=output_path, datasets=datasets_to_test)
+    test(cfg_file, ckpt=ckpt, output_path=output_path,
+         datasets=datasets_to_test)
 
 
 if __name__ == "__main__":

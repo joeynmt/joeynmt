@@ -3,8 +3,8 @@
 This module holds various MT evaluation metrics.
 """
 
-import sacrebleu
 from typing import List
+import sacrebleu
 
 
 def chrf(hypotheses, references, remove_whitespace=True):
@@ -29,11 +29,13 @@ def bleu(hypotheses, references, tokenize="13a"):
     :param tokenize: one of {'none', '13a', 'intl', 'zh', 'ja-mecab'}
     :return:
     """
-    return sacrebleu.corpus_bleu(sys_stream=hypotheses, ref_streams=[references],
+    return sacrebleu.corpus_bleu(sys_stream=hypotheses,
+                                 ref_streams=[references],
                                  tokenize=tokenize).score
 
 
-def token_accuracy(hypotheses: List[List[str]], references: List[List[str]]) -> float:
+def token_accuracy(hypotheses: List[List[str]], references: List[List[str]]) \
+        -> float:
     """
     Compute the accuracy of hypothesis tokens: correct tokens / all tokens
     Tokens are correct if they appear in the same position in the reference.

@@ -10,7 +10,7 @@ import errno
 import shutil
 import random
 import logging
-from typing import Callable, Optional, List
+from typing import Optional, List
 import numpy as np
 import pkg_resources
 
@@ -46,11 +46,12 @@ def make_model_dir(model_dir: str, overwrite=False) -> str:
     return model_dir
 
 
-def make_logger(log_file: str = None) -> str:
+def make_logger(log_dir: str = None, mode: str = "train") -> str:
     """
     Create a logger for logging the training/testing process.
 
-    :param log_file: path to file where log is stored as well
+    :param log_dir: path to file where log is stored as well
+    :param mode: log file name. 'train', 'test' or 'translate'
     :return: joeynmt version number
     """
     logger = logging.getLogger("") # root logger
@@ -59,20 +60,24 @@ def make_logger(log_file: str = None) -> str:
     # add handlers only once.
     if len(logger.handlers) == 0:
         logger.setLevel(level=logging.DEBUG)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+        formatter = logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 
-        if log_file is not None:
-            fh = logging.FileHandler(log_file)
-            fh.setLevel(level=logging.DEBUG)
-            logger.addHandler(fh)
-            fh.setFormatter(formatter)
+        if log_dir is not None:
+            if os.path.exists(log_dir):
+                log_file = f'{log_dir}/{mode}.log'
+
+                fh = logging.FileHandler(log_file)
+                fh.setLevel(level=logging.DEBUG)
+                logger.addHandler(fh)
+                fh.setFormatter(formatter)
 
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.setFormatter(formatter)
 
         logger.addHandler(sh)
-        logger.info(f"Hello! This is Joey-NMT (version {version}).")
+        logger.info("Hello! This is Joey-NMT (version %s).", version)
 
     return version
 
@@ -184,12 +189,13 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
     :param bpe_type: one of {"sentencepiece", "subword-nmt"}
     :return: post-processed string
     """
-    if bpe_type == "sentencepiece": #if "▁" in string:
-        return string.replace(" ", "").replace("▁", " ").strip()
-    elif bpe_type == "subword-nmt": #elif "@@" in string:
-        return string.replace("@@ ", "").strip()
+    if bpe_type == "sentencepiece":
+        ret = string.replace(" ", "").replace("▁", " ").strip()
+    elif bpe_type == "subword-nmt":
+        ret = string.replace("@@ ", "").strip()
     else:
-        return string.strip()
+        ret = string.strip()
+    return ret
 
 
 def store_attention_plots(attentions: np.array, targets: List[List[str]],
@@ -246,6 +252,11 @@ def get_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
     latest_checkpoint = None
     if list_of_files:
         latest_checkpoint = max(list_of_files, key=os.path.getctime)
+
+    # check existence
+    if latest_checkpoint is None:
+        raise FileNotFoundError("No checkpoint found in directory {}."
+                                .format(ckpt_dir))
     return latest_checkpoint
 
 

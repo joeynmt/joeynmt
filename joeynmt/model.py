@@ -2,6 +2,8 @@
 """
 Module to represents whole models
 """
+from typing import Callable
+
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
@@ -48,7 +50,15 @@ class Model(nn.Module):
         self.bos_index = self.trg_vocab.stoi[BOS_TOKEN]
         self.pad_index = self.trg_vocab.stoi[PAD_TOKEN]
         self.eos_index = self.trg_vocab.stoi[EOS_TOKEN]
-        self.loss_function = None # set by the TrainManager
+        self._loss_function = None # set by the TrainManager
+
+    @property
+    def loss_function(self):
+        return self._x
+
+    @loss_function.setter
+    def loss_function(self, loss_function: Callable):
+        self._loss_function = loss_function
 
     def forward(self, return_type: str = None, **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
@@ -65,7 +75,8 @@ class Model(nn.Module):
             raise ValueError("Please specify return_type: "
                              "{`loss`, `encode`, `decode`}.")
 
-        elif return_type == "loss":
+        return_tuple = (None, None, None, None)
+        if return_type == "loss":
             assert self.loss_function is not None
 
             out, _, _, _ = self._encode_decode(
@@ -81,16 +92,18 @@ class Model(nn.Module):
             # compute batch loss
             batch_loss = self.loss_function(log_probs, kwargs["trg"])
 
-            # return batch loss = sum over all elements in batch that are not pad
-            return batch_loss, None, None, None
+            # return batch loss
+            #     = sum over all elements in batch that are not pad
+            return_tuple = (batch_loss, None, None, None)
 
         elif return_type == "encode":
             encoder_output, encoder_hidden = self._encode(
                 src=kwargs["src"],
                 src_length=kwargs["src_length"],
                 src_mask=kwargs["src_mask"])
+
             # return encoder outputs
-            return encoder_output, encoder_hidden, None, None
+            return_tuple = (encoder_output, encoder_hidden, None, None)
 
         elif return_type == "decode":
             outputs, hidden, att_probs, att_vectors = self._decode(
@@ -104,7 +117,9 @@ class Model(nn.Module):
                 trg_mask=kwargs.get("trg_mask", None))
 
             # return decoder outputs
-            return outputs, hidden, att_probs, att_vectors
+            return_tuple = (outputs, hidden, att_probs, att_vectors)
+
+        return return_tuple
 
     # pylint: disable=arguments-differ
     def _encode_decode(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
@@ -181,7 +196,8 @@ class Model(nn.Module):
                "\tdecoder=%s,\n" \
                "\tsrc_embed=%s,\n" \
                "\ttrg_embed=%s)" % (self.__class__.__name__, self.encoder,
-                                    self.decoder, self.src_embed, self.trg_embed)
+                                    self.decoder, self.src_embed,
+                                    self.trg_embed)
 
 
 class _DataParallel(nn.DataParallel):
