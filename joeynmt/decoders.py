@@ -506,6 +506,8 @@ class TransformerDecoder(Decoder):
         :return:
         """
         assert trg_mask is not None, "trg_mask required for Transformer"
+        assert isinstance(src_mask, (torch.BoolTensor, torch.cuda.BoolTensor)), "src_mask has to be of type `BoolTensor`"
+        assert isinstance(trg_mask, (torch.BoolTensor, torch.cuda.BoolTensor)), "trg_mask has to be of type `BoolTensor`"
 
         x = self.pe(trg_embed)  # add position encoding to word embedding
         x = self.emb_dropout(x)

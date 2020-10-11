@@ -120,6 +120,58 @@ class TestTransformerDecoder(TensorTestCase):
         self.assertEqual(states_target.shape, states.shape)
         self.assertTensorAlmostEqual(states_target, states)
 
+    def test_transformer_decoder_forward_mask_type(self):
+        batch_size = 2
+        src_time_dim = 4
+        trg_time_dim = 5
+        vocab_size = 7
+
+        trg_embed = torch.rand(size=(batch_size, trg_time_dim, self.emb_size))
+
+        decoder = TransformerDecoder(
+            num_layers=self.num_layers, num_heads=self.num_heads,
+            hidden_size=self.hidden_size, ff_size=self.ff_size,
+            dropout=self.dropout, emb_dropout=self.dropout,
+            vocab_size=vocab_size)
+
+        encoder_output = torch.rand(
+            size=(batch_size, src_time_dim, self.hidden_size))
+
+        for p in decoder.parameters():
+            torch.nn.init.uniform_(p, -0.5, 0.5)
+
+        src_mask = torch.ones(size=(batch_size, 1, src_time_dim)).byte()
+        trg_mask = torch.ones(size=(batch_size, trg_time_dim, 1)).byte()
+
+        with self.assertRaisesRegex(AssertionError, "src_mask has to be of type `BoolTensor`"):
+            decoder(trg_embed, encoder_output, None, src_mask, None, None, trg_mask)
+
+        src_mask = torch.ones(size=(batch_size, 1, src_time_dim)).bool()
+
+        with self.assertRaisesRegex(AssertionError, "trg_mask has to be of type `BoolTensor`"):
+            decoder(trg_embed, encoder_output, None, src_mask, None, None, trg_mask),
+
+        trg_mask = torch.ones(size=(batch_size, trg_time_dim, 1)).bool()
+
+        output, states, _, _ = decoder(
+            trg_embed, encoder_output, None, src_mask, None, None, trg_mask)
+
+        output_target = torch.Tensor(
+            [[[0.1718, 0.5595, -0.1996, -0.6924, 0.4351, -0.0850, 0.2805],
+              [0.0666, 0.4923, -0.1724, -0.6804, 0.3983, -0.1111, 0.2194],
+              [-0.0315, 0.3673, -0.2320, -0.6100, 0.3019, 0.0422, 0.2514],
+              [-0.0026, 0.3807, -0.2195, -0.6010, 0.3081, -0.0101, 0.2099],
+              [-0.0172, 0.3384, -0.2853, -0.5799, 0.2470, 0.0312, 0.2518]],
+             [[0.0284, 0.3918, -0.2010, -0.6472, 0.3646, -0.0296, 0.1791],
+              [0.1017, 0.4387, -0.2031, -0.7084, 0.3051, -0.1354, 0.2511],
+              [0.0155, 0.4274, -0.2061, -0.6702, 0.3085, -0.0617, 0.2830],
+              [0.0227, 0.4067, -0.1697, -0.6463, 0.3277, -0.0423, 0.2333],
+              [0.0133, 0.4409, -0.1186, -0.5694, 0.4450, 0.0290, 0.1643]]]
+        )
+        self.assertEqual(output_target.shape, output.shape)
+        self.assertTensorAlmostEqual(output_target, output)
+
+
     def test_transformer_decoder_layers(self):
 
         vocab_size = 7
