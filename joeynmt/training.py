@@ -352,7 +352,7 @@ class TrainManager:
             "\tbatch size per device: %d\n"
             "\ttotal batch size (w. parallel & accumulation): %d",
             self.device, self.n_gpu, self.fp16, self.batch_multiplier,
-            self.batch_size // self.n_gpu if self.n_gpu > 1 else self.batch_size,
+            self.batch_size//self.n_gpu if self.n_gpu > 1 else self.batch_size,
             self.batch_size * self.batch_multiplier)
 
         for epoch_no in range(self.epochs):
