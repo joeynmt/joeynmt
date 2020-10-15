@@ -14,7 +14,7 @@ def chrf(hypotheses, references):
     :param references: list of references (strings)
     :return:
     """
-    return sacrebleu.corpus_chrf(hypotheses=hypotheses, references=references)
+    return sacrebleu.corpus_chrf(hypotheses=hypotheses, references=[references]).score
 
 
 def bleu(hypotheses, references):
