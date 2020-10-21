@@ -163,10 +163,14 @@ Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). 
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
 
 ### IWSLT14 de-en
+Pre-processing with Moses decoder tools as in [this script](https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh).
+
 - [IWSLT14 de-en BPE RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/iwslt14-deen-bpe.tar.gz) (641M)
 - [IWSLT14 de-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt14_deen_bpe.tar.gz) (210M)
 
 ### IWSLT15 en-vi
+The data came preprocessed from Stanford NLP, see [this script](https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt15_envi.sh).
+
 - [IWSLT15 en-vi Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt15_envi.tar.gz) (186M)
 
 ### WMT17
