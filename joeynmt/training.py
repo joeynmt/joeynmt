@@ -457,8 +457,6 @@ class TrainManager:
         self.model.train()
 
         # get loss
-        #batch_loss = self.model.get_loss_for_batch(
-        #    batch=batch, loss_function=self.loss)
         batch_loss, _, _, _ = self.model(
             return_type="loss", src=batch.src, trg=batch.trg,
             trg_input=batch.trg_input, src_mask=batch.src_mask,

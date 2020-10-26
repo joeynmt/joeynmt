@@ -87,7 +87,6 @@ def log_cfg(cfg: dict, prefix: str = "cfg") -> None:
     Write configuration to log.
 
     :param cfg: configuration to log
-    #:param logger: logger that defines where log is written to
     :param prefix: prefix for logging
     """
     logger = logging.getLogger(__name__)
@@ -139,7 +138,6 @@ def set_seed(seed: int) -> None:
 
 def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
                   src_vocab: Vocabulary, trg_vocab: Vocabulary) -> None:
-                  #logging_function: Callable[[str], None]
     """
     Log statistics of data and vocabulary.
 
@@ -148,7 +146,6 @@ def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
     :param test_data:
     :param src_vocab:
     :param trg_vocab:
-    #:param logging_function:
     """
     logger = logging.getLogger(__name__)
     logger.info(
