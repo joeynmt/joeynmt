@@ -6,7 +6,7 @@ with open("requirements.txt", encoding="utf-8") as req_fp:
 
 setup(
     name='joeynmt',
-    version='0.0.3',
+    version='1.0.0',
     description='Minimalist NMT for educational purposes',
     author='Jasmijn Bastings and Julia Kreutzer',
     url='https://github.com/joeynmt/joeynmt',
