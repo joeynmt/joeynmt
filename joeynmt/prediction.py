@@ -44,13 +44,13 @@ def validate_on_data(model: Model, data: Dataset,
     also compute the loss.
 
     :param model: model module
-    #:param logger: logger # don't pass logger
     :param data: dataset for validation
     :param batch_size: validation batch size
     :param use_cuda: if True, use CUDA
     :param max_output_length: maximum length for generated hypotheses
     :param level: segmentation level, one of "char", "bpe", "word"
     :param eval_metric: evaluation metric, e.g. "bleu"
+    :param n_gpu: number of GPUs
     :param compute_loss: whether to computes a scalar loss
         for given inputs and targets
     :param beam_size: beam size for validation.
