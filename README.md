@@ -23,7 +23,7 @@ Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [
 ## Contributors
 Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. 
 
-We're happy to welcome a range of new contributors :hearts:, check them out [here], and please don't hesitate to open a PR or an issue if there's something that needs improvement!
+We're happy to welcome a range of new contributors :hearts:, check them out [here](https://github.com/joeynmt/joeynmt/graphs/contributors), and please don't hesitate to open a PR or an issue if there's something that needs improvement!
 
 ## Features
 Joey NMT implements the following features (aka the minimalist toolkit of NMT :wrench:):
