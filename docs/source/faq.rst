@@ -28,7 +28,7 @@ Training
 
 - **Does Joey NMT support multi-GPU processing?**
    ~~At the current stage, the code does not support multi-GPU processing. Contributions welcome :)~~
-   [UPDATE] In version 1.0.0, we integrated multi-gpu and half-precision support.
+   [UPDATE] In version 1.0, we integrated multi-gpu and half-precision support.
 
 - **How can I stop training?**
    Simply press Control+C.
