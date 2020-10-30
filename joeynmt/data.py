@@ -7,6 +7,7 @@ import random
 import os
 import os.path
 from typing import Optional
+import logging
 
 from torchtext.datasets import TranslationDataset
 from torchtext import data
@@ -15,9 +16,11 @@ from torchtext.data import Dataset, Iterator, Field
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
 from joeynmt.vocabulary import build_vocab, Vocabulary
 
+logger = logging.getLogger(__name__)
 
-def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
-                                  Vocabulary, Vocabulary):
+
+def load_data(data_cfg: dict, datasets: list = None)\
+        -> (Dataset, Dataset, Optional[Dataset], Vocabulary, Vocabulary):
     """
     Load train, dev and optionally test data as specified in configuration.
     Vocabularies are created from the training set with a limit of `voc_limit`
@@ -32,6 +35,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
 
     :param data_cfg: configuration dictionary for data
         ("data" part of configuation file)
+    :param datasets: list of dataset names to load
     :return:
         - train_data: training dataset
         - dev_data: development dataset
@@ -39,12 +43,19 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
         - src_vocab: source vocabulary extracted from training data
         - trg_vocab: target vocabulary extracted from training data
     """
+    if datasets is None:
+        datasets = ["train", "dev", "test"]
+
     # load data from files
     src_lang = data_cfg["src"]
     trg_lang = data_cfg["trg"]
-    train_path = data_cfg["train"]
-    dev_path = data_cfg["dev"]
+    train_path = data_cfg.get("train", None)
+    dev_path = data_cfg.get("dev", None)
     test_path = data_cfg.get("test", None)
+
+    if train_path is None and dev_path is None and test_path is None:
+        raise ValueError('Please specify at least one data source path.')
+
     level = data_cfg["level"]
     lowercase = data_cfg["lowercase"]
     max_sent_length = data_cfg["max_sent_length"]
@@ -63,14 +74,26 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                            batch_first=True, lower=lowercase,
                            include_lengths=True)
 
-    train_data = TranslationDataset(path=train_path,
-                                    exts=("." + src_lang, "." + trg_lang),
-                                    fields=(src_field, trg_field),
-                                    filter_pred=
-                                    lambda x: len(vars(x)['src'])
-                                    <= max_sent_length
-                                    and len(vars(x)['trg'])
-                                    <= max_sent_length)
+    train_data = None
+    if "train" in datasets and train_path is not None:
+        logger.info("loading training data...")
+        train_data = TranslationDataset(path=train_path,
+                                        exts=("." + src_lang, "." + trg_lang),
+                                        fields=(src_field, trg_field),
+                                        filter_pred=
+                                        lambda x: len(vars(x)['src'])
+                                        <= max_sent_length
+                                        and len(vars(x)['trg'])
+                                        <= max_sent_length)
+
+        random_train_subset = data_cfg.get("random_train_subset", -1)
+        if random_train_subset > -1:
+            # select this many training examples randomly and discard the rest
+            keep_ratio = random_train_subset / len(train_data)
+            keep, _ = train_data.split(
+                split_ratio=[keep_ratio, 1 - keep_ratio],
+                random_state=random.getstate())
+            train_data = keep
 
     src_max_size = data_cfg.get("src_voc_limit", sys.maxsize)
     src_min_freq = data_cfg.get("src_voc_min_freq", 1)
@@ -80,6 +103,10 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
     src_vocab_file = data_cfg.get("src_vocab", None)
     trg_vocab_file = data_cfg.get("trg_vocab", None)
 
+    assert (train_data is not None) or (src_vocab_file is not None)
+    assert (train_data is not None) or (trg_vocab_file is not None)
+
+    logger.info("building vocabulary...")
     src_vocab = build_vocab(field="src", min_freq=src_min_freq,
                             max_size=src_max_size,
                             dataset=train_data, vocab_file=src_vocab_file)
@@ -87,20 +114,16 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                             max_size=trg_max_size,
                             dataset=train_data, vocab_file=trg_vocab_file)
 
-    random_train_subset = data_cfg.get("random_train_subset", -1)
-    if random_train_subset > -1:
-        # select this many training examples randomly and discard the rest
-        keep_ratio = random_train_subset / len(train_data)
-        keep, _ = train_data.split(
-            split_ratio=[keep_ratio, 1 - keep_ratio],
-            random_state=random.getstate())
-        train_data = keep
+    dev_data = None
+    if "dev" in datasets and dev_path is not None:
+        logger.info("loading dev data...")
+        dev_data = TranslationDataset(path=dev_path,
+                                      exts=("." + src_lang, "." + trg_lang),
+                                      fields=(src_field, trg_field))
 
-    dev_data = TranslationDataset(path=dev_path,
-                                  exts=("." + src_lang, "." + trg_lang),
-                                  fields=(src_field, trg_field))
     test_data = None
-    if test_path is not None:
+    if "test" in datasets and test_path is not None:
+        logger.info("loading test data...")
         # check if target exists
         if os.path.isfile(test_path + "." + trg_lang):
             test_data = TranslationDataset(
@@ -112,6 +135,7 @@ def load_data(data_cfg: dict) -> (Dataset, Dataset, Optional[Dataset],
                                     field=src_field)
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
+    logger.info("data loaded.")
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 

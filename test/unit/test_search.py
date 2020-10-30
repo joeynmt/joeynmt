@@ -6,6 +6,8 @@ from joeynmt.search import beam_search
 from joeynmt.decoders import RecurrentDecoder, TransformerDecoder
 from joeynmt.encoders import RecurrentEncoder
 from joeynmt.embeddings import Embeddings
+from joeynmt.model import Model
+from joeynmt.vocabulary import Vocabulary
 
 from .test_helpers import TensorTestCase
 
@@ -22,12 +24,14 @@ class TestSearch(TensorTestCase):
         self.num_heads = 4
         self.dropout = 0.
         self.encoder_hidden_size = 3
-        self.vocab_size = 5
+        self.vocab = Vocabulary(tokens=['word'])
+        self.vocab_size = len(self.vocab) # = 5
         seed = 42
         torch.manual_seed(seed)
-        self.bos_index = 2
+        #self.bos_index = 2
         self.pad_index = 1
-        self.eos_index = 3
+        #self.eos_index = 3
+
 
 class TestSearchTransformer(TestSearch):
 
@@ -53,17 +57,19 @@ class TestSearchTransformer(TestSearch):
         src_mask = torch.ones(size=(batch_size, 1, src_time_dim)) == 1
 
         encoder_hidden = None  # unused
-        return src_mask, emb, decoder, encoder_output, encoder_hidden
+
+        model = Model(encoder=None, decoder=decoder,
+                      src_embed=emb, trg_embed=emb,
+                      src_vocab=self.vocab, trg_vocab=self.vocab)
+        return src_mask, model, encoder_output, encoder_hidden
 
     def test_transformer_greedy(self):
         batch_size = 2
         max_output_length = 3
-        src_mask, embed, decoder, encoder_output, \
-        encoder_hidden = self._build(batch_size=batch_size)
+        src_mask, model, encoder_output, encoder_hidden = self._build(
+            batch_size=batch_size)
         output, attention_scores = transformer_greedy(
-            src_mask=src_mask, embed=embed, bos_index=self.bos_index,
-            eos_index=self.eos_index,
-            max_output_length=max_output_length, decoder=decoder,
+            src_mask=src_mask, max_output_length=max_output_length, model=model,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         # Transformer greedy doesn't return attention scores
         self.assertIsNone(attention_scores)
@@ -76,12 +82,11 @@ class TestSearchTransformer(TestSearch):
         beam_size = 1
         alpha = 1.
         max_output_length = 3
-        src_mask, embed, decoder, encoder_output, \
-        encoder_hidden = self._build(batch_size=batch_size)
+        src_mask, model, encoder_output, encoder_hidden = self._build(
+            batch_size=batch_size)
         output, attention_scores = beam_search(
-            size=beam_size, eos_index=self.eos_index, pad_index=self.pad_index,
-            src_mask=src_mask, embed=embed, bos_index=self.bos_index,
-            max_output_length=max_output_length, decoder=decoder, alpha=alpha,
+            size=beam_size, src_mask=src_mask, max_output_length=max_output_length,
+            model=model, alpha=alpha,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
@@ -91,9 +96,7 @@ class TestSearchTransformer(TestSearch):
 
         # now compare to greedy, they should be the same for beam=1
         greedy_output, _ = transformer_greedy(
-            src_mask=src_mask, embed=embed, bos_index=self.bos_index,
-            eos_index=self.eos_index,
-            max_output_length=max_output_length, decoder=decoder,
+            src_mask=src_mask, max_output_length=max_output_length, model=model,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         np.testing.assert_equal(output, greedy_output)
 
@@ -102,12 +105,11 @@ class TestSearchTransformer(TestSearch):
         beam_size = 7
         alpha = 1.
         max_output_length = 3
-        src_mask, embed, decoder, encoder_output, \
-        encoder_hidden = self._build(batch_size=batch_size)
+        src_mask, model, encoder_output, encoder_hidden = self._build(
+            batch_size=batch_size)
         output, attention_scores = beam_search(
-            size=beam_size, eos_index=self.eos_index, pad_index=self.pad_index,
-            src_mask=src_mask, embed=embed, bos_index=self.bos_index, n_best=1,
-            max_output_length=max_output_length, decoder=decoder, alpha=alpha,
+            size=beam_size, src_mask=src_mask, n_best=1,
+            max_output_length=max_output_length, model=model, alpha=alpha,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
@@ -148,18 +150,20 @@ class TestSearchRecurrent(TestSearch):
 
         encoder_hidden = torch.rand(size=(batch_size, encoder.output_size))
 
-        return src_mask, emb, decoder, encoder_output, encoder_hidden
+        model = Model(encoder=encoder, decoder=decoder,
+                      src_embed=emb, trg_embed=emb,
+                      src_vocab=self.vocab, trg_vocab=self.vocab)
+
+        return src_mask, model, encoder_output, encoder_hidden
 
     def test_recurrent_greedy(self):
         batch_size = 2
         max_output_length = 3
-        src_mask, emb, decoder, encoder_output, encoder_hidden = self._build(
+        src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
         output, attention_scores = recurrent_greedy(
-            src_mask=src_mask, embed=emb, bos_index=self.bos_index,
-            eos_index=self.eos_index, max_output_length=max_output_length,
-            decoder=decoder,
+            src_mask=src_mask, max_output_length=max_output_length, model=model,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
 
         self.assertEqual(output.shape, (batch_size, max_output_length))
@@ -174,43 +178,39 @@ class TestSearchRecurrent(TestSearch):
               [0.2523954,  0.28959078, 0.25769445, 0.2003194]]])
         np.testing.assert_array_almost_equal(attention_scores,
                                              expected_attention_scores)
-        self.assertEqual(attention_scores.shape, (batch_size, max_output_length,
-                                                  4))
+        self.assertEqual(attention_scores.shape,
+                         (batch_size, max_output_length, 4))
 
     def test_recurrent_beam1(self):
         # beam=1 and greedy should return the same result
         batch_size = 2
         max_output_length = 3
-        src_mask, emb, decoder, encoder_output, encoder_hidden = self._build(
+        src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
         greedy_output, _ = recurrent_greedy(
-            src_mask=src_mask, embed=emb, bos_index=self.bos_index,
-            eos_index=self.eos_index,
-            max_output_length=max_output_length, decoder=decoder,
+            src_mask=src_mask, max_output_length=max_output_length, model=model,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
 
         beam_size = 1
         alpha = 1.0
         output, _ = beam_search(
-            size=beam_size, eos_index=self.eos_index, pad_index=self.pad_index,
-            src_mask=src_mask, embed=emb, bos_index=self.bos_index, n_best=1,
-            max_output_length=max_output_length, decoder=decoder, alpha=alpha,
+            size=beam_size, src_mask=src_mask, n_best=1,
+            max_output_length=max_output_length, model=model, alpha=alpha,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
         np.testing.assert_array_equal(greedy_output, output)
 
     def test_recurrent_beam7(self):
         batch_size = 2
         max_output_length = 3
-        src_mask, emb, decoder, encoder_output, encoder_hidden = self._build(
+        src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
         beam_size = 7
         alpha = 1.0
         output, _ = beam_search(
-            size=beam_size, eos_index=self.eos_index, pad_index=self.pad_index,
-            src_mask=src_mask, embed=emb, bos_index=self.bos_index, n_best=1,
-            max_output_length=max_output_length, decoder=decoder, alpha=alpha,
+            size=beam_size, src_mask=src_mask, n_best=1,
+            max_output_length=max_output_length, model=model, alpha=alpha,
             encoder_output=encoder_output, encoder_hidden=encoder_hidden)
 
         self.assertEqual(output.shape, (2, 1))

@@ -63,7 +63,7 @@ This trick speeds up validation and also testing.
 
 Vocabulary
 ----------
-For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/vocabulary.py>`_), all tokens occuring in the training set are collected, sorted and optionally filtered by frequency and then cut off as specified in the configurarion.
+For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/vocabulary.py>`_), all tokens occuring in the training set are collected, sorted and optionally filtered by frequency and then cut off as specified in the configuration.
 The vocabularies are stored in the model directory. The vocabulary files contain one token per line, where the line number corresponds to the index of the token in the vocabulary.
 
 Data Loading
@@ -87,15 +87,18 @@ This ensures a seamless continuation of training when training is interrupted.
 From ``_save_checkpoint``:
 ::
 
+    model_state_dict = self.model.module.state_dict() if \
+    isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
     state = {
         "steps": self.steps,
         "total_tokens": self.total_tokens,
         "best_ckpt_score": self.best_ckpt_score,
         "best_ckpt_iteration": self.best_ckpt_iteration,
-        "model_state": self.model.state_dict(),
+        "model_state": model_state_dict,
         "optimizer_state": self.optimizer.state_dict(),
         "scheduler_state": self.scheduler.state_dict() if \
         self.scheduler is not None else None,
+        'amp_state': amp.state_dict() if self.fp16 else None
     }
 
 
