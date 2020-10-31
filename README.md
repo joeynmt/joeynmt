@@ -23,7 +23,10 @@ Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [
 ## Contributors
 Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. 
 
-We're happy to welcome a range of new contributors :hearts:, check them out [here](https://github.com/joeynmt/joeynmt/graphs/contributors), and please don't hesitate to open a PR or an issue if there's something that needs improvement!
+### Hall of Fame
+Welcome to our new contributors :hearts:, please don't hesitate to open a PR or an issue if there's something that needs improvement!
+
+[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/0)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/0)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/1)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/1)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/2)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/2)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/3)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/3)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/4)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/4)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/5)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/5)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/6)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/6)[![](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/images/7)](https://sourcerer.io/fame/joeynmt/joeynmt/joeynmt/links/7)
 
 ## Features
 Joey NMT implements the following features (aka the minimalist toolkit of NMT :wrench:):
