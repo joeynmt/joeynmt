@@ -126,7 +126,7 @@ class TrainManager:
         # eval options
         test_config = config["testing"]
         self.bpe_type = test_config.get("bpe_type", "subword-nmt")
-        self.sacrebleu = {"remove_whitespace": True, "tokenizer": "13a"}
+        self.sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
         if "sacrebleu" in config["testing"].keys():
             self.sacrebleu["remove_whitespace"] = test_config["sacrebleu"] \
                 .get("remove_whitespace", True)
