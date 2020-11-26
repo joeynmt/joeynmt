@@ -23,6 +23,7 @@ import yaml
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
+from subprocess import Popen, PIPE, STDOUT
 
 class ConfigurationError(Exception):
     """ Custom exception for misspecifications of configuration """
@@ -322,3 +323,12 @@ def symlink_update(target, link_name):
             os.symlink(target, link_name)
         else:
             raise e
+
+def detokenize(texts: List[str], lang: str) -> List[str]:
+    skip_size = 2 if lang in ["cs", "en", "fr", "it", "fi"] else 3
+    inputstream = '\n'.join(texts)
+    p = Popen(["perl", "joeynmt/detokenizer.perl", "-l", lang], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+    outputstream = p.communicate(input=bytes(inputstream, 'utf-8'))[0].decode()
+    outputs = outputstream.strip().split('\n')[skip_size:]
+    assert len(texts) == len(outputs)
+    return outputs

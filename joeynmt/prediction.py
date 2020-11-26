@@ -12,7 +12,7 @@ import torch
 from torchtext.data import Dataset, Field
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
-    get_latest_checkpoint, load_checkpoint, store_attention_plots
+    get_latest_checkpoint, load_checkpoint, store_attention_plots, detokenize
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model, _DataParallel
 from joeynmt.search import run_batch
@@ -30,6 +30,8 @@ def validate_on_data(model: Model, data: Dataset,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      n_gpu: int,
+                     src_lang: str,
+                     trg_lang: str,
                      compute_loss: bool = False,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
@@ -155,6 +157,10 @@ def validate_on_data(model: Model, data: Dataset,
                                 for v in valid_references]
             valid_hypotheses = [bpe_postprocess(v, bpe_type=bpe_type)
                                 for v in valid_hypotheses]
+
+        valid_sources = detokenize(valid_sources, src_lang)
+        valid_references = detokenize(valid_references, trg_lang)
+        valid_hypotheses = detokenize(valid_hypotheses, trg_lang)
 
         # if references are given, evaluate against them
         if valid_references:
@@ -323,7 +329,9 @@ def test(cfg_file,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu)
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu,
+            src_lang=cfg["data"]["src"], trg_lang=cfg["data"]["trg"]
+        )
         #pylint: enable=unused-variable
 
         if "trg" in data_set.fields:
@@ -391,6 +399,9 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
 
         return test_data
 
+    cfg = load_config(cfg_file)
+    model_dir = cfg["training"]["model_dir"]
+
     def _translate_data(test_data):
         """ Translates given dataset, using parameters from outer scope. """
         # pylint: disable=unused-variable
@@ -401,11 +412,10 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu)
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu,
+            src_lang=cfg["data"]["src"], trg_lang=cfg["data"]["trg"]
+        )
         return hypotheses
-
-    cfg = load_config(cfg_file)
-    model_dir = cfg["training"]["model_dir"]
 
     _ = make_logger(model_dir, mode="translate")
     # version string returned

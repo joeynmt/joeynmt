@@ -133,6 +133,9 @@ class TrainManager:
             self.sacrebleu["tokenize"] = test_config["sacrebleu"] \
                 .get("tokenize", "13a")
 
+        self.src_lang = config["data"]["src"]
+        self.trg_lang = config["data"]["trg"]
+
         # learning rate scheduling
         self.scheduler, self.scheduler_step_at = build_scheduler(
             config=train_config,
@@ -514,7 +517,9 @@ class TrainManager:
                 postprocess=True,           # always remove BPE for validation
                 bpe_type=self.bpe_type,     # "subword-nmt" or "sentencepiece"
                 sacrebleu=self.sacrebleu,   # sacrebleu options
-                n_gpu=self.n_gpu
+                n_gpu=self.n_gpu,
+                src_lang=self.src_lang,
+                trg_lang=self.trg_lang
             )
 
         self.tb_writer.add_scalar(
