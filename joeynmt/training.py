@@ -50,14 +50,16 @@ class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
 
-    def __init__(self, model: Model, config: dict) -> None:
+    def __init__(self, model: Model, config: dict, batch_class=Batch) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
 
         :param model: torch module defining the model
         :param config: dictionary containing the training configurations
+        :param batch_class: batch class to encapsulate the torch class
         """
         train_config = config["training"]
+        self.batch_class = batch_class
 
         # files for logging and storing
         self.model_dir = train_config["model_dir"]
@@ -373,8 +375,8 @@ class TrainManager:
 
             for i, batch in enumerate(iter(train_iter)):
                 # create a Batch object from torchtext batch
-                batch = Batch(batch, self.model.pad_index,
-                              use_cuda=self.use_cuda)
+                batch = self.batch_class(batch, self.model.pad_index,
+                                         use_cuda=self.use_cuda)
 
                 # get batch loss
                 batch_loss += self._train_step(batch)
@@ -457,10 +459,7 @@ class TrainManager:
         self.model.train()
 
         # get loss
-        batch_loss, _, _, _ = self.model(
-            return_type="loss", src=batch.src, trg=batch.trg,
-            trg_input=batch.trg_input, src_mask=batch.src_mask,
-            src_length=batch.src_length, trg_mask=batch.trg_mask)
+        batch_loss, _, _, _ = self.model(return_type="loss", **vars(batch))
 
         # average on multi-gpu parallel training
         if self.n_gpu > 1:
