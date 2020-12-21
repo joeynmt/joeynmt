@@ -117,7 +117,8 @@ class Model(nn.Module):
         """
         encoder_output, encoder_hidden = self._encode(**kwargs)
         unroll_steps = trg_input.size(1)
-        return self._decode(encoder_output=encoder_output,
+        return self._decode(trg_input=trg_input,
+                            encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             unroll_steps=unroll_steps, **kwargs)
 
