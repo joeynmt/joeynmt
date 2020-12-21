@@ -50,7 +50,7 @@ class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
 
-    def __init__(self, model: Model, config: dict, batch_class=Batch) -> None:
+    def __init__(self, model: Model, config: dict, batch_class) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
 
@@ -502,6 +502,7 @@ class TrainManager:
         valid_hypotheses_raw, valid_attention_scores = \
             validate_on_data(
                 batch_size=self.eval_batch_size,
+                batch_class=self.batch_class,
                 data=valid_data,
                 eval_metric=self.eval_metric,
                 level=self.level, model=self.model,
