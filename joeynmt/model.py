@@ -106,21 +106,27 @@ class Model(nn.Module):
         return return_tuple
 
     # pylint: disable=arguments-differ
-    def _encode_decode(self, trg_input: Tensor, **kwargs) \
+    def _encode_decode(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
+                       src_length: Tensor, trg_mask: Tensor = None, **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
         Then produces the target one word at a time.
 
+        :param src: source input
         :param trg_input: target input
+        :param src_mask: source mask
+        :param src_length: length of source inputs
+        :param trg_mask: target mask
         :return: decoder outputs
         """
-        encoder_output, encoder_hidden = self._encode(**kwargs)
+        encoder_output, encoder_hidden = self._encode(src=src, src_length=src_length, src_mask=src_mask, **kwargs)
         unroll_steps = trg_input.size(1)
-        return self._decode(trg_input=trg_input,
-                            encoder_output=encoder_output,
+        return self._decode(encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
-                            unroll_steps=unroll_steps, **kwargs)
+                            src_mask=src_mask, trg_input=trg_input,
+                            unroll_steps=unroll_steps,
+                            trg_mask=trg_mask, **kwargs)
 
     def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor, **kwargs) \
             -> (Tensor, Tensor):
