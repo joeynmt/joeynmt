@@ -1,5 +1,4 @@
 # coding: utf-8
-
 """
 Training module
 """
@@ -49,7 +48,6 @@ logger = logging.getLogger(__name__)
 class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
-
     def __init__(self, model: Model, config: dict) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
@@ -65,8 +63,13 @@ class TrainManager:
 
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
-        self.tb_writer = SummaryWriter(
-            log_dir=self.model_dir + "/tensorboard/")
+        self.tb_writer = SummaryWriter(log_dir=self.model_dir +
+                                       "/tensorboard/")
+
+        self.save_last_checkpoint = train_config.get("save_last_checkpoint",
+                                                     False)
+        if self.save_last_checkpoint:
+            self.last_checkpoint = None
 
         # model
         self.model = model
@@ -95,10 +98,9 @@ class TrainManager:
         self.ckpt_queue = queue.Queue(
             maxsize=train_config.get("keep_last_ckpts", 5))
         self.eval_metric = train_config.get("eval_metric", "bleu")
-        if self.eval_metric not in ['bleu',
-                                    'chrf',
-                                    'token_accuracy',
-                                    'sequence_accuracy']:
+        if self.eval_metric not in [
+                'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'
+        ]:
             raise ConfigurationError("Invalid setting for 'eval_metric', "
                                      "valid options: 'bleu', 'chrf', "
                                      "'token_accuracy', 'sequence_accuracy'.")
@@ -112,8 +114,9 @@ class TrainManager:
         if self.early_stopping_metric in ["ppl", "loss"]:
             self.minimize_metric = True
         elif self.early_stopping_metric == "eval_metric":
-            if self.eval_metric in ["bleu", "chrf",
-                                    "token_accuracy", "sequence_accuracy"]:
+            if self.eval_metric in [
+                    "bleu", "chrf", "token_accuracy", "sequence_accuracy"
+            ]:
                 self.minimize_metric = False
             # eval metric that has to get minimized (not yet implemented)
             else:
@@ -172,12 +175,12 @@ class TrainManager:
         self.fp16 = train_config.get("fp16", False)
         if self.fp16:
             if 'apex' not in sys.modules:
-                raise ImportError(
-                    "Please install apex from "
-                    "https://www.github.com/nvidia/apex "
-                    "to use fp16 training.") from no_apex
-            self.model, self.optimizer = amp.initialize(
-                self.model, self.optimizer, opt_level='O1')
+                raise ImportError("Please install apex from "
+                                  "https://www.github.com/nvidia/apex "
+                                  "to use fp16 training.") from no_apex
+            self.model, self.optimizer = amp.initialize(self.model,
+                                                        self.optimizer,
+                                                        opt_level='O1')
             # opt level: one of {"O0", "O1", "O2", "O3"}
             # see https://nvidia.github.io/apex/amp.html#opt-levels
 
@@ -188,12 +191,12 @@ class TrainManager:
             total_tokens=0,
             best_ckpt_iter=0,
             best_ckpt_score=np.inf if self.minimize_metric else -np.inf,
-            minimize_metric=self.minimize_metric
-        )
+            minimize_metric=self.minimize_metric)
 
         # model parameters
         if "load_model" in train_config.keys():
-            self.init_from_checkpoint(train_config["load_model"],
+            self.init_from_checkpoint(
+                train_config["load_model"],
                 reset_best_ckpt=train_config.get("reset_best_ckpt", False),
                 reset_scheduler=train_config.get("reset_scheduler", False),
                 reset_optimizer=train_config.get("reset_optimizer", False))
@@ -202,7 +205,7 @@ class TrainManager:
         if self.n_gpu > 1:
             self.model = _DataParallel(self.model)
 
-    def _save_checkpoint(self) -> None:
+    def _save_checkpoint(self, new_best: bool = True) -> None:
         """
         Save the model's current parameters and the training state to a
         checkpoint.
@@ -218,36 +221,52 @@ class TrainManager:
             if isinstance(self.model, torch.nn.DataParallel) \
             else self.model.state_dict()
         state = {
-            "steps": self.stats.steps,
-            "total_tokens": self.stats.total_tokens,
-            "best_ckpt_score": self.stats.best_ckpt_score,
-            "best_ckpt_iteration": self.stats.best_ckpt_iter,
-            "model_state": model_state_dict,
-            "optimizer_state": self.optimizer.state_dict(),
-            "scheduler_state": self.scheduler.state_dict() if
-            self.scheduler is not None else None,
-            'amp_state': amp.state_dict() if self.fp16 else None
+            "steps":
+            self.stats.steps,
+            "total_tokens":
+            self.stats.total_tokens,
+            "best_ckpt_score":
+            self.stats.best_ckpt_score,
+            "best_ckpt_iteration":
+            self.stats.best_ckpt_iter,
+            "model_state":
+            model_state_dict,
+            "optimizer_state":
+            self.optimizer.state_dict(),
+            "scheduler_state":
+            self.scheduler.state_dict()
+            if self.scheduler is not None else None,
+            'amp_state':
+            amp.state_dict() if self.fp16 else None
         }
-        torch.save(state, model_path)
-        if self.ckpt_queue.full():
-            to_delete = self.ckpt_queue.get()  # delete oldest ckpt
+        if new_best:
+            torch.save(state, model_path)
+            if self.ckpt_queue.full():
+                to_delete = self.ckpt_queue.get()  # delete oldest ckpt
+                try:
+                    os.remove(to_delete)
+                except FileNotFoundError:
+                    logger.warning(
+                        "Wanted to delete old checkpoint %s but "
+                        "file does not exist.", to_delete)
+
+            self.ckpt_queue.put(model_path)
+
+            best_path = "{}/best.ckpt".format(self.model_dir)
             try:
-                os.remove(to_delete)
-            except FileNotFoundError:
-                logger.warning("Wanted to delete old checkpoint %s but "
-                               "file does not exist.", to_delete)
+                # create/modify symbolic link for best checkpoint
+                symlink_update("{}.ckpt".format(self.stats.steps), best_path)
+            except OSError:
+                # overwrite best.ckpt
+                torch.save(state, best_path)
 
-        self.ckpt_queue.put(model_path)
+        if self.save_last_checkpoint:
+            last_path = "{}/last.ckpt".format(self.model_dir)
+            os.remove(last_path)
+            torch.save(state, last_path)
 
-        best_path = "{}/best.ckpt".format(self.model_dir)
-        try:
-            # create/modify symbolic link for best checkpoint
-            symlink_update("{}.ckpt".format(self.stats.steps), best_path)
-        except OSError:
-            # overwrite best.ckpt
-            torch.save(state, best_path)
-
-    def init_from_checkpoint(self, path: str,
+    def init_from_checkpoint(self,
+                             path: str,
                              reset_best_ckpt: bool = False,
                              reset_scheduler: bool = False,
                              reset_optimizer: bool = False) -> None:
@@ -317,7 +336,8 @@ class TrainManager:
         train_iter = make_data_iter(train_data,
                                     batch_size=self.batch_size,
                                     batch_type=self.batch_type,
-                                    train=True, shuffle=self.shuffle)
+                                    train=True,
+                                    shuffle=self.shuffle)
 
         #################################################################
         # simplify accumulation logic:
@@ -350,9 +370,9 @@ class TrainManager:
             "\t16-bits training: %r\n"
             "\tgradient accumulation: %d\n"
             "\tbatch size per device: %d\n"
-            "\ttotal batch size (w. parallel & accumulation): %d",
-            self.device, self.n_gpu, self.fp16, self.batch_multiplier,
-            self.batch_size//self.n_gpu if self.n_gpu > 1 else self.batch_size,
+            "\ttotal batch size (w. parallel & accumulation): %d", self.device,
+            self.n_gpu, self.fp16, self.batch_multiplier, self.batch_size //
+            self.n_gpu if self.n_gpu > 1 else self.batch_size,
             self.batch_size * self.batch_multiplier)
 
         for epoch_no in range(self.epochs):
@@ -373,7 +393,8 @@ class TrainManager:
 
             for i, batch in enumerate(iter(train_iter)):
                 # create a Batch object from torchtext batch
-                batch = Batch(batch, self.model.pad_index,
+                batch = Batch(batch,
+                              self.model.pad_index,
                               use_cuda=self.use_cuda)
 
                 # get batch loss
@@ -411,8 +432,8 @@ class TrainManager:
                         elapsed_tokens = self.stats.total_tokens - start_tokens
                         logger.info(
                             "Epoch %3d, Step: %8d, Batch Loss: %12.6f, "
-                            "Tokens per Sec: %8.0f, Lr: %.6f",
-                            epoch_no + 1, self.stats.steps, batch_loss,
+                            "Tokens per Sec: %8.0f, Lr: %.6f", epoch_no + 1,
+                            self.stats.steps, batch_loss,
                             elapsed_tokens / elapsed,
                             self.optimizer.param_groups[0]["lr"])
                         start = time.time()
@@ -420,8 +441,8 @@ class TrainManager:
                         start_tokens = self.stats.total_tokens
 
                     # Only add complete loss of full mini-batch to epoch_loss
-                    epoch_loss += batch_loss    # accumulate epoch_loss
-                    batch_loss = 0              # rest batch_loss
+                    epoch_loss += batch_loss  # accumulate epoch_loss
+                    batch_loss = 0  # rest batch_loss
 
                     # validate on the entire dev set
                     if self.stats.steps % self.validation_freq == 0:
@@ -431,13 +452,12 @@ class TrainManager:
                 if self.stats.stop:
                     break
             if self.stats.stop:
-                logger.info(
-                    'Training ended since minimum lr %f was reached.',
-                    self.learning_rate_min)
+                logger.info('Training ended since minimum lr %f was reached.',
+                            self.learning_rate_min)
                 break
 
-            logger.info('Epoch %3d: total training loss %.2f',
-                        epoch_no + 1, epoch_loss)
+            logger.info('Epoch %3d: total training loss %.2f', epoch_no + 1,
+                        epoch_loss)
         else:
             logger.info('Training ended after %3d epochs.', epoch_no + 1)
         logger.info('Best validation result (greedy) at step %8d: %6.2f %s.',
@@ -457,10 +477,13 @@ class TrainManager:
         self.model.train()
 
         # get loss
-        batch_loss, _, _, _ = self.model(
-            return_type="loss", src=batch.src, trg=batch.trg,
-            trg_input=batch.trg_input, src_mask=batch.src_mask,
-            src_length=batch.src_length, trg_mask=batch.trg_mask)
+        batch_loss, _, _, _ = self.model(return_type="loss",
+                                         src=batch.src,
+                                         trg=batch.trg,
+                                         trg_input=batch.trg_input,
+                                         src_mask=batch.src_mask,
+                                         src_length=batch.src_length,
+                                         trg_mask=batch.trg_mask)
 
         # average on multi-gpu parallel training
         if self.n_gpu > 1:
@@ -485,7 +508,8 @@ class TrainManager:
 
         # accumulate gradients
         if self.fp16:
-            with amp.scale_loss(norm_batch_loss, self.optimizer) as scaled_loss:
+            with amp.scale_loss(norm_batch_loss,
+                                self.optimizer) as scaled_loss:
                 scaled_loss.backward()
         else:
             norm_batch_loss.backward()
@@ -517,12 +541,12 @@ class TrainManager:
                 n_gpu=self.n_gpu
             )
 
-        self.tb_writer.add_scalar(
-            "valid/valid_loss", valid_loss, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_score", valid_score, self.stats.steps)
-        self.tb_writer.add_scalar(
-            "valid/valid_ppl", valid_ppl, self.stats.steps)
+        self.tb_writer.add_scalar("valid/valid_loss", valid_loss,
+                                  self.stats.steps)
+        self.tb_writer.add_scalar("valid/valid_score", valid_score,
+                                  self.stats.steps)
+        self.tb_writer.add_scalar("valid/valid_ppl", valid_ppl,
+                                  self.stats.steps)
 
         if self.early_stopping_metric == "loss":
             ckpt_score = valid_loss
@@ -530,6 +554,10 @@ class TrainManager:
             ckpt_score = valid_ppl
         else:
             ckpt_score = valid_score
+
+        if self.scheduler is not None \
+                and self.scheduler_step_at == "validation":
+            self.scheduler.step(ckpt_score)
 
         new_best = False
         if self.stats.is_best(ckpt_score):
@@ -540,52 +568,53 @@ class TrainManager:
             if self.ckpt_queue.maxsize > 0:
                 logger.info("Saving new checkpoint.")
                 new_best = True
-                self._save_checkpoint()
+                self._save_checkpoint(new_best)
 
-        if self.scheduler is not None \
-                and self.scheduler_step_at == "validation":
-            self.scheduler.step(ckpt_score)
+        if self.save_last_checkpoint:
+            self._save_checkpoint(new_best)
 
         # append to validation report
-        self._add_report(
-            valid_score=valid_score, valid_loss=valid_loss,
-            valid_ppl=valid_ppl, eval_metric=self.eval_metric,
-            new_best=new_best)
+        self._add_report(valid_score=valid_score,
+                         valid_loss=valid_loss,
+                         valid_ppl=valid_ppl,
+                         eval_metric=self.eval_metric,
+                         new_best=new_best)
 
-        self._log_examples(
-            sources_raw=[v for v in valid_sources_raw],
-            sources=valid_sources,
-            hypotheses_raw=valid_hypotheses_raw,
-            hypotheses=valid_hypotheses,
-            references=valid_references
-        )
+        self._log_examples(sources_raw=[v for v in valid_sources_raw],
+                           sources=valid_sources,
+                           hypotheses_raw=valid_hypotheses_raw,
+                           hypotheses=valid_hypotheses,
+                           references=valid_references)
 
         valid_duration = time.time() - valid_start_time
         logger.info(
             'Validation result (greedy) at epoch %3d, '
             'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
             'duration: %.4fs', epoch_no + 1, self.stats.steps,
-            self.eval_metric, valid_score, valid_loss,
-            valid_ppl, valid_duration)
+            self.eval_metric, valid_score, valid_loss, valid_ppl,
+            valid_duration)
 
         # store validation set outputs
         self._store_outputs(valid_hypotheses)
 
         # store attention plots for selected valid sentences
         if valid_attention_scores:
-            store_attention_plots(
-                attentions=valid_attention_scores,
-                targets=valid_hypotheses_raw,
-                sources=[s for s in valid_data.src],
-                indices=self.log_valid_sents,
-                output_prefix="{}/att.{}".format(
-                    self.model_dir, self.stats.steps),
-                tb_writer=self.tb_writer, steps=self.stats.steps)
+            store_attention_plots(attentions=valid_attention_scores,
+                                  targets=valid_hypotheses_raw,
+                                  sources=[s for s in valid_data.src],
+                                  indices=self.log_valid_sents,
+                                  output_prefix="{}/att.{}".format(
+                                      self.model_dir, self.stats.steps),
+                                  tb_writer=self.tb_writer,
+                                  steps=self.stats.steps)
 
         return valid_duration
 
-    def _add_report(self, valid_score: float, valid_ppl: float,
-                    valid_loss: float, eval_metric: str,
+    def _add_report(self,
+                    valid_score: float,
+                    valid_ppl: float,
+                    valid_loss: float,
+                    eval_metric: str,
                     new_best: bool = False) -> None:
         """
         Append a one-line report to validation logging file.
@@ -607,9 +636,9 @@ class TrainManager:
         with open(self.valid_report_file, 'a') as opened_file:
             opened_file.write(
                 "Steps: {}\tLoss: {:.5f}\tPPL: {:.5f}\t{}: {:.5f}\t"
-                "LR: {:.8f}\t{}\n".format(
-                    self.stats.steps, valid_loss, valid_ppl, eval_metric,
-                    valid_score, current_lr, "*" if new_best else ""))
+                "LR: {:.8f}\t{}\n".format(self.stats.steps, valid_loss,
+                                          valid_ppl, eval_metric, valid_score,
+                                          current_lr, "*" if new_best else ""))
 
     def _log_parameters_list(self) -> None:
         """
@@ -619,12 +648,15 @@ class TrainManager:
                                   self.model.parameters())
         n_params = sum([np.prod(p.size()) for p in model_parameters])
         logger.info("Total params: %d", n_params)
-        trainable_params = [n for (n, p) in self.model.named_parameters()
-                            if p.requires_grad]
+        trainable_params = [
+            n for (n, p) in self.model.named_parameters() if p.requires_grad
+        ]
         logger.debug("Trainable parameters: %s", sorted(trainable_params))
         assert trainable_params
 
-    def _log_examples(self, sources: List[str], hypotheses: List[str],
+    def _log_examples(self,
+                      sources: List[str],
+                      hypotheses: List[str],
                       references: List[str],
                       sources_raw: List[List[str]] = None,
                       hypotheses_raw: List[List[str]] = None,
@@ -663,15 +695,18 @@ class TrainManager:
 
         :param hypotheses: list of strings
         """
-        current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
-                                                        self.stats.steps)
+        current_valid_output_file = "{}/{}.hyps".format(
+            self.model_dir, self.stats.steps)
         with open(current_valid_output_file, 'w') as opened_file:
             for hyp in hypotheses:
                 opened_file.write("{}\n".format(hyp))
 
     class TrainStatistics:
-        def __init__(self, steps: int = 0, stop: bool = False,
-                     total_tokens: int = 0, best_ckpt_iter: int = 0,
+        def __init__(self,
+                     steps: int = 0,
+                     stop: bool = False,
+                     total_tokens: int = 0,
+                     best_ckpt_iter: int = 0,
                      best_ckpt_score: float = np.inf,
                      minimize_metric: bool = True) -> None:
             # global update step counter
@@ -706,8 +741,9 @@ def train(cfg_file: str) -> None:
 
     # make logger
     model_dir = make_model_dir(cfg["training"]["model_dir"],
-                   overwrite=cfg["training"].get("overwrite", False))
-    _ = make_logger(model_dir, mode="train")    # version string returned
+                               overwrite=cfg["training"].get(
+                                   "overwrite", False))
+    _ = make_logger(model_dir, mode="train")  # version string returned
     # TODO: save version number in model checkpoints
 
     # set the random seed
@@ -729,8 +765,11 @@ def train(cfg_file: str) -> None:
     # log all entries of config
     log_cfg(cfg)
 
-    log_data_info(train_data=train_data, valid_data=dev_data,
-                  test_data=test_data, src_vocab=src_vocab, trg_vocab=trg_vocab)
+    log_data_info(train_data=train_data,
+                  valid_data=dev_data,
+                  test_data=test_data,
+                  src_vocab=src_vocab,
+                  trg_vocab=trg_vocab)
 
     logger.info(str(model))
 
@@ -748,15 +787,23 @@ def train(cfg_file: str) -> None:
     ckpt = "{}/{}.ckpt".format(model_dir, trainer.stats.best_ckpt_iter)
     output_name = "{:08d}.hyps".format(trainer.stats.best_ckpt_iter)
     output_path = os.path.join(model_dir, output_name)
-    datasets_to_test = {"dev": dev_data, "test": test_data,
-                        "src_vocab": src_vocab, "trg_vocab": trg_vocab}
-    test(cfg_file, ckpt=ckpt, output_path=output_path,
+    datasets_to_test = {
+        "dev": dev_data,
+        "test": test_data,
+        "src_vocab": src_vocab,
+        "trg_vocab": trg_vocab
+    }
+    test(cfg_file,
+         ckpt=ckpt,
+         output_path=output_path,
          datasets=datasets_to_test)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
-    parser.add_argument("config", default="configs/default.yaml", type=str,
+    parser.add_argument("config",
+                        default="configs/default.yaml",
+                        type=str,
                         help="Training configuration file (yaml).")
     args = parser.parse_args()
     train(cfg_file=args.config)
