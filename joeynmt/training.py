@@ -10,8 +10,8 @@ from typing import List
 import logging
 import os
 import sys
-import queue
-
+import collections
+import pathlib
 import numpy as np
 
 import torch
@@ -24,7 +24,7 @@ from joeynmt.model import build_model
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     store_attention_plots, load_checkpoint, make_model_dir, \
-    make_logger, set_seed, symlink_update, ConfigurationError
+    make_logger, set_seed, symlink_update, latest_checkpoint_update, ConfigurationError
 from joeynmt.model import Model, _DataParallel
 from joeynmt.prediction import validate_on_data
 from joeynmt.loss import XentLoss
@@ -66,8 +66,8 @@ class TrainManager:
         self.tb_writer = SummaryWriter(log_dir=self.model_dir +
                                        "/tensorboard/")
 
-        self.save_last_checkpoint = train_config.get("save_last_checkpoint",
-                                                     False)
+        self.save_latest_checkpoint = train_config.get("save_latest_ckpt",
+                                                       False)
 
         # model
         self.model = model
@@ -93,8 +93,8 @@ class TrainManager:
         # validation & early stopping
         self.validation_freq = train_config.get("validation_freq", 1000)
         self.log_valid_sents = train_config.get("print_valid_sents", [0, 1, 2])
-        self.ckpt_queue = queue.Queue(
-            maxsize=train_config.get("keep_last_ckpts", 5))
+        self.ckpt_queue = collections.deque(
+            maxlen=train_config.get("keep_last_ckpts", 5))
         self.eval_metric = train_config.get("eval_metric", "bleu")
         if self.eval_metric not in [
                 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'
@@ -149,6 +149,9 @@ class TrainManager:
         self.shuffle = train_config.get("shuffle", True)
         self.epochs = train_config["epochs"]
         self.batch_size = train_config["batch_size"]
+        # Placeholder so that we can use the train_iter in other functions.
+        self.train_iter = None
+        self.train_iter_state = None
         # per-device batch_size = self.batch_size // self.n_gpu
         self.batch_type = train_config.get("batch_type", "sentence")
         self.eval_batch_size = train_config.get("eval_batch_size",
@@ -197,7 +200,8 @@ class TrainManager:
                 train_config["load_model"],
                 reset_best_ckpt=train_config.get("reset_best_ckpt", False),
                 reset_scheduler=train_config.get("reset_scheduler", False),
-                reset_optimizer=train_config.get("reset_optimizer", False))
+                reset_optimizer=train_config.get("reset_optimizer", False),
+                reset_iter_state=train_config.get("reset_iter_state", False))
 
         # multi-gpu training (should be after apex fp16 initialization)
         if self.n_gpu > 1:
@@ -214,7 +218,8 @@ class TrainManager:
         and optimizer and scheduler states.
 
         """
-        model_path = "{}/{}.ckpt".format(self.model_dir, self.stats.steps)
+        model_path = os.path.join(self.model_dir,
+                                  "{}.ckpt".format(self.stats.steps))
         model_state_dict = self.model.module.state_dict() \
             if isinstance(self.model, torch.nn.DataParallel) \
             else self.model.state_dict()
@@ -235,12 +240,15 @@ class TrainManager:
             self.scheduler.state_dict()
             if self.scheduler is not None else None,
             'amp_state':
-            amp.state_dict() if self.fp16 else None
+            amp.state_dict() if self.fp16 else None,
+            "train_iter_state":
+            self.train_iter.state_dict()
         }
+        torch.save(state, model_path)
+        symlink_target = "{}.ckpt".format(self.stats.steps)
         if new_best:
-            torch.save(state, model_path)
-            if self.ckpt_queue.full():
-                to_delete = self.ckpt_queue.get()  # delete oldest ckpt
+            if len(self.ckpt_queue) == self.ckpt_queue.maxlen:
+                to_delete = self.ckpt_queue.popleft()  # delete oldest ckpt
                 try:
                     os.remove(to_delete)
                 except FileNotFoundError:
@@ -248,26 +256,34 @@ class TrainManager:
                         "Wanted to delete old checkpoint %s but "
                         "file does not exist.", to_delete)
 
-            self.ckpt_queue.put(model_path)
+            self.ckpt_queue.append(model_path)
 
             best_path = "{}/best.ckpt".format(self.model_dir)
             try:
                 # create/modify symbolic link for best checkpoint
-                symlink_update("{}.ckpt".format(self.stats.steps), best_path)
+                symlink_update(symlink_target, best_path)
             except OSError:
                 # overwrite best.ckpt
                 torch.save(state, best_path)
 
-        if self.save_last_checkpoint:
-            last_path = "{}/last.ckpt".format(self.model_dir)
-            os.remove(last_path)
-            torch.save(state, last_path)
+        if self.save_latest_checkpoint:
+            last_path = "{}/latest.ckpt".format(self.model_dir)
+            previous_path = latest_checkpoint_update(symlink_target, last_path)
+            # If the last ckpt is in the ckpt_queue, we don't want to delete it.
+            can_delete = True
+            for ckpt_path in self.ckpt_queue:
+                if pathlib.Path(ckpt_path).resolve() == previous_path:
+                    can_delete = False
+                    break
+            if can_delete and previous_path is not None:
+                os.remove(previous_path)
 
     def init_from_checkpoint(self,
                              path: str,
                              reset_best_ckpt: bool = False,
                              reset_scheduler: bool = False,
-                             reset_optimizer: bool = False) -> None:
+                             reset_optimizer: bool = False,
+                             reset_iter_state: bool = False) -> None:
         """
         Initialize the trainer from a given checkpoint file.
 
@@ -282,6 +298,8 @@ class TrainManager:
                                 use the one stored in the checkpoint.
         :param reset_optimizer: reset the optimizer, and do not use the one
                                 stored in the checkpoint.
+        :param reset_iter_state: reset the sampler's internal state and do not
+                                use the one store3d in the checkpoint.
         """
         logger.info("Loading model from %s", path)
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
@@ -312,6 +330,10 @@ class TrainManager:
         else:
             logger.info("Reset tracking of the best checkpoint.")
 
+        if (not reset_iter_state and model_checkpoint.get(
+                'train_iter_state', None) is not None):
+            self.train_iter_state = model_checkpoint["train_iter_state"]
+
         # move parameters to cuda
         if self.use_cuda:
             self.model.cuda()
@@ -331,11 +353,14 @@ class TrainManager:
         :param train_data: training data
         :param valid_data: validation data
         """
-        train_iter = make_data_iter(train_data,
-                                    batch_size=self.batch_size,
-                                    batch_type=self.batch_type,
-                                    train=True,
-                                    shuffle=self.shuffle)
+        self.train_iter = make_data_iter(train_data,
+                                         batch_size=self.batch_size,
+                                         batch_type=self.batch_type,
+                                         train=True,
+                                         shuffle=self.shuffle)
+
+        if self.train_iter_state is not None:
+            self.train_iter.load_state_dict(self.train_iter_state)
 
         #################################################################
         # simplify accumulation logic:
@@ -344,7 +369,7 @@ class TrainManager:
         #     self.model.zero_grad()
         #     epoch_loss = 0.0
         #     batch_loss = 0.0
-        #     for i, batch in enumerate(iter(train_iter)):
+        #     for i, batch in enumerate(iter(self.train_iter)):
         #
         #         # gradient accumulation:
         #         # loss.backward() inside _train_step()
@@ -389,7 +414,7 @@ class TrainManager:
             epoch_loss = 0
             batch_loss = 0
 
-            for i, batch in enumerate(iter(train_iter)):
+            for i, batch in enumerate(iter(self.train_iter)):
                 # create a Batch object from torchtext batch
                 batch = Batch(batch,
                               self.model.pad_index,
@@ -563,12 +588,11 @@ class TrainManager:
             self.stats.best_ckpt_iter = self.stats.steps
             logger.info('Hooray! New best validation result [%s]!',
                         self.early_stopping_metric)
-            if self.ckpt_queue.maxsize > 0:
+            if self.ckpt_queue.maxlen > 0:
                 logger.info("Saving new checkpoint.")
                 new_best = True
                 self._save_checkpoint(new_best)
-
-        if self.save_last_checkpoint:
+        elif self.save_latest_checkpoint:
             self._save_checkpoint(new_best)
 
         # append to validation report
