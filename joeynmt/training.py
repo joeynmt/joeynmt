@@ -24,7 +24,8 @@ from joeynmt.model import build_model
 from joeynmt.batch import Batch
 from joeynmt.helpers import log_data_info, load_config, log_cfg, \
     store_attention_plots, load_checkpoint, make_model_dir, \
-    make_logger, set_seed, symlink_update, latest_checkpoint_update, ConfigurationError
+    make_logger, set_seed, symlink_update, latest_checkpoint_update, \
+    ConfigurationError
 from joeynmt.model import Model, _DataParallel
 from joeynmt.prediction import validate_on_data
 from joeynmt.loss import XentLoss
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
+
     def __init__(self, model: Model, config: dict) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
@@ -63,8 +65,7 @@ class TrainManager:
 
         self.logging_freq = train_config.get("logging_freq", 100)
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
-        self.tb_writer = SummaryWriter(log_dir=self.model_dir +
-                                       "/tensorboard/")
+        self.tb_writer = SummaryWriter(log_dir=self.model_dir + "/tensorboard/")
 
         self.save_latest_checkpoint = train_config.get("save_latest_ckpt",
                                                        False)
@@ -225,24 +226,24 @@ class TrainManager:
             else self.model.state_dict()
         state = {
             "steps":
-            self.stats.steps,
+                self.stats.steps,
             "total_tokens":
-            self.stats.total_tokens,
+                self.stats.total_tokens,
             "best_ckpt_score":
-            self.stats.best_ckpt_score,
+                self.stats.best_ckpt_score,
             "best_ckpt_iteration":
-            self.stats.best_ckpt_iter,
+                self.stats.best_ckpt_iter,
             "model_state":
-            model_state_dict,
+                model_state_dict,
             "optimizer_state":
-            self.optimizer.state_dict(),
+                self.optimizer.state_dict(),
             "scheduler_state":
-            self.scheduler.state_dict()
-            if self.scheduler is not None else None,
+                self.scheduler.state_dict()
+                if self.scheduler is not None else None,
             'amp_state':
-            amp.state_dict() if self.fp16 else None,
+                amp.state_dict() if self.fp16 else None,
             "train_iter_state":
-            self.train_iter.state_dict()
+                self.train_iter.state_dict()
         }
         torch.save(state, model_path)
         symlink_target = "{}.ckpt".format(self.stats.steps)
@@ -330,8 +331,8 @@ class TrainManager:
         else:
             logger.info("Reset tracking of the best checkpoint.")
 
-        if (not reset_iter_state and model_checkpoint.get(
-                'train_iter_state', None) is not None):
+        if (not reset_iter_state and
+                model_checkpoint.get('train_iter_state', None) is not None):
             self.train_iter_state = model_checkpoint["train_iter_state"]
 
         # move parameters to cuda
@@ -520,9 +521,8 @@ class TrainManager:
         elif self.normalization == "none":
             normalizer = 1
         else:
-            raise NotImplementedError(
-                "Only normalize by 'batch' or 'tokens' "
-                "or summation of loss 'none' implemented")
+            raise NotImplementedError("Only normalize by 'batch' or 'tokens' "
+                                      "or summation of loss 'none' implemented")
 
         norm_batch_loss = batch_loss / normalizer
 
@@ -531,8 +531,7 @@ class TrainManager:
 
         # accumulate gradients
         if self.fp16:
-            with amp.scale_loss(norm_batch_loss,
-                                self.optimizer) as scaled_loss:
+            with amp.scale_loss(norm_batch_loss, self.optimizer) as scaled_loss:
                 scaled_loss.backward()
         else:
             norm_batch_loss.backward()
@@ -612,9 +611,8 @@ class TrainManager:
         logger.info(
             'Validation result (greedy) at epoch %3d, '
             'step %8d: %s: %6.2f, loss: %8.4f, ppl: %8.4f, '
-            'duration: %.4fs', epoch_no + 1, self.stats.steps,
-            self.eval_metric, valid_score, valid_loss, valid_ppl,
-            valid_duration)
+            'duration: %.4fs', epoch_no + 1, self.stats.steps, self.eval_metric,
+            valid_score, valid_loss, valid_ppl, valid_duration)
 
         # store validation set outputs
         self._store_outputs(valid_hypotheses)
@@ -717,13 +715,14 @@ class TrainManager:
 
         :param hypotheses: list of strings
         """
-        current_valid_output_file = "{}/{}.hyps".format(
-            self.model_dir, self.stats.steps)
+        current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
+                                                        self.stats.steps)
         with open(current_valid_output_file, 'w') as opened_file:
             for hyp in hypotheses:
                 opened_file.write("{}\n".format(hyp))
 
     class TrainStatistics:
+
         def __init__(self,
                      steps: int = 0,
                      stop: bool = False,
