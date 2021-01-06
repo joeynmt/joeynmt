@@ -11,6 +11,7 @@ import shutil
 import random
 import logging
 from typing import Optional, List
+import pathlib
 import numpy as np
 import pkg_resources
 
@@ -54,8 +55,8 @@ def make_logger(log_dir: str = None, mode: str = "train") -> str:
     :param mode: log file name. 'train', 'test' or 'translate'
     :return: joeynmt version number
     """
-    logger = logging.getLogger("") # root logger
-    version = pkg_resources.require("joeynmt")[0].version
+    logger = logging.getLogger("")  # root logger
+    version = '1.0.0'  #pkg_resources.require("joeynmt")[0].version
 
     # add handlers only once.
     if len(logger.handlers) == 0:
@@ -148,19 +149,22 @@ def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
     :param trg_vocab:
     """
     logger = logging.getLogger(__name__)
-    logger.info(
-        "Data set sizes: \n\ttrain %d,\n\tvalid %d,\n\ttest %d",
-            len(train_data), len(valid_data),
-            len(test_data) if test_data is not None else 0)
+    logger.info("Data set sizes: \n\ttrain %d,\n\tvalid %d,\n\ttest %d",
+                len(train_data), len(valid_data),
+                len(test_data) if test_data is not None else 0)
 
     logger.info("First training example:\n\t[SRC] %s\n\t[TRG] %s",
-        " ".join(vars(train_data[0])['src']),
-        " ".join(vars(train_data[0])['trg']))
+                " ".join(vars(train_data[0])['src']),
+                " ".join(vars(train_data[0])['trg']))
 
-    logger.info("First 10 words (src): %s", " ".join(
-        '(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10])))
-    logger.info("First 10 words (trg): %s", " ".join(
-        '(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10])))
+    logger.info(
+        "First 10 words (src): %s",
+        " ".join('(%d) %s' % (i, t)
+                 for i, t in enumerate(src_vocab.itos[:10])))
+    logger.info(
+        "First 10 words (trg): %s",
+        " ".join('(%d) %s' % (i, t)
+                 for i, t in enumerate(trg_vocab.itos[:10])))
 
     logger.info("Number of Src words (types): %d", len(src_vocab))
     logger.info("Number of Trg words (types): %d", len(trg_vocab))
@@ -195,9 +199,11 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
     return ret
 
 
-def store_attention_plots(attentions: np.array, targets: List[List[str]],
+def store_attention_plots(attentions: np.array,
+                          targets: List[List[str]],
                           sources: List[List[str]],
-                          output_prefix: str, indices: List[int],
+                          output_prefix: str,
+                          indices: List[int],
                           tb_writer: Optional[SummaryWriter] = None,
                           steps: int = 0) -> None:
     """
@@ -220,14 +226,20 @@ def store_attention_plots(attentions: np.array, targets: List[List[str]],
         trg = targets[i]
         attention_scores = attentions[i].T
         try:
-            fig = plot_heatmap(scores=attention_scores, column_labels=trg,
-                               row_labels=src, output_path=plot_file,
+            fig = plot_heatmap(scores=attention_scores,
+                               column_labels=trg,
+                               row_labels=src,
+                               output_path=plot_file,
                                dpi=100)
             if tb_writer is not None:
                 # lower resolution for tensorboard
-                fig = plot_heatmap(scores=attention_scores, column_labels=trg,
-                                   row_labels=src, output_path=None, dpi=50)
-                tb_writer.add_figure("attention/{}.".format(i), fig,
+                fig = plot_heatmap(scores=attention_scores,
+                                   column_labels=trg,
+                                   row_labels=src,
+                                   output_path=None,
+                                   dpi=50)
+                tb_writer.add_figure("attention/{}.".format(i),
+                                     fig,
                                      global_step=steps)
         # pylint: disable=bare-except
         except:
@@ -252,8 +264,8 @@ def get_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
 
     # check existence
     if latest_checkpoint is None:
-        raise FileNotFoundError("No checkpoint found in directory {}."
-                                .format(ckpt_dir))
+        raise FileNotFoundError(
+            "No checkpoint found in directory {}.".format(ckpt_dir))
     return latest_checkpoint
 
 
@@ -322,3 +334,16 @@ def symlink_update(target, link_name):
             os.symlink(target, link_name)
         else:
             raise e
+
+
+def latest_checkpoint_update(target: pathlib.Path,
+                             link_name: str) -> pathlib.Path:
+    link = pathlib.Path(link_name)
+    if link.is_symlink():
+        current_last = link.resolve()
+        link.unlink()
+        link.symlink_to(target)
+        return current_last
+    else:
+        link.symlink_to(target)
+        return None
