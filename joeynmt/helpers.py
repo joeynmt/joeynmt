@@ -56,7 +56,7 @@ def make_logger(log_dir: str = None, mode: str = "train") -> str:
     :return: joeynmt version number
     """
     logger = logging.getLogger("")  # root logger
-    version = '1.0.0'  #pkg_resources.require("joeynmt")[0].version
+    version = pkg_resources.require("joeynmt")[0].version
 
     # add handlers only once.
     if len(logger.handlers) == 0:
@@ -159,12 +159,10 @@ def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
 
     logger.info(
         "First 10 words (src): %s",
-        " ".join('(%d) %s' % (i, t)
-                 for i, t in enumerate(src_vocab.itos[:10])))
+        " ".join('(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10])))
     logger.info(
         "First 10 words (trg): %s",
-        " ".join('(%d) %s' % (i, t)
-                 for i, t in enumerate(trg_vocab.itos[:10])))
+        " ".join('(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10])))
 
     logger.info("Number of Src words (types): %d", len(src_vocab))
     logger.info("Number of Trg words (types): %d", len(trg_vocab))
