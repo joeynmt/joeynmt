@@ -462,9 +462,9 @@ class TrainManager:
         # get loss
         batch_loss, _, _, _ = self.model(return_type="loss", **vars(batch))
 
-        # average on multi-gpu parallel training
+        # sum multi-gpu losses
         if self.n_gpu > 1:
-            batch_loss = batch_loss.mean()
+            batch_loss = batch_loss.sum()
 
         # normalize batch loss
         if self.normalization == "batch":
@@ -479,6 +479,9 @@ class TrainManager:
                 "or summation of loss 'none' implemented")
 
         norm_batch_loss = batch_loss / normalizer
+
+        if self.n_gpu > 1:
+            norm_batch_loss = norm_batch_loss / self.n_gpu
 
         if self.batch_multiplier > 1:
             norm_batch_loss = norm_batch_loss / self.batch_multiplier
