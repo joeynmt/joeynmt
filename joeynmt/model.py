@@ -120,7 +120,10 @@ class Model(nn.Module):
         :param trg_mask: target mask
         :return: decoder outputs
         """
-        encoder_output, encoder_hidden = self._encode(src=src, src_length=src_length, src_mask=src_mask, **kwargs)
+        encoder_output, encoder_hidden = self._encode(src=src,
+                                                      src_length=src_length,
+                                                      src_mask=src_mask,
+                                                      **kwargs)
         unroll_steps = trg_input.size(1)
         return self._decode(encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
@@ -128,8 +131,8 @@ class Model(nn.Module):
                             unroll_steps=unroll_steps,
                             trg_mask=trg_mask, **kwargs)
 
-    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor, **kwargs) \
-            -> (Tensor, Tensor):
+    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor,
+                **_kwargs) -> (Tensor, Tensor):
         """
         Encodes the source sentence.
 
@@ -143,7 +146,7 @@ class Model(nn.Module):
     def _decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
                 src_mask: Tensor, trg_input: Tensor,
                 unroll_steps: int, decoder_hidden: Tensor = None,
-                att_vector: Tensor = None, trg_mask: Tensor = None, **kwargs) \
+                att_vector: Tensor = None, trg_mask: Tensor = None, **_kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
         Decode, given an encoded source sentence.

@@ -50,7 +50,8 @@ class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
 
-    def __init__(self, model: Model, config: dict, batch_class: Batch=Batch) -> None:
+    def __init__(self, model: Model, config: dict,
+                 batch_class: Batch = Batch) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
 
