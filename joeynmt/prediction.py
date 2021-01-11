@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
-                     batch_class,
+                     batch_class: Batch,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      n_gpu: int,
