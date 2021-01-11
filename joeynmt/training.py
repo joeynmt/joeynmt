@@ -49,7 +49,6 @@ logger = logging.getLogger(__name__)
 class TrainManager:
     """ Manages training loop, validations, learning rate scheduling
     and early stopping."""
-
     def __init__(self, model: Model, config: dict) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
@@ -67,8 +66,7 @@ class TrainManager:
         self.valid_report_file = "{}/validations.txt".format(self.model_dir)
         self.tb_writer = SummaryWriter(log_dir=self.model_dir + "/tensorboard/")
 
-        self.save_latest_checkpoint = train_config.get("save_latest_ckpt",
-                                                       False)
+        self.save_latest_checkpoint = train_config.get("save_latest_ckpt", True)
 
         # model
         self.model = model
@@ -218,6 +216,8 @@ class TrainManager:
         the best checkpoint score and iteration so far,
         and optimizer and scheduler states.
 
+        :param new_best: This boolean signals which symlink we will use for the
+          new checkpoint. If it is true, we update best.ckpt, else latest.ckpt.
         """
         model_path = os.path.join(self.model_dir,
                                   "{}.ckpt".format(self.stats.steps))
@@ -226,24 +226,23 @@ class TrainManager:
             else self.model.state_dict()
         state = {
             "steps":
-                self.stats.steps,
+            self.stats.steps,
             "total_tokens":
-                self.stats.total_tokens,
+            self.stats.total_tokens,
             "best_ckpt_score":
-                self.stats.best_ckpt_score,
+            self.stats.best_ckpt_score,
             "best_ckpt_iteration":
-                self.stats.best_ckpt_iter,
+            self.stats.best_ckpt_iter,
             "model_state":
-                model_state_dict,
+            model_state_dict,
             "optimizer_state":
-                self.optimizer.state_dict(),
+            self.optimizer.state_dict(),
             "scheduler_state":
-                self.scheduler.state_dict()
-                if self.scheduler is not None else None,
+            self.scheduler.state_dict() if self.scheduler is not None else None,
             'amp_state':
-                amp.state_dict() if self.fp16 else None,
+            amp.state_dict() if self.fp16 else None,
             "train_iter_state":
-                self.train_iter.state_dict()
+            self.train_iter.state_dict()
         }
         torch.save(state, model_path)
         symlink_target = "{}.ckpt".format(self.stats.steps)
@@ -300,7 +299,7 @@ class TrainManager:
         :param reset_optimizer: reset the optimizer, and do not use the one
                                 stored in the checkpoint.
         :param reset_iter_state: reset the sampler's internal state and do not
-                                use the one store3d in the checkpoint.
+                                use the one stored in the checkpoint.
         """
         logger.info("Loading model from %s", path)
         model_checkpoint = load_checkpoint(path=path, use_cuda=self.use_cuda)
@@ -331,8 +330,8 @@ class TrainManager:
         else:
             logger.info("Reset tracking of the best checkpoint.")
 
-        if (not reset_iter_state and
-                model_checkpoint.get('train_iter_state', None) is not None):
+        if (not reset_iter_state
+                and model_checkpoint.get('train_iter_state', None) is not None):
             self.train_iter_state = model_checkpoint["train_iter_state"]
 
         # move parameters to cuda
@@ -722,7 +721,6 @@ class TrainManager:
                 opened_file.write("{}\n".format(hyp))
 
     class TrainStatistics:
-
         def __init__(self,
                      steps: int = 0,
                      stop: bool = False,
