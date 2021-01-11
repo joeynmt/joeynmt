@@ -335,7 +335,7 @@ def symlink_update(target, link_name):
 
 
 def latest_checkpoint_update(target: pathlib.Path,
-                             link_name: str) -> pathlib.Path:
+                             link_name: str) -> Optional[pathlib.Path]:
     link = pathlib.Path(link_name)
     if link.is_symlink():
         current_last = link.resolve()
