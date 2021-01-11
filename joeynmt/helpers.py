@@ -336,6 +336,18 @@ def symlink_update(target, link_name):
 
 def latest_checkpoint_update(target: pathlib.Path,
                              link_name: str) -> Optional[pathlib.Path]:
+    """
+    This function finds the file that the symlink currently points to, sets it
+    to the new target, and returns the previous target if it exists.
+
+    :param target: A path to a file that we want the symlink to point to.
+    :param link_name: This is the name of the symlink that we want to update.
+
+    :return:
+        - current_last: This is the previous target of the symlink, before it is
+            updated in this function. If the symlink did not exist before or did
+            not have a target, None is returned instead.
+    """
     link = pathlib.Path(link_name)
     if link.is_symlink():
         current_last = link.resolve()
