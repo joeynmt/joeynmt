@@ -427,9 +427,7 @@ def run_batch(model: Model, batch: Batch, max_output_length: int,
     """
     with torch.no_grad():
         encoder_output, encoder_hidden, _, _ = model(
-            return_type="encode", src=batch.src,
-            src_length=batch.src_length,
-            src_mask=batch.src_mask)
+            return_type="encode", **vars(batch))
 
     # if maximum output length is not globally specified, adapt to src len
     if max_output_length is None:

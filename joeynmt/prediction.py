@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
+                     batch_class: Batch,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      n_gpu: int,
@@ -46,6 +47,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param model: model module
     :param data: dataset for validation
     :param batch_size: validation batch size
+    :param batch_class: class type of batch
     :param use_cuda: if True, use CUDA
     :param max_output_length: maximum length for generated hypotheses
     :param level: segmentation level, one of "char", "bpe", "word"
@@ -99,16 +101,13 @@ def validate_on_data(model: Model, data: Dataset,
         for valid_batch in iter(valid_iter):
             # run as during training to get validation loss (e.g. xent)
 
-            batch = Batch(valid_batch, pad_index, use_cuda=use_cuda)
+            batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
             sort_reverse_index = batch.sort_by_src_length()
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
-                batch_loss, _, _, _ = model(
-                    return_type="loss", src=batch.src, trg=batch.trg,
-                    trg_input=batch.trg_input, trg_mask=batch.trg_mask,
-                    src_mask=batch.src_mask, src_length=batch.src_length)
+                batch_loss, _, _, _ = model(return_type="loss", **vars(batch))
                 if n_gpu > 1:
                     batch_loss = batch_loss.mean() # average on multi-gpu
                 total_loss += batch_loss
@@ -283,7 +282,7 @@ def test(cfg_file,
         _, dev_data, test_data, src_vocab, trg_vocab = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
-    else:   # avoid to load data again
+    else:  # avoid to load data again
         data_to_predict = {"dev": datasets["dev"], "test": datasets["test"]}
         src_vocab = datasets["src_vocab"]
         trg_vocab = datasets["trg_vocab"]
