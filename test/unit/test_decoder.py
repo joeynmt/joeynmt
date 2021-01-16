@@ -193,20 +193,19 @@ class TestRecurrentDecoder(TensorTestCase):
         self.assertEqual(output.shape, torch.Size(
             [batch_size, time_dim, self.vocab_size]))
         self.assertEqual(hidden.shape, torch.Size(
-            [self.num_layers, batch_size, self.hidden_size]))
+            [batch_size, self.num_layers, self.hidden_size]))
         self.assertEqual(att_probs.shape, torch.Size(
             [batch_size, time_dim, time_dim]))
         self.assertEqual(att_vectors.shape, torch.Size(
             [batch_size, time_dim, self.hidden_size]))
         hidden_target = torch.Tensor(
-            [[[0.1814, 0.5468, -0.4717, -0.7580, 0.5834, -0.4018],
-             [0.1814, 0.5468, -0.4717, -0.7580, 0.5834, -0.4018]],
+            [[[ 0.1814,  0.5468, -0.4717, -0.7580,  0.5834, -0.4018],
+              [ 0.4649,  0.5484, -0.2702,  0.4545,  0.1983,  0.2771],
+              [-0.1752, -0.4215,  0.1941, -0.3975, -0.2317, -0.5566]],
 
-            [[0.4649, 0.5484, -0.2702, 0.4545, 0.1983, 0.2771],
-             [0.4649, 0.5484, -0.2702, 0.4545, 0.1983, 0.2771]],
-
-            [[-0.1752, -0.4215, 0.1941, -0.3975, -0.2317, -0.5566],
-             [-0.1752, -0.4215, 0.1941, -0.3975, -0.2317, -0.5566]]])
+             [[ 0.1814,  0.5468, -0.4717, -0.7580,  0.5834, -0.4018],
+              [ 0.4649,  0.5484, -0.2702,  0.4545,  0.1983,  0.2771],
+              [-0.1752, -0.4215,  0.1941, -0.3975, -0.2317, -0.5566]]])
         output_target = torch.Tensor(
             [[[ 0.2702, -0.1988, -0.1985, -0.2998, -0.2564],
              [ 0.2719, -0.2075, -0.2017, -0.2988, -0.2595],

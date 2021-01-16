@@ -124,7 +124,9 @@ class Model(nn.Module):
                                                       src_length=src_length,
                                                       src_mask=src_mask,
                                                       **kwargs)
+
         unroll_steps = trg_input.size(1)
+        assert "decoder_hidden" not in kwargs.keys()
         return self._decode(encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             src_mask=src_mask, trg_input=trg_input,
@@ -141,7 +143,8 @@ class Model(nn.Module):
         :param src_mask:
         :return: encoder outputs (output, hidden_concat)
         """
-        return self.encoder(self.src_embed(src), src_length, src_mask)
+        return self.encoder(self.src_embed(src), src_length, src_mask,
+                            **_kwargs)
 
     def _decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
                 src_mask: Tensor, trg_input: Tensor,
@@ -168,7 +171,8 @@ class Model(nn.Module):
                             unroll_steps=unroll_steps,
                             hidden=decoder_hidden,
                             prev_att_vector=att_vector,
-                            trg_mask=trg_mask)
+                            trg_mask=trg_mask,
+                            **_kwargs)
 
     def __repr__(self) -> str:
         """

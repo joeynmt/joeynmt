@@ -201,8 +201,11 @@ def parse_test_args(cfg, mode="test"):
     device = torch.device("cuda" if use_cuda else "cpu")
     if mode == 'test':
         n_gpu = torch.cuda.device_count() if use_cuda else 0
-        logger.info("Process device: %s, n_gpu: %d, batch_size per device: %d",
-            device, n_gpu, batch_size // n_gpu if n_gpu > 1 else batch_size)
+        k = cfg["testing"].get("beam_size", 1)
+        batch_per_device = batch_size*k // n_gpu if n_gpu > 1 else batch_size*k
+        logger.info("Process device: %s, n_gpu: %d, "
+                    "batch_size per device: %d (with beam_size)",
+                    device, n_gpu, batch_per_device)
         eval_metric = cfg["training"]["eval_metric"]
 
     elif mode == 'translate':
