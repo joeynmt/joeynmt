@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 # pylint: disable=too-many-arguments,too-many-locals,no-member
 def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
-                     batch_class: Batch,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      n_gpu: int,
+                     batch_class: Batch = Batch,
                      compute_loss: bool = False,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
@@ -360,7 +360,10 @@ def test(cfg_file,
             logger.info("Translations saved to: %s", output_path_set)
 
 
-def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
+def translate(cfg_file: str,
+              ckpt: str,
+              output_path: str = None,
+              batch_class: Batch = Batch) -> None:
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or
@@ -372,6 +375,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
     :param output_path: path to output file
+    :param batch_class: class type of batch
     """
 
     def _load_line_as_data(line):
@@ -398,7 +402,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=test_data, batch_size=batch_size,
-            batch_type=batch_type, level=level,
+            batch_class=batch_class, batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
