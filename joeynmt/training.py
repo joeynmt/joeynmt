@@ -169,7 +169,7 @@ class TrainManager:
         self.n_gpu = torch.cuda.device_count() if self.use_cuda else 0
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
         if self.use_cuda:
-            self.model.cuda()
+            self.model.to(self.device)
 
         # fp16
         self.fp16 = train_config.get("fp16", False)
@@ -300,7 +300,7 @@ class TrainManager:
 
         # move parameters to cuda
         if self.use_cuda:
-            self.model.cuda()
+            self.model.to(self.device)
 
         # fp16
         if self.fp16 and model_checkpoint.get("amp_state", None) is not None:

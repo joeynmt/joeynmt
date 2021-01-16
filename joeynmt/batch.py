@@ -3,13 +3,14 @@
 """
 Implementation of a mini-batch.
 """
+import torch
 
 
 class Batch:
     """Object for holding a batch of data with mask during training.
     Input is a batch from a torch text iterator.
     """
-
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, torch_batch, pad_index, use_cuda=False):
         """
         Create a new joey batch from a torch batch.
@@ -30,6 +31,7 @@ class Batch:
         self.trg_length = None
         self.ntokens = None
         self.use_cuda = use_cuda
+        self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         if hasattr(torch_batch, "trg"):
             trg, trg_length = torch_batch.trg
@@ -42,7 +44,7 @@ class Batch:
             self.trg_mask = (self.trg_input != pad_index).unsqueeze(1)
             self.ntokens = (self.trg != pad_index).data.sum().item()
 
-        if use_cuda:
+        if self.use_cuda:
             self._make_cuda()
 
     def _make_cuda(self):
@@ -51,14 +53,14 @@ class Batch:
 
         :return:
         """
-        self.src = self.src.cuda()
-        self.src_mask = self.src_mask.cuda()
-        self.src_length = self.src_length.cuda()
+        self.src = self.src.to(self.device)
+        self.src_mask = self.src_mask.to(self.device)
+        self.src_length = self.src_length.to(self.device)
 
         if self.trg_input is not None:
-            self.trg_input = self.trg_input.cuda()
-            self.trg = self.trg.cuda()
-            self.trg_mask = self.trg_mask.cuda()
+            self.trg_input = self.trg_input.to(self.device)
+            self.trg = self.trg.to(self.device)
+            self.trg_mask = self.trg_mask.to(self.device)
 
     def sort_by_src_length(self):
         """
