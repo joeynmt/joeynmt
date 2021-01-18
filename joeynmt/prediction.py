@@ -201,8 +201,11 @@ def parse_test_args(cfg, mode="test"):
     device = torch.device("cuda" if use_cuda else "cpu")
     if mode == 'test':
         n_gpu = torch.cuda.device_count() if use_cuda else 0
-        logger.info("Process device: %s, n_gpu: %d, batch_size per device: %d",
-            device, n_gpu, batch_size // n_gpu if n_gpu > 1 else batch_size)
+        k = cfg["testing"].get("beam_size", 1)
+        batch_per_device = batch_size*k // n_gpu if n_gpu > 1 else batch_size*k
+        logger.info("Process device: %s, n_gpu: %d, "
+                    "batch_size per device: %d (with beam_size)",
+                    device, n_gpu, batch_per_device)
         eval_metric = cfg["training"]["eval_metric"]
 
     elif mode == 'translate':
@@ -240,7 +243,7 @@ def parse_test_args(cfg, mode="test"):
     tokenizer_info = f"[{sacrebleu['tokenize']}]" \
         if eval_metric == "bleu" else ""
 
-    return batch_size, batch_type, use_cuda, n_gpu, level, \
+    return batch_size, batch_type, use_cuda, device, n_gpu, level, \
            eval_metric, max_output_length, beam_size, beam_alpha, \
            postprocess, bpe_type, sacrebleu, decoding_description, \
            tokenizer_info
@@ -290,7 +293,7 @@ def test(cfg_file,
         trg_vocab = datasets["trg_vocab"]
 
     # parse test args
-    batch_size, batch_type, use_cuda, n_gpu, level, eval_metric, \
+    batch_size, batch_type, use_cuda, device, n_gpu, level, eval_metric, \
         max_output_length, beam_size, beam_alpha, postprocess, \
         bpe_type, sacrebleu, decoding_description, tokenizer_info \
         = parse_test_args(cfg, mode="test")
@@ -303,7 +306,7 @@ def test(cfg_file,
     model.load_state_dict(model_checkpoint["model_state"])
 
     if use_cuda:
-        model.cuda()
+        model.to(device)
 
     # multi-gpu eval
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
@@ -439,7 +442,7 @@ def translate(cfg_file: str,
     src_field.vocab = src_vocab
 
     # parse test args
-    batch_size, batch_type, use_cuda, n_gpu, level, _, \
+    batch_size, batch_type, use_cuda, device, n_gpu, level, _, \
         max_output_length, beam_size, beam_alpha, postprocess, \
         bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
 
@@ -451,7 +454,7 @@ def translate(cfg_file: str,
     model.load_state_dict(model_checkpoint["model_state"])
 
     if use_cuda:
-        model.cuda()
+        model.to(device)
 
     if not sys.stdin.isatty():
         # input file given

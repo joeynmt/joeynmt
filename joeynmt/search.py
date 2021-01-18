@@ -197,17 +197,23 @@ def beam_search(model: Model, size: int,
     transformer = isinstance(model.decoder, TransformerDecoder)
     batch_size = src_mask.size(0)
     att_vectors = None  # not used for Transformer
+    hidden = None       # not used for Transformer
+    trg_mask = None     # not used for RNN
 
     # Recurrent models only: initialize RNN hidden state
     # pylint: disable=protected-access
     if not transformer:
+        # tile encoder states and decoder initial states beam_size times
         hidden = model.decoder._init_hidden(encoder_hidden)
-    else:
-        hidden = None
-
-    # tile encoder states and decoder initial states beam_size times
-    if hidden is not None:
         hidden = tile(hidden, size, dim=1)  # layers x batch*k x dec_hidden_size
+        # DataParallel splits batch along the 0th dim.
+        # Place back the batch_size to the 1st dim here.
+        if isinstance(hidden, tuple):
+            h, c = hidden
+            hidden = (h.permute(1, 0, 2), c.permute(1, 0, 2))
+        else:
+            hidden = hidden.permute(1, 0, 2)
+            # batch*k x layers x dec_hidden_size
 
     encoder_output = tile(encoder_output.contiguous(), size,
                           dim=0)  # batch*k x src_len x enc_hidden_size
@@ -219,8 +225,6 @@ def beam_search(model: Model, size: int,
         if isinstance(model, torch.nn.DataParallel):
             trg_mask = torch.stack(
                 [src_mask.new_ones([1, 1]) for _ in model.device_ids])
-    else:
-        trg_mask = None
 
     # numbering elements in the batch
     batch_offset = torch.arange(batch_size, dtype=torch.long, device=device)
@@ -273,7 +277,7 @@ def beam_search(model: Model, size: int,
             logits, hidden, att_scores, att_vectors = model(
                 return_type="decode",
                 encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
+                encoder_hidden=None, # used to initialize decoder_hidden only
                 src_mask=src_mask,
                 trg_input=decoder_input, #trg_embed = embed(decoder_input)
                 decoder_hidden=hidden,
@@ -384,12 +388,12 @@ def beam_search(model: Model, size: int,
             if isinstance(hidden, tuple):
                 # for LSTMs, states are tuples of tensors
                 h, c = hidden
-                h = h.index_select(1, select_indices)
-                c = c.index_select(1, select_indices)
+                h = h.index_select(0, select_indices)
+                c = c.index_select(0, select_indices)
                 hidden = (h, c)
             else:
                 # for GRUs, states are single tensors
-                hidden = hidden.index_select(1, select_indices)
+                hidden = hidden.index_select(0, select_indices)
 
         if att_vectors is not None:
             att_vectors = att_vectors.index_select(0, select_indices)
