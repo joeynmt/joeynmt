@@ -159,7 +159,7 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 ## Documentation and Tutorial
 - [The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation](https://joeynmt.readthedocs.io/en/latest/api.html) and [FAQs](https://joeynmt.readthedocs.io/en/latest/faq.html).
 - A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc). :movie_camera:
-- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
+- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane-mt/blob/master/starter_notebook-custom-data.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
 - Matthias Müller wrote a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) for installation, data download and preparation, model training and evaluation.
 
 ## Benchmarks
