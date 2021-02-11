@@ -208,7 +208,7 @@ class TransformerEncoder(Encoder):
         :param src_length: length of src inputs
             (counting tokens before padding), shape (batch_size)
         :param mask: indicates padding areas (zeros where padding), shape
-            (batch_size, src_len, embed_size)
+            (batch_size, 1, src_len)
         :return:
             - output: hidden states with
                 shape (batch_size, max_length, directions*hidden),

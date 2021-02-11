@@ -324,7 +324,7 @@ class RecurrentDecoder(Decoder):
             shape (batch_size, 1, hidden_size)
         :return:
             - outputs: shape (batch_size, unroll_steps, vocab_size),
-            - hidden: last hidden state (num_layers, batch_size, hidden_size),
+            - hidden: last hidden state (batch_size, num_layers, hidden_size),
             - att_probs: attention probabilities
                 with shape (batch_size, unroll_steps, src_length),
             - att_vectors: attentional vectors
