@@ -57,14 +57,19 @@ def average_checkpoints(inputs: List[str]) -> dict:
             if isinstance(p, torch.HalfTensor):
                 p = p.float()
             if k not in params_dict:
-                params_dict[k] = p
+                params_dict[k] = p.clone()
+                # NOTE: clone() is needed in case of p is a shared parameter
             else:
                 params_dict[k] += p
 
     averaged_params = collections.OrderedDict()
     # v should be a list of torch Tensor.
     for k, v in params_dict.items():
-        averaged_params[k] = v / num_models
+        averaged_params[k] = v
+        if averaged_params[k].is_floating_point():
+            averaged_params[k].div_(num_models)
+        else:
+            averaged_params[k] //= num_models
     new_state['model_state'] = averaged_params
     return new_state
 
