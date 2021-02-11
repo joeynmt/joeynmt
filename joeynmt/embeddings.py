@@ -1,6 +1,14 @@
+# coding: utf-8
+"""
+Embedding module
+"""
+
+import io
 import math
+import torch
 from torch import nn, Tensor
 from joeynmt.helpers import freeze_params
+from joeynmt.vocabulary import Vocabulary
 
 
 class Embeddings(nn.Module):
@@ -53,3 +61,39 @@ class Embeddings(nn.Module):
     def __repr__(self):
         return "%s(embedding_dim=%d, vocab_size=%d)" % (
             self.__class__.__name__, self.embedding_dim, self.vocab_size)
+
+    #from fairseq
+    def load_from_file(self, embed_path: str, vocab: Vocabulary):
+        """Load pretrained embedding weights from text file.
+
+        - first line will be ignored (vocabulary size and dimension)
+        - each line should contain word and embedding weights
+          separated by spaces.
+        - should be called after initialization!
+
+        Example:
+            2 5
+            the -0.0230 -0.0264  0.0287  0.0171  0.1403
+            at -0.0395 -0.1286  0.0275  0.0254 -0.0932
+
+        :param embed_path: embedding weights text file
+        :param vocab: Vocabulary object
+        """
+        embed_dict = {}
+        # parse file
+        with io.open(embed_path, 'r', encoding='utf-8',
+                     errors='ignore') as f_embed:
+            _, d = map(int, f_embed.readline().split())
+            assert self.embedding_dim == d, \
+                "embedding dimension doesn't match."
+            for line in f_embed.readlines():
+                tokens = line.rstrip().split(' ')
+                if tokens[0] in vocab.stoi.keys():
+                    embed_dict[tokens[0]] = torch.FloatTensor(
+                        [float(t) for t in tokens[1:]])
+        # assign
+        for idx in range(len(vocab)):
+            token = vocab.itos[idx]
+            if token in embed_dict:
+                assert self.embedding_dim == len(embed_dict[token])
+                self.lut.weight.data[idx] = embed_dict[token]
