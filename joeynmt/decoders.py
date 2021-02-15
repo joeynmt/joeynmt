@@ -185,8 +185,9 @@ class RecurrentDecoder(Decoder):
         :param prev_att_vector:
         """
         assert len(encoder_output.shape) == 3
-        assert len(encoder_hidden.shape) == 2
-        assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
+        if encoder_hidden is not None:
+            assert len(encoder_hidden.shape) == 2
+            assert encoder_hidden.shape[-1] == encoder_output.shape[-1]
         assert src_mask.shape[1] == 1
         assert src_mask.shape[0] == encoder_output.shape[0]
         assert src_mask.shape[2] == encoder_output.shape[1]
@@ -306,18 +307,18 @@ class RecurrentDecoder(Decoder):
          initialize the first hidden decoder state
          (when `self.init_hidden_option` is "bridge" or "last").
 
-        :param trg_embed: emdedded target inputs,
+        :param trg_embed: embedded target inputs,
             shape (batch_size, trg_length, embed_size)
         :param encoder_output: hidden states from the encoder,
             shape (batch_size, src_length, encoder.output_size)
         :param encoder_hidden: last state from the encoder,
-            shape (batch_size x encoder.output_size)
+            shape (batch_size, encoder.output_size)
         :param src_mask: mask for src states: 0s for padded areas,
             1s for the rest, shape (batch_size, 1, src_length)
-        :param unroll_steps: number of steps to unrol the decoder RNN
+        :param unroll_steps: number of steps to unroll the decoder RNN
         :param hidden: previous decoder hidden state,
             if not given it's initialized as in `self.init_hidden`,
-            shape (num_layers, batch_size, hidden_size)
+            shape (batch_size, num_layers, hidden_size)
         :param prev_att_vector: previous attentional vector,
             if not given it's initialized with zeros,
             shape (batch_size, 1, hidden_size)
@@ -329,6 +330,19 @@ class RecurrentDecoder(Decoder):
             - att_vectors: attentional vectors
                 with shape (batch_size, unroll_steps, hidden_size)
         """
+        # initialize decoder hidden state from final encoder hidden state
+        if hidden is None and encoder_hidden is not None:
+            hidden = self._init_hidden(encoder_hidden)
+        else:
+            # DataParallel splits batch along the 0th dim.
+            # Place back the batch_size to the 1st dim here.
+            if isinstance(hidden, tuple):
+                h, c = hidden
+                hidden = (h.permute(1, 0, 2).contiguous(),
+                          c.permute(1, 0, 2).contiguous())
+            else:
+                hidden = hidden.permute(1, 0, 2).contiguous()
+            # shape (num_layers, batch_size, hidden_size)
 
         # shape checks
         self._check_shapes_input_forward(
@@ -338,10 +352,6 @@ class RecurrentDecoder(Decoder):
             src_mask=src_mask,
             hidden=hidden,
             prev_att_vector=prev_att_vector)
-
-        # initialize decoder hidden state from final encoder hidden state
-        if hidden is None:
-            hidden = self._init_hidden(encoder_hidden)
 
         # pre-compute projected encoder outputs
         # (the "keys" for the attention mechanism)
@@ -378,6 +388,18 @@ class RecurrentDecoder(Decoder):
         # att_probs: batch, unroll_steps, src_length
         outputs = self.output_layer(att_vectors)
         # outputs: batch, unroll_steps, vocab_size
+
+        # DataParallel gathers batches along the 0th dim.
+        # Put batch_size dim to the 0th position.
+        if isinstance(hidden, tuple):
+            h, c = hidden
+            hidden = (h.permute(1, 0, 2).contiguous(),
+                      c.permute(1, 0, 2).contiguous())
+            assert hidden[0].size(0) == batch_size
+        else:
+            hidden = hidden.permute(1, 0, 2).contiguous()
+            assert hidden.size(0) == batch_size
+        # shape (batch_size, num_layers, hidden_size)
         return outputs, hidden, att_probs, att_vectors
 
     def _init_hidden(self, encoder_final: Tensor = None) \

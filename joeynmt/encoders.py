@@ -51,7 +51,6 @@ class RecurrentEncoder(Encoder):
         :param freeze: freeze the parameters of the encoder during training
         :param kwargs:
         """
-
         super().__init__()
 
         self.emb_dropout = torch.nn.Dropout(p=emb_dropout, inplace=False)
@@ -87,8 +86,8 @@ class RecurrentEncoder(Encoder):
         assert len(src_length.shape) == 1
 
     #pylint: disable=arguments-differ
-    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor) \
-            -> (Tensor, Tensor):
+    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor,
+                **kwargs) -> (Tensor, Tensor):
         """
         Applies a bidirectional RNN to sequence of embeddings x.
         The input mini-batch x needs to be sorted by src length.
@@ -109,6 +108,7 @@ class RecurrentEncoder(Encoder):
         self._check_shapes_input_forward(embed_src=embed_src,
                                          src_length=src_length,
                                          mask=mask)
+        total_length = embed_src.size(1)
 
         # apply dropout to the rnn input
         embed_src = self.emb_dropout(embed_src)
@@ -121,7 +121,8 @@ class RecurrentEncoder(Encoder):
         if isinstance(hidden, tuple):
             hidden, memory_cell = hidden
 
-        output, _ = pad_packed_sequence(output, batch_first=True)
+        output, _ = pad_packed_sequence(output, batch_first=True,
+                                        total_length=total_length)
         # hidden: dir*layers x batch x hidden
         # output: batch x max_length x directions*hidden
         batch_size = hidden.size()[1]
@@ -195,7 +196,7 @@ class TransformerEncoder(Encoder):
     def forward(self,
                 embed_src: Tensor,
                 src_length: Tensor,
-                mask: Tensor) -> (Tensor, Tensor):
+                mask: Tensor, **kwargs) -> (Tensor, Tensor):
         """
         Pass the input (and mask) through each layer in turn.
         Applies a Transformer encoder to sequence of embeddings x.

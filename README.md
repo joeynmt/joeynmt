@@ -54,6 +54,9 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://git
 A. [*Now also directly with pip!*](https://pypi.org/project/joeynmt/)
   `pip install joeynmt`
   
+  If you want to use GPUs add: `pip install torch==1.7.1+cu101 -f https://download.pytorch.org/whl/torch_stable.html`, for CUDA v10.1.
+  You'll need this in particular when working on Google Colab.
+  
 B. From source
   1. Clone this repository:
   `git clone https://github.com/joeynmt/joeynmt.git`
@@ -63,7 +66,7 @@ B. From source
   3. Run the unit tests:
   `python3 -m unittest`
 
-**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version (1.7.1) for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 
 ## Usage
@@ -156,7 +159,7 @@ and you'll be prompted to type input sentences that JoeyNMT will then translate 
 ## Documentation and Tutorial
 - [The docs](https://joeynmt.readthedocs.io) include an overview of the NMT implementation, a walk-through tutorial for building, training, tuning, testing and inspecting an NMT system, the [API documentation](https://joeynmt.readthedocs.io/en/latest/api.html) and [FAQs](https://joeynmt.readthedocs.io/en/latest/faq.html).
 - A screencast of the tutorial is available on [YouTube](https://www.youtube.com/watch?v=PzWRWSIwSYc). :movie_camera:
-- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
+- Jade Abbott wrote a [notebook](https://github.com/masakhane-io/masakhane-mt/blob/master/starter_notebook-custom-data.ipynb) that runs on Colab that shows how to prepare data, train and evaluate a model, at the example of low-resource African languages.
 - Matthias Müller wrote a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) for installation, data download and preparation, model training and evaluation.
 
 ## Benchmarks

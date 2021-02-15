@@ -77,20 +77,26 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
 
     if optimizer_name == "adam":
         adam_betas = config.get("adam_betas", (0.9, 0.999))
-        optimizer = torch.optim.Adam(parameters, weight_decay=weight_decay,
-                                     lr=learning_rate, betas=adam_betas)
+        optimizer = torch.optim.Adam(parameters,
+                                     weight_decay=weight_decay,
+                                     lr=learning_rate,
+                                     betas=adam_betas)
     elif optimizer_name == "adagrad":
-        optimizer = torch.optim.Adagrad(parameters, weight_decay=weight_decay,
+        optimizer = torch.optim.Adagrad(parameters,
+                                        weight_decay=weight_decay,
                                         lr=learning_rate)
     elif optimizer_name == "adadelta":
-        optimizer = torch.optim.Adadelta(parameters, weight_decay=weight_decay,
+        optimizer = torch.optim.Adadelta(parameters,
+                                         weight_decay=weight_decay,
                                          lr=learning_rate)
     elif optimizer_name == "rmsprop":
-        optimizer = torch.optim.RMSprop(parameters, weight_decay=weight_decay,
+        optimizer = torch.optim.RMSprop(parameters,
+                                        weight_decay=weight_decay,
                                         lr=learning_rate)
     elif optimizer_name == "sgd":
         # default
-        optimizer = torch.optim.SGD(parameters, weight_decay=weight_decay,
+        optimizer = torch.optim.SGD(parameters,
+                                    weight_decay=weight_decay,
                                     lr=learning_rate)
     else:
         raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
@@ -132,32 +138,32 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
             config["scheduling"]:
         if config["scheduling"].lower() == "plateau":
             # learning rate scheduler
-            scheduler = ReduceLROnPlateau(
-                optimizer=optimizer,
-                mode=scheduler_mode,
-                verbose=False,
-                threshold_mode='abs',
-                factor=config.get("decrease_factor", 0.1),
-                patience=config.get("patience", 10))
+            scheduler = ReduceLROnPlateau(optimizer=optimizer,
+                                          mode=scheduler_mode,
+                                          verbose=False,
+                                          threshold_mode='abs',
+                                          factor=config.get(
+                                              "decrease_factor", 0.1),
+                                          patience=config.get("patience", 10))
             # scheduler step is executed after every validation
             scheduler_step_at = "validation"
         elif config["scheduling"].lower() == "decaying":
-            scheduler = StepLR(
-                optimizer=optimizer,
-                step_size=config.get("decaying_step_size", 1))
+            scheduler = StepLR(optimizer=optimizer,
+                               step_size=config.get("decaying_step_size", 1))
             # scheduler step is executed after every epoch
             scheduler_step_at = "epoch"
         elif config["scheduling"].lower() == "exponential":
-            scheduler = ExponentialLR(
-                optimizer=optimizer,
-                gamma=config.get("decrease_factor", 0.99))
+            scheduler = ExponentialLR(optimizer=optimizer,
+                                      gamma=config.get("decrease_factor", 0.99))
             # scheduler step is executed after every epoch
             scheduler_step_at = "epoch"
         elif config["scheduling"].lower() == "noam":
             factor = config.get("learning_rate_factor", 1)
             warmup = config.get("learning_rate_warmup", 4000)
-            scheduler = NoamScheduler(hidden_size=hidden_size, factor=factor,
-                                      warmup=warmup, optimizer=optimizer)
+            scheduler = NoamScheduler(hidden_size=hidden_size,
+                                      factor=factor,
+                                      warmup=warmup,
+                                      optimizer=optimizer)
 
             scheduler_step_at = "step"
         elif config["scheduling"].lower() == "warmupexponentialdecay":
@@ -167,8 +173,11 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
             peak_rate = config.get("learning_rate_peak", 1.0e-3)
             decay_length = config.get("learning_rate_decay_length", 10000)
             scheduler = WarmupExponentialDecayScheduler(
-                min_rate=min_rate, decay_rate=decay_rate,
-                warmup=warmup, optimizer=optimizer, peak_rate=peak_rate,
+                min_rate=min_rate,
+                decay_rate=decay_rate,
+                warmup=warmup,
+                optimizer=optimizer,
+                peak_rate=peak_rate,
                 decay_length=decay_length)
             scheduler_step_at = "step"
     return scheduler, scheduler_step_at
@@ -179,9 +188,11 @@ class NoamScheduler:
     The Noam learning rate scheduler used in "Attention is all you need"
     See Eq. 3 in https://arxiv.org/pdf/1706.03762.pdf
     """
-
-    def __init__(self, hidden_size: int, optimizer: torch.optim.Optimizer,
-                 factor: float = 1, warmup: int = 4000):
+    def __init__(self,
+                 hidden_size: int,
+                 optimizer: torch.optim.Optimizer,
+                 factor: float = 1,
+                 warmup: int = 4000):
         """
         Warm-up, followed by learning rate decay.
 
@@ -212,9 +223,24 @@ class NoamScheduler:
             (self.hidden_size ** (-0.5) *
                 min(step ** (-0.5), step * self.warmup ** (-1.5)))
 
-    #pylint: disable=no-self-use
     def state_dict(self):
-        return None
+        """Returns dictionary of values necessary to reconstruct scheduler"""
+        state_dict = {
+            "step": self._step,
+            "warmup": self.warmup,
+            "factor": self.factor,
+            "hidden_size": self.hidden_size,
+            "rate": self._rate
+        }
+        return state_dict
+
+    def load_state_dict(self, state_dict):
+        """Given a state_dict, this function loads scheduler's state"""
+        self._step = state_dict["step"]
+        self.warmup = state_dict["warmup"]
+        self.factor = state_dict["factor"]
+        self.hidden_size = state_dict["hidden_size"]
+        self._rate = state_dict["rate"]
 
 
 class WarmupExponentialDecayScheduler:
@@ -223,11 +249,13 @@ class WarmupExponentialDecayScheduler:
     Keep the warm up period but make it so that the decay rate can be tuneable.
     The decay is exponential up to a given minimum rate.
     """
-
-    def __init__(self, optimizer: torch.optim.Optimizer,
+    def __init__(self,
+                 optimizer: torch.optim.Optimizer,
                  peak_rate: float = 1.0e-3,
-                 decay_length: int = 10000, warmup: int = 4000,
-                 decay_rate: float = 0.5, min_rate: float = 1.0e-5):
+                 decay_length: int = 10000,
+                 warmup: int = 4000,
+                 decay_rate: float = 0.5,
+                 min_rate: float = 1.0e-5):
         """
         Warm-up, followed by exponential learning rate decay.
 
@@ -264,9 +292,28 @@ class WarmupExponentialDecayScheduler:
             rate = step * self.peak_rate / warmup
         else:
             exponent = (step - warmup) / self.decay_length
-            rate = self.peak_rate * (self.decay_rate ** exponent)
+            rate = self.peak_rate * (self.decay_rate**exponent)
         return max(rate, self.min_rate)
 
-    #pylint: disable=no-self-use
     def state_dict(self):
-        return None
+        """Returns dictionary of values necessary to reconstruct scheduler"""
+        state_dict = {
+            "warmup": self.warmup,
+            "step": self._step,
+            "decay_length": self.decay_length,
+            "peak_rate": self.peak_rate,
+            "rate": self._rate,
+            "decay_rate": self.decay_rate,
+            "min_rate": self.min_rate
+        }
+        return state_dict
+
+    def load_state_dict(self, state_dict):
+        """Given a state_dict, this function loads scheduler's state"""
+        self.warmup = state_dict['warmup']
+        self._step = state_dict['step']
+        self.decay_length = state_dict['decay_length']
+        self.peak_rate = state_dict['peak_rate']
+        self._rate = state_dict['rate']
+        self.decay_rate = state_dict['decay_rate']
+        self.min_rate = state_dict['min_rate']

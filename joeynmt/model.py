@@ -79,12 +79,7 @@ class Model(nn.Module):
         if return_type == "loss":
             assert self.loss_function is not None
 
-            out, _, _, _ = self._encode_decode(
-                src=kwargs["src"],
-                trg_input=kwargs["trg_input"],
-                src_mask=kwargs["src_mask"],
-                src_length=kwargs["src_length"],
-                trg_mask=kwargs["trg_mask"])
+            out, _, _, _ = self._encode_decode(**kwargs)
 
             # compute log probs
             log_probs = F.log_softmax(out, dim=-1)
@@ -97,24 +92,13 @@ class Model(nn.Module):
             return_tuple = (batch_loss, None, None, None)
 
         elif return_type == "encode":
-            encoder_output, encoder_hidden = self._encode(
-                src=kwargs["src"],
-                src_length=kwargs["src_length"],
-                src_mask=kwargs["src_mask"])
+            encoder_output, encoder_hidden = self._encode(**kwargs)
 
             # return encoder outputs
             return_tuple = (encoder_output, encoder_hidden, None, None)
 
         elif return_type == "decode":
-            outputs, hidden, att_probs, att_vectors = self._decode(
-                trg_input=kwargs["trg_input"],
-                encoder_output=kwargs["encoder_output"],
-                encoder_hidden=kwargs["encoder_hidden"],
-                src_mask=kwargs["src_mask"],
-                unroll_steps=kwargs["unroll_steps"],
-                decoder_hidden=kwargs["decoder_hidden"],
-                att_vector=kwargs.get("att_vector", None),
-                trg_mask=kwargs.get("trg_mask", None))
+            outputs, hidden, att_probs, att_vectors = self._decode(**kwargs)
 
             # return decoder outputs
             return_tuple = (outputs, hidden, att_probs, att_vectors)
@@ -123,7 +107,7 @@ class Model(nn.Module):
 
     # pylint: disable=arguments-differ
     def _encode_decode(self, src: Tensor, trg_input: Tensor, src_mask: Tensor,
-                       src_length: Tensor, trg_mask: Tensor = None) \
+                       src_length: Tensor, trg_mask: Tensor = None, **kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
         First encodes the source sentence.
@@ -138,16 +122,19 @@ class Model(nn.Module):
         """
         encoder_output, encoder_hidden = self._encode(src=src,
                                                       src_length=src_length,
-                                                      src_mask=src_mask)
+                                                      src_mask=src_mask,
+                                                      **kwargs)
+
         unroll_steps = trg_input.size(1)
+        assert "decoder_hidden" not in kwargs.keys()
         return self._decode(encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             src_mask=src_mask, trg_input=trg_input,
                             unroll_steps=unroll_steps,
-                            trg_mask=trg_mask)
+                            trg_mask=trg_mask, **kwargs)
 
-    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor) \
-            -> (Tensor, Tensor):
+    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor,
+                **_kwargs) -> (Tensor, Tensor):
         """
         Encodes the source sentence.
 
@@ -156,12 +143,13 @@ class Model(nn.Module):
         :param src_mask:
         :return: encoder outputs (output, hidden_concat)
         """
-        return self.encoder(self.src_embed(src), src_length, src_mask)
+        return self.encoder(self.src_embed(src), src_length, src_mask,
+                            **_kwargs)
 
     def _decode(self, encoder_output: Tensor, encoder_hidden: Tensor,
                 src_mask: Tensor, trg_input: Tensor,
                 unroll_steps: int, decoder_hidden: Tensor = None,
-                att_vector: Tensor = None, trg_mask: Tensor = None) \
+                att_vector: Tensor = None, trg_mask: Tensor = None, **_kwargs) \
             -> (Tensor, Tensor, Tensor, Tensor):
         """
         Decode, given an encoded source sentence.
@@ -183,7 +171,8 @@ class Model(nn.Module):
                             unroll_steps=unroll_steps,
                             hidden=decoder_hidden,
                             prev_att_vector=att_vector,
-                            trg_mask=trg_mask)
+                            trg_mask=trg_mask,
+                            **_kwargs)
 
     def __repr__(self) -> str:
         """

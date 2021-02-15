@@ -30,6 +30,7 @@ def validate_on_data(model: Model, data: Dataset,
                      use_cuda: bool, max_output_length: int,
                      level: str, eval_metric: Optional[str],
                      n_gpu: int,
+                     batch_class: Batch = Batch,
                      compute_loss: bool = False,
                      beam_size: int = 1, beam_alpha: int = -1,
                      batch_type: str = "sentence",
@@ -46,6 +47,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param model: model module
     :param data: dataset for validation
     :param batch_size: validation batch size
+    :param batch_class: class type of batch
     :param use_cuda: if True, use CUDA
     :param max_output_length: maximum length for generated hypotheses
     :param level: segmentation level, one of "char", "bpe", "word"
@@ -99,16 +101,13 @@ def validate_on_data(model: Model, data: Dataset,
         for valid_batch in iter(valid_iter):
             # run as during training to get validation loss (e.g. xent)
 
-            batch = Batch(valid_batch, pad_index, use_cuda=use_cuda)
+            batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
             sort_reverse_index = batch.sort_by_src_length()
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
-                batch_loss, _, _, _ = model(
-                    return_type="loss", src=batch.src, trg=batch.trg,
-                    trg_input=batch.trg_input, trg_mask=batch.trg_mask,
-                    src_mask=batch.src_mask, src_length=batch.src_length)
+                batch_loss, _, _, _ = model(return_type="loss", **vars(batch))
                 if n_gpu > 1:
                     batch_loss = batch_loss.mean() # average on multi-gpu
                 total_loss += batch_loss
@@ -202,8 +201,11 @@ def parse_test_args(cfg, mode="test"):
     device = torch.device("cuda" if use_cuda else "cpu")
     if mode == 'test':
         n_gpu = torch.cuda.device_count() if use_cuda else 0
-        logger.info("Process device: %s, n_gpu: %d, batch_size per device: %d",
-            device, n_gpu, batch_size // n_gpu if n_gpu > 1 else batch_size)
+        k = cfg["testing"].get("beam_size", 1)
+        batch_per_device = batch_size*k // n_gpu if n_gpu > 1 else batch_size*k
+        logger.info("Process device: %s, n_gpu: %d, "
+                    "batch_size per device: %d (with beam_size)",
+                    device, n_gpu, batch_per_device)
         eval_metric = cfg["training"]["eval_metric"]
 
     elif mode == 'translate':
@@ -241,7 +243,7 @@ def parse_test_args(cfg, mode="test"):
     tokenizer_info = f"[{sacrebleu['tokenize']}]" \
         if eval_metric == "bleu" else ""
 
-    return batch_size, batch_type, use_cuda, n_gpu, level, \
+    return batch_size, batch_type, use_cuda, device, n_gpu, level, \
            eval_metric, max_output_length, beam_size, beam_alpha, \
            postprocess, bpe_type, sacrebleu, decoding_description, \
            tokenizer_info
@@ -250,6 +252,7 @@ def parse_test_args(cfg, mode="test"):
 # pylint: disable-msg=logging-too-many-args
 def test(cfg_file,
          ckpt: str,
+         batch_class: Batch = Batch,
          output_path: str = None,
          save_attention: bool = False,
          datasets: dict = None) -> None:
@@ -259,6 +262,7 @@ def test(cfg_file,
 
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
+    :param batch_class: class type of batch
     :param output_path: path to output
     :param datasets: datasets to predict
     :param save_attention: whether to save the computed attention weights
@@ -283,13 +287,13 @@ def test(cfg_file,
         _, dev_data, test_data, src_vocab, trg_vocab = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
-    else:   # avoid to load data again
+    else:  # avoid to load data again
         data_to_predict = {"dev": datasets["dev"], "test": datasets["test"]}
         src_vocab = datasets["src_vocab"]
         trg_vocab = datasets["trg_vocab"]
 
     # parse test args
-    batch_size, batch_type, use_cuda, n_gpu, level, eval_metric, \
+    batch_size, batch_type, use_cuda, device, n_gpu, level, eval_metric, \
         max_output_length, beam_size, beam_alpha, postprocess, \
         bpe_type, sacrebleu, decoding_description, tokenizer_info \
         = parse_test_args(cfg, mode="test")
@@ -302,7 +306,7 @@ def test(cfg_file,
     model.load_state_dict(model_checkpoint["model_state"])
 
     if use_cuda:
-        model.cuda()
+        model.to(device)
 
     # multi-gpu eval
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
@@ -319,7 +323,7 @@ def test(cfg_file,
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=data_set, batch_size=batch_size,
-            batch_type=batch_type, level=level,
+            batch_class=batch_class, batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric=eval_metric,
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
@@ -359,7 +363,10 @@ def test(cfg_file,
             logger.info("Translations saved to: %s", output_path_set)
 
 
-def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
+def translate(cfg_file: str,
+              ckpt: str,
+              output_path: str = None,
+              batch_class: Batch = Batch) -> None:
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or
@@ -371,6 +378,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
     :param output_path: path to output file
+    :param batch_class: class type of batch
     """
 
     def _load_line_as_data(line):
@@ -397,7 +405,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
             model, data=test_data, batch_size=batch_size,
-            batch_type=batch_type, level=level,
+            batch_class=batch_class, batch_type=batch_type, level=level,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
@@ -434,7 +442,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
     src_field.vocab = src_vocab
 
     # parse test args
-    batch_size, batch_type, use_cuda, n_gpu, level, _, \
+    batch_size, batch_type, use_cuda, device, n_gpu, level, _, \
         max_output_length, beam_size, beam_alpha, postprocess, \
         bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
 
@@ -446,7 +454,7 @@ def translate(cfg_file: str, ckpt: str, output_path: str = None) -> None:
     model.load_state_dict(model_checkpoint["model_state"])
 
     if use_cuda:
-        model.cuda()
+        model.to(device)
 
     if not sys.stdin.isatty():
         # input file given
