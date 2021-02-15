@@ -212,7 +212,7 @@ def build_model(cfg: dict = None,
     :param trg_vocab: target vocabulary
     :return: built and initialized model
     """
-    logger.info("building an encoder-decoder model...")
+    logger.info("Building an encoder-decoder model...")
     src_padding_idx = src_vocab.stoi[PAD_TOKEN]
     trg_padding_idx = trg_vocab.stoi[PAD_TOKEN]
 
@@ -287,11 +287,11 @@ def build_model(cfg: dict = None,
     pretrained_dec_embed_path = cfg["decoder"]["embeddings"].get(
         "load_pretrained", None)
     if pretrained_enc_embed_path:
-        logger.info("loading pretraind src embeddings...")
+        logger.info("Loading pretraind src embeddings...")
         model.src_embed.load_from_file(pretrained_enc_embed_path, src_vocab)
     if pretrained_dec_embed_path and not cfg.get("tied_embeddings", False):
-        logger.info("loading pretraind trg embeddings...")
-        model.src_embed.load_from_file(pretrained_dec_embed_path, trg_vocab)
+        logger.info("Loading pretraind trg embeddings...")
+        model.trg_embed.load_from_file(pretrained_dec_embed_path, trg_vocab)
 
-    logger.info("enc-dec model built.")
+    logger.info("Enc-dec model built.")
     return model

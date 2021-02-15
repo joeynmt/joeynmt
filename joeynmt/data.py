@@ -76,7 +76,7 @@ def load_data(data_cfg: dict, datasets: list = None)\
 
     train_data = None
     if "train" in datasets and train_path is not None:
-        logger.info("loading training data...")
+        logger.info("Loading training data...")
         train_data = TranslationDataset(path=train_path,
                                         exts=("." + src_lang, "." + trg_lang),
                                         fields=(src_field, trg_field),
@@ -106,7 +106,7 @@ def load_data(data_cfg: dict, datasets: list = None)\
     assert (train_data is not None) or (src_vocab_file is not None)
     assert (train_data is not None) or (trg_vocab_file is not None)
 
-    logger.info("building vocabulary...")
+    logger.info("Building vocabulary...")
     src_vocab = build_vocab(field="src", min_freq=src_min_freq,
                             max_size=src_max_size,
                             dataset=train_data, vocab_file=src_vocab_file)
@@ -116,14 +116,14 @@ def load_data(data_cfg: dict, datasets: list = None)\
 
     dev_data = None
     if "dev" in datasets and dev_path is not None:
-        logger.info("loading dev data...")
+        logger.info("Loading dev data...")
         dev_data = TranslationDataset(path=dev_path,
                                       exts=("." + src_lang, "." + trg_lang),
                                       fields=(src_field, trg_field))
 
     test_data = None
     if "test" in datasets and test_path is not None:
-        logger.info("loading test data...")
+        logger.info("Loading test data...")
         # check if target exists
         if os.path.isfile(test_path + "." + trg_lang):
             test_data = TranslationDataset(
@@ -135,7 +135,7 @@ def load_data(data_cfg: dict, datasets: list = None)\
                                     field=src_field)
     src_field.vocab = src_vocab
     trg_field.vocab = trg_vocab
-    logger.info("data loaded.")
+    logger.info("Data loaded.")
     return train_data, dev_data, test_data, src_vocab, trg_vocab
 
 
