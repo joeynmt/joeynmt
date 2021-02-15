@@ -81,7 +81,7 @@ We chose to largely adopt the `implementation of beam search in OpenNMT-py <http
 Checkpoints
 ===========
 The TrainManager takes care of saving checkpoints whenever the model has reached a new validation highscore (keeping a configurable number of checkpoints in total).
-The checkpoints do not only contain the model parameters (``model_state``), but also the cumulative count of training tokens and steps, the highscore and iteration count for that highscore, the state of the optimizer and the scheduler.
+The checkpoints do not only contain the model parameters (``model_state``), but also the cumulative count of training tokens and steps, the highscore and iteration count for that highscore, the state of the optimizer, the scheduler and the data iterator.
 This ensures a seamless continuation of training when training is interrupted.
 
 From ``_save_checkpoint``:
@@ -99,6 +99,7 @@ From ``_save_checkpoint``:
         "scheduler_state": self.scheduler.state_dict() if \
         self.scheduler is not None else None,
         'amp_state': amp.state_dict() if self.fp16 else None
+        'train_iter_state': train_iter.state_dict()
     }
 
 
