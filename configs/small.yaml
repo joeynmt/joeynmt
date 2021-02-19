@@ -87,6 +87,7 @@ model:                              # specify your model architecture here
             embedding_dim: 16       # size of embeddings
             scale: False            # scale the embeddings by sqrt of their size, default: False
             freeze: False           # if True, embeddings are not updated during training
+            load_pretrained: "my_data/train.src.embed.txt" # if given, load pretrain embedding weights from this text file
         hidden_size: 30             # size of RNN
         bidirectional: True         # use a bi-directional encoder, default: True
         dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
@@ -99,6 +100,7 @@ model:                              # specify your model architecture here
             embedding_dim: 16
             scale: False
             freeze: False           # if True, embeddings are not updated during training
+            load_pretrained: "my_data/train.trg.embed.txt"
         hidden_size: 30
         dropout: 0.2
         hidden_dropout: 0.2         # apply dropout to the attention vector, default: 0.0
