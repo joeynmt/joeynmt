@@ -389,6 +389,7 @@ def translate(cfg_file: str,
     :param ckpt: path to checkpoint to load
     :param output_path: path to output file
     :param batch_class: class type of batch
+    :param n_best: amount of candidates to display
     """
 
     def _load_line_as_data(line):
