@@ -499,7 +499,8 @@ def translate(cfg_file: str,
                 test_data = _load_line_as_data(line=src_input)
 
                 hypotheses = _translate_data(test_data)
-                print("JoeyNMT: {}".format(hypotheses[0]))
+                for hyp in hypotheses:
+                    print("JoeyNMT: {}".format(hyp))
 
             except (KeyboardInterrupt, EOFError):
                 print("\nBye.")
