@@ -34,7 +34,7 @@ def main():
              output_path=args.output_path, save_attention=args.save_attention)
     elif args.mode == "translate":
         translate(cfg_file=args.config_path, ckpt=args.ckpt,
-                  output_path=args.output_path, n_best=args.nbest)
+                  output_path=args.output_path, n_best=args.nbest if args.nbest else 1)
     else:
         raise ValueError("Unknown mode")
 
