@@ -36,7 +36,8 @@ def validate_on_data(model: Model, data: Dataset,
                      batch_type: str = "sentence",
                      postprocess: bool = True,
                      bpe_type: str = "subword-nmt",
-                     sacrebleu: dict = None) \
+                     sacrebleu: dict = None,
+                     n_best: int = 1) \
         -> (float, float, float, List[str], List[List[str]], List[str],
             List[str], List[List[str]], List[np.array]):
     """
@@ -63,6 +64,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param postprocess: if True, remove BPE segmentation from translations
     :param bpe_type: bpe type, one of {"subword-nmt", "sentencepiece"}
     :param sacrebleu: sacrebleu options
+    :param nbest: Amount of candidates to return
 
     :return:
         - current_valid_score: current validation score [eval_metric],
@@ -103,7 +105,10 @@ def validate_on_data(model: Model, data: Dataset,
 
             batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
-            sort_reverse_index = batch.sort_by_src_length()
+            sort_reverse_index = []
+            for ix in batch.sort_by_src_length():
+                for n in range(0, n_best):
+                    sort_reverse_index.append(ix + n)
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
@@ -117,7 +122,7 @@ def validate_on_data(model: Model, data: Dataset,
             # run as during inference to produce translations
             output, attention_scores = run_batch(
                 model=model, batch=batch, beam_size=beam_size,
-                beam_alpha=beam_alpha, max_output_length=max_output_length)
+                beam_alpha=beam_alpha, max_output_length=max_output_length, n_best=n_best)
 
             # sort outputs back to original order
             all_outputs.extend(output[sort_reverse_index])
@@ -125,7 +130,11 @@ def validate_on_data(model: Model, data: Dataset,
                 attention_scores[sort_reverse_index]
                 if attention_scores is not None else [])
 
-        assert len(all_outputs) == len(data)
+            if n_best > 1:
+                for i in range(len(output)):
+                    if i not in sort_reverse_index:
+                        all_outputs.extend(output[[i]])
+                        valid_attention_scores.extend(attention_scores[[i]] if attention_scores is not None else [])
 
         if compute_loss and total_ntokens > 0:
             # total validation loss
@@ -366,7 +375,8 @@ def test(cfg_file,
 def translate(cfg_file: str,
               ckpt: str,
               output_path: str = None,
-              batch_class: Batch = Batch) -> None:
+              batch_class: Batch = Batch,
+              n_best: int = 1) -> None:
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or
@@ -409,7 +419,7 @@ def translate(cfg_file: str,
             max_output_length=max_output_length, eval_metric="",
             use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
             beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu)
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu, n_best=n_best)
         return hypotheses
 
     cfg = load_config(cfg_file)
