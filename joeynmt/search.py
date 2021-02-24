@@ -405,12 +405,15 @@ def beam_search(model: Model, size: int,
         return filled
 
     # from results to stacked outputs
-    final_outputs = pad_and_stack_hyps([u.cpu().numpy() for r in results["predictions"] for u in r], pad_value=pad_index)
+    final_outputs = pad_and_stack_hyps(
+        [u.cpu().numpy() for r in results["predictions"] for u in r],
+        pad_value=pad_index)
     return final_outputs, None
 
 
 def run_batch(model: Model, batch: Batch, max_output_length: int,
-              beam_size: int, beam_alpha: float, n_best: int = 1) -> (np.array, np.array):
+              beam_size: int, beam_alpha: float,
+              n_best: int = 1) -> (np.array, np.array):
     """
     Get outputs and attentions scores for a given batch
 

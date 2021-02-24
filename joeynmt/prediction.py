@@ -24,7 +24,7 @@ from joeynmt.vocabulary import Vocabulary
 logger = logging.getLogger(__name__)
 
 
-# pylint: disable=too-many-arguments,too-many-locals,no-member
+# pylint: disable=too-many-arguments,too-many-locals,no-member,too-many-branches
 def validate_on_data(model: Model, data: Dataset,
                      batch_size: int,
                      use_cuda: bool, max_output_length: int,
@@ -64,7 +64,7 @@ def validate_on_data(model: Model, data: Dataset,
     :param postprocess: if True, remove BPE segmentation from translations
     :param bpe_type: bpe type, one of {"subword-nmt", "sentencepiece"}
     :param sacrebleu: sacrebleu options
-    :param nbest: Amount of candidates to return
+    :param n_best: Amount of candidates to return
 
     :return:
         - current_valid_score: current validation score [eval_metric],
@@ -122,7 +122,8 @@ def validate_on_data(model: Model, data: Dataset,
             # run as during inference to produce translations
             output, attention_scores = run_batch(
                 model=model, batch=batch, beam_size=beam_size,
-                beam_alpha=beam_alpha, max_output_length=max_output_length, n_best=n_best)
+                beam_alpha=beam_alpha, max_output_length=max_output_length,
+                n_best=n_best)
 
             # sort outputs back to original order
             all_outputs.extend(output[sort_reverse_index])
@@ -134,7 +135,10 @@ def validate_on_data(model: Model, data: Dataset,
                 for i in range(len(output)):
                     if i not in sort_reverse_index:
                         all_outputs.extend(output[[i]])
-                        valid_attention_scores.extend(attention_scores[[i]] if attention_scores is not None else [])
+                        valid_attention_scores.extend(
+                            attention_scores[[i]]
+                            if attention_scores is not None else []
+                        )
 
         if compute_loss and total_ntokens > 0:
             # total validation loss
