@@ -751,11 +751,12 @@ class TrainManager:
             return is_best
 
 
-def train(cfg_file: str) -> None:
+def train(cfg_file: str, skip_test: bool = False) -> None:
     """
     Main training function. After training, also test on test data if given.
 
     :param cfg_file: path to configuration yaml file
+    :param skip_test: whether a test should be run or not after training
     """
     cfg = load_config(cfg_file)
 
@@ -802,21 +803,22 @@ def train(cfg_file: str) -> None:
     # train the model
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
 
-    # predict with the best model on validation and test
-    # (if test data is available)
-    ckpt = "{}/{}.ckpt".format(model_dir, trainer.stats.best_ckpt_iter)
-    output_name = "{:08d}.hyps".format(trainer.stats.best_ckpt_iter)
-    output_path = os.path.join(model_dir, output_name)
-    datasets_to_test = {
-        "dev": dev_data,
-        "test": test_data,
-        "src_vocab": src_vocab,
-        "trg_vocab": trg_vocab
-    }
-    test(cfg_file,
-         ckpt=ckpt,
-         output_path=output_path,
-         datasets=datasets_to_test)
+    if not skip_test:
+        # predict with the best model on validation and test
+        # (if test data is available)
+        ckpt = "{}/{}.ckpt".format(model_dir, trainer.stats.best_ckpt_iter)
+        output_name = "{:08d}.hyps".format(trainer.stats.best_ckpt_iter)
+        output_path = os.path.join(model_dir, output_name)
+        datasets_to_test = {
+            "dev": dev_data,
+            "test": test_data,
+            "src_vocab": src_vocab,
+            "trg_vocab": trg_vocab
+        }
+        test(cfg_file,
+             ckpt=ckpt,
+             output_path=output_path,
+             datasets=datasets_to_test)
 
 
 if __name__ == "__main__":
