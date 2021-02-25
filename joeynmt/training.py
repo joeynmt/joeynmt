@@ -819,7 +819,8 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
              ckpt=ckpt,
              output_path=output_path,
              datasets=datasets_to_test)
-
+    else:
+        logger.info("Skipping test after training")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('Joey-NMT')
