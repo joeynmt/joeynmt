@@ -503,8 +503,10 @@ def translate(cfg_file: str,
                 test_data = _load_line_as_data(line=src_input)
 
                 hypotheses = _translate_data(test_data)
-                for hyp in hypotheses:
-                    print("JoeyNMT: {}".format(hyp))
+
+                print("JoeyNMT: Hypotheses ranked by score")
+                for i, hyp in enumerate(hypotheses):
+                    print("JoeyNMT #{}: {}".format(i + 1, hyp))
 
             except (KeyboardInterrupt, EOFError):
                 print("\nBye.")
