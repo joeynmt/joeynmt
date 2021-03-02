@@ -105,10 +105,13 @@ def validate_on_data(model: Model, data: Dataset,
 
             batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
-            sort_reverse_index = []
-            for ix in batch.sort_by_src_length():
+            reverse_indexes = batch.sort_by_src_length()
+            sort_reverse_index = [[] for _ in range(len(reverse_indexes))]
+            for i, ix in enumerate(reverse_indexes):
                 for n in range(0, n_best):
-                    sort_reverse_index.append(ix + n)
+                    sort_reverse_index[i].append(ix + n)
+
+            assert len(sort_reverse_index) == len(data)
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
@@ -126,19 +129,13 @@ def validate_on_data(model: Model, data: Dataset,
                 n_best=n_best)
 
             # sort outputs back to original order
-            all_outputs.extend(output[sort_reverse_index])
-            valid_attention_scores.extend(
-                attention_scores[sort_reverse_index]
-                if attention_scores is not None else [])
+            for reverse_index in sort_reverse_index:
+                all_outputs.append(output[reverse_index])
+                valid_attention_scores.append(
+                    attention_scores[reverse_index]
+                    if attention_scores is not None else [])
 
-            if n_best > 1:
-                for i in range(len(output)):
-                    if i not in sort_reverse_index:
-                        all_outputs.extend(output[[i]])
-                        valid_attention_scores.extend(
-                            attention_scores[[i]]
-                            if attention_scores is not None else []
-                        )
+            assert len(all_outputs) == len(data)
 
         if compute_loss and total_ntokens > 0:
             # total validation loss
@@ -150,8 +147,11 @@ def validate_on_data(model: Model, data: Dataset,
             valid_ppl = -1
 
         # decode back to symbols
-        decoded_valid = model.trg_vocab.arrays_to_sentences(arrays=all_outputs,
-                                                            cut_at_eos=True)
+        decoded_valid = model.trg_vocab.arrays_to_sentences(
+            arrays=[output for output_group in all_outputs
+                    for output in output_group],
+            cut_at_eos=True
+        )
 
         # evaluate with metric on full dataset
         join_char = " " if level in ["word", "bpe"] else ""
@@ -474,18 +474,34 @@ def translate(cfg_file: str,
     if not sys.stdin.isatty():
         # input file given
         test_data = MonoDataset(path=sys.stdin, ext="", field=src_field)
-        hypotheses = _translate_data(test_data)
+        all_hypotheses = _translate_data(test_data)
 
         if output_path is not None:
             # write to outputfile if given
-            output_path_set = "{}".format(output_path)
-            with open(output_path_set, mode="w", encoding="utf-8") as out_file:
-                for hyp in hypotheses:
-                    out_file.write(hyp + "\n")
-            logger.info("Translations saved to: %s.", output_path_set)
+
+            def write_to_file(output_path_set, hypotheses):
+                with open(output_path_set, mode="w", encoding="utf-8") \
+                        as out_file:
+                    for hyp in hypotheses:
+                        out_file.write(hyp + "\n")
+                logger.info("Translations saved to: %s.", output_path_set)
+
+            if n_best > 1:
+                for n in range(n_best):
+                    file_name, file_extension = os.path.splitext(output_path)
+                    write_to_file(
+                        "{}-{}{}".format(
+                            file_name, n,
+                            file_extension if file_extension else ""
+                        ),
+                        [all_hypotheses[i]
+                         for i in range(n, len(all_hypotheses), n_best)]
+                    )
+            else:
+                write_to_file("{}".format(output_path), all_hypotheses)
         else:
             # print to stdout
-            for hyp in hypotheses:
+            for hyp in all_hypotheses:
                 print(hyp)
 
     else:
