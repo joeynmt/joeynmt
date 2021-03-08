@@ -135,7 +135,7 @@ def validate_on_data(model: Model, data: Dataset,
                     attention_scores[reverse_index]
                     if attention_scores is not None else [])
 
-            assert len(all_outputs) == len(data)
+        assert len(all_outputs) == len(data)
 
         if compute_loss and total_ntokens > 0:
             # total validation loss
