@@ -23,7 +23,7 @@ def main():
     ap.add_argument("--save_attention", action="store_true",
                     help="save attention visualizations")
 
-    ap.add_argument("-n", "--nbest", type=int,
+    ap.add_argument("-n", "--nbest", type=int, default=1,
                     help="Display n-best candidates when translating")
 
     args = ap.parse_args()
@@ -36,7 +36,7 @@ def main():
     elif args.mode == "translate":
         translate(cfg_file=args.config_path, ckpt=args.ckpt,
                   output_path=args.output_path,
-                  n_best=args.nbest if args.nbest else 1)
+                  n_best=args.nbest)
     else:
         raise ValueError("Unknown mode")
 
