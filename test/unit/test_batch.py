@@ -1,7 +1,7 @@
 import torch
 import random
 
-from torchtext.data.batch import Batch as TorchTBatch
+from torchtext.legacy.data.batch import Batch as TorchTBatch
 
 from joeynmt.batch import Batch
 from joeynmt.data import load_data, make_data_iter
