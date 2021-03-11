@@ -1,5 +1,5 @@
-import torch
 import random
+import torch
 
 from torchtext.legacy.data.batch import Batch as TorchTBatch
 
@@ -132,5 +132,3 @@ class TestData(TensorTestCase):
             total_samples += b.nseqs
             self.assertLessEqual(b.nseqs, batch_size)
         self.assertEqual(total_samples, len(self.dev_data))
-
-
