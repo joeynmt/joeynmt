@@ -10,7 +10,7 @@ from typing import Optional
 import logging
 
 from torchtext.legacy.datasets import TranslationDataset
-from torchtext import data
+from torchtext.legacy import data
 from torchtext.legacy.data import Dataset, Iterator, Field
 
 from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
