@@ -9,7 +9,7 @@ import logging
 import numpy as np
 
 import torch
-from torchtext.data import Dataset, Field
+from torchtext.legacy.data import Dataset, Field
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots

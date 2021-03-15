@@ -19,7 +19,7 @@ import torch
 from torch import nn, Tensor
 from torch.utils.tensorboard import SummaryWriter
 
-from torchtext.data import Dataset
+from torchtext.legacy.data import Dataset
 import yaml
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
