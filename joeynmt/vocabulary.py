@@ -7,7 +7,7 @@ from collections import defaultdict, Counter
 from typing import List
 import numpy as np
 
-from torchtext.data import Dataset
+from torchtext.legacy.data import Dataset
 
 from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
     EOS_TOKEN, BOS_TOKEN, PAD_TOKEN

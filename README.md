@@ -21,7 +21,7 @@ However, Joey NMT re-implements baselines from major publications.
 Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our [paper](https://arxiv.org/abs/1907.12484).
 
 ## Contributors
-Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. 
+Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. [Mayumi Ohta](https://www.cl.uni-heidelberg.de/statnlpgroup/members/ohta/) at Heidelberg University is continuing the legacy.
 
 ### Hall of Fame
 Welcome to our new contributors :hearts:, please don't hesitate to open a PR or an issue if there's something that needs improvement!
@@ -54,7 +54,7 @@ Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://git
 A. [*Now also directly with pip!*](https://pypi.org/project/joeynmt/)
   `pip install joeynmt`
   
-  If you want to use GPUs add: `pip install torch==1.7.1+cu101 -f https://download.pytorch.org/whl/torch_stable.html`, for CUDA v10.1.
+  If you want to use GPUs add: `pip install torch==1.8.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html`, for CUDA v10.1.
   You'll need this in particular when working on Google Colab.
   
 B. From source
@@ -66,7 +66,7 @@ B. From source
   3. Run the unit tests:
   `python3 -m unittest`
 
-**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version (1.7.1) for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version (1.8.0) for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 
 ## Usage
