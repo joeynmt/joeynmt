@@ -1,9 +1,9 @@
 language: python
 python:
-  - "3.6"
+  - "3.8"
 before_install:
   # Install CPU version of PyTorch.
-  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install torch==1.6.0+cpu torchvision==0.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html; fi
+  - if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then pip install torch==1.8.0+cpu torchvision==0.9.0+cpu -f https://download.pytorch.org/whl/torch_stable.html; fi
   # Install remaining dependencies
   - pip install -r requirements.txt
 install:
