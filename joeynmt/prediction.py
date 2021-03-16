@@ -109,7 +109,7 @@ def validate_on_data(model: Model, data: Dataset,
             sort_reverse_index = [[] for _ in range(len(reverse_indexes))]
             for i, ix in enumerate(reverse_indexes):
                 for n in range(0, n_best):
-                    sort_reverse_index[i].append(ix + n)
+                    sort_reverse_index[i].append(ix * n_best + n)
 
             assert len(sort_reverse_index) == batch.nseqs
 
