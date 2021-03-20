@@ -23,13 +23,16 @@ def main():
     ap.add_argument("--save_attention", action="store_true",
                     help="save attention visualizations")
 
+    ap.add_argument("-t", "--skip_test", action="store_true",
+                    help="Skip test after training")
+
     ap.add_argument("-n", "--nbest", type=int, default=1,
                     help="Display n-best candidates when translating")
 
     args = ap.parse_args()
 
     if args.mode == "train":
-        train(cfg_file=args.config_path)
+        train(cfg_file=args.config_path, skip_test=args.skip_test)
     elif args.mode == "test":
         test(cfg_file=args.config_path, ckpt=args.ckpt,
              output_path=args.output_path, save_attention=args.save_attention)
