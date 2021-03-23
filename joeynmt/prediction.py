@@ -131,10 +131,9 @@ def validate_on_data(model: Model, data: Dataset,
             # sort outputs back to original order
             for reverse_index in sort_reverse_index:
                 all_outputs.append(output[reverse_index])
-
-                if attention_scores:
-                    valid_attention_scores\
-                        .append(attention_scores[reverse_index])
+            valid_attention_scores\
+                .extend(attention_scores[reverse_indexes]
+                        if attention_scores is not None else [])
 
         assert len(all_outputs) == len(data)
 
