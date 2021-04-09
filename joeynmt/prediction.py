@@ -109,9 +109,9 @@ def validate_on_data(model: Model, data: Dataset,
             sort_reverse_index = [[] for _ in range(len(reverse_indexes))]
             for i, ix in enumerate(reverse_indexes):
                 for n in range(0, n_best):
-                    sort_reverse_index[i].append(ix + n)
+                    sort_reverse_index[i].append(ix * n_best + n)
 
-            assert len(sort_reverse_index) == len(data)
+            assert len(sort_reverse_index) == batch.nseqs
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
@@ -131,9 +131,9 @@ def validate_on_data(model: Model, data: Dataset,
             # sort outputs back to original order
             for reverse_index in sort_reverse_index:
                 all_outputs.append(output[reverse_index])
-                valid_attention_scores.append(
-                    attention_scores[reverse_index]
-                    if attention_scores is not None else [])
+            valid_attention_scores\
+                .extend(attention_scores[reverse_indexes]
+                        if attention_scores is not None else [])
 
         assert len(all_outputs) == len(data)
 
