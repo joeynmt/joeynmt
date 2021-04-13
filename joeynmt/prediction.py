@@ -12,7 +12,8 @@ import torch
 from torchtext.legacy.data import Dataset, Field
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
-    get_latest_checkpoint, load_checkpoint, store_attention_plots
+    get_latest_checkpoint, load_checkpoint, store_attention_plots, \
+    expand_reverse_index
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model, _DataParallel
 from joeynmt.search import run_batch
@@ -105,14 +106,8 @@ def validate_on_data(model: Model, data: Dataset,
 
             batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
-            sort_reverse_index = batch.sort_by_src_length()
-
-            if n_best > 1:
-                # expand the sort_reverse_index only if n_best > 1
-                sort_reverse_index = [ix*n_best + n
-                                      for i, ix in enumerate(sort_reverse_index)
-                                      for n in range(n_best)]
-                assert len(sort_reverse_index) == batch.nseqs * n_best
+            reverse_index = batch.sort_by_src_length()
+            sort_reverse_index = expand_reverse_index(reverse_index, n_best)
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:

@@ -356,3 +356,29 @@ def latest_checkpoint_update(target: pathlib.Path,
         return current_last
     link.symlink_to(target)
     return None
+
+
+def expand_reverse_index(reverse_index: List[int], n_best: int = 1) \
+        -> List[int]:
+    """
+    expand resort_reverse_index for n_best prediction
+
+    ex. 1) reverse_index = [1, 0, 2] and n_best = 2, then this will return
+    [2, 3, 0, 1, 4, 5].
+
+    ex. 2) reverse_index = [1, 0, 2] and n_best = 3, then this will return
+    [3, 4, 5, 0, 1, 2, 6, 7, 8]
+
+    :param reverse_index: reverse_index returned from batch.sort_by_src_length()
+    :param n_best:
+    :return: expanded sort_reverse_index
+    """
+    if n_best == 1:
+        return reverse_index
+
+    resort_reverse_index = []
+    for ix in reverse_index:
+        for n in range(0, n_best):
+            resort_reverse_index.append(ix * n_best + n)
+    assert len(resort_reverse_index) == len(reverse_index) * n_best
+    return resort_reverse_index
