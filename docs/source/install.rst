@@ -31,10 +31,11 @@ Then clone JoeyNMT from GitHub and switch to its root directory:
 Installing JoeyNMT
 ------------------
 
-Install JoeyNMT and it's requirements:
+Install JoeyNMT and its requirements:
 
 .. code-block:: bash
 
+   (jnmt)$ pip3 install wheel
    (jnmt)$ pip3 install .
 
 Run the unit tests to make sure your installation is working:
