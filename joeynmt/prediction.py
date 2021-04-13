@@ -12,7 +12,8 @@ import torch
 from torchtext.legacy.data import Dataset, Field
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
-    get_latest_checkpoint, load_checkpoint, store_attention_plots
+    get_latest_checkpoint, load_checkpoint, store_attention_plots, \
+    expand_reverse_index
 from joeynmt.metrics import bleu, chrf, token_accuracy, sequence_accuracy
 from joeynmt.model import build_model, Model, _DataParallel
 from joeynmt.search import run_batch
@@ -105,13 +106,8 @@ def validate_on_data(model: Model, data: Dataset,
 
             batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
             # sort batch now by src length and keep track of order
-            reverse_indexes = batch.sort_by_src_length()
-            sort_reverse_index = [[] for _ in range(len(reverse_indexes))]
-            for i, ix in enumerate(reverse_indexes):
-                for n in range(0, n_best):
-                    sort_reverse_index[i].append(ix * n_best + n)
-
-            assert len(sort_reverse_index) == batch.nseqs
+            reverse_index = batch.sort_by_src_length()
+            sort_reverse_index = expand_reverse_index(reverse_index, n_best)
 
             # run as during training with teacher forcing
             if compute_loss and batch.trg is not None:
@@ -129,13 +125,12 @@ def validate_on_data(model: Model, data: Dataset,
                 n_best=n_best)
 
             # sort outputs back to original order
-            for reverse_index in sort_reverse_index:
-                all_outputs.append(output[reverse_index])
-            valid_attention_scores\
-                .extend(attention_scores[reverse_indexes]
-                        if attention_scores is not None else [])
+            all_outputs.extend(output[sort_reverse_index])
+            valid_attention_scores.extend(
+                attention_scores[sort_reverse_index]
+                if attention_scores is not None else [])
 
-        assert len(all_outputs) == len(data)
+        assert len(all_outputs) == len(data) * n_best
 
         if compute_loss and total_ntokens > 0:
             # total validation loss
@@ -147,11 +142,8 @@ def validate_on_data(model: Model, data: Dataset,
             valid_ppl = -1
 
         # decode back to symbols
-        decoded_valid = model.trg_vocab.arrays_to_sentences(
-            arrays=[output for output_group in all_outputs
-                    for output in output_group],
-            cut_at_eos=True
-        )
+        decoded_valid = model.trg_vocab.arrays_to_sentences(arrays=all_outputs,
+                                                            cut_at_eos=True)
 
         # evaluate with metric on full dataset
         join_char = " " if level in ["word", "bpe"] else ""
@@ -517,7 +509,6 @@ def translate(cfg_file: str,
 
                 # every line has to be made into dataset
                 test_data = _load_line_as_data(line=src_input)
-
                 hypotheses = _translate_data(test_data)
 
                 print("JoeyNMT: Hypotheses ranked by score")
