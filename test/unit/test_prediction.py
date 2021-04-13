@@ -3,10 +3,28 @@ import unittest
 import torch
 
 from joeynmt.data import load_data
+from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
 from joeynmt.prediction import parse_test_args, validate_on_data
 
 # TODO make sure rnn also returns the nbest list in the resorted order
+
+
+class TestHelpers(unittest.TestCase):
+    def test_expand_reverse_index(self):
+        reverse_index = [1, 0, 2]
+
+        n_best = 1
+        reverse_index_1best = expand_reverse_index(reverse_index, n_best)
+        self.assertEqual(reverse_index_1best, [1, 0, 2])
+
+        n_best = 2
+        reverse_index_2best = expand_reverse_index(reverse_index, n_best)
+        self.assertEqual(reverse_index_2best, [2, 3, 0, 1, 4, 5])
+
+        n_best = 3
+        reverse_index_2best = expand_reverse_index(reverse_index, n_best)
+        self.assertEqual(reverse_index_2best, [3, 4, 5, 0, 1, 2, 6, 7, 8])
 
 
 class TestPrediction(unittest.TestCase):
