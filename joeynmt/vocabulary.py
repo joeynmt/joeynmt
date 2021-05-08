@@ -58,7 +58,7 @@ class Vocabulary:
         :param file: path to file where the vocabulary is loaded from
         """
         tokens = []
-        with open(file, "r") as open_file:
+        with open(file, "r", encoding='utf-8') as open_file:
             for line in open_file:
                 tokens.append(line.strip("\n"))
         self._from_list(tokens)
@@ -72,7 +72,7 @@ class Vocabulary:
 
         :param file: path to file where the vocabulary is written
         """
-        with open(file, "w") as open_file:
+        with open(file, "w", encoding="utf-8") as open_file:
             for t in self.itos:
                 open_file.write("{}\n".format(t))
 

@@ -394,7 +394,7 @@ def translate(cfg_file: str,
         tmp_name = "tmp"
         tmp_suffix = ".src"
         tmp_filename = tmp_name+tmp_suffix
-        with open(tmp_filename, "w") as tmp_file:
+        with open(tmp_filename, "w", encoding="utf-8") as tmp_file:
             tmp_file.write("{}\n".format(line))
 
         test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,

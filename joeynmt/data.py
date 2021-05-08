@@ -223,7 +223,7 @@ class MonoDataset(Dataset):
             # Because the file can be stdin which doesn't need to be opened,
             # easier not to use with here.
             # pylint: disable=consider-using-with
-            src_file = open(src_path)
+            src_file = open(src_path, encoding="utf-8")
 
         examples = []
         for src_line in src_file:
