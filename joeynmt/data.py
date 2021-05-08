@@ -220,6 +220,9 @@ class MonoDataset(Dataset):
             src_file = path
         else:
             src_path = os.path.expanduser(path + ext)
+            # Because the file can be stdin which doesn't need to be opened,
+            # easier not to use with here.
+            # pylint: disable=consider-using-with
             src_file = open(src_path)
 
         examples = []
