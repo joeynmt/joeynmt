@@ -220,7 +220,7 @@ class MonoDataset(Dataset):
             src_file = path
         else:
             src_path = os.path.expanduser(path + ext)
-            src_file = open(src_path)
+            src_file = open(src_path) # pylint: disable=consider-using-with
 
         examples = []
         for src_line in src_file:
