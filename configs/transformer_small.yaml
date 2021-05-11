@@ -51,7 +51,7 @@ training:                           # specify training details here
     use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
     max_output_length: 31           # maximum output length for decoding, default: None. If set to None, allow sentences of max 1.5*src length
     print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
-    keep_last_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5
+    keep_best_ckpts: 3              # keep this many of the latest checkpoints, if -1: all of them, default: 5
     label_smoothing: 0.0            # label smoothing: reference tokens will have 1-label_smoothing probability instead of 1, rest of probability mass is uniformly distributed over the rest of the vocabulary, default: 0.0 (off)
 
 model:                              # specify your model architecture here

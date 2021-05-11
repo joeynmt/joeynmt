@@ -48,7 +48,7 @@ training:
     fp16: True
     max_output_length: 100
     print_valid_sents: [0, 1, 2, 3, 4]
-    keep_last_ckpts: 5
+    keep_best_ckpts: 5
 
 model:
     initializer: "xavier"

@@ -56,7 +56,7 @@ training:
   fp16: True
   max_output_length: 100
   print_valid_sents: [2000, 2001, 2002, 2003, 2004]
-  keep_last_ckpts: 5
+  keep_best_ckpts: 5
 
 model:
   initializer: "xavier"
