@@ -289,6 +289,16 @@ def test(cfg_file,
 
     # load the data
     if datasets is None:
+        # set default vocab path
+        src_vocab_file = os.path.join(model_dir, "src_vocab.txt")
+        trg_vocab_file = os.path.join(model_dir, "trg_vocab.txt")
+        if "src_vocab" not in cfg["data"]:
+            assert os.path.isfile(src_vocab_file), f"{src_vocab_file} not found"
+            cfg["data"]["src_vocab"] = src_vocab_file
+        if "trg_vocab" not in cfg["data"]:
+            assert os.path.isfile(trg_vocab_file), f"{trg_vocab_file} not found"
+            cfg["data"]["trg_vocab"] = trg_vocab_file
+        # load data
         _, dev_data, test_data, src_vocab, trg_vocab = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
@@ -304,6 +314,7 @@ def test(cfg_file,
         = parse_test_args(cfg, mode="test")
 
     # load model state from disk
+    logger.info("Loading model from %s", ckpt)
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
@@ -441,11 +452,9 @@ def translate(cfg_file: str,
 
     tok_fun = lambda s: list(s) if level == "char" else s.split()
 
-    src_field = Field(init_token=None, eos_token=EOS_TOKEN,
-                      pad_token=PAD_TOKEN, tokenize=tok_fun,
-                      batch_first=True, lower=lowercase,
-                      unk_token=UNK_TOKEN,
-                      include_lengths=True)
+    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
+                      tokenize=tok_fun, batch_first=True, lower=lowercase,
+                      unk_token=UNK_TOKEN, include_lengths=True)
     src_field.vocab = src_vocab
 
     # parse test args
@@ -454,6 +463,7 @@ def translate(cfg_file: str,
         bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
 
     # load model state from disk
+    logger.info("Loading model from %s", ckpt)
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
