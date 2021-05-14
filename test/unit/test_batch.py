@@ -39,6 +39,7 @@ class TestData(TensorTestCase):
         self.assertEqual(len(self.train_data), 27)
 
         # make data iterator
+        # *note*: BucketIterator is replaced with Iterator
         train_iter = make_data_iter(self.train_data, train=True, shuffle=True,
                                     batch_size=batch_size)
         self.assertEqual(train_iter.batch_size, batch_size)
@@ -48,21 +49,25 @@ class TestData(TensorTestCase):
         self.assertEqual(train_iter.iterations, 0)
 
         expected_src0 = torch.Tensor(
-            [[21, 10, 4, 16, 4, 5, 21, 4, 12, 33, 6, 14, 4, 12, 23, 6, 18, 4,
-              6, 9, 3],
-             [20, 28, 4, 10, 28, 4, 6, 5, 14, 8, 6, 15, 4, 5, 7, 17, 11, 27,
-              6, 9, 3],
-             [24, 8, 7, 5, 24, 10, 12, 14, 5, 18, 4, 7, 17, 11, 4, 11, 4, 6,
-              25, 3, 1]]).long()
-        expected_src0_len = torch.Tensor([21, 21, 20]).long()
+            [[18,  8,  6, 26,  5,  4, 10,  6, 28,  8, 17, 11, 22,  5, 19, 14,
+              4, 12, 25,  3],
+             [19, 11, 30,  5, 18, 23, 13,  4, 12,  5, 21,  4, 12,  7, 23, 17,
+              11,  9, 3,  1],
+             [19, 11, 22,  5,  8, 11,  5, 29,  8, 22,  3,  1,  1,  1,  1,  1,
+              1,  1, 1,  1],
+             [14,  8,  6, 15,  4,  9,  3,  1,  1,  1,  1,  1,  1,  1,  1,  1,
+              1,  1, 1,  1]]).long()
+        expected_src0_len = torch.Tensor([20, 19, 11, 7]).long()
         expected_trg0 = torch.Tensor(
-            [[6,  4, 27,  5,  8,  4,  5, 31,  4, 26,  7,  6, 10, 20, 11,
-               9,  3],
-             [8,  7,  6, 10, 17,  4, 13,  5, 15,  9,  3,  1,  1,  1,  1,
-              1,  1],
-             [12,  5,  4, 25,  7,  6,  8,  4,  7,  6, 18, 18, 11, 10, 12,
-              23,  3]]).long()
-        expected_trg0_len = torch.Tensor([18, 12, 18]).long()
+            [[14,  8, 21, 12,  4, 11,  6, 12, 13, 22,  4, 14, 12, 10, 21,  8,
+              4, 14, 8, 23,  3],
+             [ 5,  7, 30,  4, 20,  5,  5, 19,  4, 20,  5, 14, 10, 20,  9,  3,
+               1,  1,  1,  1,  1],
+             [ 5,  7, 22,  4,  7,  6,  7,  9,  3,  1,  1,  1,  1,  1,  1,  1,
+               1,  1,  1,  1,  1],
+             [ 8,  7,  6, 10, 17,  4, 13,  5, 15,  9,  3,  1,  1,  1,  1,  1,
+               1,  1,  1,  1,  1]]).long()
+        expected_trg0_len = torch.Tensor([22, 17, 10, 12]).long()
 
         total_samples = 0
         for b in iter(train_iter):
