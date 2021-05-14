@@ -25,7 +25,7 @@ def save_samples(samples,
                  prefix="train", ext="src", reverse=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    with open(os.path.join(output_dir, prefix + "." + ext), mode="w") as f:
+    with open(os.path.join(output_dir, prefix + "." + ext), mode="w", encoding="utf-8") as f:
         for sample in samples:
             sample = sample[::-1] if reverse else sample
             f.write(sample_to_str(sample) + "\n")
