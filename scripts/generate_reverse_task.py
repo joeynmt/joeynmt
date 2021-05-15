@@ -19,7 +19,7 @@ def sample_to_str(sample):
 
 
 def save_samples(samples, prefix="train", ext="src", reverse=False):
-    with open(prefix + "." + ext, mode="w") as f:
+    with open(prefix + "." + ext, mode="w", encoding="utf-8") as f:
         for sample in samples:
             sample = sample[::-1] if reverse else sample
             f.write(sample_to_str(sample) + "\n")

@@ -678,7 +678,7 @@ class TrainManager:
         # ignores other param groups for now
         current_lr = self.optimizer.param_groups[0]['lr']
 
-        with open(self.valid_report_file, 'a') as opened_file:
+        with open(self.valid_report_file, 'a', encoding="utf-8") as opened_file:
             opened_file.write(
                 "Steps: {}\tLoss: {:.5f}\tPPL: {:.5f}\t{}: {:.5f}\t"
                 "LR: {:.8f}\t{}\n".format(self.stats.steps, valid_loss,
@@ -742,7 +742,8 @@ class TrainManager:
         """
         current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
                                                         self.stats.steps)
-        with open(current_valid_output_file, 'w') as opened_file:
+        with open(current_valid_output_file, 'w', encoding="utf-8") \
+                as opened_file:
             for hyp in hypotheses:
                 opened_file.write("{}\n".format(hyp))
 
