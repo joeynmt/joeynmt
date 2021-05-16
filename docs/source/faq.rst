@@ -7,7 +7,8 @@ Frequently Asked Questions
 Documentation
 -------------
 - **Are there any Notebooks for Joey?**
-    Check out the `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation.
+    - `Demo colab <https://github.com/joeynmt/joeynmt/blob/master/joey_demo.ipynb>`_ for an example of Tatoeba translations.
+    - `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation for African languages.
 
 - **Is there a bunch of scripts to run all those Joey commands?**
     Check out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
@@ -27,8 +28,7 @@ Training
    Then set the ``use_cuda`` flag in the configuration to True for training on GPU (requires CUDA) or to False for training on CPU.
 
 - **Does Joey NMT support multi-GPU processing?**
-   ~~At the current stage, the code does not support multi-GPU processing. Contributions welcome :)~~
-   [UPDATE] In version 1.0, we integrated multi-gpu and half-precision support.
+   In version 1.0, we integrated multi-gpu and half-precision support.
 
 - **How can I stop training?**
    Simply press Control+C.
