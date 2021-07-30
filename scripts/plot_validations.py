@@ -19,7 +19,7 @@ def read_vfiles(vfiles):
     for vfile in vfiles:
         model_name = vfile.split("/")[-2] if "//" not in vfile \
             else vfile.split("/")[-3]
-        with open(vfile, "r") as validf:
+        with open(vfile, "r", encoding="utf-8") as validf:
             steps = {}
             for line in validf:
                 entries = line.strip().split()

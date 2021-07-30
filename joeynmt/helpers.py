@@ -174,7 +174,7 @@ def load_config(path="configs/default.yaml") -> dict:
     :param path: path to YAML configuration file
     :return: configuration dictionary
     """
-    with open(path, 'r') as ymlfile:
+    with open(path, 'r', encoding="utf-8") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     return cfg
 
@@ -190,7 +190,11 @@ def bpe_postprocess(string, bpe_type="subword-nmt") -> str:
     if bpe_type == "sentencepiece":
         ret = string.replace(" ", "").replace("▁", " ").strip()
     elif bpe_type == "subword-nmt":
+        # Remove merge markers within the sentence.
         ret = string.replace("@@ ", "").strip()
+        # Remove final merge marker.
+        if ret.endswith("@@"):
+            ret = ret[:-2]
     else:
         ret = string.strip()
     return ret
