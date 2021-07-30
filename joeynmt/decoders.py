@@ -6,8 +6,7 @@ Various decoders
 from typing import Optional
 
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import nn, Tensor
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import freeze_params, ConfigurationError, subsequent_mask

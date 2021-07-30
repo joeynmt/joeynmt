@@ -4,22 +4,25 @@ Collection of helper functions
 """
 import copy
 import glob
+import logging
 import os
 import os.path
-import shutil
 import random
-import logging
+import shutil
 from typing import Optional, List
 from pathlib import Path
-import numpy as np
 import pkg_resources
+import yaml
+
+import numpy as np
 
 import torch
 from torch import nn, Tensor
 from torch.utils.tensorboard import SummaryWriter
 
+# pylint: disable=no-name-in-module
 from torchtext.legacy.data import Dataset
-import yaml
+
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
@@ -338,7 +341,6 @@ def delete_ckpt(to_delete: Path) -> None:
         to_delete.unlink()
 
     except FileNotFoundError as e:
-        #logger = logging.getLogger(__name__)
         logger.warning(
             "Wanted to delete old checkpoint %s but "
             "file does not exist. (%s)", to_delete, e)

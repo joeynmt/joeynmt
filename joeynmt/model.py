@@ -5,8 +5,7 @@ Module to represents whole models
 from typing import Callable
 import logging
 
-import torch.nn as nn
-from torch import Tensor
+from torch import nn, Tensor
 import torch.nn.functional as F
 
 from joeynmt.initialization import initialize_model

@@ -9,6 +9,7 @@ import os.path
 from typing import Optional
 import logging
 
+# pylint: disable=no-name-in-module
 from torchtext.legacy.datasets import TranslationDataset
 from torchtext.legacy.data import Dataset, Iterator, Field, Example
 
@@ -217,7 +218,7 @@ class MonoDataset(Dataset):
             src_path = os.path.expanduser(path + ext)
             # Because the file can be stdin which doesn't need to be opened,
             # easier not to use with here.
-            # pylint: disable=consider-using-with
+            # pylint: disable=bad-option-value,consider-using-with
             src_file = open(src_path, encoding="utf-8")
 
         examples = []

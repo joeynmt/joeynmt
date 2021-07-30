@@ -10,6 +10,6 @@ subword-nmt
 matplotlib
 seaborn
 pyyaml>=5.1
-pylint>=2.7.2
+pylint>=2.9.6
 six==1.12
 wrapt==1.11.1

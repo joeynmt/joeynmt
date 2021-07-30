@@ -18,6 +18,7 @@ import torch
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 
+# pylint: disable=no-name-in-module
 from torchtext.legacy.data import Dataset
 
 from joeynmt.model import build_model

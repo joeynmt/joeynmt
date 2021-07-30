@@ -2,8 +2,7 @@
 
 import math
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import nn, Tensor
 
 
 # pylint: disable=arguments-differ

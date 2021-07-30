@@ -320,7 +320,7 @@ def beam_search(model: Model, size: int,
             topk_log_probs = topk_scores.clone()
 
         # reconstruct beam origin and true word ids from flattened order
-        topk_beam_index = topk_ids.floor_divide(trg_vocab_size)
+        topk_beam_index = topk_ids.div(trg_vocab_size, rounding_mode='floor')
         topk_ids = topk_ids.fmod(trg_vocab_size)
 
         # map beam_index to batch_index in the flat representation
@@ -334,7 +334,9 @@ def beam_search(model: Model, size: int,
             [alive_seq.index_select(0, select_indices),
              topk_ids.view(-1, 1)], -1)  # batch_size*k x hyp_len
 
-        is_finished = topk_ids.eq(eos_index) | is_finished | topk_scores.eq(-float("inf"))
+        is_finished = (topk_ids.eq(eos_index)
+                       | is_finished
+                       | topk_scores.eq(-np.inf))
         if step + 1 == max_output_length:
             is_finished.fill_(True)
         # end condition is whether all beams are finished
