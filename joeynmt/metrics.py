@@ -29,8 +29,8 @@ def bleu(hypotheses, references, tokenize="13a"):
     :param tokenize: one of {'none', '13a', 'intl', 'zh', 'ja-mecab'}
     :return:
     """
-    return sacrebleu.corpus_bleu(sys_stream=hypotheses,
-                                 ref_streams=[references],
+    return sacrebleu.corpus_bleu(hypotheses=hypotheses,
+                                 references=[references],
                                  tokenize=tokenize).score
 
 
