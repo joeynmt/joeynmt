@@ -256,7 +256,12 @@ def beam_search(model: Model, size: int,
         "scores": [[] for _ in range(batch_size)],
         "gold_score": [0] * batch_size,
     }
-
+    is_finished = torch.full(
+        [batch_size, size],
+        False,
+        dtype=torch.bool,
+        device=device,
+    )
     for step in range(max_output_length):
         # This decides which part of the predicted sentence we feed to the
         # decoder to make the next prediction.
@@ -315,7 +320,7 @@ def beam_search(model: Model, size: int,
             topk_log_probs = topk_scores.clone()
 
         # reconstruct beam origin and true word ids from flattened order
-        topk_beam_index = topk_ids.floor_divide(trg_vocab_size)
+        topk_beam_index = topk_ids.div(trg_vocab_size, rounding_mode='floor')
         topk_ids = topk_ids.fmod(trg_vocab_size)
 
         # map beam_index to batch_index in the flat representation
@@ -329,11 +334,13 @@ def beam_search(model: Model, size: int,
             [alive_seq.index_select(0, select_indices),
              topk_ids.view(-1, 1)], -1)  # batch_size*k x hyp_len
 
-        is_finished = topk_ids.eq(eos_index)
+        is_finished = (topk_ids.eq(eos_index)
+                       | is_finished
+                       | topk_scores.eq(-np.inf))
         if step + 1 == max_output_length:
             is_finished.fill_(True)
-        # end condition is whether the top beam is finished
-        end_condition = is_finished[:, 0].eq(True)
+        # end condition is whether all beams are finished
+        end_condition = is_finished.all(-1)
 
         # save finished hypotheses
         if is_finished.any():
@@ -376,6 +383,7 @@ def beam_search(model: Model, size: int,
             batch_offset = batch_offset.index_select(0, non_finished)
             alive_seq = predictions.index_select(0, non_finished) \
                 .view(-1, alive_seq.size(-1))
+            is_finished = is_finished.index_select(0, non_finished)
 
         # reorder indices, outputs and masks
         select_indices = batch_index.view(-1)

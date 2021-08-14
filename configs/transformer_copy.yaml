@@ -38,7 +38,7 @@ training:
     use_cuda: False
     max_output_length: 21
     print_valid_sents: [0, 1, 2]
-    keep_last_ckpts: 1
+    keep_best_ckpts: 1
 
 model:
     initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)

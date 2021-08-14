@@ -44,7 +44,7 @@ training:
     use_cuda: False
     max_output_length: 30
     print_valid_sents: [0, 3, 6]
-    keep_last_ckpts: 2
+    keep_best_ckpts: 2
 
 model:
     initializer: "xavier"

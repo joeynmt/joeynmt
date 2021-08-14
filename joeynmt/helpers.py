@@ -4,23 +4,25 @@ Collection of helper functions
 """
 import copy
 import glob
+import logging
 import os
 import os.path
-import errno
-import shutil
 import random
-import logging
+import shutil
 from typing import Optional, List
-import pathlib
-import numpy as np
+from pathlib import Path
 import pkg_resources
+import yaml
+
+import numpy as np
 
 import torch
 from torch import nn, Tensor
 from torch.utils.tensorboard import SummaryWriter
 
+# pylint: disable=no-name-in-module
 from torchtext.legacy.data import Dataset
-import yaml
+
 from joeynmt.vocabulary import Vocabulary
 from joeynmt.plotting import plot_heatmap
 
@@ -119,8 +121,8 @@ def subsequent_mask(size: int) -> Tensor:
     :param size: size of mask (2nd and 3rd dim)
     :return: Tensor with 0s and 1s of shape (1, size, size)
     """
-    mask = np.triu(np.ones((1, size, size)), k=1).astype('uint8')
-    return torch.from_numpy(mask) == 0
+    ones = torch.ones(size, size, dtype=torch.bool)
+    return torch.tril(ones, out=ones).unsqueeze(0)
 
 
 def set_seed(seed: int) -> None:
@@ -327,38 +329,44 @@ def freeze_params(module: nn.Module) -> None:
         p.requires_grad = False
 
 
-def symlink_update(target, link_name):
+def delete_ckpt(to_delete: Path) -> None:
+    """
+    Delete checkpoint
+
+    :param to_delete: checkpoint file to be deleted
+    """
+    logger = logging.getLogger(__name__)
     try:
-        os.symlink(target, link_name)
-    except FileExistsError as e:
-        if e.errno == errno.EEXIST:
-            os.remove(link_name)
-            os.symlink(target, link_name)
-        else:
-            raise e
+        logger.info('delete %s', to_delete.as_posix())
+        to_delete.unlink()
+
+    except FileNotFoundError as e:
+        logger.warning(
+            "Wanted to delete old checkpoint %s but "
+            "file does not exist. (%s)", to_delete, e)
 
 
-def latest_checkpoint_update(target: pathlib.Path,
-                             link_name: str) -> Optional[pathlib.Path]:
+def symlink_update(target: Path, link_name: Path) -> Optional[Path]:
     """
     This function finds the file that the symlink currently points to, sets it
     to the new target, and returns the previous target if it exists.
 
     :param target: A path to a file that we want the symlink to point to.
+                    no parent dir, filename only, i.e. "10000.ckpt"
     :param link_name: This is the name of the symlink that we want to update.
+                    link name with parent dir, i.e. "models/my_model/best.ckpt"
 
     :return:
         - current_last: This is the previous target of the symlink, before it is
             updated in this function. If the symlink did not exist before or did
             not have a target, None is returned instead.
     """
-    link = pathlib.Path(link_name)
-    if link.is_symlink():
-        current_last = link.resolve()
-        link.unlink()
-        link.symlink_to(target)
+    if link_name.is_symlink():
+        current_last = link_name.resolve()
+        link_name.unlink()
+        link_name.symlink_to(target)
         return current_last
-    link.symlink_to(target)
+    link_name.symlink_to(target)
     return None
 
 

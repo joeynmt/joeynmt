@@ -9,7 +9,7 @@ import logging
 import numpy as np
 
 import torch
-from torchtext.legacy.data import Dataset, Field
+from torchtext.legacy.data import Dataset, Field # pylint: disable=no-name-in-module
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots, \
@@ -105,6 +105,9 @@ def validate_on_data(model: Model, data: Dataset,
             # run as during training to get validation loss (e.g. xent)
 
             batch = batch_class(valid_batch, pad_index, use_cuda=use_cuda)
+            if batch.nseqs < 1:
+                continue
+
             # sort batch now by src length and keep track of order
             reverse_index = batch.sort_by_src_length()
             sort_reverse_index = expand_reverse_index(reverse_index, n_best)
@@ -206,10 +209,10 @@ def parse_test_args(cfg, mode="test"):
     device = torch.device("cuda" if use_cuda else "cpu")
     if mode == 'test':
         n_gpu = torch.cuda.device_count() if use_cuda else 0
-        k = cfg["testing"].get("beam_size", 1)
-        batch_per_device = batch_size*k // n_gpu if n_gpu > 1 else batch_size*k
-        logger.info("Process device: %s, n_gpu: %d, "
-                    "batch_size per device: %d (with beam_size)",
+        #k = cfg["testing"].get("beam_size", 1)
+        #batch_per_device = batch_size*k // n_gpu if n_gpu > 1 else batch_size*k
+        batch_per_device = batch_size // n_gpu if n_gpu > 1 else batch_size
+        logger.info("Process device: %s, n_gpu: %d, batch_size per device: %d",
                     device, n_gpu, batch_per_device)
         eval_metric = cfg["training"]["eval_metric"]
 
@@ -289,6 +292,16 @@ def test(cfg_file,
 
     # load the data
     if datasets is None:
+        # set default vocab path
+        src_vocab_file = os.path.join(model_dir, "src_vocab.txt")
+        trg_vocab_file = os.path.join(model_dir, "trg_vocab.txt")
+        if "src_vocab" not in cfg["data"]:
+            assert os.path.isfile(src_vocab_file), f"{src_vocab_file} not found"
+            cfg["data"]["src_vocab"] = src_vocab_file
+        if "trg_vocab" not in cfg["data"]:
+            assert os.path.isfile(trg_vocab_file), f"{trg_vocab_file} not found"
+            cfg["data"]["trg_vocab"] = trg_vocab_file
+        # load data
         _, dev_data, test_data, src_vocab, trg_vocab = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
@@ -304,6 +317,7 @@ def test(cfg_file,
         = parse_test_args(cfg, mode="test")
 
     # load model state from disk
+    logger.info("Loading model from %s", ckpt)
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
@@ -441,11 +455,9 @@ def translate(cfg_file: str,
 
     tok_fun = lambda s: list(s) if level == "char" else s.split()
 
-    src_field = Field(init_token=None, eos_token=EOS_TOKEN,
-                      pad_token=PAD_TOKEN, tokenize=tok_fun,
-                      batch_first=True, lower=lowercase,
-                      unk_token=UNK_TOKEN,
-                      include_lengths=True)
+    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
+                      tokenize=tok_fun, batch_first=True, lower=lowercase,
+                      unk_token=UNK_TOKEN, include_lengths=True)
     src_field.vocab = src_vocab
 
     # parse test args
@@ -454,6 +466,7 @@ def translate(cfg_file: str,
         bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
 
     # load model state from disk
+    logger.info("Loading model from %s", ckpt)
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it

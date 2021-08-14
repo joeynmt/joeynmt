@@ -4,9 +4,10 @@ Attention modules
 """
 
 import torch
-from torch import Tensor
-import torch.nn as nn
+from torch import nn, Tensor
 import torch.nn.functional as F
+
+import numpy as np
 
 
 class AttentionMechanism(nn.Module):
@@ -79,7 +80,7 @@ class BahdanauAttention(AttentionMechanism):
         # scores: batch x 1 x time
 
         # mask out invalid positions by filling the masked out parts with -inf
-        scores = torch.where(mask, scores, scores.new_full([1], float('-inf')))
+        scores = torch.where(mask > 0, scores, scores.new_full([1], -np.inf))
 
         # turn scores to probabilities
         alphas = F.softmax(scores, dim=-1)  # batch x 1 x time
@@ -180,7 +181,7 @@ class LuongAttention(AttentionMechanism):
         scores = query @ self.proj_keys.transpose(1, 2)
 
         # mask out invalid positions by filling the masked out parts with -inf
-        scores = torch.where(mask, scores, scores.new_full([1], float('-inf')))
+        scores = torch.where(mask > 0, scores, scores.new_full([1], -np.inf))
 
         # turn scores to probabilities
         alphas = F.softmax(scores, dim=-1)  # batch x 1 x src_len

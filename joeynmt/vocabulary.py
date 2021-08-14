@@ -7,6 +7,7 @@ from collections import defaultdict, Counter
 from typing import List
 import numpy as np
 
+# pylint: disable=no-name-in-module
 from torchtext.legacy.data import Dataset
 
 from joeynmt.constants import UNK_TOKEN, DEFAULT_UNK_ID, \
