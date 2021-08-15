@@ -13,7 +13,7 @@ setup(
     license='Apache License',
     install_requires=install_requires,
     packages=find_packages(exclude=[]),
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     project_urls={
         'Documentation': 'http://joeynmt.readthedocs.io/en/latest/',
         'Source': 'https://github.com/joeynmt/joeynmt',

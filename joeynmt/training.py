@@ -277,11 +277,12 @@ class TrainManager:
             to_delete = None
             if len(self.ckpt_queue) < self.num_ckpts:   # no pop, push only
                 heapq.heappush(self.ckpt_queue, (score, model_path))
-            else:   # pop the worst one in the queue
+            else:   # push + pop the worst one in the queue
                 if self.minimize_metric:
                     # pylint: disable=protected-access
-                    to_delete = heapq._heappushpop_max(self.ckpt_queue,
-                                                       (score, model_path))
+                    heapq._heapify_max(self.ckpt_queue)
+                    to_delete = heapq._heappop_max(self.ckpt_queue)
+                    heapq.heappush(self.ckpt_queue, (score, model_path))
                     # pylint: enable=protected-access
                 else:
                     to_delete = heapq.heappushpop(self.ckpt_queue,
@@ -351,9 +352,11 @@ class TrainManager:
         else:
             logger.info("Reset tracking of the best checkpoint.")
 
-        if (not reset_iter_state
-                and model_checkpoint.get('train_iter_state', None) is not None):
+        if not reset_iter_state:
+            assert 'train_iter_state' in model_checkpoint
             self.train_iter_state = model_checkpoint["train_iter_state"]
+        else:
+            logger.info("Reset train data iterator.")
 
         # move parameters to cuda
         if self.use_cuda:
