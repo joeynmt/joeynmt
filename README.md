@@ -49,12 +49,12 @@ In order to keep the code clean and readable, we make use of:
 Travis CI runs the tests and pylint on every push to ensure the repository stays clean.
 
 ## Installation
-Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://github.com/pytorch/text) for Python >= 3.5.
+Joey NMT is built on [PyTorch](https://pytorch.org/) and [torchtext](https://github.com/pytorch/text) for Python >= 3.7.
 
 A. [*Now also directly with pip!*](https://pypi.org/project/joeynmt/)
   `pip install joeynmt`
   
-  If you want to use GPUs add: `pip install torch==1.8.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html`, for CUDA v10.1.
+  If you want to use GPUs add: `pip install torch==1.9.0+cu102 -f https://download.pytorch.org/whl/torch_stable.html`, for CUDA v10.2.
   You'll need this in particular when working on Google Colab.
   
 B. From source
@@ -66,7 +66,7 @@ B. From source
   3. Run the unit tests:
   `python3 -m unittest`
 
-**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version (1.8.0) for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version (1.9.0) for your [CUDA](https://developer.nvidia.com/cuda-zone) version. This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 
 ## Usage
