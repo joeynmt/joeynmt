@@ -488,17 +488,17 @@ def translate(params,data,type_:int) -> None:
    
 
     def _translate_data(test_data):
-    """ Translates given dataset, using parameters from outer scope. """
-    # pylint: disable=unused-variable
-    score, loss, ppl, sources, sources_raw, references, hypotheses, \
-    hypotheses_raw, attention_scores = validate_on_data(
-        params.model, data=test_data, batch_size=params.batch_size,
-        batch_class=params.batch_class, batch_type=params.batch_type, level=params.level,
-        max_output_length=params.max_output_length, eval_metric="",
-        use_cuda=params.use_cuda, compute_loss=False, beam_size=params.beam_size,
-        beam_alpha=params.beam_alpha, postprocess=params.postprocess,
-        bpe_type=params.bpe_type, sacrebleu=params.sacrebleu, n_gpu=params.n_gpu, n_best=params.n_best)
-    return hypotheses
+        """ Translates given dataset, using parameters from outer scope. """
+        # pylint: disable=unused-variable
+        score, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores = validate_on_data(
+            params.model, data=test_data, batch_size=params.batch_size,
+            batch_class=params.batch_class, batch_type=params.batch_type, level=params.level,
+            max_output_length=params.max_output_length, eval_metric="",
+            use_cuda=params.use_cuda, compute_loss=False, beam_size=params.beam_size,
+            beam_alpha=params.beam_alpha, postprocess=params.postprocess,
+            bpe_type=params.bpe_type, sacrebleu=params.sacrebleu, n_gpu=params.n_gpu, n_best=params.n_best)
+        return hypotheses
     
     def _load_line_as_data(line):
         """ Create a dataset from one line via a temporary file. """
