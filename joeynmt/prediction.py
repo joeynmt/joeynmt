@@ -436,6 +436,7 @@ def load_params_for_prediction(cfg_file,ckpt: str):
         max_output_length, beam_size, beam_alpha, postprocess, \
         bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
         
+    #Dictionary of parameters which will be used for translation
     params_dict['batch_size']=batch_size
     params_dict['batch_type']=batch_type
     params_dict['use_cuda']=use_cuda
@@ -564,5 +565,5 @@ def translate(params,data,type_:int,output_path=None) -> None:
 
         return hypotheses
     else:
-        raise Exception('type_ can only be 1 (if input file is given or 2 (if a single sentence is given')
+        raise Exception('type_ can only be 1 (if input file is given) or 2 (if a single sentence is given)')
 
