@@ -497,7 +497,7 @@ def translate(params,data,type_:int) -> None:
             max_output_length=params['max_output_length'], eval_metric="",
             use_cuda=params['use_cuda'], compute_loss=False, beam_size=params['beam_size'],
             beam_alpha=params['beam_alpha'], postprocess=params['postprocess'],
-            bpe_type=params['bpe_type'], sacrebleu=params['sacrebleu'], n_gpu=params['n_gpu', n_best=params['n_best'])
+            bpe_type=params['bpe_type'], sacrebleu=params['sacrebleu'], n_gpu=params['n_gpu'], n_best=params['n_best'])
         return hypotheses
     
     def _load_line_as_data(line):
