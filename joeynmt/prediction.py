@@ -392,17 +392,11 @@ def load_params_for_prediction(cfg_file,ckpt: str):
 
     """
     Interactive translation function.
-    Loads model from checkpoint and translates either the stdin input or
-    asks for input to translate interactively.
-    The input has to be pre-processed according to the data that the model
-    was trained on, i.e. tokenized or split into subwords.
-    Translations are printed to stdout.
+    Loads the parameters and model needed to perform translation
 
-    :param cfg_file: path to configuration file
-    :param ckpt: path to checkpoint to load
-    :param output_path: path to output file
-    :param batch_class: class type of batch
-    :param n_best: amount of candidates to display
+    :param cfg_file: path to configuration file/ configuration file dictionary to load parameters
+    :param ckpt: path to checkpoint to load model
+   
     """
     
     params_dict={}
@@ -458,15 +452,14 @@ def load_params_for_prediction(cfg_file,ckpt: str):
     params_dict['batch_class']=Batch
     params_dict['n_best'] = 1
 
-    #model = load_model_for_prediction(cfg,ckpt,src_vocab,trg_vocab,use_cuda)
-
+    
 
     model_dir = cfg["training"]["model_dir"]
 
 
-    # when checkpoint is not specified, take oldest from model dir
+    
     if ckpt is None:
-        ckpt = get_latest_checkpoint(model_dir)
+        raise Exception('Model checkpoint must be given')
     # load model state from disk
    
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
@@ -484,7 +477,7 @@ def load_params_for_prediction(cfg_file,ckpt: str):
 
     
     
-def translate(params,data,type_:int) -> None:
+def translate(params,data,type_:int,output_path=None) -> None:
    
 
     def _translate_data(test_data):
@@ -518,6 +511,8 @@ def translate(params,data,type_:int) -> None:
 
         return test_data
 
+    
+    
     if type_==1:
         # input file given
         test_data = MonoDataset(path=data, ext="", field=params['src_field'])
