@@ -388,11 +388,8 @@ def test(cfg_file,
             logger.info("Translations saved to: %s", output_path_set)
 
 
-def translate(cfg_file,
-              ckpt: str,
-              output_path: str = None,
-              batch_class: Batch = Batch,
-              n_best: int = 1) -> None:
+def load_params_for_prediction(cfg_file,ckpt: str):
+
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or
@@ -407,7 +404,102 @@ def translate(cfg_file,
     :param batch_class: class type of batch
     :param n_best: amount of candidates to display
     """
+    
+    params_dict={}
+    if isinstance(cfg_file,str):
+        cfg = load_config(cfg_file)
+    elif isinstance(cfg_file,dict):
+        cfg=cfg_file.copy()
+   
 
+    # read vocabs
+    src_vocab_file = cfg['data']['src_vocab']
+    trg_vocab_file = cfg['data']['trg_vocab']
+    src_vocab = Vocabulary(file=src_vocab_file)
+    trg_vocab = Vocabulary(file=trg_vocab_file)
+
+    params_dict['src_vocab']= src_vocab
+    params_dict['trg_vocab']= trg_vocab
+    
+    data_cfg = cfg["data"]
+    level = data_cfg["level"]
+    lowercase = data_cfg["lowercase"]
+    
+    
+    params_dict['lowercase']=lowercase
+
+    tok_fun = lambda s: list(s) if level == "char" else s.split()
+
+    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
+                      tokenize=tok_fun, batch_first=True, lower=lowercase,
+                      unk_token=UNK_TOKEN, include_lengths=True)
+    src_field.vocab = src_vocab
+
+    params_dict['src_field']=src_field
+
+    # parse test args
+    batch_size, batch_type, use_cuda, device, n_gpu, level, _, \
+        max_output_length, beam_size, beam_alpha, postprocess, \
+        bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
+        
+    params_dict['batch_size']=batch_size
+    params_dict['batch_type']=batch_type
+    params_dict['use_cuda']=use_cuda
+    params_dict['device']=device
+    params_dict['n_gpu']=n_gpu
+    params_dict['level']=level
+    params_dict['max_output_length'] = max_output_length
+    params_dict['beam_size']=beam_size
+    params_dict['beam_alpha']=beam_alpha
+    params_dict['postprocess'] = postprocess
+    params_dict['bpe_type'] = bpe_type
+    params_dict['sacrebleu'] = sacrebleu
+    
+    params_dict['batch_class']=Batch
+    params_dict['n_best'] = 1
+
+    #model = load_model_for_prediction(cfg,ckpt,src_vocab,trg_vocab,use_cuda)
+
+
+    model_dir = cfg["training"]["model_dir"]
+
+
+    # when checkpoint is not specified, take oldest from model dir
+    if ckpt is None:
+        ckpt = get_latest_checkpoint(model_dir)
+    # load model state from disk
+   
+    model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
+
+    # build model and load parameters into it
+    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    model.load_state_dict(model_checkpoint["model_state"])
+
+    if use_cuda:
+        model.to(device)
+        
+    params_dict['model'] = model
+    return params_dict
+    
+
+    
+    
+def translate(params,data,type_:int) -> None:
+   
+
+    def _translate_data(test_data):
+    """ Translates given dataset, using parameters from outer scope. """
+    # pylint: disable=unused-variable
+    score, loss, ppl, sources, sources_raw, references, hypotheses, \
+    hypotheses_raw, attention_scores = validate_on_data(
+        params.model, data=test_data, batch_size=params.batch_size,
+        batch_class=params.batch_class, batch_type=params.batch_type, level=params.level,
+        max_output_length=params.max_output_length, eval_metric="",
+        use_cuda=params.use_cuda, compute_loss=False, beam_size=params.beam_size,
+        beam_alpha=params.beam_alpha, postprocess=params.postprocess,
+        bpe_type=params.bpe_type, sacrebleu=params.sacrebleu, n_gpu=params.n_gpu, n_best=params.n_best)
+    return hypotheses
+    
     def _load_line_as_data(line):
         """ Create a dataset from one line via a temporary file. """
         # write src input to temporary file
@@ -426,70 +518,9 @@ def translate(cfg_file,
 
         return test_data
 
-    def _translate_data(test_data):
-        """ Translates given dataset, using parameters from outer scope. """
-        # pylint: disable=unused-variable
-        score, loss, ppl, sources, sources_raw, references, hypotheses, \
-        hypotheses_raw, attention_scores = validate_on_data(
-            model, data=test_data, batch_size=batch_size,
-            batch_class=batch_class, batch_type=batch_type, level=level,
-            max_output_length=max_output_length, eval_metric="",
-            use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
-            beam_alpha=beam_alpha, postprocess=postprocess,
-            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu, n_best=n_best)
-        return hypotheses
-
-    if isinstance(cfg_file,str):
-        cfg = load_config(cfg_file)
-    else:
-        cfg=cfg_file
-    model_dir = cfg["training"]["model_dir"]
-
-    '''
-    _ = make_logger(model_dir, mode="translate")
-    '''
-    # version string returned
-
-    # when checkpoint is not specified, take oldest from model dir
-    if ckpt is None:
-        ckpt = get_latest_checkpoint(model_dir)
-
-    # read vocabs
-    src_vocab_file = cfg['data']['src_vocab']
-    trg_vocab_file = cfg['data']['trg_vocab']
-    src_vocab = Vocabulary(file=src_vocab_file)
-    trg_vocab = Vocabulary(file=trg_vocab_file)
-
-    data_cfg = cfg["data"]
-    level = data_cfg["level"]
-    lowercase = data_cfg["lowercase"]
-
-    tok_fun = lambda s: list(s) if level == "char" else s.split()
-
-    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
-                      tokenize=tok_fun, batch_first=True, lower=lowercase,
-                      unk_token=UNK_TOKEN, include_lengths=True)
-    src_field.vocab = src_vocab
-
-    # parse test args
-    batch_size, batch_type, use_cuda, device, n_gpu, level, _, \
-        max_output_length, beam_size, beam_alpha, postprocess, \
-        bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
-
-    # load model state from disk
-    logger.info("Loading model from %s", ckpt)
-    model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
-
-    # build model and load parameters into it
-    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
-    model.load_state_dict(model_checkpoint["model_state"])
-
-    if use_cuda:
-        model.to(device)
-
-    if not sys.stdin.isatty():
+    if type_==1:
         # input file given
-        test_data = MonoDataset(path=sys.stdin, ext="", field=src_field)
+        test_data = MonoDataset(path=data, ext="", field=src_field)
         all_hypotheses = _translate_data(test_data)
 
         if output_path is not None:
@@ -515,30 +546,24 @@ def translate(cfg_file,
                     )
             else:
                 write_to_file("{}".format(output_path), all_hypotheses)
+                return output_path
         else:
-            # print to stdout
-            for hyp in all_hypotheses:
-                print(hyp)
+            return hypotheses
 
-    else:
-        # enter interactive mode
+    elif type_==2:
+        # single sentence is given
         batch_size = 1
         batch_type = "sentence"
-        while True:
-            try:
-                src_input = input("\nPlease enter a source sentence "
-                                  "(pre-processed): \n")
-                if not src_input.strip():
-                    break
+        
+        src_input = data
+        if not src_input.strip():
+            break
 
-                # every line has to be made into dataset
-                test_data = _load_line_as_data(line=src_input)
-                hypotheses = _translate_data(test_data)
+        # every line has to be made into dataset
+        test_data = _load_line_as_data(line=src_input)
+        hypotheses = _translate_data(test_data)
 
-                print("JoeyNMT: Hypotheses ranked by score")
-                for i, hyp in enumerate(hypotheses):
-                    print("JoeyNMT #{}: {}".format(i + 1, hyp))
+        return hypotheses
+    else:
+        raise Exception('type_ can only be 1 (if input file is given or 2 (if a single sentence is given')
 
-            except (KeyboardInterrupt, EOFError):
-                print("\nBye.")
-                break
