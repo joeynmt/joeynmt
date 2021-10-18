@@ -545,7 +545,7 @@ def translate(params,data,type_:int,output_path=None) -> None:
         else:
             output_string=''
             for hyp in all_hypotheses:
-                output_string+=hyp + "\n")
+                output_string+=hyp + "\n"
             
             return output_string
 
