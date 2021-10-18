@@ -557,7 +557,7 @@ def translate(params,data,type_:int) -> None:
         
         src_input = data
         if not src_input.strip():
-            break
+            raise Exception('Empty string')
 
         # every line has to be made into dataset
         test_data = _load_line_as_data(line=src_input)
