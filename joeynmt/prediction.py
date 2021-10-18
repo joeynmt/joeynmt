@@ -268,7 +268,7 @@ def test(cfg_file,
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
 
-    :param cfg_file: path to configuration file
+    :param cfg_file: path to configuration file. Config file can be the yaml file or the loaded config file
     :param ckpt: path to checkpoint to load
     :param batch_class: class type of batch
     :param output_path: path to output
@@ -276,11 +276,17 @@ def test(cfg_file,
     :param save_attention: whether to save the computed attention weights
     """
 
-    cfg = load_config(cfg_file)
+    if isinstance(cfg_file,str):
+        cfg = load_config(cfg_file)
+    else:
+        cfg=cfg_file
     model_dir = cfg["training"]["model_dir"]
 
+    '''
     if len(logger.handlers) == 0:
         _ = make_logger(model_dir, mode="test")   # version string returned
+    '''
+
 
     # when checkpoint is not specified, take latest (best) from model dir
     if ckpt is None:
@@ -382,7 +388,7 @@ def test(cfg_file,
             logger.info("Translations saved to: %s", output_path_set)
 
 
-def translate(cfg_file: str,
+def translate(cfg_file,
               ckpt: str,
               output_path: str = None,
               batch_class: Batch = Batch,
@@ -433,10 +439,15 @@ def translate(cfg_file: str,
             bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu, n_best=n_best)
         return hypotheses
 
-    cfg = load_config(cfg_file)
+    if isinstance(cfg_file,str):
+        cfg = load_config(cfg_file)
+    else:
+        cfg=cfg_file
     model_dir = cfg["training"]["model_dir"]
 
+    '''
     _ = make_logger(model_dir, mode="translate")
+    '''
     # version string returned
 
     # when checkpoint is not specified, take oldest from model dir
@@ -444,8 +455,8 @@ def translate(cfg_file: str,
         ckpt = get_latest_checkpoint(model_dir)
 
     # read vocabs
-    src_vocab_file = cfg["data"].get("src_vocab", model_dir + "/src_vocab.txt")
-    trg_vocab_file = cfg["data"].get("trg_vocab", model_dir + "/trg_vocab.txt")
+    src_vocab_file = cfg['data']['src_vocab']
+    trg_vocab_file = cfg['data']['trg_vocab']
     src_vocab = Vocabulary(file=src_vocab_file)
     trg_vocab = Vocabulary(file=trg_vocab_file)
 
