@@ -510,7 +510,7 @@ def translate(params,data,type_:int) -> None:
             tmp_file.write("{}\n".format(line))
 
         test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
-                                field=src_field)
+                                field=params.src_field)
 
         # remove temporary file
         if os.path.exists(tmp_filename):
@@ -520,7 +520,7 @@ def translate(params,data,type_:int) -> None:
 
     if type_==1:
         # input file given
-        test_data = MonoDataset(path=data, ext="", field=src_field)
+        test_data = MonoDataset(path=data, ext="", field=params.src_field)
         all_hypotheses = _translate_data(test_data)
 
         if output_path is not None:
