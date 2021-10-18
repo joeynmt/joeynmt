@@ -492,12 +492,12 @@ def translate(params,data,type_:int) -> None:
         # pylint: disable=unused-variable
         score, loss, ppl, sources, sources_raw, references, hypotheses, \
         hypotheses_raw, attention_scores = validate_on_data(
-            params.model, data=test_data, batch_size=params.batch_size,
-            batch_class=params.batch_class, batch_type=params.batch_type, level=params.level,
-            max_output_length=params.max_output_length, eval_metric="",
-            use_cuda=params.use_cuda, compute_loss=False, beam_size=params.beam_size,
-            beam_alpha=params.beam_alpha, postprocess=params.postprocess,
-            bpe_type=params.bpe_type, sacrebleu=params.sacrebleu, n_gpu=params.n_gpu, n_best=params.n_best)
+            params['model'], data=test_data, batch_size=params['batch_size'],
+            batch_class=params['batch_class'], batch_type=params['batch_type'], level=params['level'],
+            max_output_length=params['max_output_length'], eval_metric="",
+            use_cuda=params['use_cuda'], compute_loss=False, beam_size=params['beam_size'],
+            beam_alpha=params['beam_alpha'], postprocess=params['postprocess'],
+            bpe_type=params['bpe_type'], sacrebleu=params['sacrebleu'], n_gpu=params['n_gpu', n_best=params['n_best'])
         return hypotheses
     
     def _load_line_as_data(line):
@@ -510,7 +510,7 @@ def translate(params,data,type_:int) -> None:
             tmp_file.write("{}\n".format(line))
 
         test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
-                                field=params.src_field)
+                                field=params['src_field'])
 
         # remove temporary file
         if os.path.exists(tmp_filename):
@@ -520,7 +520,7 @@ def translate(params,data,type_:int) -> None:
 
     if type_==1:
         # input file given
-        test_data = MonoDataset(path=data, ext="", field=params.src_field)
+        test_data = MonoDataset(path=data, ext="", field=params['src_field'])
         all_hypotheses = _translate_data(test_data)
 
         if output_path is not None:
