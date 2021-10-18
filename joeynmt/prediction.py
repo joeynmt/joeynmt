@@ -543,7 +543,11 @@ def translate(params,data,type_:int,output_path=None) -> None:
                 write_to_file("{}".format(output_path), all_hypotheses)
                 return output_path
         else:
-            return hypotheses
+            output_string=''
+            for hyp in all_hypotheses:
+                output_string+=hyp + "\n")
+            
+            return output_string
 
     elif type_==2:
         # single sentence is given
