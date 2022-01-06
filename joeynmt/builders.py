@@ -142,6 +142,7 @@ def build_scheduler(config: dict, optimizer: Optimizer, scheduler_mode: str,
                                           mode=scheduler_mode,
                                           verbose=False,
                                           threshold_mode='abs',
+                                          eps=0.0,
                                           factor=config.get(
                                               "decrease_factor", 0.1),
                                           patience=config.get("patience", 10))
