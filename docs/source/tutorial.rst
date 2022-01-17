@@ -74,10 +74,10 @@ In JoeyNMT, experiments are specified in configuration files, in `YAML <http://y
 Most importantly, the configuration contains the description of the model architecture (e.g. number of hidden units in the encoder RNN),
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
-You can find examples in the `configs directory <https://github.com/joeynmt/joeynmt/tree/master/configs>`_.
-`small.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/small.yaml>`_ contains a detailed explanation of all configuration options.
+You can find examples in the `configs directory <https://github.com/joeynmt/joeynmt/tree/main/configs>`_.
+`small.yaml <https://github.com/joeynmt/joeynmt/tree/main/configs/small.yaml>`_ contains a detailed explanation of all configuration options.
 
-For the tutorial we'll use `reverse.yaml <https://github.com/joeynmt/joeynmt/tree/master/configs/reverse.yaml>`_. We'll go through it section by section.
+For the tutorial we'll use `reverse.yaml <https://github.com/joeynmt/joeynmt/tree/main/configs/reverse.yaml>`_. We'll go through it section by section.
 
 1. Data Section
 ---------------
@@ -175,7 +175,7 @@ In this example we use a one-layer bidirectional LSTM encoder with 64 units, a o
 Source and target embeddings both have the size of 16.
 
 We're not going into details for the initialization, just know that it matters for tuning but that out default configurations should generally work fine.
-A detailed description for the initialization options is described in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
+A detailed description for the initialization options is described in `initialization.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/initialization.py#L60>`_.
 
 Dropout is applied onto the input of the encoder RNN with dropout probability of 0.1, as well as to the input of the decoder RNN and to the input of the attention vector layer (``hidden_dropout``).
 Input feeding (`Luong et al. 2015 <https://aclweb.org/anthology/D15-1166>`_) means the attention vector is concatenated to the hidden state before feeding it to the RNN in the next step.
@@ -288,7 +288,7 @@ You can see when a checkpoint was saved by the asterisk at the end of the line i
 Learning Curves
 ^^^^^^^^^^^^^^^
 
-JoeyNMT provides a `script <https://github.com/joeynmt/joeynmt/blob/master/scripts/plot_validations.py>`_ to plot validation scores with matplotlib.
+JoeyNMT provides a `script <https://github.com/joeynmt/joeynmt/blob/main/scripts/plot_validations.py>`_ to plot validation scores with matplotlib.
 You can choose several models and metrics to plot. For now, we're interested in BLEU and perplexity and we want to save it as png.
 
 .. code-block:: bash

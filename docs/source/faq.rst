@@ -7,8 +7,8 @@ Frequently Asked Questions
 Documentation
 -------------
 - **Are there any Notebooks for Joey?**
-    - `Demo colab <https://github.com/joeynmt/joeynmt/blob/master/joey_demo.ipynb>`_ for an example of Tatoeba translations.
-    - `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/master/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation for African languages.
+    - `Demo colab <https://github.com/joeynmt/joeynmt/blob/main/joey_demo.ipynb>`_ for an example of Tatoeba translations.
+    - `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation for African languages.
 
 - **Is there a bunch of scripts to run all those Joey commands?**
     Check out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
@@ -38,7 +38,7 @@ Training
 
 - **How can I see how well my model is doing?**
    1. *Training log*: Validation results and training loss (after each epoch and batch) are reported in the training log file ``train.log`` in your model directory.
-   2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved. You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/master/scripts/plot_validations.py>`_, e.g.
+   2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved. You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/main/scripts/plot_validations.py>`_, e.g.
     ::
 
         python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf
@@ -113,7 +113,7 @@ Tensorboard
 Configurations
 ^^^^^^^^^^^^^^
 - **Where can I find the default values for the settings in the configuration file?**
-   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/master/configs/small.yaml>`_ or :ref:`api`
+   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/main/configs/small.yaml>`_ or :ref:`api`
    for individual modules.
    Please note that there is no guarantee that the default setting is a good setting.
 
@@ -144,9 +144,9 @@ Data
 ^^^^
 - **Does JoeyNMT pre-process my data?**
     JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
-    For that purpose, you might find the  `tools provided by the Moses decoder <https://github.com/moses-smt/mosesdecoder/tree/master/scripts>`_ useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh>`_.
+    For that purpose, you might find the  `tools provided by the Moses decoder <https://github.com/moses-smt/mosesdecoder/tree/main/scripts>`_ useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh>`_.
     However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length) that you specify in the data section of the configuration file.
-    You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/master/scripts/preprocess.sh>`_.
+    You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/main/scripts/preprocess.sh>`_.
 
 - **Does JoeyNMT post-process your data?**
   JoeyNMT does generally *not* perform any post-processing like detokenization, recasing or the like. The only exception is when you run it with ´level='bpe'´ -- then it *merges* the BPEs for your convenience. This holds for computing validation BLEU and test BLEU scores, so that they're not computed on subwords, but the previously split tokens.
@@ -184,10 +184,10 @@ Features
    We might add it in the future, but from our experience, the most popular models are recurrent and self-attentional.
 
 - **How are the parameters initialized?**
-   Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/initialization.py#L60>`_.
+   Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/initialization.py#L60>`_.
 
 - **Is there the option to ensemble multiple models?**
-   You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/master/scripts/average_checkpoints.py>`_.
+   You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/main/scripts/average_checkpoints.py>`_.
 
 - **What is a bridge?**
    We call the connection between recurrent encoder and decoder states the *bridge*.
@@ -229,7 +229,7 @@ Model Extensions
     Logging and unit tests are very useful tools for tracking the changes of your implementation as well.
 
 - **How do I integrate a new learning rate scheduler?**
-    1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/master/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler.
+    1. Check out the existing schedulers in `builders.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/builders.py>`_, some of them are imported from PyTorch. The "Noam" scheduler is implemented here directly, you can use its code as a template how to implement a new scheduler.
 
     2. You basically need to implement the ``step`` function that implements whatever happens when the scheduler is asked to make a step (either after every validation (``scheduler_step_at="validation"``) or every batch (``scheduler_step_at="step"``)). In that step, the learning rate can be modified just as you like (``rate = self._compute_rate()``). In order to make an effective update of the learning rate, the learning rate for the optimizer's parameter groups have to be set to the new value (``for p in self.optimizer.param_groups: p['lr'] = rate``).
 

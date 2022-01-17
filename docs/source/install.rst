@@ -7,7 +7,7 @@ Installation
 Basics
 ------
 
-First install `Python <https://www.python.org/>`_ >= 3.7, `PyTorch <https://pytorch.org/>`_ >=v.1.8.0 and `git <https://git-scm.com/>`_.
+First install `Python <https://www.python.org/>`_ >= 3.7, `PyTorch <https://pytorch.org/>`_ >=v.1.9.0 and `git <https://git-scm.com/>`_.
 
 Create and activate a `virtual environment <https://packaging.python.org/tutorials/installing-packages/#creating-virtual-environments>`_ to install the package into:
 

@@ -1,5 +1,5 @@
 # &nbsp; ![Joey-NMT](joey-small.png) Joey NMT
-[![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=master)](https://travis-ci.org/joeynmt/joeynmt)
+[![Build Status](https://travis-ci.com/joeynmt/joeynmt.svg?branch=main)](https://travis-ci.org/joeynmt/joeynmt)
 [![Gitter](https://badges.gitter.im/joeynmt/community.svg)](https://gitter.im/joeynmt/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Goal and Purpose
@@ -169,13 +169,13 @@ Benchmark results on WMT and IWSLT datasets are reported [here](benchmarks.md). 
 Pre-trained models from reported benchmarks for download (contains config, vocabularies, best checkpoint and dev/test hypotheses):
 
 ### IWSLT14 de-en
-Pre-processing with Moses decoder tools as in [this script](https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt14_bpe.sh).
+Pre-processing with Moses decoder tools as in [this script](https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh).
 
 - [IWSLT14 de-en BPE RNN](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/iwslt14-deen-bpe.tar.gz) (641M)
 - [IWSLT14 de-en Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt14_deen_bpe.tar.gz) (210M)
 
 ### IWSLT15 en-vi
-The data came preprocessed from Stanford NLP, see [this script](https://github.com/joeynmt/joeynmt/blob/master/scripts/get_iwslt15_envi.sh).
+The data came preprocessed from Stanford NLP, see [this script](https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt15_envi.sh).
 
 - [IWSLT15 en-vi Transformer](https://www.cl.uni-heidelberg.de/statnlpgroup/joeynmt/transformer_iwslt15_envi.tar.gz) (186M)
 
@@ -212,7 +212,7 @@ Since this codebase is supposed to stay clean and minimalistic, contributions ad
 - resolving issues
 - providing pre-trained models
 
-Code extending the functionalities beyond the basics will most likely not end up in the master branch, but we're curions to learn what you used Joey NMT for.
+Code extending the functionalities beyond the basics will most likely not end up in the main branch, but we're curions to learn what you used Joey NMT for.
 
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey NMT, so you can find inspiration and examples on how to modify and extend the code.
