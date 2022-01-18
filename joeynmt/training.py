@@ -191,7 +191,7 @@ class TrainManager:
             if 'apex' not in sys.modules:
                 raise ImportError("Please install apex from "
                                   "https://www.github.com/nvidia/apex "
-                                  "to use fp16 training.") from no_apex
+                                  "to use fp16 training.") from no_apex  # pylint: disable-used-before-assignment
             self.model, self.optimizer = amp.initialize(self.model,
                                                         self.optimizer,
                                                         opt_level='O1')
