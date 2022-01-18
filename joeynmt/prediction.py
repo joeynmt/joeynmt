@@ -247,7 +247,7 @@ def parse_test_args(cfg, mode="test"):
 
     decoding_description = "Greedy decoding" if beam_size < 2 else \
         f"Beam search decoding with beam size = {beam_size} " \
-        "and alpha = {beam_alpha}"
+        f"and alpha = {beam_alpha}"
     tokenizer_info = f"[{sacrebleu['tokenize']}]" \
         if eval_metric == "bleu" else ""
 
