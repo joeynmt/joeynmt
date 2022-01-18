@@ -111,9 +111,8 @@ class RecurrentDecoder(Decoder):
             self.attention = LuongAttention(hidden_size=hidden_size,
                                             key_size=encoder.output_size)
         else:
-            raise ConfigurationError("Unknown attention mechanism: %s. "
-                                     "Valid options: 'bahdanau', 'luong'."
-                                     % attention)
+            raise ConfigurationError(f"Unknown attention mechanism: "\
+                    f"{attention}. Valid options: 'bahdanau', 'luong'.")
 
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -127,10 +126,10 @@ class RecurrentDecoder(Decoder):
             if encoder.output_size != self.hidden_size:
                 if encoder.output_size != 2*self.hidden_size:  # bidirectional
                     raise ConfigurationError(
-                        "For initializing the decoder state with the "
-                        "last encoder state, their sizes have to match "
-                        "(encoder: {} vs. decoder:  {})".format(
-                            encoder.output_size, self.hidden_size))
+                        f"For initializing the decoder state with the "
+                        f"last encoder state, their sizes have to match "
+                        f"(encoder: {encoder.output_size} " \
+                        f"vs. decoder: {self.hidden_size})")
         if freeze:
             freeze_params(self)
 
@@ -449,8 +448,7 @@ class RecurrentDecoder(Decoder):
         return (hidden, hidden) if isinstance(self.rnn, nn.LSTM) else hidden
 
     def __repr__(self):
-        return "RecurrentDecoder(rnn=%r, attention=%r)" % (
-            self.rnn, self.attention)
+        return f"RecurrentDecoder(rnn={self.rnn}, attention={self.attention})"
 
 
 # pylint: disable=arguments-differ,too-many-arguments
@@ -544,6 +542,5 @@ class TransformerDecoder(Decoder):
         return output, x, None, None
 
     def __repr__(self):
-        return "%s(num_layers=%r, num_heads=%r)" % (
-            self.__class__.__name__, len(self.layers),
-            self.layers[0].trg_trg_att.num_heads)
+        return f"{self.__class__.__name__}(num_layers={len(self.layers)}," \
+                f" num_heads={self.layers[0].trg_trg_att.num_heads})"

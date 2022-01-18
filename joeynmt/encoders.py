@@ -144,7 +144,7 @@ class RecurrentEncoder(Encoder):
         return output, hidden_concat
 
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.rnn)
+        return f"{self.__class__.__name__}({self.rnn})"
 
 
 class TransformerEncoder(Encoder):
@@ -222,6 +222,5 @@ class TransformerEncoder(Encoder):
         return self.layer_norm(x), None
 
     def __repr__(self):
-        return "%s(num_layers=%r, num_heads=%r)" % (
-            self.__class__.__name__, len(self.layers),
-            self.layers[0].src_src_att.num_heads)
+        return f"{self.__class__.__name__}(num_layers={len(self.layers)}, " \
+                f"num_heads={self.layers[0].src_src_att.num_heads})"

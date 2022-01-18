@@ -68,7 +68,7 @@ class TrainManager:
         assert os.path.exists(self.model_dir)
 
         self.logging_freq = train_config.get("logging_freq", 100)
-        self.valid_report_file = "{}/validations.txt".format(self.model_dir)
+        self.valid_report_file = f"{self.model_dir}/validations.txt"
         self.tb_writer = SummaryWriter(log_dir=self.model_dir + "/tensorboard/")
 
         self.save_latest_checkpoint = train_config.get("save_latest_ckpt", True)
@@ -191,7 +191,7 @@ class TrainManager:
             if 'apex' not in sys.modules:
                 raise ImportError("Please install apex from "
                                   "https://www.github.com/nvidia/apex "
-                                  "to use fp16 training.") from no_apex  # pylint: disable-used-before-assignment
+                                  "to use fp16 training.") from no_apex  # pylint: disable=used-before-assignment
             self.model, self.optimizer = amp.initialize(self.model,
                                                         self.optimizer,
                                                         opt_level='O1')
@@ -657,8 +657,8 @@ class TrainManager:
                                   targets=valid_hypotheses_raw,
                                   sources=[s for s in valid_data.src],
                                   indices=self.log_valid_sents,
-                                  output_prefix="{}/att.{}".format(
-                                      self.model_dir, self.stats.steps),
+                                  output_prefix=f"{self.model_dir}/" \
+                                          f"att.{self.stats.steps}",
                                   tb_writer=self.tb_writer,
                                   steps=self.stats.steps)
 
@@ -684,10 +684,10 @@ class TrainManager:
 
         with open(self.valid_report_file, 'a', encoding="utf-8") as opened_file:
             opened_file.write(
-                "Steps: {}\tLoss: {:.5f}\tPPL: {:.5f}\t{}: {:.5f}\t"
-                "LR: {:.8f}\t{}\n".format(self.stats.steps, valid_loss,
-                                          valid_ppl, eval_metric, valid_score,
-                                          current_lr, "*" if new_best else ""))
+                f"Steps: {self.stats.steps}\tLoss: {valid_loss:.5f}\t" \
+                        f"PPL: {valid_ppl:.5f}\t{eval_metric}: "\
+                        f"{valid_score:.5f}\tLR: {current_lr:.8f}\t" \
+                        f"{'*' if new_best else ''}\n")
 
     def _log_parameters_list(self) -> None:
         """
@@ -744,12 +744,12 @@ class TrainManager:
 
         :param hypotheses: list of strings
         """
-        current_valid_output_file = "{}/{}.hyps".format(self.model_dir,
-                                                        self.stats.steps)
+        current_valid_output_file = f"{self.model_dir}/" \
+                f"{self.stats.steps}.hyps"
         with open(current_valid_output_file, 'w', encoding="utf-8") \
                 as opened_file:
             for hyp in hypotheses:
-                opened_file.write("{}\n".format(hyp))
+                opened_file.write(f"{hyp}\n")
 
     class TrainStatistics:
         def __init__(self,
@@ -837,9 +837,9 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
     logger.info(str(model))
 
     # store the vocabs
-    src_vocab_file = "{}/src_vocab.txt".format(cfg["training"]["model_dir"])
+    src_vocab_file = f"{model_dir}/src_vocab.txt"
     src_vocab.to_file(src_vocab_file)
-    trg_vocab_file = "{}/trg_vocab.txt".format(cfg["training"]["model_dir"])
+    trg_vocab_file = f"{model_dir}/trg_vocab.txt"
     trg_vocab.to_file(trg_vocab_file)
 
     # train the model
@@ -848,8 +848,8 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
     if not skip_test:
         # predict with the best model on validation and test
         # (if test data is available)
-        ckpt = "{}/{}.ckpt".format(model_dir, trainer.stats.best_ckpt_iter)
-        output_name = "{:08d}.hyps".format(trainer.stats.best_ckpt_iter)
+        ckpt = f"{model_dir}/{trainer.stats.best_ckpt_iter}.ckpt"
+        output_name = f"{trainer.stats.best_ckpt_iter:08d}.hyps"
         output_path = os.path.join(model_dir, output_name)
         datasets_to_test = {
             "dev": dev_data,

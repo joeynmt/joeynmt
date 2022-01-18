@@ -62,8 +62,8 @@ class Embeddings(nn.Module):
         return self.lut(x)
 
     def __repr__(self):
-        return "%s(embedding_dim=%d, vocab_size=%d)" % (
-            self.__class__.__name__, self.embedding_dim, self.vocab_size)
+        return f"{self.__class__.__name__}(embedding_dim=" \
+                f"{self.embedding_dim}, vocab_size={self.vocab_size})"
 
     #from fairseq
     def load_from_file(self, embed_path: str, vocab: Vocabulary):
@@ -102,19 +102,20 @@ class Embeddings(nn.Module):
                     embed_dict[tokens[0]] = torch.FloatTensor(
                         [float(t) for t in tokens[1:]])
 
-            logger.warning("Loaded {} of {} ({:%}) tokens "
-                           "in the pre-trained embeddings.".format(
+            logger.warning("Loaded %d of %d (%.1f%%) tokens "
+                           "in the pre-trained embeddings.",
                            len(embed_dict), vocab_size,
-                           len(embed_dict)/vocab_size))
+                           100*len(embed_dict)/vocab_size)
 
         # assign
-        for idx in range(len(vocab)):
+        vocab_size = len(vocab)
+        for idx in range(vocab_size):
             token = vocab.itos[idx]
             if token in embed_dict:
                 assert self.embedding_dim == len(embed_dict[token])
                 self.lut.weight.data[idx] = embed_dict[token]
 
-        logger.warning("Loaded {} of {} ({:%}) tokens "
-                       "of the JoeyNMT's vocabulary.".format(
-                        len(embed_dict), len(vocab),
-                        len(embed_dict)/len(vocab)))
+        logger.warning("Loaded %d of %d (%.1f%%) tokens "
+                       "of the JoeyNMT's vocabulary.",
+                        len(embed_dict), vocab_size,
+                        100*len(embed_dict)/vocab_size)

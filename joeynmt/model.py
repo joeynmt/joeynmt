@@ -128,7 +128,7 @@ class Model(nn.Module):
                                                       **kwargs)
 
         unroll_steps = trg_input.size(1)
-        assert "decoder_hidden" not in kwargs.keys()
+        assert "decoder_hidden" not in kwargs
         return self._decode(encoder_output=encoder_output,
                             encoder_hidden=encoder_hidden,
                             src_mask=src_mask, trg_input=trg_input,
@@ -182,13 +182,9 @@ class Model(nn.Module):
 
         :return: string representation
         """
-        return "%s(\n" \
-               "\tencoder=%s,\n" \
-               "\tdecoder=%s,\n" \
-               "\tsrc_embed=%s,\n" \
-               "\ttrg_embed=%s)" % (self.__class__.__name__, self.encoder,
-                                    self.decoder, self.src_embed,
-                                    self.trg_embed)
+        return f"{self.__class__.__name__}(\n\tencoder={self.encoder}," \
+                f"\n\tdecoder={self.decoder},\n\tsrc_embed={self.src_embed}," \
+                f"\n\ttrg_embed={self.trg_embed})"
 
 
 class _DataParallel(nn.DataParallel):

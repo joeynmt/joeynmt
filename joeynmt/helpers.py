@@ -99,7 +99,7 @@ def log_cfg(cfg: dict, prefix: str = "cfg") -> None:
             log_cfg(v, prefix=p)
         else:
             p = '.'.join([prefix, k])
-            logger.info("{:34s} : {}".format(p, v))
+            logger.info("%34s : %s", p, v)
 
 
 def clones(module: nn.Module, n: int) -> nn.ModuleList:
@@ -161,10 +161,10 @@ def log_data_info(train_data: Dataset, valid_data: Dataset, test_data: Dataset,
 
     logger.info(
         "First 10 words (src): %s",
-        " ".join('(%d) %s' % (i, t) for i, t in enumerate(src_vocab.itos[:10])))
+        " ".join(f"({i}) {t}" for i, t in enumerate(src_vocab.itos[:10])))
     logger.info(
         "First 10 words (trg): %s",
-        " ".join('(%d) %s' % (i, t) for i, t in enumerate(trg_vocab.itos[:10])))
+        " ".join(f"({i}) {t}" for i, t in enumerate(trg_vocab.itos[:10])))
 
     logger.info("Number of Src words (types): %d", len(src_vocab))
     logger.info("Number of Trg words (types): %d", len(trg_vocab))
@@ -225,7 +225,7 @@ def store_attention_plots(attentions: np.array,
     for i in indices:
         if i >= len(sources):
             continue
-        plot_file = "{}.{}.pdf".format(output_prefix, i)
+        plot_file = f"{output_prefix}.{i}.pdf"
         src = sources[i]
         trg = targets[i]
         attention_scores = attentions[i].T
@@ -242,14 +242,14 @@ def store_attention_plots(attentions: np.array,
                                    row_labels=src,
                                    output_path=None,
                                    dpi=50)
-                tb_writer.add_figure("attention/{}.".format(i),
+                tb_writer.add_figure(f"attention/{i}.",
                                      fig,
                                      global_step=steps)
         # pylint: disable=bare-except
         except:
-            print("Couldn't plot example {}: src len {}, trg len {}, "
-                  "attention scores shape {}".format(i, len(src), len(trg),
-                                                     attention_scores.shape))
+            print(f"Couldn't plot example {i}: src len {len(src)}, "\
+                    f"trg len {len(trg)}, attention scores shape "\
+                    f"{attention_scores.shape}")
             continue
 
 
@@ -261,7 +261,7 @@ def get_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
     :param ckpt_dir:
     :return: latest checkpoint file
     """
-    list_of_files = glob.glob("{}/*.ckpt".format(ckpt_dir))
+    list_of_files = glob.glob(f"{ckpt_dir}/*.ckpt")
     latest_checkpoint = None
     if list_of_files:
         latest_checkpoint = max(list_of_files, key=os.path.getctime)
@@ -269,7 +269,7 @@ def get_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
     # check existence
     if latest_checkpoint is None:
         raise FileNotFoundError(
-            "No checkpoint found in directory {}.".format(ckpt_dir))
+            f"No checkpoint found in directory {ckpt_dir}.")
     return latest_checkpoint
 
 
@@ -281,7 +281,7 @@ def load_checkpoint(path: str, use_cuda: bool = True) -> dict:
     :param use_cuda: using cuda or not
     :return: checkpoint (dict)
     """
-    assert os.path.isfile(path), "Checkpoint %s not found" % path
+    assert os.path.isfile(path), f"Checkpoint {path} not found"
     checkpoint = torch.load(path, map_location='cuda' if use_cuda else 'cpu')
     return checkpoint
 

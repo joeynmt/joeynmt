@@ -246,8 +246,8 @@ def parse_test_args(cfg, mode="test"):
         sacrebleu = {"remove_whitespace": True, "tokenize": "13a"}
 
     decoding_description = "Greedy decoding" if beam_size < 2 else \
-        "Beam search decoding with beam size = {} and alpha = {}". \
-            format(beam_size, beam_alpha)
+        f"Beam search decoding with beam size = {beam_size} " \
+        "and alpha = {beam_alpha}"
     tokenizer_info = f"[{sacrebleu['tokenize']}]" \
         if eval_metric == "bleu" else ""
 
@@ -359,7 +359,7 @@ def test(cfg_file,
 
         if save_attention:
             if attention_scores:
-                attention_name = "{}.{}.att".format(data_set_name, step)
+                attention_name = f"{data_set_name}.{step}.att"
                 attention_path = os.path.join(model_dir, attention_name)
                 logger.info("Saving attention plots. This might take a while..")
                 store_attention_plots(attentions=attention_scores,
@@ -375,7 +375,7 @@ def test(cfg_file,
                                "Set beam_size to 1 for greedy decoding.")
 
         if output_path is not None:
-            output_path_set = "{}.{}".format(output_path, data_set_name)
+            output_path_set = f"{output_path}.{data_set_name}"
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
@@ -409,7 +409,7 @@ def translate(cfg_file: str,
         tmp_suffix = ".src"
         tmp_filename = tmp_name+tmp_suffix
         with open(tmp_filename, "w", encoding="utf-8") as tmp_file:
-            tmp_file.write("{}\n".format(line))
+            tmp_file.write(f"{line}\n")
 
         test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
                                 field=src_field)
@@ -495,15 +495,13 @@ def translate(cfg_file: str,
                 for n in range(n_best):
                     file_name, file_extension = os.path.splitext(output_path)
                     write_to_file(
-                        "{}-{}{}".format(
-                            file_name, n,
-                            file_extension if file_extension else ""
-                        ),
+                        f"{file_name}-{n}" \
+                        f"{file_extension if file_extension else ''}",
                         [all_hypotheses[i]
                          for i in range(n, len(all_hypotheses), n_best)]
                     )
             else:
-                write_to_file("{}".format(output_path), all_hypotheses)
+                write_to_file(f"{output_path}", all_hypotheses)
         else:
             # print to stdout
             for hyp in all_hypotheses:
@@ -526,7 +524,7 @@ def translate(cfg_file: str,
 
                 print("JoeyNMT: Hypotheses ranked by score")
                 for i, hyp in enumerate(hypotheses):
-                    print("JoeyNMT #{}: {}".format(i + 1, hyp))
+                    print(f"JoeyNMT #{i+1}: {hyp}")
 
             except (KeyboardInterrupt, EOFError):
                 print("\nBye.")

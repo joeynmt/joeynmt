@@ -75,7 +75,7 @@ class Vocabulary:
         """
         with open(file, "w", encoding="utf-8") as open_file:
             for t in self.itos:
-                open_file.write("{}\n".format(t))
+                open_file.write(f"{t}\n")
 
     def add_tokens(self, tokens: List[str]) -> None:
         """

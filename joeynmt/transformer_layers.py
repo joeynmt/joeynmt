@@ -135,8 +135,8 @@ class PositionalEncoding(nn.Module):
         :param dropout:
         """
         if size % 2 != 0:
-            raise ValueError("Cannot use sin/cos positional encoding with "
-                             "odd dim (got dim={:d})".format(size))
+            raise ValueError(f"Cannot use sin/cos positional encoding with "
+                             f"odd dim (got dim={size})")
         pe = torch.zeros(max_len, size)
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp((torch.arange(0, size, 2, dtype=torch.float) *

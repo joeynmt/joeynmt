@@ -183,8 +183,8 @@ def beam_search(model: Model, size: int,
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_attention_scores: attention scores (3d array)
     """
-    assert size > 0, 'Beam size must be >0.'
-    assert n_best <= size, 'Can only return {} best hypotheses.'.format(size)
+    assert size > 0, "Beam size must be >0."
+    assert n_best <= size, f"Can only return {size} best hypotheses."
 
     # init
     bos_index = model.bos_index

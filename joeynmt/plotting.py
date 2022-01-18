@@ -53,13 +53,13 @@ def plot_heatmap(scores: np.array, column_labels: List[str],
     fig, ax = plt.subplots(figsize=(10, 10), dpi=dpi)
     plt.imshow(scores, cmap='viridis', aspect='equal',
                origin='upper', vmin=0., vmax=1.)
+    ax.xaxis.tick_top()
+    ax.set_xticks(np.arange(scores.shape[1]) + 0, minor=False)
+    ax.set_yticks(np.arange(scores.shape[0]) + 0, minor=False)
 
     ax.set_xticklabels(column_labels, minor=False, rotation="vertical")
     ax.set_yticklabels(row_labels, minor=False)
 
-    ax.xaxis.tick_top()
-    ax.set_xticks(np.arange(scores.shape[1]) + 0, minor=False)
-    ax.set_yticks(np.arange(scores.shape[0]) + 0, minor=False)
     plt.tight_layout()
 
     if output_path is not None:
