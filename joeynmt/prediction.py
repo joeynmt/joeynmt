@@ -9,7 +9,7 @@ import logging
 import numpy as np
 
 import torch
-from torchtext.data import Dataset, Field # pylint: disable=no-name-in-module
+from torchtext.legacy.data import Dataset, Field # pylint: disable=no-name-in-module
 
 from joeynmt.helpers import bpe_postprocess, load_config, make_logger,\
     get_latest_checkpoint, load_checkpoint, store_attention_plots, \
@@ -267,8 +267,7 @@ def test(cfg_file,
     """
     Main test function. Handles loading a model from checkpoint, generating
     translations and storing them and attention plots.
-
-    :param cfg_file: path to configuration file. Config file can be the yaml file or the loaded config file
+    :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
     :param batch_class: class type of batch
     :param output_path: path to output
@@ -276,17 +275,11 @@ def test(cfg_file,
     :param save_attention: whether to save the computed attention weights
     """
 
-    if isinstance(cfg_file,str):
-        cfg = load_config(cfg_file)
-    else:
-        cfg=cfg_file
+    cfg = load_config(cfg_file)
     model_dir = cfg["training"]["model_dir"]
 
-    '''
     if len(logger.handlers) == 0:
         _ = make_logger(model_dir, mode="test")   # version string returned
-    '''
-
 
     # when checkpoint is not specified, take latest (best) from model dir
     if ckpt is None:
@@ -365,7 +358,7 @@ def test(cfg_file,
 
         if save_attention:
             if attention_scores:
-                attention_name = "{}.{}.att".format(data_set_name, step)
+                attention_name = f"{data_set_name}.{step}.att"
                 attention_path = os.path.join(model_dir, attention_name)
                 logger.info("Saving attention plots. This might take a while..")
                 store_attention_plots(attentions=attention_scores,
@@ -381,30 +374,32 @@ def test(cfg_file,
                                "Set beam_size to 1 for greedy decoding.")
 
         if output_path is not None:
-            output_path_set = "{}.{}".format(output_path, data_set_name)
+            output_path_set = f"{output_path}.{data_set_name}"
             with open(output_path_set, mode="w", encoding="utf-8") as out_file:
                 for hyp in hypotheses:
                     out_file.write(hyp + "\n")
             logger.info("Translations saved to: %s", output_path_set)
 
-
-def load_params_for_prediction(cfg_file,ckpt: str):
-
+def load_params_for_prediction(cfg_file: str or dict,
+                               ckpt: str) -> dict :
     """
-    Interactive translation function.
-    Loads the parameters and model needed to perform translation
-
-    :param cfg_file: path to configuration file/ configuration file dictionary to load parameters
+    This function loads the loads the hyperparameters from
+    the config AND loads the model (parameters). 
+    :param cfg_file: path to configuration file OR configuration dictionary to load parameters
     :param ckpt: path to checkpoint to load model
-   
     """
-    
+    if ckpt is None:
+        raise Exception('Model checkpoint must be given')
+
     params_dict={}
+
+    # Since `cfg_file` can be either the yaml file or
+    # the loaded configuration dict itself, 
+    # we load it accordingly  
     if isinstance(cfg_file,str):
         cfg = load_config(cfg_file)
     elif isinstance(cfg_file,dict):
         cfg=cfg_file.copy()
-   
 
     # read vocabs
     src_vocab_file = cfg['data']['src_vocab']
@@ -449,20 +444,11 @@ def load_params_for_prediction(cfg_file,ckpt: str):
     params_dict['postprocess'] = postprocess
     params_dict['bpe_type'] = bpe_type
     params_dict['sacrebleu'] = sacrebleu
-    
     params_dict['batch_class']=Batch
     params_dict['n_best'] = 1
 
-    
-
-    model_dir = cfg["training"]["model_dir"]
-
-
-    
-    if ckpt is None:
-        raise Exception('Model checkpoint must be given')
     # load model state from disk
-   
+    logger.info("Loading model from %s", ckpt)
     model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
 
     # build model and load parameters into it
@@ -474,11 +460,24 @@ def load_params_for_prediction(cfg_file,ckpt: str):
         
     params_dict['model'] = model
     return params_dict
-    
 
+  
+def translate_for_hf_space(params: dict,
+                           input_data: str ,
+                           translation_type: str,
+                           output_path=None) -> None:
+
+    """
+    A special translate function for the HF Space at 
+    https://huggingface.co/spaces/chrisjay/masakhane-benchmarks/blob/main/app.py#L3  
     
-    
-def translate(params,data,type_:int,output_path=None) -> None:
+    Performs translation on `input_data` using loaded model parameters in `params`.        
+       
+    :param params: configuration dictionary
+    :param input_data: input sentence if `translation_type=='sentence'` or path to file if `translation_type=='file'`.
+    :param translation_type: type of translation. Can be either `sentence` if `input_data` is a sentence or `file` if `input_data` is a file.
+    :param output_path: path to output file where translaton will be written.
+    """
    
 
     def _translate_data(test_data):
@@ -514,9 +513,154 @@ def translate(params,data,type_:int,output_path=None) -> None:
 
     
     
-    if type_==1:
+    if translation_type.strip().lower()=='file':
         # input file given
-        test_data = MonoDataset(path=data, ext="", field=params['src_field'])
+        test_data = MonoDataset(path=input_data, ext="", field=params['src_field'])
+        all_hypotheses = _translate_data(test_data)
+
+        if output_path is not None:
+            # write to outputfile if given
+
+            def write_to_file(output_path_set, hypotheses):
+                with open(output_path_set, mode="w", encoding="utf-8") \
+                        as out_file:
+                    for hyp in hypotheses:
+                        out_file.write(hyp + "\n")
+                logger.info("Translations saved to: %s.", output_path_set)
+
+            if params['n_best'] > 1:
+                for n in range(params['n_best']):
+                    file_name, file_extension = os.path.splitext(output_path)
+                    write_to_file(
+                        "{}-{}{}".format(
+                            file_name, n,
+                            file_extension if file_extension else ""
+                        ),
+                        [all_hypotheses[i]
+                         for i in range(n, len(all_hypotheses), params['n_best'])]
+                    )
+            else:
+                write_to_file("{}".format(output_path), all_hypotheses)
+                return output_path
+        else:
+            output_string=''
+            for hyp in all_hypotheses:
+                output_string+=hyp + "\n"
+            
+            return output_string
+
+    elif translation_type.strip().lower()=='sentence':
+        # single sentence is given
+        
+        src_input = input_data
+        if not src_input.strip():
+            raise Exception('Empty string')
+
+        # every line has to be made into dataset
+        test_data = _load_line_as_data(line=src_input)
+        hypotheses = _translate_data(test_data)
+
+        return hypotheses
+    else:
+        raise Exception('`translation_type` can only be either `sentence` or `file`.')
+
+
+def translate(cfg_file: str,
+              ckpt: str,
+              output_path: str = None,
+              batch_class: Batch = Batch,
+              n_best: int = 1) -> None:
+    """
+    Interactive translation function.
+    Loads model from checkpoint and translates either the stdin input or
+    asks for input to translate interactively.
+    The input has to be pre-processed according to the data that the model
+    was trained on, i.e. tokenized or split into subwords.
+    Translations are printed to stdout.
+    :param cfg_file: path to configuration file
+    :param ckpt: path to checkpoint to load
+    :param output_path: path to output file
+    :param batch_class: class type of batch
+    :param n_best: amount of candidates to display
+    """
+
+    def _load_line_as_data(line):
+        """ Create a dataset from one line via a temporary file. """
+        # write src input to temporary file
+        tmp_name = "tmp"
+        tmp_suffix = ".src"
+        tmp_filename = tmp_name+tmp_suffix
+        with open(tmp_filename, "w", encoding="utf-8") as tmp_file:
+            tmp_file.write(f"{line}\n")
+
+        test_data = MonoDataset(path=tmp_name, ext=tmp_suffix,
+                                field=src_field)
+
+        # remove temporary file
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
+
+        return test_data
+
+    def _translate_data(test_data):
+        """ Translates given dataset, using parameters from outer scope. """
+        # pylint: disable=unused-variable
+        score, loss, ppl, sources, sources_raw, references, hypotheses, \
+        hypotheses_raw, attention_scores = validate_on_data(
+            model, data=test_data, batch_size=batch_size,
+            batch_class=batch_class, batch_type=batch_type, level=level,
+            max_output_length=max_output_length, eval_metric="",
+            use_cuda=use_cuda, compute_loss=False, beam_size=beam_size,
+            beam_alpha=beam_alpha, postprocess=postprocess,
+            bpe_type=bpe_type, sacrebleu=sacrebleu, n_gpu=n_gpu, n_best=n_best)
+        return hypotheses
+
+    cfg = load_config(cfg_file)
+    model_dir = cfg["training"]["model_dir"]
+
+    _ = make_logger(model_dir, mode="translate")
+    # version string returned
+
+    # when checkpoint is not specified, take oldest from model dir
+    if ckpt is None:
+        ckpt = get_latest_checkpoint(model_dir)
+
+    # read vocabs
+    src_vocab_file = cfg["data"].get("src_vocab", model_dir + "/src_vocab.txt")
+    trg_vocab_file = cfg["data"].get("trg_vocab", model_dir + "/trg_vocab.txt")
+    src_vocab = Vocabulary(file=src_vocab_file)
+    trg_vocab = Vocabulary(file=trg_vocab_file)
+
+    data_cfg = cfg["data"]
+    level = data_cfg["level"]
+    lowercase = data_cfg["lowercase"]
+
+    tok_fun = lambda s: list(s) if level == "char" else s.split()
+
+    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
+                      tokenize=tok_fun, batch_first=True, lower=lowercase,
+                      unk_token=UNK_TOKEN, include_lengths=True)
+    src_field.vocab = src_vocab
+
+    # parse test args
+    batch_size, batch_type, use_cuda, device, n_gpu, level, _, \
+        max_output_length, beam_size, beam_alpha, postprocess, \
+        bpe_type, sacrebleu, _, _ = parse_test_args(cfg, mode="translate")
+
+    # load model state from disk
+    logger.info("Loading model from %s", ckpt)
+    model_checkpoint = load_checkpoint(ckpt, use_cuda=use_cuda)
+
+    # build model and load parameters into it
+    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    model.load_state_dict(model_checkpoint["model_state"])
+
+    if use_cuda:
+        model.to(device)
+
+    if not sys.stdin.isatty():
+        # input file given
+        test_data = MonoDataset(path=sys.stdin, ext="", field=src_field)
         all_hypotheses = _translate_data(test_data)
 
         if output_path is not None:
@@ -533,37 +677,38 @@ def translate(params,data,type_:int,output_path=None) -> None:
                 for n in range(n_best):
                     file_name, file_extension = os.path.splitext(output_path)
                     write_to_file(
-                        "{}-{}{}".format(
-                            file_name, n,
-                            file_extension if file_extension else ""
-                        ),
+                        f"{file_name}-{n}" \
+                        f"{file_extension if file_extension else ''}",
                         [all_hypotheses[i]
                          for i in range(n, len(all_hypotheses), n_best)]
                     )
             else:
-                write_to_file("{}".format(output_path), all_hypotheses)
-                return output_path
+                write_to_file(f"{output_path}", all_hypotheses)
         else:
-            output_string=''
+            # print to stdout
             for hyp in all_hypotheses:
-                output_string+=hyp + "\n"
-            
-            return output_string
+                print(hyp)
 
-    elif type_==2:
-        # single sentence is given
+    else:
+        # enter interactive mode
         batch_size = 1
         batch_type = "sentence"
-        
-        src_input = data
-        if not src_input.strip():
-            raise Exception('Empty string')
+        while True:
+            try:
+                src_input = input("\nPlease enter a source sentence "
+                                  "(pre-processed): \n")
+                if not src_input.strip():
+                    break
 
-        # every line has to be made into dataset
-        test_data = _load_line_as_data(line=src_input)
-        hypotheses = _translate_data(test_data)
+                # every line has to be made into dataset
+                test_data = _load_line_as_data(line=src_input)
+                hypotheses = _translate_data(test_data)
 
-        return hypotheses
-    else:
-        raise Exception('type_ can only be 1 (if input file is given) or 2 (if a single sentence is given)')
+                print("JoeyNMT: Hypotheses ranked by score")
+                for i, hyp in enumerate(hypotheses):
+                    print(f"JoeyNMT #{i+1}: {hyp}")
 
+            except (KeyboardInterrupt, EOFError):
+                print("\nBye.")
+                break
+            
