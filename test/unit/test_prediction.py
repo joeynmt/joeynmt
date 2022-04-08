@@ -5,7 +5,7 @@ import torch
 from joeynmt.data import load_data
 from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
-from joeynmt.prediction import parse_test_args, validate_on_data
+from joeynmt.prediction import parse_test_args, validate_on_data, translate_for_hf_space,load_params_for_prediction
 
 # TODO make sure rnn also returns the nbest list in the resorted order
 
@@ -119,3 +119,62 @@ class TestPrediction(unittest.TestCase):
         with self.assertRaises(AssertionError) as e:
             self._translate(n_best)
         self.assertEqual('Can only return 5 best hypotheses.', str(e.exception))
+
+
+class TestPrediction_HF(unittest.TestCase):
+    def setUp(self) -> None:
+        self.cfg = {
+            "data": {
+                "src": "de",
+                "trg": "en",
+                "train": "test/data/toy/train",     # needed for vocab
+                "test": "test/data/toy/test",
+                "level": "word",
+                "lowercase": False,
+                "max_sent_length": 10
+            },
+            "testing": {
+                "bpe_type": None,
+                "beam_size": 5,
+                "alpha": 1.0
+            },
+            "training": {
+                "batch_size": 2,
+                "batch_type": "sentence",
+                "eval_metric": "bleu"
+            },
+            "model": {
+                "tied_embeddings": False,
+                "tied_softmax": False,
+                "encoder": {
+                    "type": "transformer",
+                    "hidden_size": 12,
+                    "ff_size": 24,
+                    "embeddings": {"embedding_dim": 12},
+                    "num_layers": 1,
+                    "num_heads": 4
+                },
+                "decoder": {
+                    "type": "transformer",
+                    "hidden_size": 12,
+                    "ff_size": 24,
+                    "embeddings": {"embedding_dim": 12},
+                    "num_layers": 1,
+                    "num_heads": 4
+                },
+            }
+        }
+
+    def test_load_params_for_prediction(self):
+        # Test that error is given when one does not specify checkpoint.
+        with self.assertRaises(Exception) as e:
+            load_params_for_prediction(self.cfg,ckpt=None)
+            self.assertEqual('Model checkpoint must be given', str(e.exception))
+    
+    def  test_translate_for_hf_space(self):
+        # Test error is raised if one puts `translation_type`
+        #  different from `sentence` or `file`.
+        with self.assertRaises(Exception) as e:
+            translate_for_hf_space(None,None,translation_type='something else')
+            self.assertEqual('`translation_type` can only be either `sentence` or `file`.', str(e.exception))
+
