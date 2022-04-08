@@ -2,7 +2,7 @@ future
 pillow 
 numpy>=1.19.5
 setuptools>=41.0.0
-torch>=1.9.0
+torch==1.8.0
 tensorboard>=1.15
 torchtext==0.9.0
 sacrebleu>=2.0.0
