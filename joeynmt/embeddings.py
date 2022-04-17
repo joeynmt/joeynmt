@@ -3,31 +3,35 @@
 Embedding module
 """
 
-import io
-import math
 import logging
+import math
+from pathlib import Path
+from typing import Dict
+
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
+
 from joeynmt.helpers import freeze_params
 from joeynmt.vocabulary import Vocabulary
+
 
 logger = logging.getLogger(__name__)
 
 
 class Embeddings(nn.Module):
-
     """
     Simple embeddings class
     """
 
-    # pylint: disable=unused-argument
-    def __init__(self,
-                 embedding_dim: int = 64,
-                 scale: bool = False,
-                 vocab_size: int = 0,
-                 padding_idx: int = 1,
-                 freeze: bool = False,
-                 **kwargs):
+    def __init__(
+        self,
+        embedding_dim: int = 64,
+        scale: bool = False,
+        vocab_size: int = 0,
+        padding_idx: int = 1,
+        freeze: bool = False,
+        **kwargs,
+    ):
         """
         Create new embeddings for the vocabulary.
         Use scaling for the Transformer.
@@ -38,18 +42,17 @@ class Embeddings(nn.Module):
         :param padding_idx:
         :param freeze: freeze the embeddings during training
         """
+        # pylint: disable=unused-argument
         super().__init__()
 
         self.embedding_dim = embedding_dim
         self.scale = scale
         self.vocab_size = vocab_size
-        self.lut = nn.Embedding(vocab_size, self.embedding_dim,
-                                padding_idx=padding_idx)
+        self.lut = nn.Embedding(vocab_size, self.embedding_dim, padding_idx=padding_idx)
 
         if freeze:
             freeze_params(self)
 
-    # pylint: disable=arguments-differ
     def forward(self, x: Tensor) -> Tensor:
         """
         Perform lookup for input `x` in the embedding table.
@@ -61,12 +64,15 @@ class Embeddings(nn.Module):
             return self.lut(x) * math.sqrt(self.embedding_dim)
         return self.lut(x)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}(embedding_dim=" \
-                f"{self.embedding_dim}, vocab_size={self.vocab_size})"
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}("
+            f"embedding_dim={self.embedding_dim}, "
+            f"vocab_size={self.vocab_size})"
+        )
 
-    #from fairseq
-    def load_from_file(self, embed_path: str, vocab: Vocabulary):
+    # from fairseq
+    def load_from_file(self, embed_path: Path, vocab: Vocabulary) -> None:
         """Load pretrained embedding weights from text file.
 
         - First line is expected to contain vocabulary size and dimension.
@@ -89,33 +95,36 @@ class Embeddings(nn.Module):
         :param embed_path: embedding weights text file
         :param vocab: Vocabulary object
         """
-        embed_dict = {}
-        # parse file
-        with io.open(embed_path, 'r', encoding='utf-8',
-                     errors='ignore') as f_embed:
-            vocab_size, d = map(int, f_embed.readline().split())
-            assert self.embedding_dim == d, \
-                "Embedding dimension doesn't match."
-            for line in f_embed.readlines():
-                tokens = line.rstrip().split(' ')
-                if tokens[0] in vocab.stoi.keys():
-                    embed_dict[tokens[0]] = torch.FloatTensor(
-                        [float(t) for t in tokens[1:]])
+        # pylint: disable=logging-too-many-args
 
-            logger.warning("Loaded %d of %d (%.1f%%) tokens "
-                           "in the pre-trained embeddings.",
-                           len(embed_dict), vocab_size,
-                           100*len(embed_dict)/vocab_size)
+        embed_dict: Dict[int, Tensor] = {}
+        # parse file
+        with embed_path.open("r", encoding="utf-8", errors="ignore") as f_embed:
+            vocab_size, d = map(int, f_embed.readline().split())
+            assert self.embedding_dim == d, "Embedding dimension doesn't match."
+            for line in f_embed.readlines():
+                tokens = line.rstrip().split(" ")
+                if tokens[0] in vocab.specials or not vocab.is_unk(tokens[0]):
+                    embed_dict[vocab.lookup(tokens[0])] = torch.FloatTensor(
+                        [float(t) for t in tokens[1:]]
+                    )
+
+            logger.warning(
+                "Loaded %d of %d (%%) tokens in the pre-trained WE.",
+                len(embed_dict),
+                vocab_size,
+                len(embed_dict) / vocab_size,
+            )
 
         # assign
-        vocab_size = len(vocab)
-        for idx in range(vocab_size):
-            token = vocab.itos[idx]
-            if token in embed_dict:
-                assert self.embedding_dim == len(embed_dict[token])
-                self.lut.weight.data[idx] = embed_dict[token]
+        for idx, weights in embed_dict.items():
+            if idx < self.vocab_size:
+                assert self.embedding_dim == len(weights)
+                self.lut.weight.data[idx] = weights
 
-        logger.warning("Loaded %d of %d (%.1f%%) tokens "
-                       "of the JoeyNMT's vocabulary.",
-                        len(embed_dict), vocab_size,
-                        100*len(embed_dict)/vocab_size)
+        logger.warning(
+            "Loaded %d of %d (%%) tokens of the JoeyNMT's vocabulary.",
+            len(embed_dict),
+            len(vocab),
+            len(embed_dict) / len(vocab),
+        )

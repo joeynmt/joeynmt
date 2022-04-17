@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import math
+from typing import Optional
+
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 
-# pylint: disable=arguments-differ
 class MultiHeadedAttention(nn.Module):
     """
     Multi-Head Attention module from "Attention is All You Need"
@@ -37,7 +38,7 @@ class MultiHeadedAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, k: Tensor, v: Tensor, q: Tensor, mask: Tensor = None):
+    def forward(self, k: Tensor, v: Tensor, q: Tensor, mask: Optional[Tensor] = None):
         """
         Computes multi-headed attention.
 
@@ -69,7 +70,7 @@ class MultiHeadedAttention(nn.Module):
         # apply the mask (if we have one)
         # we add a dimension for the heads to it below: [B, 1, 1, M]
         if mask is not None:
-            scores = scores.masked_fill(~mask.unsqueeze(1), float('-inf'))
+            scores = scores.masked_fill(~mask.unsqueeze(1), float("-inf"))
 
         # apply attention dropout and compute context vectors.
         attention = self.softmax(scores)
@@ -78,30 +79,32 @@ class MultiHeadedAttention(nn.Module):
         # get context vector (select values with attention) and reshape
         # back to [B, M, D]
         context = torch.matmul(attention, v)
-        context = context.transpose(1, 2).contiguous().view(
-            batch_size, -1, num_heads * self.head_size)
+        context = (
+            context.transpose(1, 2)
+            .contiguous()
+            .view(batch_size, -1, num_heads * self.head_size)
+        )
 
         output = self.output_layer(context)
 
         return output
 
 
-# pylint: disable=arguments-differ
 class PositionwiseFeedForward(nn.Module):
     """
     Position-wise Feed-forward layer
     Projects to ff_size and then back down to input_size.
     """
 
-    def __init__(self, input_size, ff_size, dropout=0.1):
+    def __init__(self, input_size, ff_size, dropout=0.1, alpha=1.0, layer_norm="post"):
         """
         Initializes position-wise feed-forward layer.
         :param input_size: dimensionality of the input.
         :param ff_size: dimensionality of intermediate representation
         :param dropout:
+        :param alpha:
         """
         super().__init__()
-        self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
         self.pwff_layer = nn.Sequential(
             nn.Linear(input_size, ff_size),
             nn.ReLU(),
@@ -109,100 +112,133 @@ class PositionwiseFeedForward(nn.Module):
             nn.Linear(ff_size, input_size),
             nn.Dropout(dropout),
         )
+        self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
+        self.alpha = alpha
 
-    def forward(self, x):
-        x_norm = self.layer_norm(x)
-        return self.pwff_layer(x_norm) + x
+        self._layer_norm_position = layer_norm
+        assert self._layer_norm_position in {"pre", "post"}
+
+    def forward(self, x: Tensor) -> Tensor:
+        residual = x
+        if self._layer_norm_position == "pre":
+            x = self.layer_norm(x)
+
+        x = self.pwff_layer(x) + self.alpha * residual
+
+        if self._layer_norm_position == "post":
+            x = self.layer_norm(x)
+        return x
 
 
-# pylint: disable=arguments-differ
 class PositionalEncoding(nn.Module):
     """
     Pre-compute position encodings (PE).
-    In forward pass, this adds the position-encodings to the
-    input for as many time steps as necessary.
+    In forward pass, this adds the position-encodings to the input for as many time
+    steps as necessary.
 
     Implementation based on OpenNMT-py.
     https://github.com/OpenNMT/OpenNMT-py
     """
-    def __init__(self,
-                 size: int = 0,
-                 max_len: int = 5000):
+
+    def __init__(self, size: int = 0, max_len: int = 5000):
         """
         Positional Encoding with maximum length max_len
         :param size:
         :param max_len:
-        :param dropout:
         """
         if size % 2 != 0:
-            raise ValueError(f"Cannot use sin/cos positional encoding with "
-                             f"odd dim (got dim={size})")
+            raise ValueError(
+                f"Cannot use sin/cos positional encoding with "
+                f"odd dim (got dim={size})"
+            )
         pe = torch.zeros(max_len, size)
         position = torch.arange(0, max_len).unsqueeze(1)
-        div_term = torch.exp((torch.arange(0, size, 2, dtype=torch.float) *
-                              -(math.log(10000.0) / size)))
+        div_term = torch.exp(
+            (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size))
+        )
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
         pe = pe.unsqueeze(0)  # shape: [1, size, max_len]
         super().__init__()
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
         self.dim = size
 
-    def forward(self, emb):
+    def forward(self, emb: Tensor) -> Tensor:
         """Embed inputs.
         Args:
             emb (FloatTensor): Sequence of word vectors
                 ``(seq_len, batch_size, self.dim)``
         """
         # Add position encodings
-        return emb + self.pe[:, :emb.size(1)]
+        return emb + self.pe[:, : emb.size(1)]
 
 
 class TransformerEncoderLayer(nn.Module):
     """
-    One Transformer encoder layer has a Multi-head attention layer plus
-    a position-wise feed-forward layer.
+    One Transformer encoder layer has a Multi-head attention layer plus a position-wise
+    feed-forward layer.
     """
 
-    def __init__(self,
-                 size: int = 0,
-                 ff_size: int = 0,
-                 num_heads: int = 0,
-                 dropout: float = 0.1):
+    def __init__(
+        self,
+        size: int = 0,
+        ff_size: int = 0,
+        num_heads: int = 0,
+        dropout: float = 0.1,
+        alpha: float = 1.0,
+        layer_norm: str = "post",
+    ):
         """
-        A single Transformer layer.
-        :param size:
-        :param ff_size:
-        :param num_heads:
-        :param dropout:
+        A single Transformer encoder layer.
+
+        :param size: model dimensionality
+        :param ff_size: size of the feed-forward intermediate layer
+        :param num_heads: number of heads
+        :param dropout: dropout to apply to input
+        :param alpha: weight factor for residual connection
+        :param layer_norm: either "pre" or "post"
         """
         super().__init__()
-
-        self.layer_norm = nn.LayerNorm(size, eps=1e-6)
-        self.src_src_att = MultiHeadedAttention(num_heads, size,
-                                                dropout=dropout)
-        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size,
-                                                    dropout=dropout)
-        self.dropout = nn.Dropout(dropout)
         self.size = size
 
-    # pylint: disable=arguments-differ
+        self.src_src_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
+        self.layer_norm = nn.LayerNorm(size, eps=1e-6)
+        self.dropout = nn.Dropout(dropout)
+        self.feed_forward = PositionwiseFeedForward(
+            size,
+            ff_size=ff_size,
+            dropout=dropout,
+            alpha=alpha,
+        )
+
+        self.alpha = alpha
+
+        self._layer_norm_position = layer_norm
+        assert self._layer_norm_position in {"pre", "post"}
+
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         """
         Forward pass for a single transformer encoder layer.
-        First applies layer norm, then self attention,
-        then dropout with residual connection (adding the input to the result),
-        and then a position-wise feed-forward layer.
+        First applies self attention, then dropout with residual connection (adding
+        the input to the result), then layer norm, and then a position-wise
+        feed-forward layer.
 
         :param x: layer input
         :param mask: input mask
         :return: output tensor
         """
-        x_norm = self.layer_norm(x)
-        h = self.src_src_att(x_norm, x_norm, x_norm, mask)
-        h = self.dropout(h) + x
-        o = self.feed_forward(h)
-        return o
+        residual = x
+        if self._layer_norm_position == "pre":
+            x = self.layer_norm(x)
+
+        x = self.src_src_att(x, x, x, mask)
+        x = self.dropout(x) + self.alpha * residual
+
+        if self._layer_norm_position == "post":
+            x = self.layer_norm(x)
+
+        out = self.feed_forward(x)
+        return out
 
 
 class TransformerDecoderLayer(nn.Module):
@@ -212,11 +248,15 @@ class TransformerDecoderLayer(nn.Module):
     Consists of self-attention, source-attention, and feed-forward.
     """
 
-    def __init__(self,
-                 size: int = 0,
-                 ff_size: int = 0,
-                 num_heads: int = 0,
-                 dropout: float = 0.1):
+    def __init__(
+        self,
+        size: int = 0,
+        ff_size: int = 0,
+        num_heads: int = 0,
+        dropout: float = 0.1,
+        alpha: float = 1.0,
+        layer_norm: str = "post",
+    ):
         """
         Represents a single Transformer decoder layer.
 
@@ -226,31 +266,45 @@ class TransformerDecoderLayer(nn.Module):
         :param ff_size: size of the feed-forward intermediate layer
         :param num_heads: number of heads
         :param dropout: dropout to apply to input
+        :param alpha: weight factor for residual connection
+        :param layer_norm: either "pre" or "post"
         """
         super().__init__()
         self.size = size
 
-        self.trg_trg_att = MultiHeadedAttention(num_heads, size,
-                                                dropout=dropout)
-        self.src_trg_att = MultiHeadedAttention(num_heads, size,
-                                                dropout=dropout)
-
-        self.feed_forward = PositionwiseFeedForward(size, ff_size=ff_size,
-                                                    dropout=dropout)
-
+        self.trg_trg_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
         self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
+
+        self.src_trg_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
         self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
 
+        self.feed_forward = PositionwiseFeedForward(
+            size, ff_size=ff_size, dropout=dropout
+        )
         self.dropout = nn.Dropout(dropout)
 
-    # pylint: disable=arguments-differ
-    def forward(self,
-                x: Tensor = None,
-                memory: Tensor = None,
-                src_mask: Tensor = None,
-                trg_mask: Tensor = None) -> Tensor:
+        self.alpha = alpha
+
+        self._layer_norm_position = layer_norm
+        assert self._layer_norm_position in {"pre", "post"}
+
+    def forward(
+        self,
+        x: Tensor = None,
+        memory: Tensor = None,
+        src_mask: Tensor = None,
+        trg_mask: Tensor = None,
+    ) -> Tensor:
         """
         Forward pass of a single Transformer decoder layer.
+
+        First applies target-target self-attention, dropout with residual connection
+        (adding the input to the result), and layer norm.
+
+        Second computes source-target cross-attention, dropout with residual connection
+        (adding the self-attention to the result), and layer norm.
+
+        Finally goes through a position-wise feed-forward layer.
 
         :param x: inputs
         :param memory: source representations
@@ -258,16 +312,28 @@ class TransformerDecoderLayer(nn.Module):
         :param trg_mask: target mask (so as to not condition on future steps)
         :return: output tensor
         """
-        # decoder/target self-attention
-        x_norm = self.x_layer_norm(x)
-        h1 = self.trg_trg_att(x_norm, x_norm, x_norm, mask=trg_mask)
-        h1 = self.dropout(h1) + x
+        # 1. target-target self-attention
+        residual = x
+        if self._layer_norm_position == "pre":
+            x = self.x_layer_norm(x)
 
-        # source-target attention
-        h1_norm = self.dec_layer_norm(h1)
-        h2 = self.src_trg_att(memory, memory, h1_norm, mask=src_mask)
+        h1 = self.trg_trg_att(x, x, x, mask=trg_mask)
+        h1 = self.dropout(h1) + self.alpha * residual
 
-        # final position-wise feed-forward layer
-        o = self.feed_forward(self.dropout(h2) + h1)
+        if self._layer_norm_position == "post":
+            h1 = self.x_layer_norm(h1)
 
-        return o
+        # 2. source-target cross-attention
+        h1_residual = h1
+        if self._layer_norm_position == "pre":
+            h1 = self.dec_layer_norm(h1)
+
+        h2 = self.src_trg_att(memory, memory, h1, mask=src_mask)
+        h2 = self.dropout(h2) + self.alpha * h1_residual
+
+        if self._layer_norm_position == "post":
+            h2 = self.dec_layer_norm(h2)
+
+        # 3. final position-wise feed-forward layer
+        out = self.feed_forward(h2)
+        return out

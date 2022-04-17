@@ -1,33 +1,37 @@
+from test.unit.test_helpers import TensorTestCase
+
 import torch
 
 from joeynmt.decoders import TransformerDecoder, TransformerDecoderLayer
-from .test_helpers import TensorTestCase
 
 
 class TestTransformerDecoder(TensorTestCase):
-
     def setUp(self):
         self.emb_size = 12
         self.num_layers = 3
         self.hidden_size = 12
         self.ff_size = 24
         self.num_heads = 4
-        self.dropout = 0.
+        self.dropout = 0.0
         seed = 42
         torch.manual_seed(seed)
 
     def test_transformer_decoder_freeze(self):
         decoder = TransformerDecoder(freeze=True)
-        for n, p in decoder.named_parameters():
+        for _, p in decoder.named_parameters():
             self.assertFalse(p.requires_grad)
 
     def test_transformer_decoder_output_size(self):
 
         vocab_size = 11
         decoder = TransformerDecoder(
-            num_layers=self.num_layers, num_heads=self.num_heads,
-            hidden_size=self.hidden_size, ff_size=self.ff_size,
-            dropout=self.dropout, vocab_size=vocab_size)
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            hidden_size=self.hidden_size,
+            ff_size=self.ff_size,
+            dropout=self.dropout,
+            vocab_size=vocab_size,
+        )
 
         if not hasattr(decoder, "output_size"):
             self.fail("Missing output_size property.")
@@ -43,13 +47,16 @@ class TestTransformerDecoder(TensorTestCase):
         trg_embed = torch.rand(size=(batch_size, trg_time_dim, self.emb_size))
 
         decoder = TransformerDecoder(
-            num_layers=self.num_layers, num_heads=self.num_heads,
-            hidden_size=self.hidden_size, ff_size=self.ff_size,
-            dropout=self.dropout, emb_dropout=self.dropout,
-            vocab_size=vocab_size)
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            hidden_size=self.hidden_size,
+            ff_size=self.ff_size,
+            dropout=self.dropout,
+            emb_dropout=self.dropout,
+            vocab_size=vocab_size,
+        )
 
-        encoder_output = torch.rand(
-            size=(batch_size, src_time_dim, self.hidden_size))
+        encoder_output = torch.rand(size=(batch_size, src_time_dim, self.hidden_size))
 
         for p in decoder.parameters():
             torch.nn.init.uniform_(p, -0.5, 0.5)
@@ -62,72 +69,71 @@ class TestTransformerDecoder(TensorTestCase):
         unrol_steps = None  # unused
 
         output, states, _, _ = decoder(
-            trg_embed, encoder_output, encoder_hidden, src_mask, unrol_steps,
-            decoder_hidden, trg_mask)
-
-        output_target = torch.Tensor(
-            [[[0.1718, 0.5595, -0.1996, -0.6924, 0.4351, -0.0850, 0.2805],
-              [0.0666, 0.4923, -0.1724, -0.6804, 0.3983, -0.1111, 0.2194],
-              [-0.0315, 0.3673, -0.2320, -0.6100, 0.3019, 0.0422, 0.2514],
-              [-0.0026, 0.3807, -0.2195, -0.6010, 0.3081, -0.0101, 0.2099],
-              [-0.0172, 0.3384, -0.2853, -0.5799, 0.2470, 0.0312, 0.2518]],
-             [[0.0284, 0.3918, -0.2010, -0.6472, 0.3646, -0.0296, 0.1791],
-              [0.1017, 0.4387, -0.2031, -0.7084, 0.3051, -0.1354, 0.2511],
-              [0.0155, 0.4274, -0.2061, -0.6702, 0.3085, -0.0617, 0.2830],
-              [0.0227, 0.4067, -0.1697, -0.6463, 0.3277, -0.0423, 0.2333],
-              [0.0133, 0.4409, -0.1186, -0.5694, 0.4450, 0.0290, 0.1643]]]
+            trg_embed,
+            encoder_output,
+            encoder_hidden,
+            src_mask,
+            unrol_steps,
+            decoder_hidden,
+            trg_mask,
         )
-        self.assertEqual(output_target.shape, output.shape)
-        self.assertTensorAlmostEqual(output_target, output)
+        output_target = torch.Tensor(
+            [[[ 0.4870,  0.5005, -0.0708,  0.6948, -0.1007, -0.0685,  0.4173],
+              [ 0.4871,  0.5007, -0.0712,  0.6945, -0.1011, -0.0682,  0.4174],
+              [ 0.4873,  0.5006, -0.0712,  0.6945, -0.1012, -0.0684,  0.4175],
+              [ 0.4871,  0.5007, -0.0711,  0.6946, -0.1011, -0.0686,  0.4176],
+              [ 0.4871,  0.5006, -0.0709,  0.6948, -0.1010, -0.0687,  0.4175]],
+             [[ 0.4930,  0.4617, -0.0458,  0.6986, -0.2207, -0.1896,  0.4968],
+              [ 0.4932,  0.4619, -0.0462,  0.6982, -0.2211, -0.1892,  0.4969],
+              [ 0.4932,  0.4620, -0.0464,  0.6980, -0.2214, -0.1891,  0.4971],
+              [ 0.4932,  0.4620, -0.0463,  0.6981, -0.2215, -0.1894,  0.4971],
+              [ 0.4926,  0.4620, -0.0455,  0.6990, -0.2212, -0.1913,  0.4973]]]
+        )
+        self.assertEqual(output.shape, output_target.shape)
+        self.assertTensorAlmostEqual(output, output_target)
 
         greedy_predictions = output.argmax(-1)
         expect_predictions = output_target.argmax(-1)
         self.assertTensorEqual(expect_predictions, greedy_predictions)
 
         states_target = torch.Tensor(
-            [[[3.7535e-02, 5.3508e-01, 4.9478e-02, -9.1961e-01, -5.3966e-01,
-               -1.0065e-01, 4.3053e-01, -3.0671e-01, -1.2724e-02, -4.1879e-01,
-               5.9625e-01, 1.1887e-01],
-              [1.3837e-01, 4.6963e-01, -3.7059e-02, -6.8479e-01, -4.6042e-01,
-               -1.0072e-01, 3.9374e-01, -3.0429e-01, -5.4203e-02, -4.3680e-01,
-               6.4257e-01, 1.1424e-01],
-              [1.0263e-01, 3.8331e-01, -2.5586e-02, -6.4478e-01, -4.5860e-01,
-               -1.0590e-01, 5.8806e-01, -2.8856e-01, 1.1084e-02, -4.7479e-01,
-               5.9094e-01, 1.6089e-01],
-              [7.3408e-02, 3.7701e-01, -5.8783e-02, -6.2368e-01, -4.4201e-01,
-               -1.0237e-01, 5.2556e-01, -3.0821e-01, -5.3345e-02, -4.5606e-01,
-               5.8259e-01, 1.2531e-01],
-              [4.1206e-02, 3.6129e-01, -1.2955e-02, -5.8638e-01, -4.6023e-01,
-               -9.4267e-02, 5.5464e-01, -3.0029e-01, -3.3974e-02, -4.8347e-01,
-               5.4088e-01, 1.2015e-01]],
-             [[1.1017e-01, 4.7179e-01, 2.6402e-02, -7.2170e-01, -3.9778e-01,
-               -1.0226e-01, 5.3498e-01, -2.8369e-01, -1.1081e-01, -4.6096e-01,
-               5.9517e-01, 1.3531e-01],
-              [2.1947e-01, 4.6407e-01, 8.4276e-02, -6.3263e-01, -4.4953e-01,
-               -9.7334e-02, 4.0321e-01, -2.9893e-01, -1.0368e-01, -4.5760e-01,
-               6.1378e-01, 1.3509e-01],
-              [2.1437e-01, 4.1372e-01, 1.9859e-02, -5.7415e-01, -4.5025e-01,
-               -9.8621e-02, 4.1182e-01, -2.8410e-01, -1.2729e-03, -4.8586e-01,
-               6.2318e-01, 1.4731e-01],
-              [1.9153e-01, 3.8401e-01, 2.6096e-02, -6.2339e-01, -4.0685e-01,
-               -9.7387e-02, 4.1836e-01, -2.8648e-01, -1.7857e-02, -4.7678e-01,
-               6.2907e-01, 1.7617e-01],
-              [3.1713e-02, 3.7548e-01, -6.3005e-02, -7.9804e-01, -3.6541e-01,
-               -1.0398e-01, 4.2991e-01, -2.9607e-01, 2.1376e-04, -4.5897e-01,
-               6.1062e-01, 1.6142e-01]]]
+            [[[ 0.1071,  0.2125,  0.3015, -0.6217,  0.3997,  0.5978, -0.5982,
+               -0.1466,  0.5841, -0.5400, -0.3156, -0.3987],
+              [ 0.1067,  0.2127,  0.3018, -0.6216,  0.3997,  0.5978, -0.5980,
+               -0.1464,  0.5845, -0.5401, -0.3156, -0.3988],
+              [ 0.1065,  0.2128,  0.3017, -0.6217,  0.3997,  0.5982, -0.5977,
+               -0.1463,  0.5845, -0.5400, -0.3156, -0.3988],
+              [ 0.1068,  0.2129,  0.3016, -0.6216,  0.3997,  0.5980, -0.5980,
+               -0.1465,  0.5842, -0.5401, -0.3156, -0.3987],
+              [ 0.1069,  0.2129,  0.3014, -0.6217,  0.3997,  0.5981, -0.5979,
+               -0.1465,  0.5840, -0.5401, -0.3156, -0.3987]],
+             [[-0.0481,  0.3615,  0.2356, -0.6513,  0.4025,  0.7624, -0.5016,
+               -0.1411,  0.4480, -0.5101, -0.3082, -0.4036],
+              [-0.0487,  0.3618,  0.2359, -0.6513,  0.4025,  0.7622, -0.5013,
+               -0.1409,  0.4483, -0.5101, -0.3082, -0.4037],
+              [-0.0491,  0.3620,  0.2360, -0.6513,  0.4025,  0.7622, -0.5011,
+               -0.1409,  0.4484, -0.5101, -0.3082, -0.4037],
+              [-0.0491,  0.3623,  0.2360, -0.6512,  0.4025,  0.7623, -0.5011,
+               -0.1409,  0.4482, -0.5102, -0.3082, -0.4037],
+              [-0.0476,  0.3629,  0.2348, -0.6508,  0.4025,  0.7624, -0.5021,
+               -0.1414,  0.4464, -0.5110, -0.3082, -0.4035]]]
         )
 
-        self.assertEqual(states_target.shape, states.shape)
-        self.assertTensorAlmostEqual(states_target, states)
+        self.assertEqual(states.shape, states_target.shape)
+        self.assertTensorAlmostEqual(states, states_target)
 
     def test_transformer_decoder_layers(self):
 
         vocab_size = 7
 
         decoder = TransformerDecoder(
-            num_layers=self.num_layers, num_heads=self.num_heads,
-            hidden_size=self.hidden_size, ff_size=self.ff_size,
-            dropout=self.dropout, vocab_size=vocab_size)
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            hidden_size=self.hidden_size,
+            ff_size=self.ff_size,
+            dropout=self.dropout,
+            vocab_size=vocab_size,
+        )
 
         self.assertEqual(len(decoder.layers), self.num_layers)
 
@@ -138,6 +144,8 @@ class TestTransformerDecoder(TensorTestCase):
             self.assertTrue(hasattr(layer, "feed_forward"))
             self.assertEqual(layer.size, self.hidden_size)
             self.assertEqual(
-                layer.feed_forward.pwff_layer[0].in_features, self.hidden_size)
+                layer.feed_forward.pwff_layer[0].in_features, self.hidden_size
+            )
             self.assertEqual(
-                layer.feed_forward.pwff_layer[0].out_features, self.ff_size)
+                layer.feed_forward.pwff_layer[0].out_features, self.ff_size
+            )

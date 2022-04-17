@@ -1,12 +1,13 @@
 # coding: utf-8
-import matplotlib
-matplotlib.use('Agg')
+import argparse
 
+import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
-import argparse
-import numpy as np
+
+matplotlib.use("Agg")
 
 
 def read_vfiles(vfiles):
@@ -17,17 +18,16 @@ def read_vfiles(vfiles):
     """
     models = {}
     for vfile in vfiles:
-        model_name = vfile.split("/")[-2] if "//" not in vfile \
-            else vfile.split("/")[-3]
+        model_name = vfile.split("/")[-2] if "//" not in vfile else vfile.split("/")[-3]
         with open(vfile, "r", encoding="utf-8") as validf:
             steps = {}
             for line in validf:
                 entries = line.strip().split()
                 key = int(entries[1])
                 steps[key] = {}
-                for i in range(2, len(entries)-1, 2):
+                for i in range(2, len(entries) - 1, 2):
                     name = entries[i].strip(":")
-                    value = float(entries[i+1])
+                    value = float(entries[i + 1])
                     steps[key][name] = value
         models[model_name] = steps
     return models
@@ -42,9 +42,13 @@ def plot_models(models, plot_values, output_path):
     :return:
     """
     # models is a dict: name -> ckpt values
-    f, axes = plt.subplots(len(plot_values), len(models),
-                           sharex='col', sharey='row',
-                           figsize=(3*len(models), 3*len(plot_values)))
+    f, axes = plt.subplots(
+        len(plot_values),
+        len(models),
+        sharex="col",
+        sharey="row",
+        figsize=(3 * len(models), 3 * len(plot_values)),
+    )
     axes = np.array(axes).reshape((len(plot_values), len(models)))
 
     for col, model_name in enumerate(models):
@@ -53,7 +57,7 @@ def plot_models(models, plot_values, output_path):
         for step in sorted(models[model_name]):
             logged_values = models[model_name][step]
             for plot_value in plot_values:
-                if plot_value not in logged_values:
+                if plot_value not in logged_values:  # pylint: disable=no-else-continue
                     continue
                 elif plot_value not in values:
                     values[plot_value] = [[], []]
@@ -76,18 +80,29 @@ def plot_models(models, plot_values, output_path):
 
     plt.close()
 
+
+def main(args):  # pylint: disable=redefined-outer-name
+    vfiles = [m + "/validations.txt" for m in args.model_dirs]
+    models = read_vfiles(vfiles)
+    plot_models(models, args.plot_values, args.output_path)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("JoeyNMT Validation plotting.")
-    parser.add_argument("model_dirs", type=str, nargs="+",
-                        help="Model directories.")
-    parser.add_argument("--plot_values", type=str, nargs="+", default=["bleu"],
-                        help="Value(s) to plot. Default: bleu")
-    parser.add_argument("--output_path", type=str, default="plot.pdf",
-                        help="Plot will be stored in this location.")
+    parser.add_argument("model_dirs", type=str, nargs="+", help="Model directories.")
+    parser.add_argument(
+        "--plot_values",
+        type=str,
+        nargs="+",
+        default=["bleu"],
+        help="Value(s) to plot. Default: bleu",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default="plot.pdf",
+        help="Plot will be stored in this location.",
+    )
     args = parser.parse_args()
 
-    vfiles = [m+"/validations.txt" for m in args.model_dirs]
-
-    models = read_vfiles(vfiles)
-
-    plot_models(models, args.plot_values, args.output_path)
+    main(args)

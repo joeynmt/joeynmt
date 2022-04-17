@@ -1,11 +1,10 @@
 import unittest
 from test.unit.test_helpers import TensorTestCase
 
-from joeynmt.metrics import chrf, bleu, token_accuracy
+from joeynmt.metrics import bleu, chrf, token_accuracy
 
 
 class TestMetrics(TensorTestCase):
-
     def test_chrf_without_whitespace(self):
         hyp1 = ["t est"]
         ref1 = ["tez t"]
@@ -34,20 +33,20 @@ class TestMetrics(TensorTestCase):
             ref = ["あれがテストです。"]
             score = bleu(hyp, ref, tokenize="ja-mecab")
             self.assertAlmostEqual(score, 39.764, places=3)
-        except Exception as e:
+        except (ImportError, RuntimeError) as e:
             raise unittest.SkipTest(f"{e} Skip.")
 
     def test_token_acc_level_char(self):
         # if len(hyp) > len(ref)
         hyp = [list("tests")]
         ref = [list("tezt")]
-        #level = "char"
+        # level = "char"
         score = token_accuracy(hyp, ref)
         self.assertEqual(score, 60.0)
 
         # if len(hyp) < len(ref)
         hyp = [list("test")]
         ref = [list("tezts")]
-        #level = "char"
+        # level = "char"
         score = token_accuracy(hyp, ref)
         self.assertEqual(score, 75.0)

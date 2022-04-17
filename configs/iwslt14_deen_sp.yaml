@@ -1,4 +1,4 @@
-name: "iwslt14_deen_bpe"
+name: "iwslt14_deen_sp"
 joeynmt_version: "2.0.0"
 
 data:
@@ -9,34 +9,36 @@ data:
         lang: "de"
         max_length: 512
         lowercase: False
-        normalize: False
+        normalize: True
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "/workspace/mitarb/ohta/subwords/iwslt14.bpe.32000.txt"
-        tokenizer_type: "subword-nmt"
+        voc_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/trg_vocab.txt"
+        tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            codes: "/workspace/mitarb/ohta/subwords/iwslt14.bpe.32000"
-            dropout: 0.1
+            model_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/iwslt14_sp.model"
+            enable_sampling: True
+            alpha: 0.1
     trg:
         lang: "en"
         max_length: 512
         lowercase: False
-        normalize: False
+        normalize: True
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "/workspace/mitarb/ohta/subwords/iwslt14.bpe.32000.txt"
-        tokenizer_type: "subword-nmt"
+        voc_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/trg_vocab.txt"
+        tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            codes: "/workspace/mitarb/ohta/subwords/iwslt14.bpe.32000"
-            dropout: 0.1
+            model_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/iwslt14_sp.model"
+            enable_sampling: True
+            alpha: 0.1
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
 
 testing:
-    n_best: 1
+    n_best: 5
     beam_size: 5
     beam_alpha: 1.0
     batch_size: 1024
@@ -47,7 +49,11 @@ testing:
         tokenize: "13a"
 
 training:
-    #load_model: "transformer_iwslt14_deen_bpe/best.ckpt"
+    load_model: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/latest.ckpt"
+    reset_best_ckpt: True
+    reset_scheduler: True
+    reset_optimizer: True
+    reset_iter_state: True
     random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
@@ -56,56 +62,52 @@ training:
     learning_rate_warmup: 4000
     learning_rate: 0.0002
     learning_rate_min: 0.00000001
-    loss: "crossentropy"
     weight_decay: 0.0
     label_smoothing: 0.1
-    batch_size: 1024
+    loss: "crossentropy"
+    batch_size: 2048
     batch_type: "token"
     batch_multiplier: 4
     early_stopping_metric: "bleu"
     epochs: 100
-    validation_freq: 2000
-    logging_freq: 200
-    model_dir: "/workspace/mitarb/ohta/models/iwslt14_deen_large"
+    validation_freq: 1000
+    logging_freq: 100
+    model_dir: "/workspace/mitarb/ohta/models/iwslt14_deen_resume3"
     overwrite: True
     shuffle: True
     use_cuda: True
-    max_output_length: 100
-    print_valid_sents: [0, 1, 2, 3, 4]
-    keep_best_ckpts: 5
-    fp16: False
+    print_valid_sents: [0, 1, 2, 3]
+    keep_best_ckpts: 3
 
 model:
     initializer: "xavier_normal"
+    bias_initializer: "zeros"
+    init_gain: 1.0
     embed_initializer: "xavier_normal"
     embed_init_gain: 1.0
-    init_gain: 1.0
-    bias_initializer: "zeros"
     tied_embeddings: True
     tied_softmax: True
     encoder:
         type: "transformer"
-        num_layers: 24
-        num_heads: 16
+        num_layers: 6
+        num_heads: 8
         embeddings:
-            embedding_dim: 1024
+            embedding_dim: 512
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 1024
-        ff_size: 4096
-        dropout: 0.3
-        layer_norm: "post"
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1
     decoder:
         type: "transformer"
-        num_layers: 24
-        num_heads: 16
+        num_layers: 6
+        num_heads: 8
         embeddings:
-            embedding_dim: 1024
+            embedding_dim: 512
             scale: True
             dropout: 0.
         # typically ff_size = 4 x hidden_size
-        hidden_size: 1024
-        ff_size: 4096
-        dropout: 0.3
-        layer_norm: "post"
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1

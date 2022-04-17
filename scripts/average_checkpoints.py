@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 # coding: utf-8
 
 """
-Checkpoint averaging 
+Checkpoint averaging
 
 Mainly follows:
 https://github.com/pytorch/fairseq/blob/master/scripts/average_checkpoints.py
@@ -10,15 +9,16 @@ https://github.com/pytorch/fairseq/blob/master/scripts/average_checkpoints.py
 
 import argparse
 import collections
+from typing import Dict, List
+
 import torch
-from typing import List
 
 
-def average_checkpoints(inputs: List[str]) -> dict:
+def average_checkpoints(inputs: List[str]) -> Dict:
     """Loads checkpoints from inputs and returns a model with averaged weights.
-    Args:
-      inputs: An iterable of string paths of checkpoints to load from.
-    Returns:
+
+    :param inputs: An iterable of string paths of checkpoints to load from.
+    :return:
       A dict of string keys mapping to various values. The 'model' key
       from the returned dict should correspond to an OrderedDict mapping
       string parameter names to torch Tensors.
@@ -32,24 +32,23 @@ def average_checkpoints(inputs: List[str]) -> dict:
         state = torch.load(
             f,
             map_location=(
-                lambda s, _: torch.serialization.default_restore_location(
-                    s, 'cpu')
+                lambda s, _: torch.serialization.default_restore_location(s, "cpu")
             ),
         )
         # Copies over the settings from the first checkpoint
         if new_state is None:
             new_state = state
 
-        # Averaging: only handle the network params. 
-        model_params = state['model_state']
+        # Averaging: only handle the network params.
+        model_params = state["model_state"]
 
         model_params_keys = list(model_params.keys())
         if params_keys is None:
             params_keys = model_params_keys
         elif params_keys != model_params_keys:
             raise KeyError(
-                'For checkpoint {}, expected list of params: {}, '
-                'but found: {}'.format(f, params_keys, model_params_keys)
+                f"For checkpoint {f}, expected list of params: {params_keys}, "
+                f"but found: {model_params_keys}"
             )
 
         for k in params_keys:
@@ -70,27 +69,31 @@ def average_checkpoints(inputs: List[str]) -> dict:
             averaged_params[k].div_(num_models)
         else:
             averaged_params[k] //= num_models
-    new_state['model_state'] = averaged_params
+    new_state["model_state"] = averaged_params
     return new_state
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Tool to average the params of input checkpoints to '
-                    'produce a new checkpoint',
+        description="Tool to average the params of input checkpoints to produce "
+        "a new checkpoint",
     )
-    parser.add_argument('--inputs', required=True, nargs='+',
-                        help='Input checkpoint file paths.')
-    parser.add_argument('--output', required=True, metavar='FILE',
-                        help='Write the new checkpoint to this path.')
+    parser.add_argument(
+        "--inputs", required=True, nargs="+", help="Input checkpoint file paths."
+    )
+    parser.add_argument(
+        "--output",
+        required=True,
+        metavar="FILE",
+        help="Write the new checkpoint to this path.",
+    )
     args = parser.parse_args()
     print(args)
 
     new_state = average_checkpoints(args.inputs)
     torch.save(new_state, args.output)
-    print('Finished writing averaged checkpoint to {}.'.format(args.output))
+    print(f"Finished writing averaged checkpoint to {args.output}.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

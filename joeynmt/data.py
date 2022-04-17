@@ -2,231 +2,331 @@
 """
 Data module
 """
-import sys
-import random
-import os
-import os.path
-from typing import Optional
 import logging
+from functools import partial
+from typing import Optional, Tuple
 
-# pylint: disable=no-name-in-module
-from torchtext.legacy.datasets import TranslationDataset
-from torchtext.legacy.data import Dataset, Iterator, Field, Example
+import torch
+from torch.utils.data import (
+    BatchSampler,
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    Sampler,
+    SequentialSampler,
+)
 
-from joeynmt.constants import UNK_TOKEN, EOS_TOKEN, BOS_TOKEN, PAD_TOKEN
-from joeynmt.vocabulary import build_vocab, Vocabulary
+from joeynmt.batch import Batch
+from joeynmt.constants import PAD_ID
+from joeynmt.datasets import build_dataset
+from joeynmt.helpers import log_data_info
+from joeynmt.tokenizers import build_tokenizer
+from joeynmt.vocabulary import Vocabulary, build_vocab
+
 
 logger = logging.getLogger(__name__)
+CPU_DEVICE = torch.device("cpu")
 
 
-def load_data(data_cfg: dict, datasets: list = None)\
-        -> (Dataset, Dataset, Optional[Dataset], Vocabulary, Vocabulary):
+def load_data(
+    data_cfg: dict, datasets: list = None
+) -> Tuple[
+    Vocabulary,
+    Vocabulary,
+    Optional[Dataset],
+    Optional[Dataset],
+    Optional[Dataset],
+]:
     """
     Load train, dev and optionally test data as specified in configuration.
-    Vocabularies are created from the training set with a limit of `voc_limit`
-    tokens and a minimum token frequency of `voc_min_freq`
-    (specified in the configuration dictionary).
+    Vocabularies are created from the training set with a limit of `voc_limit`tokens
+    and a minimum token frequency of `voc_min_freq` (specified in the configuration
+    dictionary).
 
-    The training data is filtered to include sentences up to `max_sent_length`
-    on source and target side.
+    The training data is filtered to include sentences up to `max_sent_length` on source
+    and target side.
 
-    If you set ``random_train_subset``, a random selection of this size is used
-    from the training set instead of the full training set.
+    If you set ``random_train_subset``, a random selection of this size is used from the
+    training set instead of the full training set.
 
-    :param data_cfg: configuration dictionary for data
-        ("data" part of configuation file)
+    :param data_cfg: configuration dictionary for data ("data" part of config file)
     :param datasets: list of dataset names to load
-    :return:
+    :returns:
+        - src_vocab: source vocabulary
+        - trg_vocab: target vocabulary
         - train_data: training dataset
         - dev_data: development dataset
-        - test_data: testdata set if given, otherwise None
-        - src_vocab: source vocabulary extracted from training data
-        - trg_vocab: target vocabulary extracted from training data
+        - test_data: test dataset if given, otherwise None
     """
     if datasets is None:
         datasets = ["train", "dev", "test"]
 
+    src_cfg = data_cfg["src"]
+    trg_cfg = data_cfg["trg"]
+
     # load data from files
-    src_lang = data_cfg["src"]
-    trg_lang = data_cfg["trg"]
+    src_lang = src_cfg["lang"]
+    trg_lang = trg_cfg["lang"]
     train_path = data_cfg.get("train", None)
     dev_path = data_cfg.get("dev", None)
     test_path = data_cfg.get("test", None)
 
     if train_path is None and dev_path is None and test_path is None:
-        raise ValueError('Please specify at least one data source path.')
+        raise ValueError("Please specify at least one data source path.")
 
-    level = data_cfg["level"]
-    lowercase = data_cfg["lowercase"]
-    max_sent_length = data_cfg["max_sent_length"]
+    # build tokenizer
+    logger.info("Building tokenizer...")
+    tokenizer = build_tokenizer(data_cfg)
 
-    tok_fun = lambda s: list(s) if level == "char" else s.split()
+    dataset_type = data_cfg.get("dataset_type", "plaintext")
+    dataset_cfg = data_cfg.get("dataset_cfg", {})
 
-    src_field = Field(init_token=None, eos_token=EOS_TOKEN, pad_token=PAD_TOKEN,
-                      tokenize=tok_fun, batch_first=True, lower=lowercase,
-                      unk_token=UNK_TOKEN, include_lengths=True)
-
-    trg_field = Field(init_token=BOS_TOKEN, eos_token=EOS_TOKEN,
-                      pad_token=PAD_TOKEN, unk_token=UNK_TOKEN,
-                      tokenize=tok_fun, batch_first=True, lower=lowercase,
-                      include_lengths=True)
-
+    # train data
     train_data = None
     if "train" in datasets and train_path is not None:
-        logger.info("Loading training data...")
-        train_data = TranslationDataset(path=train_path,
-                                        exts=("." + src_lang, "." + trg_lang),
-                                        fields=(src_field, trg_field),
-                                        filter_pred=
-                                        lambda x: len(vars(x)['src'])
-                                        <= max_sent_length
-                                        and len(vars(x)['trg'])
-                                        <= max_sent_length)
+        logger.info("Loading train set...")
+        train_data = build_dataset(
+            dataset_type=dataset_type,
+            path=train_path,
+            src_lang=src_lang,
+            trg_lang=trg_lang,
+            split="train",
+            tokenizer=tokenizer,
+            **dataset_cfg,
+        )
 
-        random_train_subset = data_cfg.get("random_train_subset", -1)
-        if random_train_subset > -1:
-            # select this many training examples randomly and discard the rest
-            keep_ratio = random_train_subset / len(train_data)
-            keep, _ = train_data.split(
-                split_ratio=[keep_ratio, 1 - keep_ratio],
-                random_state=random.getstate())
-            train_data = keep
-
-    src_max_size = data_cfg.get("src_voc_limit", sys.maxsize)
-    src_min_freq = data_cfg.get("src_voc_min_freq", 1)
-    trg_max_size = data_cfg.get("trg_voc_limit", sys.maxsize)
-    trg_min_freq = data_cfg.get("trg_voc_min_freq", 1)
-
-    src_vocab_file = data_cfg.get("src_vocab", None)
-    trg_vocab_file = data_cfg.get("trg_vocab", None)
-
-    assert (train_data is not None) or (src_vocab_file is not None)
-    assert (train_data is not None) or (trg_vocab_file is not None)
-
+    # build vocab
     logger.info("Building vocabulary...")
-    src_vocab = build_vocab(field="src", min_freq=src_min_freq,
-                            max_size=src_max_size,
-                            dataset=train_data, vocab_file=src_vocab_file)
-    trg_vocab = build_vocab(field="trg", min_freq=trg_min_freq,
-                            max_size=trg_max_size,
-                            dataset=train_data, vocab_file=trg_vocab_file)
+    src_vocab, trg_vocab = build_vocab(data_cfg, dataset=train_data)
 
+    # set vocab to tokenizer
+    # pylint: disable=protected-access
+    if hasattr(tokenizer[src_lang], "set_vocab"):
+        tokenizer[src_lang].set_vocab(src_vocab._itos)
+    if hasattr(tokenizer[trg_lang], "set_vocab"):
+        tokenizer[trg_lang].set_vocab(trg_vocab._itos)
+    # pylint: enable=protected-access
+
+    # padding func
+    padding = {
+        src_lang: partial(src_vocab.sentences_to_ids, bos=False, eos=True),
+        trg_lang: partial(trg_vocab.sentences_to_ids, bos=True, eos=True),
+    }
+    if train_data is not None:
+        train_data.padding = padding
+
+    # dev data
     dev_data = None
     if "dev" in datasets and dev_path is not None:
-        logger.info("Loading dev data...")
-        dev_data = TranslationDataset(path=dev_path,
-                                      exts=("." + src_lang, "." + trg_lang),
-                                      fields=(src_field, trg_field))
+        logger.info("Loading dev set...")
+        dev_data = build_dataset(
+            dataset_type=dataset_type,
+            path=dev_path,
+            src_lang=src_lang,
+            trg_lang=trg_lang,
+            split="dev",
+            tokenizer=tokenizer,
+            padding=padding,
+            **dataset_cfg,
+        )
 
+    # test data
     test_data = None
     if "test" in datasets and test_path is not None:
-        logger.info("Loading test data...")
-        # check if target exists
-        if os.path.isfile(test_path + "." + trg_lang):
-            test_data = TranslationDataset(
-                path=test_path, exts=("." + src_lang, "." + trg_lang),
-                fields=(src_field, trg_field))
-        else:
-            # no target is given -> create dataset from src only
-            test_data = MonoDataset(path=test_path, ext="." + src_lang,
-                                    field=src_field)
-    src_field.vocab = src_vocab
-    trg_field.vocab = trg_vocab
+        logger.info("Loading test set...")
+        test_data = build_dataset(
+            dataset_type=dataset_type,
+            path=test_path,
+            src_lang=src_lang,
+            trg_lang=trg_lang,
+            split="test",
+            tokenizer=tokenizer,
+            padding=padding,
+            **dataset_cfg,
+        )
     logger.info("Data loaded.")
-    return train_data, dev_data, test_data, src_vocab, trg_vocab
+    log_data_info(src_vocab, trg_vocab, train_data, dev_data, test_data)
+    return src_vocab, trg_vocab, train_data, dev_data, test_data
 
 
-# pylint: disable=global-at-module-level
-global max_src_in_batch, max_tgt_in_batch
-
-
-# pylint: disable=unused-argument,global-variable-undefined
-def token_batch_size_fn(new, count, sofar):
-    """Compute batch size based on number of tokens (+padding)."""
-    global max_src_in_batch, max_tgt_in_batch
-    if count == 1:
-        max_src_in_batch = 0
-        max_tgt_in_batch = 0
-    max_src_in_batch = max(max_src_in_batch, len(new.src))
-    src_elements = count * max_src_in_batch
-    if hasattr(new, 'trg'):  # for monolingual data sets ("translate" mode)
-        max_tgt_in_batch = max(max_tgt_in_batch, len(new.trg) + 2)
-        tgt_elements = count * max_tgt_in_batch
-    else:
-        tgt_elements = 0
-    return max(src_elements, tgt_elements)
-
-
-def make_data_iter(dataset: Dataset,
-                   batch_size: int,
-                   batch_type: str = "sentence",
-                   train: bool = False,
-                   shuffle: bool = False) -> Iterator:
+def collate_fn(
+    batch, src_process, trg_process, pad_index, device, has_trg, is_train
+) -> Batch:
     """
-    Returns a torchtext iterator for a torchtext dataset.
+    Custom collate function
+    Note: you might need another collate_fn() if you switch to a different batch class.
+        Please override the batch class here. (not in TrainManager)
+    :param batch:
+    :param src_process:
+    :param trg_process:
+    :param pad_index:
+    :param device:
+    :param has_trg:
+    :param is_train
+    :return: joeynmt batch object
+    """
 
-    :param dataset: torchtext dataset containing src and optionally trg
+    def _is_valid(s, t):
+        if has_trg:
+            return s is not None and t is not None
+        else:
+            return s is not None
+
+    batch = [(s, t) for s, t in batch if _is_valid(s, t)]
+    src_list, trg_list = zip(*batch)
+    assert len(batch) == len(src_list), (len(batch), len(src_list))
+    assert all(s is not None for s in src_list), src_list
+    src, src_length = src_process(src_list)
+
+    if has_trg:
+        assert all(t is not None for t in trg_list), trg_list
+        assert trg_process is not None
+        trg, trg_length = trg_process(trg_list)
+    else:
+        assert all(t is None for t in trg_list)
+        trg, trg_length = None, None
+    return Batch(
+        src=torch.tensor(src).long(),
+        src_length=torch.tensor(src_length).long(),
+        trg=torch.tensor(trg).long() if trg else None,
+        trg_length=torch.tensor(trg_length).long() if trg_length else None,
+        device=device,
+        pad_index=pad_index,
+        has_trg=has_trg,
+        is_train=is_train,
+    )
+
+
+def make_data_iter(
+    dataset: Dataset,
+    batch_size: int,
+    batch_type: str = "sentence",
+    seed: int = 42,
+    shuffle: bool = False,
+    num_workers: int = 0,
+    pad_index: int = PAD_ID,
+    device: torch.device = CPU_DEVICE,
+) -> DataLoader:
+    """
+    Returns a torch DataLoader for a torch Dataset. (no bucketing)
+
+    :param dataset: torch dataset containing src and optionally trg
     :param batch_size: size of the batches the iterator prepares
     :param batch_type: measure batch size by sentence count or by token count
-    :param train: whether it's training time, when turned off,
-        bucketing, sorting within batches and shuffling is disabled
+    :param seed: random seed for shuffling
     :param shuffle: whether to shuffle the data before each epoch
-        (no effect if set to True for testing)
-    :return: torchtext iterator
+        (for testing, no effect even if set to True)
+    :param num_workers: number of cpus for multiprocessing
+    :param pad_index:
+    :param device:
+    :return: torch DataLoader
+    """
+    assert isinstance(dataset, Dataset), dataset
+    # sampler
+    sampler: Sampler[int]  # (type annotation)
+    if shuffle and dataset.is_train:
+        generator = torch.Generator()
+        generator.manual_seed(seed)
+        sampler = RandomSampler(dataset, generator=generator)
+    else:
+        sampler = SequentialSampler(dataset)
+
+    # batch generator
+    if batch_type == "sentence":
+        batch_sampler = SentenceBatchSampler(
+            sampler, batch_size=batch_size, drop_last=False
+        )
+    elif batch_type == "token":
+        batch_sampler = TokenBatchSampler(
+            sampler, batch_size=batch_size, drop_last=False
+        )
+
+    assert dataset.padding[dataset.src_lang] is not None
+    if dataset.has_trg:
+        assert dataset.padding[dataset.trg_lang] is not None
+    else:
+        dataset.padding[dataset.trg_lang] = None
+
+    # data iterator
+    return DataLoader(
+        dataset,
+        batch_sampler=batch_sampler,
+        collate_fn=partial(
+            collate_fn,
+            src_process=dataset.padding[dataset.src_lang],
+            trg_process=dataset.padding[dataset.trg_lang],
+            pad_index=pad_index,
+            device=device,
+            has_trg=dataset.has_trg,
+            is_train=dataset.is_train,
+        ),
+        num_workers=num_workers,
+    )
+
+
+class SentenceBatchSampler(BatchSampler):
+    """
+    Wraps another sampler to yield a mini-batch of indices based on num of instances.
+    An instance longer than dataset.max_len will be filtered out.
+
+    :param sampler: Base sampler. Can be any iterable object
+    :param batch_size: Size of mini-batch.
+    :param drop_last: If ``True``, the sampler will drop the last batch if its size
+        would be less than ``batch_size``
     """
 
-    batch_size_fn = token_batch_size_fn if batch_type == "token" else None
+    def __init__(self, sampler: Sampler, batch_size: int, drop_last: bool):
+        super().__init__(sampler, batch_size, drop_last)
 
-    if train:
-        # optionally shuffle and sort during training
-        data_iter = Iterator(
-            repeat=False, sort=False, dataset=dataset,
-            batch_size=batch_size, batch_size_fn=batch_size_fn,
-            train=True, sort_within_batch=True,
-            sort_key=lambda x: len(x.src), shuffle=shuffle)
-    else:
-        # don't sort/shuffle for validation/inference
-        data_iter = Iterator(
-            repeat=False, dataset=dataset, batch_size=batch_size,
-            batch_size_fn=batch_size_fn, train=False, sort=False)
-
-    return data_iter
+    def __iter__(self):
+        batch = []
+        d = self.sampler.data_source
+        for idx in self.sampler:
+            src, trg = d[idx]  # call __getitem__()
+            if src is not None:  # otherwise drop instance
+                batch.append(idx)
+                if len(batch) >= self.batch_size:
+                    yield batch
+                    batch = []
+        if len(batch) > 0 and not self.drop_last:
+            yield batch
 
 
-class MonoDataset(Dataset):
-    """Defines a dataset for machine translation without targets."""
+class TokenBatchSampler(BatchSampler):
+    """
+    Wraps another sampler to yield a mini-batch of indices based on num of tokens
+    (incl. padding). An instance longer than dataset.max_len or shorter than
+    dataset.min_len will be filtered out.
+    * no bucketing implemented
 
-    @staticmethod
-    def sort_key(ex):
-        return len(ex.src)
+    :param sampler: Base sampler. Can be any iterable object
+    :param batch_size: Size of mini-batch.
+    :param drop_last: If ``True``, the sampler will drop the last batch if
+            its size would be less than ``batch_size``
+    """
 
-    def __init__(self, path: str, ext: str, field: Field, **kwargs) -> None:
-        """
-        Create a monolingual dataset (=only sources) given path and field.
+    def __init__(self, sampler: Sampler, batch_size: int, drop_last: bool):
+        super().__init__(sampler, batch_size, drop_last)
 
-        :param path: Prefix of path to the data file
-        :param ext: Containing the extension to path for this language.
-        :param field: Containing the fields that will be used for data.
-        :param kwargs: Passed to the constructor of data.Dataset.
-        """
+    def __iter__(self):
+        batch = []
+        max_tokens = 0
+        d = self.sampler.data_source
+        for idx in self.sampler:
+            src, trg = d[idx]  # call __getitem__()
+            if src is not None:  # otherwise drop instance
+                src_len = 0 if src is None else len(src)
+                trg_len = 0 if trg is None else len(trg)
+                n_tokens = 0 if src_len == 0 else max(src_len + 1, trg_len + 2)
+                batch.append(idx)
+                if n_tokens > max_tokens:
+                    max_tokens = n_tokens
+                if max_tokens * len(batch) >= self.batch_size:
+                    yield batch
+                    batch = []
+                    max_tokens = 0
+        if len(batch) > 0 and not self.drop_last:
+            yield batch
 
-        fields = [('src', field)]
-
-        if hasattr(path, "readline"):  # special usage: stdin
-            src_file = path
-        else:
-            src_path = os.path.expanduser(path + ext)
-            # Because the file can be stdin which doesn't need to be opened,
-            # easier not to use with here.
-            # pylint: disable=bad-option-value,consider-using-with
-            src_file = open(src_path, encoding="utf-8")
-
-        examples = []
-        for src_line in src_file:
-            src_line = src_line.strip()
-            if src_line != '':
-                examples.append(Example.fromlist([src_line], fields))
-
-        src_file.close()
-
-        super().__init__(examples, fields, **kwargs)
+    def __len__(self):
+        raise NotImplementedError
