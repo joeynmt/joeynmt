@@ -48,7 +48,7 @@ class TestPrediction(unittest.TestCase):
                     "lowercase": False,
                     "max_length": 10,
                 },
-                "dataset_type": "plaintext",
+                "dataset_type": "plain",
             },
             "testing": {
                 "n_best": 1,

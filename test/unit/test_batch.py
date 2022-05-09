@@ -25,7 +25,7 @@ class TestBatch(TensorTestCase):
                 "lowercase": True,
                 "max_length": 20,
             },
-            "dataset_type": "plaintext",
+            "dataset_type": "plain",
         }
 
         # load the data
@@ -35,7 +35,7 @@ class TestBatch(TensorTestCase):
             self.train_data,
             self.dev_data,
             _,
-        ) = load_data(data_cfg)
+        ) = load_data(data_cfg, datasets=["train", "dev"])
         self.pad_index = self.trg_vocab.pad_index
         # random seeds
         self.seed = 42

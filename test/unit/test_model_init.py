@@ -25,12 +25,14 @@ class TestModelInit(TensorTestCase):
                     "hidden_size": self.hidden_size,
                     "embeddings": {"embedding_dim": self.hidden_size},
                     "num_layers": 1,
+                    "layer_norm": "pre",
                 },
                 "decoder": {
                     "type": "transformer",
                     "hidden_size": self.hidden_size,
                     "embeddings": {"embedding_dim": self.hidden_size},
                     "num_layers": 1,
+                    "layer_norm": "pre",
                 },
             }
         }
@@ -67,8 +69,10 @@ class TestModelInit(TensorTestCase):
         self.assertEqual(len(model.encoder.layers), 6)
         self.assertEqual(len(model.decoder.layers), 6)
 
-        self.assertAlmostEqual(model.encoder.layers[0].alpha, 1.417938140685523)
-        self.assertAlmostEqual(model.decoder.layers[0].alpha, 2.0597671439071177)
+        for layer in model.encoder.layers:
+            self.assertEqual(layer.alpha, 1.417938140685523)
+        for layer in model.decoder.layers:
+            self.assertEqual(layer.alpha, 2.0597671439071177)
 
         self.assertTensorAlmostEqual(
             model.encoder.layers[0].src_src_att.q_layer.weight[:5, 0].data,
