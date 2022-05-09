@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-
+"""
+Transformer layers
+"""
 import math
 from typing import Optional
 
@@ -15,7 +17,7 @@ class MultiHeadedAttention(nn.Module):
     https://github.com/OpenNMT/OpenNMT-py
     """
 
-    def __init__(self, num_heads: int, size: int, dropout: float = 0.1):
+    def __init__(self, num_heads: int, size: int, dropout: float = 0.1) -> None:
         """
         Create a multi-headed attention layer.
         :param num_heads: the number of heads
@@ -86,7 +88,6 @@ class MultiHeadedAttention(nn.Module):
         )
 
         output = self.output_layer(context)
-
         return output
 
 
@@ -96,13 +97,21 @@ class PositionwiseFeedForward(nn.Module):
     Projects to ff_size and then back down to input_size.
     """
 
-    def __init__(self, input_size, ff_size, dropout=0.1, alpha=1.0, layer_norm="post"):
+    def __init__(
+        self,
+        input_size: int,
+        ff_size: int,
+        dropout: float = 0.1,
+        alpha: float = 1.0,
+        layer_norm: str = "post",
+    ) -> None:
         """
         Initializes position-wise feed-forward layer.
         :param input_size: dimensionality of the input.
         :param ff_size: dimensionality of intermediate representation
-        :param dropout:
-        :param alpha:
+        :param dropout: dropout probability
+        :param alpha: weight factor for residual connection
+        :param layer_norm: either "pre" or "post"
         """
         super().__init__()
         self.pwff_layer = nn.Sequential(
@@ -140,16 +149,16 @@ class PositionalEncoding(nn.Module):
     https://github.com/OpenNMT/OpenNMT-py
     """
 
-    def __init__(self, size: int = 0, max_len: int = 5000):
+    def __init__(self, size: int = 0, max_len: int = 5000) -> None:
         """
-        Positional Encoding with maximum length max_len
-        :param size:
-        :param max_len:
+        Positional Encoding with maximum length
+
+        :param size: embeddings dimension size
+        :param max_len: maximum sequence length
         """
         if size % 2 != 0:
             raise ValueError(
-                f"Cannot use sin/cos positional encoding with "
-                f"odd dim (got dim={size})"
+                f"Cannot use sin/cos positional encoding with odd dim (got dim={size})"
             )
         pe = torch.zeros(max_len, size)
         position = torch.arange(0, max_len).unsqueeze(1)
@@ -158,16 +167,18 @@ class PositionalEncoding(nn.Module):
         )
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
-        pe = pe.unsqueeze(0)  # shape: [1, size, max_len]
+        pe = pe.unsqueeze(0)  # shape: (1, size, max_len)
         super().__init__()
         self.register_buffer("pe", pe)
         self.dim = size
 
     def forward(self, emb: Tensor) -> Tensor:
-        """Embed inputs.
-        Args:
-            emb (FloatTensor): Sequence of word vectors
-                ``(seq_len, batch_size, self.dim)``
+        """
+        Embed inputs.
+
+        :param emb: (Tensor) Sequence of word embeddings vectors
+            shape (seq_len, batch_size, dim)
+        :return: positionally encoded word embeddings
         """
         # Add position encodings
         return emb + self.pe[:, : emb.size(1)]
@@ -187,7 +198,7 @@ class TransformerEncoderLayer(nn.Module):
         dropout: float = 0.1,
         alpha: float = 1.0,
         layer_norm: str = "post",
-    ):
+    ) -> None:
         """
         A single Transformer encoder layer.
 
@@ -209,10 +220,10 @@ class TransformerEncoderLayer(nn.Module):
             ff_size=ff_size,
             dropout=dropout,
             alpha=alpha,
+            layer_norm=layer_norm,
         )
 
         self.alpha = alpha
-
         self._layer_norm_position = layer_norm
         assert self._layer_norm_position in {"pre", "post"}
 
@@ -256,7 +267,7 @@ class TransformerDecoderLayer(nn.Module):
         dropout: float = 0.1,
         alpha: float = 1.0,
         layer_norm: str = "post",
-    ):
+    ) -> None:
         """
         Represents a single Transformer decoder layer.
 
@@ -279,10 +290,13 @@ class TransformerDecoderLayer(nn.Module):
         self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
 
         self.feed_forward = PositionwiseFeedForward(
-            size, ff_size=ff_size, dropout=dropout
+            size,
+            ff_size=ff_size,
+            dropout=dropout,
+            alpha=alpha,
+            layer_norm=layer_norm,
         )
         self.dropout = nn.Dropout(dropout)
-
         self.alpha = alpha
 
         self._layer_norm_position = layer_norm
@@ -290,10 +304,10 @@ class TransformerDecoderLayer(nn.Module):
 
     def forward(
         self,
-        x: Tensor = None,
-        memory: Tensor = None,
-        src_mask: Tensor = None,
-        trg_mask: Tensor = None,
+        x: Tensor,
+        memory: Tensor,
+        src_mask: Tensor,
+        trg_mask: Tensor,
     ) -> Tensor:
         """
         Forward pass of a single Transformer decoder layer.

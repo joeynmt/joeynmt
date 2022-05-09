@@ -1,5 +1,4 @@
 # coding: utf-8
-
 """
 Various decoders
 """
@@ -310,7 +309,7 @@ class RecurrentDecoder(Decoder):
 
         During training, the target inputs (`trg_embed') are already known for the full
         sequence, so the full unrol is done. In this case, `hidden` and
-        `prev_att_vector`are None.
+        `prev_att_vector` are None.
 
         For inference, this function is called with one step at a time since embedded
         targets are the predictions from the previous time step. In this case, `hidden`
@@ -553,13 +552,13 @@ class TransformerDecoder(Decoder):
 
     def forward(
         self,
-        trg_embed: Tensor = None,
-        encoder_output: Tensor = None,
-        encoder_hidden: Tensor = None,
-        src_mask: Tensor = None,
-        unroll_steps: int = None,
-        hidden: Tensor = None,
-        trg_mask: Tensor = None,
+        trg_embed: Tensor,
+        encoder_output: Tensor,
+        encoder_hidden: Tensor,
+        src_mask: Tensor,
+        unroll_steps: int,
+        hidden: Tensor,
+        trg_mask: Tensor,
         **kwargs,
     ):
         """
@@ -600,5 +599,6 @@ class TransformerDecoder(Decoder):
         return (
             f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
             f"num_heads={self.layers[0].trg_trg_att.num_heads}, "
-            f"layer_norm=\"{'post' if self.layer_norm is None else 'pre'}\")"
+            f"alpha={self.layers[0].alpha}, "
+            f'layer_norm="{self.layers[0]._layer_norm_position}")'
         )

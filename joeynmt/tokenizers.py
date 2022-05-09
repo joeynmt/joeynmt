@@ -4,94 +4,17 @@ Tokenizer module
 """
 
 import logging
-import re
 import shutil
-import sys
-import unicodedata
 from pathlib import Path
 from typing import Dict, List
 
 import sentencepiece as sp
 from subword_nmt import apply_bpe
 
-from joeynmt.helpers import ConfigurationError
+from joeynmt.helpers import ConfigurationError, remove_extra_spaces, unicode_normalize
 
 
 logger = logging.getLogger(__name__)
-
-
-def _unicode_normalize(cls, s):
-    pt = re.compile("([{}]+)".format(cls))
-
-    def norm(c):
-        return unicodedata.normalize("NFKC", c) if pt.match(c) else c
-
-    s = "".join(norm(x) for x in re.split(pt, s))
-    s = re.sub("－", "-", s)
-    return s
-
-
-def _remove_extra_spaces(s):
-    s = re.sub("\u200b", "", s)
-    s = re.sub("[ 　]+", " ", s)
-    blocks = "".join(
-        (
-            "\u4E00-\u9FFF",  # CJK UNIFIED IDEOGRAPHS
-            "\u3040-\u309F",  # HIRAGANA
-            "\u30A0-\u30FF",  # KATAKANA
-            "\u3000-\u303F",  # CJK SYMBOLS AND PUNCTUATION
-            "\uFF00-\uFFEF",  # HALFWIDTH AND FULLWIDTH FORMS
-        )
-    )
-    # latin = ''.join(('\u0000-\u007F',   # Basic Latin[g]
-    #                 '\u0080-\u00FF',   # Latin-1 Supplement[h]
-    # ))
-
-    def _remove_space_between(cls1, cls2, s):
-        # pylint: disable=consider-using-f-string
-        p = re.compile("([{}]) ([{}])".format(cls1, cls2))
-        while p.search(s):
-            s = p.sub(r"\1\2", s)
-        return s
-
-    s = _remove_space_between(blocks, blocks, s)
-    # s = _remove_space_between(blocks, latin, s)
-    # s = _remove_space_between(latin, blocks, s)
-
-    s = re.sub(" ,", ",", s)
-    s = re.sub(" .", ".", s)
-    s = re.sub(" ?", "?", s)
-    s = re.sub(" !", "!", s)
-    return s.strip()
-
-
-def _normalize(s):
-    """Normalize unicode strings
-    cf.)
-    https://github.com/neologd/mecab-ipadic-neologd/wiki/Regexp.ja
-    http://lotus.kuee.kyoto-u.ac.jp/WAT/Timely_Disclosure_Documents_Corpus/specifications.html
-    """
-    s = re.sub("\t", " ", s)
-    s = _unicode_normalize("０-９Ａ-Ｚａ-ｚ｡-ﾟ", s)
-
-    def _maketrans(f, t):
-        return {ord(x): ord(y) for x, y in zip(f, t)}
-
-    s = re.sub("[˗֊‐‑‒–⁃⁻₋−]+", "-", s)  # normalize hyphens
-    s = re.sub("[﹣－ｰ—―─━ー]+", "ー", s)  # normalize choonpus
-    s = re.sub("[~∼∾〜〰～]+", "〜", s)  # normalize tildes (modified by Isao Sonobe)
-    s = s.translate(
-        _maketrans(
-            "!\"#$%&'()*+,-./:;<=>?@[¥]^_`{|}~｡､･｢｣",
-            "！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［￥］＾＿｀｛｜｝〜。、・「」",
-        )
-    )
-
-    s = _remove_extra_spaces(s)
-    s = _unicode_normalize("！”＃＄％＆’（）＊＋，－．／：；＜＞？＠［￥］＾＿｀｛｜｝〜", s)  # keep ＝,・,「,」
-    s = re.sub("[’]", "'", s)
-    s = re.sub("[”“]", '"', s)
-    return s
 
 
 class BasicTokenizer:
@@ -103,8 +26,8 @@ class BasicTokenizer:
         level: str = "word",
         lowercase: bool = False,
         normalize: bool = False,
-        max_len: int = -1,
-        min_len: int = -1,
+        max_length: int = -1,
+        min_length: int = -1,
         **kwargs,
     ):
         self.level = level
@@ -112,8 +35,8 @@ class BasicTokenizer:
         self.normalize = normalize
 
         # filter by length
-        self.max_len = max_len
-        self.min_len = min_len
+        self.max_length = max_length
+        self.min_length = min_length
 
     def pre_process(self, raw_input: str) -> str:
         """
@@ -125,13 +48,11 @@ class BasicTokenizer:
         if self.lowercase:
             raw_input = raw_input.lower()
         if self.normalize:
-            raw_input = _normalize(raw_input)
+            raw_input = remove_extra_spaces(unicode_normalize(raw_input))
             # TODO: support other normalization(?)
         return raw_input
 
-    def __call__(
-        self, raw_input: str, sample: bool = False, filter_by_length: bool = False
-    ) -> List[str]:
+    def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize single sentence"""
         sequence = self.pre_process(raw_input)
         if self.level == "word":
@@ -139,12 +60,18 @@ class BasicTokenizer:
         elif self.level == "char":
             sequence = list(sequence.replace(self.SPACE, self.SPACE_ESCAPE))
 
-        if filter_by_length and self._filter_by_length(len(sequence)):
+        if is_train and self._filter_by_length(len(sequence)):
             return None
         return sequence
 
-    def _filter_by_length(self, length: int):
-        if length > self.max_len > 0 or self.min_len > length > 0:
+    def _filter_by_length(self, length: int) -> bool:
+        """
+        Check if the given seq length is out of the valid range.
+
+        :param length: (int) number of tokens
+        :return: True if the length is invalid(= to be filtered out), False if valid.
+        """
+        if length > self.max_length > 0 or self.min_length > length > 0:
             return True
         else:
             return False
@@ -158,14 +85,14 @@ class BasicTokenizer:
 
         # Remove extra spaces
         if self.normalize:
-            detokenized = _remove_extra_spaces(detokenized)
+            detokenized = remove_extra_spaces(detokenized)
         return detokenized
 
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(level={self.level}, "
             f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_len}, {self.max_len}))"
+            f"filter_by_length=({self.min_length}, {self.max_length}))"
         )
 
 
@@ -175,11 +102,11 @@ class SentencePieceTokenizer(BasicTokenizer):
         level: str = "bpe",
         lowercase: bool = False,
         normalize: bool = False,
-        max_len: int = -1,
-        min_len: int = -1,
+        max_length: int = -1,
+        min_length: int = -1,
         **kwargs,
     ):
-        super().__init__(level, lowercase, normalize, max_len, min_len)
+        super().__init__(level, lowercase, normalize, max_length, min_length)
         assert self.level == "bpe"
 
         self.model_file: Path = Path(kwargs["model_file"])
@@ -188,23 +115,20 @@ class SentencePieceTokenizer(BasicTokenizer):
         self.spm = sp.SentencePieceProcessor()
         self.spm.load(kwargs["model_file"])
 
-        self.enable_sampling: bool = kwargs.get("enable_sampling", False)
+        self.nbest_size: bool = kwargs.get("nbest_size", 5)
         self.alpha: float = kwargs.get("alpha", 0.0)
 
-    def __call__(
-        self, raw_input: str, sample: bool = False, filter_by_length: bool = False
-    ) -> List[str]:
-        if sample:
-            tokenized = self.spm.encode(
+    def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
+        if is_train and self.alpha > 0:
+            tokenized = self.spm.sample_encode_as_pieces(
                 raw_input,
-                out_type=str,
-                enable_sampling=self.enable_sampling,
+                nbest_size=self.nbest_size,
                 alpha=self.alpha,
             )
         else:
             tokenized = self.spm.encode(raw_input, out_type=str)
 
-        if filter_by_length and self._filter_by_length(len(tokenized)):
+        if is_train and self._filter_by_length(len(tokenized)):
             return None
         return tokenized
 
@@ -213,7 +137,7 @@ class SentencePieceTokenizer(BasicTokenizer):
 
         # Remove extra spaces
         if self.normalize:
-            detokenized = _remove_extra_spaces(detokenized)
+            detokenized = remove_extra_spaces(detokenized)
         return detokenized
 
     def set_vocab(self, itos: List[str]) -> None:
@@ -236,9 +160,9 @@ class SentencePieceTokenizer(BasicTokenizer):
         return (
             f"{self.__class__.__name__}(level={self.level}, "
             f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_len}, {self.max_len}), "
+            f"filter_by_length=({self.min_length}, {self.max_length}), "
             f"tokenizer={self.spm.__class__.__name__}, "
-            f"enable_sampling={self.enable_sampling}, alpha={self.alpha})"
+            f"nbest_size={self.nbest_size}, alpha={self.alpha})"
         )
 
 
@@ -248,11 +172,11 @@ class SubwordNMTTokenizer(BasicTokenizer):
         level: str = "bpe",
         lowercase: bool = False,
         normalize: bool = False,
-        max_len: int = -1,
-        min_len: int = -1,
+        max_length: int = -1,
+        min_length: int = -1,
         **kwargs,
     ):
-        super().__init__(level, lowercase, normalize, max_len, min_len)
+        super().__init__(level, lowercase, normalize, max_length, min_length)
         assert self.level == "bpe"
 
         self.codes: Path = Path(kwargs["codes"])
@@ -272,25 +196,23 @@ class SubwordNMTTokenizer(BasicTokenizer):
         self.separator: str = kwargs.get("separator", "@@")
         self.dropout: float = kwargs.get("dropout", 0.0)
 
-    def __call__(
-        self, raw_input: str, sample: bool = False, filter_by_length: bool = False
-    ) -> List[str]:
-        dropout = self.dropout if sample else 0.0
+    def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
+        dropout = self.dropout if is_train else 0.0
         tokenized = self.bpe.process_line(raw_input, dropout).strip().split()
-        if filter_by_length and self._filter_by_length(len(tokenized)):
+        if is_train and self._filter_by_length(len(tokenized)):
             return None
         return tokenized
 
     def post_process(self, output: List[str]) -> str:
         # Remove merge markers within the sentence.
-        detokenized = " ".join(output).replace(self.separator + " ", "")
+        detokenized = self.SPACE.join(output).replace(self.separator + self.SPACE, "")
         # Remove final merge marker.
         if detokenized.endswith(self.separator):
             detokenized = detokenized[:-2]
 
         # Remove extra spaces
         if self.normalize:
-            detokenized = _remove_extra_spaces(detokenized)
+            detokenized = remove_extra_spaces(detokenized)
         return detokenized
 
     def copy_cfg_file(self, model_dir: Path) -> None:
@@ -300,7 +222,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         return (
             f"{self.__class__.__name__}(level={self.level}, "
             f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_len}, {self.max_len}), "
+            f"filter_by_length=({self.min_length}, {self.max_length}), "
             f"tokenizer={self.bpe.__class__.__name__}, "
             f"separator={self.separator}, dropout={self.dropout})"
         )
@@ -314,8 +236,8 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
             level=cfg["level"],
             lowercase=cfg.get("lowercase", False),
             normalize=cfg.get("normalize", False),
-            max_len=cfg.get("max_length", -1),
-            min_len=cfg.get("min_length", -1),
+            max_length=cfg.get("max_length", -1),
+            min_length=cfg.get("min_length", -1),
         )
     elif cfg["level"] == "bpe":
         tokenizer_type = cfg.get("tokenizer_type", cfg.get("bpe_type", "sentencepiece"))
@@ -325,8 +247,8 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
                 level=cfg["level"],
                 lowercase=cfg.get("lowercase", False),
                 normalize=cfg.get("normalize", False),
-                max_len=cfg.get("max_length", -1),
-                min_len=cfg.get("min_length", -1),
+                max_length=cfg.get("max_length", -1),
+                min_length=cfg.get("min_length", -1),
                 **cfg["tokenizer_cfg"],
             )
         elif tokenizer_type == "subword-nmt":
@@ -335,8 +257,8 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
                 level=cfg["level"],
                 lowercase=cfg.get("lowercase", False),
                 normalize=cfg.get("normalize", False),
-                max_len=cfg.get("max_length", -1),
-                min_len=cfg.get("min_length", -1),
+                max_length=cfg.get("max_length", -1),
+                min_length=cfg.get("min_length", -1),
                 **cfg["tokenizer_cfg"],
             )
         else:

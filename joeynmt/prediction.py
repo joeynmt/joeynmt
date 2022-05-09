@@ -136,7 +136,7 @@ def validate_on_data(
     decoding_description = (
         "Greedy decoding"
         if beam_size < 2
-        else f"Beam search decoding with beam size = {beam_size}, alpha = {beam_alpha}"
+        else f"Beam search decoding with beam size={beam_size}, alpha={beam_alpha}"
     )
     logger.info("Validating on %d data points... (%s)", len(data), decoding_description)
 
@@ -145,7 +145,7 @@ def validate_on_data(
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like this? "
             "'batch_size' is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to 'eval_batch_type: token'."
+            "or switching to 'batch_type: token'."
         )
     # CAUTION: a batch will be expanded to batch.nseqs * beam_size, and it might cause
     # an out-of-memory error.
@@ -223,9 +223,11 @@ def validate_on_data(
             normalizer = total_ntokens
         elif normalization == "none":
             normalizer = 1
+
         # avoid zero division
         assert normalizer > 0
         assert total_ntokens > 0
+
         # normalized loss
         valid_scores["loss"] = total_loss / normalizer
         # accuracy before decoding
@@ -460,7 +462,7 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
         model.to(device)
 
     tokenizer = build_tokenizer(cfg["data"])
-    padding = {
+    sequence_encoder = {
         src_cfg["lang"]: partial(src_vocab.sentences_to_ids, bos=False, eos=True),
         trg_cfg["lang"]: None,
     }
@@ -471,7 +473,7 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
         trg_lang=trg_cfg["lang"],
         split="test",
         tokenizer=tokenizer,
-        padding=padding,
+        sequence_encoder=sequence_encoder,
     )
 
     if not sys.stdin.isatty():

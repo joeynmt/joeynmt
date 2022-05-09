@@ -60,6 +60,7 @@ class Batch:
         self.is_train: bool = is_train
 
         if self.has_trg:
+            assert trg is not None and trg_length is not None
             # trg_input is used for teacher forcing, last one is cut off
             self.trg_input: Tensor = trg[:, :-1]  # shape (batch_size, seq_length)
             self.trg_length: Tensor = trg_length - 1
@@ -95,7 +96,7 @@ class Batch:
     ) -> Tensor:
         """
         Normalizes batch tensor (i.e. loss). Takes sum over multiple gpus, divides by
-        nseqs or ntokens, divide by n_gpu, then devide by n_accumulation.
+        nseqs or ntokens, divide by n_gpu, then divide by n_accumulation.
 
         :param normalization: (str) one of {`batch`, `tokens`, `none`}
         :param n_gpu: (int) the number of gpus

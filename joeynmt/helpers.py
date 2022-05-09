@@ -9,7 +9,9 @@ import functools
 import logging
 import operator
 import random
+import re
 import shutil
+import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -113,7 +115,7 @@ def clones(module: nn.Module, n: int) -> nn.ModuleList:
 
     :param module: the module to clone
     :param n: clone this many times
-    :return cloned modules
+    :return: cloned modules
     """
     return nn.ModuleList([copy.deepcopy(module) for _ in range(n)])
 
@@ -167,20 +169,10 @@ def log_data_info(
 
     if train_data:
         src = "\n\t[SRC] " + " ".join(
-            train_data.get_item(
-                idx=0,
-                lang=train_data.src_lang,
-                sample=False,
-                filter_by_length=False,
-            )
+            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False)
         )
         trg = "\n\t[TRG] " + " ".join(
-            train_data.get_item(
-                idx=0,
-                lang=train_data.trg_lang,
-                sample=False,
-                filter_by_length=False,
-            )
+            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False)
         )
         logger.info("First training example:%s%s", src, trg)
 
@@ -588,3 +580,31 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
             resort_reverse_index.append(ix * n_best + n)
     assert len(resort_reverse_index) == len(reverse_index) * n_best
     return resort_reverse_index
+
+
+def remove_extra_spaces(s: str) -> str:
+    """
+    remove extra spaces
+    - used in pre_process() / post_process() in tokenizer.py
+    """
+    s = re.sub("\u200b", "", s)
+    s = re.sub("[ 　]+", " ", s)
+
+    s = s.replace(" ?", "?")
+    s = s.replace(" !", "!")
+    s = s.replace(" ,", ",")
+    s = s.replace(" .", ".")
+    s = s.replace(" :", ":")
+    return s.strip()
+
+
+def unicode_normalize(s: str) -> str:
+    """
+    apply unicodedata NFKC normalization
+    - used in pre_process() in tokenizer.py
+    """
+    s = unicodedata.normalize("NFKC", s)
+    s = s.replace("’", "'")
+    s = s.replace("“", '"')
+    s = s.replace("”", '"')
+    return s

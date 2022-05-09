@@ -455,6 +455,19 @@ class TrainManager:
                 total_batch_loss = 0
                 total_n_correct = 0
 
+                # subsample train data each epoch
+                if train_data.random_subset > 0:
+                    try:
+                        train_data.reset_random_subset()
+                        train_data.sample_random_subset(seed=epoch_no)
+                        logger.info(
+                            "Sample random subset from dev set: n=%d, seed=%d",
+                            len(train_data),
+                            epoch_no,
+                        )
+                    except AssertionError as e:
+                        logger.warning(e)
+
                 batch: Batch  # yield a joeynmt Batch object
                 for i, batch in enumerate(self.train_iter):
                     # sort batch now by src length and keep track of order
@@ -608,18 +621,17 @@ class TrainManager:
         return norm_batch_loss.item(), n_correct_tokens.item()
 
     def _validate(self, valid_data: Dataset):
-        #try:
-        #    if len(valid_data) <= 500:
-        #        valid_data.reset_random_subset()
-        #    valid_data.sample_random_subset(500, seed=self.stats.steps)
-        #    assert len(valid_data) == 500, len(valid_data)
-        #    logger.info(
-        #        "Sample random subset from dev set: n=%d, seed=%d",
-        #        len(valid_data),
-        #        self.stats.steps,
-        #    )
-        #except AssertionError as e:
-        #    logger.warning(e)
+        if valid_data.random_subset > 0:  # subsample validation set each valid step
+            try:
+                valid_data.reset_random_subset()
+                valid_data.sample_random_subset(seed=self.stats.steps)
+                logger.info(
+                    "Sample random subset from dev set: n=%d, seed=%d",
+                    len(valid_data),
+                    self.stats.steps,
+                )
+            except AssertionError as e:
+                logger.warning(e)
 
         valid_start_time = time.time()
         (

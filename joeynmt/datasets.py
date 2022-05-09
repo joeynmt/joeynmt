@@ -19,15 +19,15 @@ logger = logging.getLogger(__name__)
 class BaseDataset(Dataset):
     """
     BaseDataset which loads and looks up data.
-    - holds pointer to tokenizers, padding functions.
+    - holds pointer to tokenizers, encoding functions.
 
     :param path: path to data directory
     :param src_lang: source language code, i.e. `en`
     :param trg_lang: target language code, i.e. `de`
     :param has_trg: bool indicator if trg exists
-    :param is_train: bool indicator for train set or not
+    :param split: bool indicator for train set or not
     :param tokenizer: tokenizer objects
-    :param padding: padding functions
+    :param sequence_encoder: encoding functions
     """
 
     def __init__(
@@ -35,28 +35,34 @@ class BaseDataset(Dataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        is_train: bool = False,
+        split: int = "train",
         has_trg: bool = True,
         tokenizer: Dict[str, BasicTokenizer] = None,
-        padding: Dict[str, Callable] = None,
+        sequence_encoder: Dict[str, Callable] = None,
+        random_subset: int = -1,
     ):
         self.path = path
         self.src_lang = src_lang
         self.trg_lang = trg_lang
         self.has_trg = has_trg
-        self.is_train = is_train
-        if self.is_train:
+        self.split = split
+        if self.split == "train":
             assert self.has_trg
 
         _place_holder = {self.src_lang: None, self.trg_lang: None}
         self.tokenizer = _place_holder if tokenizer is None else tokenizer
-        self.padding = _place_holder if padding is None else padding
+        self.sequence_encoder = (
+            _place_holder if sequence_encoder is None else sequence_encoder
+        )
 
-    def sample_random_subset(self, n: int, seed: int = 42) -> None:
+        # for ransom subsampling
+        self.random_subset = random_subset
+
+    def sample_random_subset(self, seed: int = 42) -> None:
         # pylint: disable=unused-argument
         assert (
-            self.is_train and self.__len__() > n > 0
-        ), f"Can only subsample from trainset larger than {n}."
+            self.split != "test" and self.__len__() > self.random_subset > 0
+        ), f"Can only subsample from train or dev set larger than {self.random_subset}."
 
     def reset_random_subset(self):
         raise NotImplementedError
@@ -68,35 +74,20 @@ class BaseDataset(Dataset):
         """
         raise NotImplementedError
 
-    def get_item(
-        self,
-        idx: int,
-        lang: str,
-        sample: bool = False,
-        filter_by_length: bool = False,
-    ) -> List[str]:
+    def get_item(self, idx: int, lang: str) -> List[str]:
         """
         seek one src/trg item of given index.
             - tokenization is applied here.
+            - length-filtering, bpe-dropout etc also triggered if self.split == "train"
         """
         raise NotImplementedError
 
     def __getitem__(self, idx: Union[int, str]) -> Tuple[List[str], List[str]]:
         """lookup one item pair of given index."""
         src, trg = None, None
-        src = self.get_item(
-            idx=idx,
-            lang=self.src_lang,
-            sample=self.is_train,
-            filter_by_length=self.is_train,
-        )
+        src = self.get_item(idx=idx, lang=self.src_lang)
         if self.has_trg:
-            trg = self.get_item(
-                idx=idx,
-                lang=self.trg_lang,
-                sample=self.is_train,
-                filter_by_length=self.is_train,
-            )
+            trg = self.get_item(idx=idx, lang=self.trg_lang)
             if trg is None:
                 src = None
         return src, trg
@@ -122,9 +113,9 @@ class BaseDataset(Dataset):
 
     def __repr__(self) -> str:
         return (
-            f"{self.__class__.__name__}(len={self.__len__()}, "
+            f"{self.__class__.__name__}(split={self.split}, len={self.__len__()}, "
             f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-            f"is_train={self.is_train}, has_trg={self.has_trg})"
+            f"has_trg={self.has_trg}, random_subset={self.random_subset})"
         )
 
 
@@ -139,20 +130,22 @@ class PlaintextDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        is_train: bool = False,
+        split: int = "train",
         has_trg: bool = True,
         tokenizer: Dict[str, BasicTokenizer] = None,
-        padding: Dict[str, Callable] = None,
+        sequence_encoder: Dict[str, Callable] = None,
+        random_subset: int = -1,
         **kwargs,
     ):
         super().__init__(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=split,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
         )
 
         # load data
@@ -183,27 +176,19 @@ class PlaintextDataset(BaseDataset):
             assert len(src_list) == len(trg_list)
         return data
 
-    def sample_random_subset(self, n: int, seed: int = 42) -> None:
-        super().sample_random_subset(n, seed)  # check validity
+    def sample_random_subset(self, seed: int = 42) -> None:
+        super().sample_random_subset(seed)  # check validity
 
         random.seed(seed)  # resample every epoch: seed += epoch_no
-        self.idx_map = list(random.sample(range(self._initial_len), n))
+        self.idx_map = list(random.sample(range(self._initial_len), self.random_subset))
 
     def reset_random_subset(self):
         self.idx_map = []
 
-    def get_item(
-        self,
-        idx: int,
-        lang: str,
-        sample: bool = False,
-        filter_by_length: bool = False,
-    ) -> List[str]:
+    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         line = self._look_up_item(idx, lang)
-
-        item = self.tokenizer[lang](
-            line, sample=sample, filter_by_length=(filter_by_length and self.is_train)
-        )
+        is_train = self.split == "train" if is_train is None else is_train
+        item = self.tokenizer[lang](line, is_train=is_train)
         return item
 
     def _look_up_item(self, idx: int, lang: str) -> str:
@@ -217,13 +202,15 @@ class PlaintextDataset(BaseDataset):
     ) -> Union[List[str], List[List[str]]]:
         """
         Return list of preprocessed sentences in the given language.
-        (not length-filtered)
+        (not length-filtered, no bpe-dropout)
         """
         item_list = []
         for idx in range(self.__len__()):
             item = self._look_up_item(idx, lang)
             if tokenized:
-                item = self.tokenizer[lang](self._look_up_item(idx, lang), sample=False)
+                item = self.tokenizer[lang](
+                    self._look_up_item(idx, lang), is_train=False
+                )
             item_list.append(item)
         return item_list
 
@@ -245,20 +232,22 @@ class TsvDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        is_train: bool = False,
+        split: int = "train",
         has_trg: bool = True,
         tokenizer: Dict[str, BasicTokenizer] = None,
-        padding: Dict[str, Callable] = None,
+        sequence_encoder: Dict[str, Callable] = None,
+        random_subset: int = -1,
         **kwargs,
     ):
         super().__init__(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=split,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
         )
 
         # load tsv file
@@ -290,8 +279,10 @@ class TsvDataset(BaseDataset):
                 self.tokenizer[self.src_lang].pre_process
             )
 
+            if self.trg_lang not in df.columns:
+                self.has_trg = False
+                assert self.split == "test"
             if self.has_trg:
-                assert self.trg_lang in df.columns
                 df[self.trg_lang] = df[self.trg_lang].apply(
                     self.tokenizer[self.trg_lang].pre_process
                 )
@@ -301,14 +292,14 @@ class TsvDataset(BaseDataset):
             logger.error(e)
             raise ImportError from e
 
-    def sample_random_subset(self, n: int, seed: int = 42) -> None:
-        super().sample_random_subset(n, seed)  # check validity
+    def sample_random_subset(self, seed: int = 42) -> None:
+        super().sample_random_subset(seed)  # check validity
 
         if self._initial_df is None:
             self._initial_df = self.df.copy(deep=True)
 
         self.df = self._initial_df.sample(
-            n=n,
+            n=self.random_subset,
             replace=False,
             random_state=seed,  # resample every epoch: seed += epoch_no
         ).reset_index()
@@ -318,17 +309,10 @@ class TsvDataset(BaseDataset):
         self.df = self._initial_df
         self._initial_df = None
 
-    def get_item(
-        self,
-        idx: int,
-        lang: str,
-        sample: bool = False,
-        filter_by_length: bool = False,
-    ) -> List[str]:
+    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         line = self.df.iloc[idx][lang]
-        item = self.tokenizer[lang](
-            line, sample=sample, filter_by_length=(filter_by_length and self.is_train)
-        )
+        is_train = self.split == "train" if is_train is None else is_train
+        item = self.tokenizer[lang](line, is_train=is_train)
         return item
 
     def get_list(
@@ -355,19 +339,22 @@ class StreamDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        is_train: bool = False,
+        split: int = "test",
         has_trg: bool = False,
         tokenizer: Dict[str, BasicTokenizer] = None,
-        padding: Dict[str, Callable] = None,
+        sequence_encoder: Dict[str, Callable] = None,
+        random_subset: int = -1,
+        **kwargs,
     ):
         super().__init__(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=split,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
         )
         # place holder
         self.cache = {}
@@ -383,17 +370,11 @@ class StreamDataset(BaseDataset):
         line = self.tokenizer[self.src_lang].pre_process(line)
         self.cache[idx] = (line, None)
 
-    def get_item(
-        self,
-        idx: int,
-        lang: str,
-        sample: bool = False,
-        filter_by_length: bool = False,
-    ) -> List[str]:
+    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         assert idx in self.cache, (idx, self.cache)
         assert lang == self.src_lang, (lang, self.src_lang)
         line, _ = self.cache[idx]
-        item = self.tokenizer[lang](line, sample=False, filter_by_length=False)
+        item = self.tokenizer[lang](line, is_train=False)
         return item
 
     def __len__(self) -> int:
@@ -401,9 +382,9 @@ class StreamDataset(BaseDataset):
 
     def __repr__(self) -> str:
         return (
-            f"{self.__class__.__name__}(len={len(self.cache)}, "
+            f"{self.__class__.__name__}(split={self.split}, len={len(self.cache)}, "
             f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-            f"is_train={self.is_train}, has_trg={self.has_trg})"
+            f"has_trg={self.has_trg}, random_subset={self.random_subset})"
         )
 
 
@@ -418,24 +399,25 @@ class BaseHuggingfaceDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        is_train: bool = False,
         has_trg: bool = True,
         tokenizer: Dict[str, BasicTokenizer] = None,
-        padding: Dict[str, Callable] = None,
+        sequence_encoder: Dict[str, Callable] = None,
+        random_subset: int = -1,
         **kwargs,
     ):
         super().__init__(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=kwargs["split"],
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
         )
         # load data
         self.dataset = self.load_data(path, **kwargs)
-        self._kwargs = kwargs
+        self._kwargs = kwargs  # should contain arguments passed to `load_dataset()`
         self._kwargs["path"] = path
 
     def load_data(self, path: str, **kwargs) -> Any:
@@ -449,35 +431,24 @@ class BaseHuggingfaceDataset(BaseDataset):
             logger.error(e)
             raise ImportError from e
 
-    def sample_random_subset(self, n: int, seed: int = 42) -> None:
-        assert (
-            self._kwargs["split"] != "test" and self.__len__() > n > 0
-        ), f"Can only subsample from train or validation set larger than {n}."
+    def sample_random_subset(self, seed: int = 42) -> None:
+        super().sample_random_subset(seed)  # check validity
 
         # resample every epoch: seed += epoch_no
-        self.dataset = self.dataset.shuffle(seed=seed).select(range(n))
+        self.dataset = self.dataset.shuffle(seed=seed).select(range(self.random_subset))
 
     def reset_random_subset(self) -> None:
         # reload from cache
         self.dataset = self.load_data(**self._kwargs)
 
-    def get_item(
-        self,
-        idx: int,
-        lang: str,
-        sample: bool = False,
-        filter_by_length: bool = False,
-    ) -> List[str]:
+    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # lookup
         line = self.dataset[idx]
         assert lang in line, (line, lang)
 
         # tokenize
-        item = self.tokenizer[lang](
-            line[lang],
-            sample=sample,
-            filter_by_length=(filter_by_length and self.is_train),
-        )
+        is_train = self.split == "train" if is_train is None else is_train
+        item = self.tokenizer[lang](line[lang], is_train=is_train)
         return item
 
     def get_list(self, lang: str, tokenized: bool = False) -> List[str]:
@@ -495,7 +466,7 @@ class BaseHuggingfaceDataset(BaseDataset):
         ret = (
             f"{self.__class__.__name__}(len={self.__len__()}, "
             f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-            f"is_train={self.is_train}, has_trg={self.has_trg}"
+            f"has_trg={self.has_trg}, random_subset={self.random_subset}"
         )
         for k, v in self._kwargs.items():
             ret += f", {k}={v}"
@@ -506,9 +477,8 @@ class BaseHuggingfaceDataset(BaseDataset):
 class HuggingfaceDataset(BaseHuggingfaceDataset):
     """
     Wrapper for Huggingface's `datasets.features.Translation` class
-    cf.) https://github.com/huggingface/datasets/blob/master/
-         src/datasets/features/translation.py
-    """
+    cf.) https://github.com/huggingface/datasets/blob/master/src/datasets/features/translation.py
+    """  # noqa
 
     def load_data(self, path: str, **kwargs) -> Any:
         dataset = super().load_data(path=path, **kwargs)
@@ -544,7 +514,8 @@ def build_dataset(
     trg_lang: str,
     split: str,
     tokenizer: Dict = None,
-    padding: Dict = None,
+    sequence_encoder: Dict = None,
+    random_subset: int = -1,
     **kwargs,
 ):
     """
@@ -557,12 +528,12 @@ def build_dataset(
     :param trg_lang: (str) language code for target
     :param split: (str) one of {`train`, `dev`, `test`}
     :param tokenizer: tokenizer objects for both source and target
-    :param padding: padding functions for both source and target
+    :param sequence_encoder: encoding functions for both source and target
+    :param random_subset: (int) number of random subset; -1 means no subsampling
     :return: loaded Dataset
     """
     dataset = None
     has_trg = True  # by default, we expect src-trg pairs
-    is_train = split == "train"
 
     if dataset_type == "plain":
         if not Path(path).with_suffix(f".{trg_lang}").is_file():
@@ -572,10 +543,11 @@ def build_dataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=split,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
             **kwargs,
         )
     elif dataset_type == "tsv":
@@ -583,10 +555,11 @@ def build_dataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
+            split=split,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
             **kwargs,
         )
     elif dataset_type == "stream":
@@ -594,22 +567,24 @@ def build_dataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=False,
+            split="test",
             has_trg=False,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=-1,
             **kwargs,
         )
     elif dataset_type == "huggingface":
+        # "split" should be specified in kwargs
         kwargs["split"] = "validation" if split == "dev" else split
         dataset = HuggingfaceDataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
-            is_train=is_train,
             has_trg=has_trg,
             tokenizer=tokenizer,
-            padding=padding,
+            sequence_encoder=sequence_encoder,
+            random_subset=random_subset,
             **kwargs,
         )
     else:

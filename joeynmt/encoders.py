@@ -245,8 +245,7 @@ class TransformerEncoder(Encoder):
         :param mask: indicates padding areas (zeros where padding), shape
             (batch_size, 1, src_len)
         :return:
-            - output: hidden states with
-                shape (batch_size, max_length, directions*hidden),
+            - output: hidden states with shape (batch_size, max_length, hidden)
             - None
         """
         # pylint: disable=unused-argument
@@ -264,5 +263,6 @@ class TransformerEncoder(Encoder):
         return (
             f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
             f"num_heads={self.layers[0].src_src_att.num_heads}, "
-            f"layer_norm=\"{'post' if self.layer_norm is None else 'pre'}\")"
+            f"alpha={self.layers[0].alpha}, "
+            f'layer_norm="{self.layers[0]._layer_norm_position}")'
         )

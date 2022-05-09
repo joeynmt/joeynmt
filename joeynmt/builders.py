@@ -388,14 +388,16 @@ class WarmupExponentialDecayScheduler(BaseScheduler):
 
 
 class WarmupInverseSquareRootScheduler(BaseScheduler):
-    """Decay the LR based on the inverse square root of the update number.
-    We also support a warmup phase where we linearly increase the learning rate
-    After warmup::
-        decay_factor = peak_rate * sqrt(warmup) # constant value
-        lr = decay_factor / sqrt(step)
-    cf.) https://github.com/pytorch/fairseq/blob/main/
-         fairseq/optim/lr_scheduler/inverse_square_root_schedule.py
     """
+    Decay the LR based on the inverse square root of the update number.
+    In the warmup phase, we linearly increase the learning rate.
+    After warmup, we decrease the learning rate as follows:
+    ```
+    decay_factor = peak_rate * sqrt(warmup) # constant value
+    lr = decay_factor / sqrt(step)
+    ```
+    cf.) https://github.com/pytorch/fairseq/blob/main/fairseq/optim/lr_scheduler/inverse_square_root_schedule.py
+    """  # noqa
 
     def __init__(
         self,
