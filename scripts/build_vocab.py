@@ -149,6 +149,7 @@ def save_bpe(
     max_size: int,
     min_freq: int,
     separator: str = "@@",
+    **kwargs,
 ) -> None:
     bpe_parser = apply_bpe.create_parser()
     bpe_args = bpe_parser.parse_args(
@@ -264,7 +265,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
         trg_lang=trg_cfg["lang"],
         split="train",
         tokenizer=tokenizer,
-        **cfg["data"]["dataset_cfg"],
+        **cfg["data"].get("dataset_cfg", {}),
     )
 
     def _parse_cfg(cfg):
@@ -332,7 +333,8 @@ if __name__ == "__main__":
         "--seed",
         type=int,
         default=42,
-        help="Random seed to select the train subset. used only if len(dataset) > args.random_subset.",
+        help="Random seed to select the train subset. "
+        "used only if len(dataset) > args.random_subset.",
     )
     args = ap.parse_args()
 
