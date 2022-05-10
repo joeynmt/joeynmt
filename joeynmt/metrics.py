@@ -1,45 +1,64 @@
 # coding: utf-8
 """
-This module holds various MT evaluation metrics.
+Evaluation metrics
 """
-
+import logging
+from inspect import getfullargspec
 from typing import List
 
-import sacrebleu
+from sacrebleu.metrics import BLEU, CHRF
 
 
-def chrf(
-    hypotheses: List[str], references: List[str], remove_whitespace: bool = True
-) -> float:
+logger = logging.getLogger(__name__)
+
+
+def chrf(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float:
     """
     Character F-score from sacrebleu
+    cf. https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/chrf.py
 
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)
-    :param remove_whitespace: (bool)
     :return: character f-score (0 <= chf <= 1)
              see Breaking Change in sacrebleu v2.0
     """
-    score = sacrebleu.corpus_chrf(
-        hypotheses=hypotheses,
-        references=[references],
-        remove_whitespace=remove_whitespace,
-    ).score
+    kwargs = {}
+    if sacrebleu_cfg:
+        valid_keys = getfullargspec(CHRF).args
+        for k, v in sacrebleu_cfg.items():
+            if k in valid_keys:
+                kwargs[k] = v
+
+    metric = CHRF(**kwargs)
+    score = metric.corpus_score(hypotheses=hypotheses, references=[references]).score
+
+    # log sacrebleu signature
+    logger.debug(metric.get_signature())
     return score / 100
 
 
-def bleu(hypotheses: List[str], references: List[str], tokenize: str = "13a") -> float:
+def bleu(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float:
     """
     Raw corpus BLEU from sacrebleu (without tokenization)
+    cf. https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/bleu.py
 
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)
-    :param tokenize: one of {'none', '13a', 'intl', 'zh', 'ja-mecab'}
     :return: bleu score
     """
-    return sacrebleu.corpus_bleu(
-        hypotheses=hypotheses, references=[references], tokenize=tokenize
-    ).score
+    kwargs = {}
+    if sacrebleu_cfg:
+        valid_keys = getfullargspec(BLEU).args
+        for k, v in sacrebleu_cfg.items():
+            if k in valid_keys:
+                kwargs[k] = v
+
+    metric = BLEU(**kwargs)
+    score = metric.corpus_score(hypotheses=hypotheses, references=[references]).score
+
+    # log sacrebleu signature
+    logger.debug(metric.get_signature())
+    return score
 
 
 def token_accuracy(hypotheses: List[List[str]], references: List[List[str]]) -> float:
