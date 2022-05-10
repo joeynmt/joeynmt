@@ -20,6 +20,7 @@ class MultiHeadedAttention(nn.Module):
     def __init__(self, num_heads: int, size: int, dropout: float = 0.1) -> None:
         """
         Create a multi-headed attention layer.
+
         :param num_heads: the number of heads
         :param size: model size (must be divisible by num_heads)
         :param dropout: probability of dropping a unit
@@ -114,6 +115,8 @@ class PositionwiseFeedForward(nn.Module):
         :param layer_norm: either "pre" or "post"
         """
         super().__init__()
+
+        self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
         self.pwff_layer = nn.Sequential(
             nn.Linear(input_size, ff_size),
             nn.ReLU(),
@@ -121,9 +124,8 @@ class PositionwiseFeedForward(nn.Module):
             nn.Linear(ff_size, input_size),
             nn.Dropout(dropout),
         )
-        self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
-        self.alpha = alpha
 
+        self.alpha = alpha
         self._layer_norm_position = layer_norm
         assert self._layer_norm_position in {"pre", "post"}
 
@@ -202,6 +204,9 @@ class TransformerEncoderLayer(nn.Module):
         """
         A single Transformer encoder layer.
 
+        Note: don't change the name or the order of members!
+        otherwise pretrained models cannot be loaded correctly.
+
         :param size: model dimensionality
         :param ff_size: size of the feed-forward intermediate layer
         :param num_heads: number of heads
@@ -210,11 +215,10 @@ class TransformerEncoderLayer(nn.Module):
         :param layer_norm: either "pre" or "post"
         """
         super().__init__()
-        self.size = size
 
-        self.src_src_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
         self.layer_norm = nn.LayerNorm(size, eps=1e-6)
-        self.dropout = nn.Dropout(dropout)
+        self.src_src_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
+
         self.feed_forward = PositionwiseFeedForward(
             size,
             ff_size=ff_size,
@@ -222,6 +226,9 @@ class TransformerEncoderLayer(nn.Module):
             alpha=alpha,
             layer_norm=layer_norm,
         )
+
+        self.dropout = nn.Dropout(dropout)
+        self.size = size
 
         self.alpha = alpha
         self._layer_norm_position = layer_norm
@@ -270,8 +277,10 @@ class TransformerDecoderLayer(nn.Module):
     ) -> None:
         """
         Represents a single Transformer decoder layer.
-
         It attends to the source representation and the previous decoder states.
+
+        Note: don't change the name or the order of members!
+        otherwise pretrained models cannot be loaded correctly.
 
         :param size: model dimensionality
         :param ff_size: size of the feed-forward intermediate layer
@@ -284,10 +293,7 @@ class TransformerDecoderLayer(nn.Module):
         self.size = size
 
         self.trg_trg_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
-        self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
-
         self.src_trg_att = MultiHeadedAttention(num_heads, size, dropout=dropout)
-        self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
 
         self.feed_forward = PositionwiseFeedForward(
             size,
@@ -296,6 +302,10 @@ class TransformerDecoderLayer(nn.Module):
             alpha=alpha,
             layer_norm=layer_norm,
         )
+
+        self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
+        self.dec_layer_norm = nn.LayerNorm(size, eps=1e-6)
+
         self.dropout = nn.Dropout(dropout)
         self.alpha = alpha
 
