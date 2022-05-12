@@ -5,7 +5,7 @@ import torch
 from joeynmt.loss import XentLoss
 
 
-class TestTransformerUtils(TensorTestCase):
+class TestXentLoss(TensorTestCase):
     def setUp(self):
         seed = 42
         torch.manual_seed(seed)

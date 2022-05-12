@@ -7,12 +7,8 @@ from joeynmt.decoders import RecurrentDecoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import RecurrentEncoder
 from joeynmt.model import Model
-from joeynmt.search import beam_search, recurrent_greedy, transformer_greedy
+from joeynmt.search import beam_search, greedy
 from joeynmt.vocabulary import Vocabulary
-
-
-# TODO for transformer and rnn, make sure both return the same result for
-# beam_size<2 and greedy decoding
 
 
 class TestSearch(TensorTestCase):
@@ -31,6 +27,18 @@ class TestSearch(TensorTestCase):
         # self.bos_index = 2
         self.pad_index = 1
         # self.eos_index = 3
+
+        self.expected_transformer_ids = [[5, 5, 5], [5, 5, 5]]
+        self.expected_transformer_scores = np.array([
+            [-1.362115, -1.3881024, -1.4247599],
+            [-1.3383888, -1.384755, -1.4188296],
+        ])
+
+        self.expected_recurrent_ids = [[4, 0, 4], [4, 4, 4]]
+        self.expected_recurrent_scores = np.array([
+            [-1.1915066, -1.2217927, -1.244617],
+            [-1.1754444, -1.2138686, -1.204663]
+        ])
 
 
 class TestSearchTransformer(TestSearch):
@@ -52,6 +60,7 @@ class TestSearchTransformer(TestSearch):
             dropout=self.dropout,
             emb_dropout=self.dropout,
             vocab_size=vocab_size,
+            layer_norm="pre",
         )
 
         encoder_output = torch.rand(size=(batch_size, src_time_dim, self.hidden_size))
@@ -79,77 +88,114 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size
         )
-        output, attention_scores = transformer_greedy(
+
+        output, scores, attention_scores = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
+
         # Transformer greedy doesn't return attention scores
         self.assertIsNone(attention_scores)
-        # batch x time
-        self.assertEqual(output.shape, (batch_size, max_output_length))
-        np.testing.assert_equal(output, [[6, 6, 6], [6, 6, 6]])
+
+        # outputs
+        self.assertEqual(output.shape, (batch_size, max_output_length))  # batch x time
+        np.testing.assert_equal(output, self.expected_transformer_ids)
+
+        # scores
+        self.assertEqual(scores.shape, (batch_size, max_output_length))  # batch x time
+        np.testing.assert_allclose(scores, self.expected_transformer_scores, rtol=1e-5)
 
     def test_transformer_beam1(self):
         batch_size = 2
         beam_size = 1
-        alpha = 1.0
+        alpha = 0.0
+        n_best = 1
         max_output_length = 3
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size
         )
-        output, attention_scores = beam_search(
-            size=beam_size,
+
+        beam_output, beam_scores, attention_scores = beam_search(
+            beam_size=beam_size,
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             alpha=alpha,
+            n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
-        # batch x time
-        self.assertEqual(output.shape, (batch_size, max_output_length))
-        np.testing.assert_equal(output, [[6, 6, 6], [6, 6, 6]])
+
+        # batch_size * n_best x hyp_len
+        self.assertEqual(beam_output.shape, (batch_size * n_best, max_output_length))
+        np.testing.assert_equal(beam_output, self.expected_transformer_ids)
+        np.testing.assert_allclose(
+            beam_scores,
+            self.expected_transformer_scores.sum(axis=1, keepdims=True),
+            rtol=1e-5,
+        )
 
         # now compare to greedy, they should be the same for beam=1
-        greedy_output, _ = transformer_greedy(
+        greedy_output, greedy_scores, _ = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
-        np.testing.assert_equal(output, greedy_output)
+        np.testing.assert_equal(beam_output, greedy_output)
+        np.testing.assert_allclose(
+            greedy_scores,
+            self.expected_transformer_scores,
+            rtol=1e-5,
+        )
 
     def test_transformer_beam7(self):
         batch_size = 2
         beam_size = 7
+        n_best = 5
         alpha = 1.0
         max_output_length = 3
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size
         )
-        output, attention_scores = beam_search(
-            size=beam_size,
+
+        output, scores, attention_scores = beam_search(
+            beam_size=beam_size,
             src_mask=src_mask,
-            n_best=1,
             max_output_length=max_output_length,
             model=model,
             alpha=alpha,
+            n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
-        # batch x time
-        # now it produces EOS, so everything after gets cut off
-        self.assertEqual(output.shape, (batch_size, 1))
-        np.testing.assert_equal(output, [[3], [3]])
-
+        
+        # batch_size*n_best x hyp_len(=time steps)
+        self.assertEqual(output.shape, (batch_size*n_best, max_output_length))
+        expected_output = [[5, 5, 5], [0, 5, 5], [0, 0, 5], [5, 5, 0], [5, 0, 5],
+                           [5, 5, 5], [0, 5, 5], [5, 0, 5], [5, 5, 0], [0, 0, 5]]
+        np.testing.assert_equal(output, expected_output)
+        expected_scores = [
+            [-3.13123298], [-3.29512906], [-3.43877649], [-3.44861484], [-3.45595121],
+            [-3.10648012], [-3.30023503], [-3.43445206], [-3.43654943], [-3.47406816]
+        ]
+        np.testing.assert_allclose(scores, expected_scores, rtol=1e-7)
 
 class TestSearchRecurrent(TestSearch):
     def _build(self, batch_size):
@@ -209,31 +255,26 @@ class TestSearchRecurrent(TestSearch):
             batch_size=batch_size
         )
 
-        output, attention_scores = recurrent_greedy(
+        output, scores, attention_scores = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
             generate_unk=True,
+            return_prob=True,
         )
-
         self.assertEqual(output.shape, (batch_size, max_output_length))
-        np.testing.assert_equal(output, [[4, 0, 4], [4, 4, 4]])
+        np.testing.assert_equal(output, self.expected_recurrent_ids)
+        np.testing.assert_allclose(scores, self.expected_recurrent_scores, rtol=1e-5)
 
         expected_attention_scores = np.array(
-            [
-                [
-                    [0.22914883, 0.24638498, 0.21247596, 0.3119903],
-                    [0.22970565, 0.24540883, 0.21261126, 0.31227428],
-                    [0.22903332, 0.2459198, 0.2110187, 0.3140282],
-                ],
-                [
-                    [0.252522, 0.29074305, 0.257121, 0.19961396],
-                    [0.2519883, 0.2895494, 0.25718424, 0.201278],
-                    [0.2523954, 0.28959078, 0.25769445, 0.2003194],
-                ],
-            ]
+            [[[0.22914883, 0.24638498, 0.21247596, 0.3119903],
+              [0.22970565, 0.24540883, 0.21261126, 0.31227428],
+              [0.22903332, 0.2459198, 0.2110187, 0.3140282]],
+             [[0.252522, 0.29074305, 0.257121, 0.19961396],
+              [0.2519883, 0.2895494, 0.25718424, 0.201278],
+              [0.2523954, 0.28959078, 0.25769445, 0.2003194]]]
         )
         np.testing.assert_array_almost_equal(
             attention_scores, expected_attention_scores
@@ -248,27 +289,44 @@ class TestSearchRecurrent(TestSearch):
             batch_size=batch_size
         )
 
-        greedy_output, _ = recurrent_greedy(
+        greedy_output, greedy_scores, _ = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
+        )
+        self.assertEqual(greedy_output.shape, (batch_size, max_output_length))
+        np.testing.assert_equal(greedy_output, self.expected_recurrent_ids)
+        np.testing.assert_allclose(
+            greedy_scores,
+            self.expected_recurrent_scores,
+            rtol=1e-5,
         )
 
         beam_size = 1
-        alpha = 1.0
-        beam_output, _ = beam_search(
-            size=beam_size,
+        alpha = 0.0
+        n_best = 1
+        beam_output, beam_scores, _ = beam_search(
+            beam_size=beam_size,
             src_mask=src_mask,
-            n_best=1,
+            n_best=n_best,
             max_output_length=max_output_length,
             model=model,
             alpha=alpha,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
         np.testing.assert_array_equal(greedy_output, beam_output)
+        np.testing.assert_allclose(
+            beam_scores,
+            self.expected_recurrent_scores.sum(axis=1, keepdims=True),
+            rtol=1e-5,
+        )
 
     def test_recurrent_beam7(self):
         batch_size = 2
@@ -278,17 +336,31 @@ class TestSearchRecurrent(TestSearch):
         )
 
         beam_size = 7
+        n_best = 5
         alpha = 1.0
-        output, _ = beam_search(
-            size=beam_size,
+        output, scores, _ = beam_search(
+            beam_size=beam_size,
             src_mask=src_mask,
-            n_best=1,
             max_output_length=max_output_length,
             model=model,
             alpha=alpha,
+            n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=True,
+            return_prob=True,
         )
 
-        self.assertEqual(output.shape, (2, 1))
-        np.testing.assert_array_equal(output, [[3], [3]])
+        self.assertEqual(output.shape, (batch_size*n_best, max_output_length))
+
+        # output indices
+        expected_output = [[4, 4, 4], [4, 4, 0], [4, 0, 4], [4, 0, 0], [0, 4, 4],
+                           [4, 4, 4], [4, 4, 0], [4, 0, 4], [4, 0, 0], [0, 4, 4]]
+        np.testing.assert_array_equal(output, expected_output)
+
+        # log probabilities
+        expected_scores = [
+            [-2.71620679], [-2.72217512], [-2.74343705], [-2.76944518], [-2.86219954],
+            [-2.69548202], [-2.72114182], [-2.76927805], [-2.82477784], [-2.87750268],
+        ]
+        np.testing.assert_allclose(scores, expected_scores, rtol=1e-7)

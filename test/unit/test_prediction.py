@@ -5,7 +5,7 @@ import torch
 from joeynmt.data import load_data
 from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
-from joeynmt.prediction import validate_on_data
+from joeynmt.prediction import predict
 
 
 # TODO make sure rnn also returns the nbest list in the resorted order
@@ -57,7 +57,8 @@ class TestPrediction(unittest.TestCase):
                 "beam_size": 5,
                 "beam_alpha": 1.0,
                 "eval_metrics": "bleu",
-                "sacrebleu": {"tokenize": "13a"},
+                "return_prob": False,
+                "sacrebleu_cfg": {"tokenize": "13a"},
             },
             "model": {
                 "tied_embeddings": False,
@@ -69,6 +70,7 @@ class TestPrediction(unittest.TestCase):
                     "embeddings": {"embedding_dim": 12},
                     "num_layers": 1,
                     "num_heads": 4,
+                    "layer_norm": "pre",
                 },
                 "decoder": {
                     "type": "transformer",
@@ -77,6 +79,7 @@ class TestPrediction(unittest.TestCase):
                     "embeddings": {"embedding_dim": 12},
                     "num_layers": 1,
                     "num_heads": 4,
+                    "layer_norm": "pre",
                 },
             },
         }
@@ -94,7 +97,7 @@ class TestPrediction(unittest.TestCase):
     def _translate(self, n_best):
         cfg = self.cfg["testing"].copy()
         cfg["n_best"] = n_best
-        _, _, hypotheses, _, _ = validate_on_data(
+        _, _, hypotheses, _, _, _ = predict(
             self.model,
             data=self.test_data,
             compute_loss=False,

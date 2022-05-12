@@ -191,5 +191,5 @@ class TestVocabulary(unittest.TestCase):
         decoded = self.word_vocab.arrays_to_sentences(
             np.array(ids), cut_at_eos=True, skip_pad=True
         )
-        self.assertEqual(decoded[0], ["<s>"] + tokenized[0])
-        self.assertEqual(decoded[1], ["<s>"] + tokenized[1])
+        self.assertEqual(decoded[0], ["<s>"] + tokenized[0] + ["</s>"])
+        self.assertEqual(decoded[1], ["<s>"] + tokenized[1] + ["</s>"])
