@@ -37,7 +37,7 @@ from joeynmt.helpers import (
     write_list_to_file,
 )
 from joeynmt.model import Model, _DataParallel, build_model
-from joeynmt.prediction import test, validate_on_data
+from joeynmt.prediction import predict, test
 
 
 # for fp16 training
@@ -211,7 +211,12 @@ class TrainManager:
         # config for generation
         self.valid_cfg = cfg["testing"].copy()
         self.valid_cfg["beam_size"] = 1  # greedy decoding during train loop
+        # in greedy decoding, you can use the same batch_size as the one in training
+        self.valid_cfg["batch_size"] = self.batch_size
+        self.valid_cfg["batch_type"] = self.batch_type
+        # no further calibration during training
         self.valid_cfg["n_best"] = 1
+        self.valid_cfg["return_prob"] = False
 
     def _save_checkpoint(self, new_best: bool, score: float) -> None:
         """
@@ -639,8 +644,9 @@ class TrainManager:
             valid_references,
             valid_hypotheses,
             valid_hypotheses_raw,
+            valid_sequence_scores,
             valid_attention_scores,
-        ) = validate_on_data(
+        ) = predict(
             model=self.model,
             data=valid_data,
             compute_loss=True,

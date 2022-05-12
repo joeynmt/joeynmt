@@ -60,7 +60,6 @@ def load_data(
     """
     if datasets is None:
         datasets = ["train", "dev", "test"]
-
     src_cfg = data_cfg["src"]
     trg_cfg = data_cfg["trg"]
 

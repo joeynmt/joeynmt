@@ -157,6 +157,18 @@ class Batch:
         assert max(rev_index) < len(rev_index), rev_index
         return rev_index
 
+    def score(self, log_probs: Tensor) -> List[List[float]]:
+        scores = []
+        for i in range(self.nseqs):
+            scores.append(
+                [
+                    log_probs[i, j, ind].item()
+                    for j, ind in enumerate(self.trg[i])
+                    if ind != PAD_ID
+                ]
+            )
+        return scores
+
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(nseqs={self.nseqs}, ntokens={self.ntokens}, "

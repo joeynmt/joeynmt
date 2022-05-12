@@ -123,11 +123,12 @@ class Vocabulary:
         sentence = []
         for i in array:
             s = self._itos[i]
-            if cut_at_eos and s == EOS_TOKEN:
-                break
             if skip_pad and s == PAD_TOKEN:
                 continue
             sentence.append(s)
+            # break at the position AFTER eos
+            if cut_at_eos and s == EOS_TOKEN:
+                break
         return sentence
 
     def arrays_to_sentences(
@@ -142,14 +143,12 @@ class Vocabulary:
         :param skip_pad: skip generated <pad> tokens
         :return: list of list of strings (tokens)
         """
-        sentences = []
-        for array in arrays:
-            sentences.append(
-                self.array_to_sentence(
-                    array=array, cut_at_eos=cut_at_eos, skip_pad=skip_pad
-                )
+        return [
+            self.array_to_sentence(
+                array=array, cut_at_eos=cut_at_eos, skip_pad=skip_pad
             )
-        return sentences
+            for array in arrays
+        ]
 
     def sentences_to_ids(
         self, sentences: List[List[str]], bos: bool = True, eos: bool = True

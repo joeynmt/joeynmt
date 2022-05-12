@@ -7,6 +7,7 @@ import math
 import sys
 import time
 from functools import partial
+from itertools import zip_longest
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -29,7 +30,7 @@ from joeynmt.helpers import (
 )
 from joeynmt.metrics import bleu, chrf, sequence_accuracy, token_accuracy
 from joeynmt.model import Model, _DataParallel, build_model
-from joeynmt.search import run_batch
+from joeynmt.search import search
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import build_vocab
 
@@ -68,31 +69,40 @@ def parse_test_args(cfg: Dict) -> Tuple:
             )
 
     # sacrebleu cfg
-    sacrebleu: Dict = cfg.get(
-        "sacrebleu", {"remove_whitespace": True, "tokenize": "13a"}
-    )
+    sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
+    if "sacrebleu" in cfg:
+        sacrebleu_cfg: Dict = cfg["sacrebleu"]
+        logger.warning(
+            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead."
+        )
 
     # beam search options
+    n_best: int = cfg.get("n_best", 1)
     beam_size: int = cfg.get("beam_size", 1)
     beam_alpha: float = cfg.get("beam_alpha", -1)
-    n_best: int = cfg.get("n_best", 1)
+    if "alpha" in cfg:
+        beam_alpha: Dict = cfg["alpha"]
+        logger.warning("`alpha` option is obsolete. Please use `beam_alpha`, instead.")
     assert beam_size > 0, "Beam size must be >0."
     assert n_best > 0, "N-best size must be >0."
     assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
+
+    return_prob: float = cfg.get("return_prob", False)
 
     return (
         batch_size,
         batch_type,
         max_output_length,
         eval_metrics,
-        sacrebleu,
+        sacrebleu_cfg,
         beam_size,
         beam_alpha,
         n_best,
+        return_prob,
     )
 
 
-def validate_on_data(
+def predict(
     model: Model,
     data: Dataset,
     device: torch.device,
@@ -101,7 +111,14 @@ def validate_on_data(
     normalization: str = "batch",
     num_workers: int = 0,
     cfg: Dict = None,
-) -> Tuple[Dict[str, float], List[str], List[str], List[List[str]], List[np.ndarray]]:
+) -> Tuple[
+    Dict[str, float],
+    List[str],
+    List[str],
+    List[List[str]],
+    List[np.ndarray],
+    List[np.ndarray],
+]:
     """
     Generates translations for the given data.
     If `compute_loss` is True and references are given, also computes the loss.
@@ -127,10 +144,11 @@ def validate_on_data(
         eval_batch_type,
         max_output_length,
         eval_metrics,
-        sacrebleu,
+        sacrebleu_cfg,
         beam_size,
         beam_alpha,
         n_best,
+        return_prob,
     ) = parse_test_args(cfg)
 
     decoding_description = (
@@ -138,14 +156,14 @@ def validate_on_data(
         if beam_size < 2
         else f"Beam search decoding with beam size={beam_size}, alpha={beam_alpha}"
     )
-    logger.info("Validating on %d data points... (%s)", len(data), decoding_description)
+    logger.info("Predicting %d example(s)... (%s)", len(data), decoding_description)
 
-    assert eval_batch_size >= n_gpu, "batch_size must be bigger than n_gpu."
+    assert eval_batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
     if eval_batch_size > 1000 and eval_batch_type == "sentence":
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like this? "
-            "'batch_size' is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to 'batch_type: token'."
+            "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
+            "or switching to `batch_type: 'token'`."
         )
     # CAUTION: a batch will be expanded to batch.nseqs * beam_size, and it might cause
     # an out-of-memory error.
@@ -169,6 +187,7 @@ def validate_on_data(
     valid_scores = {"loss": float("nan"), "acc": float("nan"), "ppl": float("nan")}
     all_outputs = []
     valid_attention_scores = []
+    valid_sequence_scores = []
     total_loss = 0
     total_nseqs = 0
     total_ntokens = 0
@@ -184,19 +203,25 @@ def validate_on_data(
 
         # run as during training to get validation loss (e.g. xent)
         if compute_loss and batch.has_trg:
+            assert model.loss_function is not None
+
             # don't track gradients during validation
             with torch.no_grad():
-                batch_loss, _, _, n_correct = model(return_type="loss", **vars(batch))
+                batch_loss, log_probs, _, n_correct = model(
+                    return_type="loss", **vars(batch)
+                )
                 # sum over multiple gpus
                 batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
                 n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
+                # TODO: enable scoring from given trg
+                # score = batch.score(log_probs)
 
-            total_loss += batch_loss.item()  # float <- Tensor
-            total_n_correct += n_correct.item()
+            total_loss += batch_loss.item()  # cast Tensor to float
+            total_n_correct += n_correct.item()  # cast Tensor to int
             total_ntokens += batch.ntokens
 
         # run as during inference to produce translations
-        output, attention_scores = run_batch(
+        output, sequence_scores, attention_scores = search(
             model=model,
             batch=batch,
             beam_size=beam_size,
@@ -204,12 +229,16 @@ def validate_on_data(
             max_output_length=max_output_length,
             n_best=n_best,
             generate_unk=False,
+            return_prob=return_prob,
         )
 
         # sort outputs back to original order
         all_outputs.extend(output[sort_reverse_index])
         valid_attention_scores.extend(
             attention_scores[sort_reverse_index] if attention_scores is not None else []
+        )
+        valid_sequence_scores.extend(
+            sequence_scores[sort_reverse_index] if sequence_scores is not None else []
         )
     gen_duration = time.time() - gen_start_time
 
@@ -235,10 +264,12 @@ def validate_on_data(
         # exponent of token-level negative log likelihood
         valid_scores["ppl"] = math.exp(total_loss / total_ntokens)
 
-    # decode back to symbols
+    # decode ids back to str symbols (cut-off AFTER eos)
     decoded_valid = model.trg_vocab.arrays_to_sentences(
         arrays=all_outputs, cut_at_eos=True
     )
+    # TODO: `valid_sequence_scores` should have the same seq length as `decoded_valid`
+    #     -> needed to be cut-off at eos synchronously
 
     # retrieve detokenized hypotheses and references
     valid_hyp = [data.tokenizer[data.trg_lang].post_process(s) for s in decoded_valid]
@@ -261,13 +292,13 @@ def validate_on_data(
                 valid_scores[eval_metric] = bleu(
                     valid_hyp_1best,
                     valid_ref,  # detokenized ref
-                    tokenize=sacrebleu["tokenize"],
+                    **sacrebleu_cfg,
                 )
             elif eval_metric == "chrf":
                 valid_scores[eval_metric] = chrf(
                     valid_hyp_1best,
                     valid_ref,  # detokenized ref
-                    remove_whitespace=sacrebleu["remove_whitespace"],
+                    **sacrebleu_cfg,
                 )
             elif eval_metric == "token_accuracy":
                 decoded_valid_1best = (
@@ -295,16 +326,23 @@ def validate_on_data(
             ]
         )
         logger.info(
-            "Validation result (%s) %s, generation: %.4fs[sec], evaluation: %.4fs[sec]",
+            "Evaluation result (%s) %s, generation: %.4f[sec], evaluation: %.4f[sec]",
             "beam search" if beam_size > 1 else "greedy",
             score_str,
             gen_duration,
             eval_duration,
         )
     else:
-        logger.info("Generation took %.4fs[sec]. (No references given)", gen_duration)
+        logger.info("Generation took %.4f[sec]. (No references given)", gen_duration)
 
-    return valid_scores, valid_ref, valid_hyp, decoded_valid, valid_attention_scores
+    return (
+        valid_scores,
+        valid_ref,
+        valid_hyp,
+        decoded_valid,
+        valid_sequence_scores,
+        valid_attention_scores,
+    )
 
 
 def test(
@@ -356,7 +394,7 @@ def test(
 
     # restore model and optimizer parameters
     model.load_state_dict(model_checkpoint["model_state"])
-
+    model.loss_function = ("crossentropy", 0.1)
     if device.type == "cuda":
         model.to(device)
 
@@ -369,10 +407,10 @@ def test(
             continue
 
         logger.info("Decoding on %s set...", data_set_name)
-        _, _, hypotheses, hypotheses_raw, attention_scores, = validate_on_data(
+        _, _, hypotheses, hypotheses_raw, sequence_scores, attention_scores, = predict(
             model=model,
             data=data_set,
-            compute_loss=False,
+            compute_loss=True,
             device=device,
             n_gpu=n_gpu,
             num_workers=num_workers,
@@ -421,7 +459,7 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
 
     def _translate_data(test_data, cfg):
         """Translates given dataset, using parameters from outer scope."""
-        _, _, hypotheses, _, _ = validate_on_data(
+        _, _, hypotheses, trg_tokens, trg_scores, _ = predict(
             model=model,
             data=test_data,
             compute_loss=False,
@@ -431,7 +469,7 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
             num_workers=num_workers,
             cfg=cfg,
         )
-        return hypotheses
+        return hypotheses, trg_tokens, trg_scores
 
     cfg = load_config(Path(cfg_file))
     # parse and validate cfg
@@ -476,12 +514,12 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
         sequence_encoder=sequence_encoder,
     )
 
+    _, _, _, _, _, beam_size, _, n_best, return_prob = parse_test_args(test_cfg)
     if not sys.stdin.isatty():
         # input stream given
         for line in sys.stdin.readlines():
             test_data.set_item(line.rstrip())
-        all_hypotheses = _translate_data(test_data, test_cfg)
-        _, _, _, _, _, _, _, n_best = parse_test_args(cfg)
+        all_hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
         assert len(all_hypotheses) == len(test_data) * n_best
 
         if output_path is not None:
@@ -509,8 +547,9 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
 
     else:
         # enter interactive mode
-        test_cfg["batch_size"] = 1
+        test_cfg["batch_size"] = 2
         test_cfg["batch_type"] = "sentence"
+        np.set_printoptions(linewidth=1000)
         while True:
             try:
                 src_input = input("\nPlease enter a source sentence:\n")
@@ -519,11 +558,25 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
 
                 # every line has to be made into dataset
                 test_data.set_item(src_input.rstrip())
-                hypotheses = _translate_data(test_data, test_cfg)
+                hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
 
-                print("JoeyNMT: Hypotheses ranked by score")
-                for i, hyp in enumerate(hypotheses):
-                    print(f"JoeyNMT #{i+1}: {hyp}")
+                print(f"JoeyNMT:")
+                for i, (hyp, token, score) in enumerate(
+                    zip_longest(hypotheses, tokens, scores)
+                ):
+                    assert hyp is not None, (i, hyp, token, score)
+                    print(f"#{i + 1}: {hyp}")
+                    if beam_size > 1:
+                        if token is not None:
+                            print(f"\ttokens: {token}")
+                        if score is not None:
+                            print(f"\tsequence score: {score[0]}")
+                    else:
+                        assert len(token) == len(score), (token, score)
+                        if token is not None:
+                            print(f"\ttokens: {token}")
+                        if score is not None:
+                            print(f"\tscores: {score}")
 
                 # reset cache
                 test_data.cache = {}

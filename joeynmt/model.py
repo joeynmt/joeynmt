@@ -94,6 +94,7 @@ class Model(nn.Module):
 
         if return_type == "loss":
             assert self.loss_function is not None
+            assert "trg" in kwargs and "trg_mask" in kwargs  # need trg to compute loss
 
             out, _, _, _ = self._encode_decode(**kwargs)
 
@@ -114,7 +115,7 @@ class Model(nn.Module):
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
-            return_tuple = (batch_loss, None, None, n_correct)
+            return_tuple = (batch_loss, log_probs, None, n_correct)
 
         elif return_type == "encode":
             kwargs["pad"] = True  # TODO: only if multi-gpu
@@ -286,12 +287,10 @@ def build_model(
         padding_idx=src_pad_index,
     )
 
-    # this ties source and target embeddings
-    # for softmax layer tying, see further below
+    # this ties source and target embeddings for softmax layer tying, see further below
     if cfg.get("tied_embeddings", False):
         if src_vocab == trg_vocab:
-            # share embeddings for src and trg
-            trg_embed = src_embed
+            trg_embed = src_embed  # share embeddings for src and trg
         else:
             raise ConfigurationError(
                 "Embedding cannot be tied since vocabularies differ."
@@ -360,9 +359,8 @@ def build_model(
             model.decoder.output_layer.weight = trg_embed.lut.weight
         else:
             raise ConfigurationError(
-                "For tied_softmax, the decoder embedding_dim and decoder "
-                "hidden_size must be the same."
-                "The decoder must be a Transformer."
+                "For tied_softmax, the decoder embedding_dim and decoder hidden_size "
+                "must be the same. The decoder must be a Transformer."
             )
 
     # custom initialization of model parameters
@@ -372,14 +370,14 @@ def build_model(
     enc_embed_path = enc_cfg["embeddings"].get("load_pretrained", None)
     dec_embed_path = dec_cfg["embeddings"].get("load_pretrained", None)
     if enc_embed_path and src_vocab is not None:
-        logger.info("Loading pretraind src embeddings...")
+        logger.info("Loading pretrained src embeddings...")
         model.src_embed.load_from_file(Path(enc_embed_path), src_vocab)
     if (
         dec_embed_path
         and src_vocab is not None
         and not cfg.get("tied_embeddings", False)
     ):
-        logger.info("Loading pretraind trg embeddings...")
+        logger.info("Loading pretrained trg embeddings...")
         model.trg_embed.load_from_file(Path(dec_embed_path), trg_vocab)
 
     logger.info("Enc-dec model built.")

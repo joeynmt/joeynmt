@@ -11,6 +11,7 @@ from typing import Dict, List
 import sentencepiece as sp
 from subword_nmt import apply_bpe
 
+from joeynmt.constants import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
 from joeynmt.helpers import ConfigurationError, remove_extra_spaces, unicode_normalize
 
 
@@ -76,12 +77,19 @@ class BasicTokenizer:
         else:
             return False
 
-    def post_process(self, output: List[str]) -> str:
+    def _remove_special(self, sequence: List[str], remove_unk: bool = False):
+        specials = [BOS_TOKEN, EOS_TOKEN, PAD_TOKEN]
+        if remove_unk:
+            specials.append(UNK_TOKEN)
+        return [token for token in sequence if token not in specials]
+
+    def post_process(self, sequence: List[str], remove_unk: bool = False) -> str:
         """Detokenize"""
+        sequence = self._remove_special(sequence, remove_unk=remove_unk)
         if self.level == "word":
-            detokenized = self.SPACE.join(output)
+            detokenized = self.SPACE.join(sequence)
         elif self.level == "char":
-            detokenized = "".join(output).replace(self.SPACE_ESCAPE, self.SPACE)
+            detokenized = "".join(sequence).replace(self.SPACE_ESCAPE, self.SPACE)
 
         # Remove extra spaces
         if self.normalize:
@@ -132,8 +140,11 @@ class SentencePieceTokenizer(BasicTokenizer):
             return None
         return tokenized
 
-    def post_process(self, output: List[str]) -> str:
-        detokenized = self.spm.decode(output)
+    def post_process(self, sequence: List[str], remove_unk: bool = False) -> str:
+        sequence = self._remove_special(sequence, remove_unk=remove_unk)
+
+        # Decode back to str
+        detokenized = self.spm.decode(sequence)
 
         # Remove extra spaces
         if self.normalize:
@@ -203,9 +214,11 @@ class SubwordNMTTokenizer(BasicTokenizer):
             return None
         return tokenized
 
-    def post_process(self, output: List[str]) -> str:
-        # Remove merge markers within the sentence.
-        detokenized = self.SPACE.join(output).replace(self.separator + self.SPACE, "")
+    def post_process(self, sequence: List[str], remove_unk: bool = False) -> str:
+        sequence = self._remove_special(sequence, remove_unk=remove_unk)
+
+        # Remove separators, join with spaces
+        detokenized = self.SPACE.join(sequence).replace(self.separator + self.SPACE, "")
         # Remove final merge marker.
         if detokenized.endswith(self.separator):
             detokenized = detokenized[:-2]
