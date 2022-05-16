@@ -272,7 +272,7 @@ class TransformerDecoderLayer(nn.Module):
         h1 = self.dropout(h1) + x
 
         # Change the code to 'postnorm'
-        h1 = self.layer_norm(h1)
+        h1 = self.x_layer_norm(h1)
 
         # source-target attention
         # h1_norm = self.dec_layer_norm(h1)
