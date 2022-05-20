@@ -33,7 +33,7 @@ def chrf(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float
     score = metric.corpus_score(hypotheses=hypotheses, references=[references]).score
 
     # log sacrebleu signature
-    logger.debug(metric.get_signature())
+    logger.info(metric.get_signature())
     return score / 100
 
 
@@ -57,7 +57,7 @@ def bleu(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float
     score = metric.corpus_score(hypotheses=hypotheses, references=[references]).score
 
     # log sacrebleu signature
-    logger.debug(metric.get_signature())
+    logger.info(metric.get_signature())
     return score
 
 

@@ -77,7 +77,7 @@ def load_data(
     logger.info("Building tokenizer...")
     tokenizer = build_tokenizer(data_cfg)
 
-    dataset_type = data_cfg.get("dataset_type", "plaintext")
+    dataset_type = data_cfg.get("dataset_type", "plain")
     dataset_cfg = data_cfg.get("dataset_cfg", {})
 
     # train data
@@ -100,12 +100,8 @@ def load_data(
     src_vocab, trg_vocab = build_vocab(data_cfg, dataset=train_data)
 
     # set vocab to tokenizer
-    # pylint: disable=protected-access
-    if hasattr(tokenizer[src_lang], "set_vocab"):
-        tokenizer[src_lang].set_vocab(src_vocab._itos)
-    if hasattr(tokenizer[trg_lang], "set_vocab"):
-        tokenizer[trg_lang].set_vocab(trg_vocab._itos)
-    # pylint: enable=protected-access
+    tokenizer[src_lang].set_vocab(src_vocab._itos)  # pylint: disable=protected-access
+    tokenizer[trg_lang].set_vocab(trg_vocab._itos)  # pylint: disable=protected-access
 
     # encoding func
     sequence_encoder = {

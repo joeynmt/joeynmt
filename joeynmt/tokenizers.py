@@ -96,6 +96,13 @@ class BasicTokenizer:
             detokenized = remove_extra_spaces(detokenized)
         return detokenized
 
+    def set_vocab(self, itos: List[str]) -> None:
+        """
+        Set vocab
+        :param itos: (list) indices-to-symbols mapping
+        """
+        pass
+
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(level={self.level}, "
@@ -127,6 +134,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         self.alpha: float = kwargs.get("alpha", 0.0)
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
+        """Tokenize"""
         if is_train and self.alpha > 0:
             tokenized = self.spm.sample_encode_as_pieces(
                 raw_input,
@@ -141,6 +149,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         return tokenized
 
     def post_process(self, sequence: List[str], remove_unk: bool = False) -> str:
+        """Detokenize"""
         sequence = self._remove_special(sequence, remove_unk=remove_unk)
 
         # Decode back to str
@@ -152,10 +161,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         return detokenized
 
     def set_vocab(self, itos: List[str]) -> None:
-        """
-        Set vocab
-        :param itos: (list) indices-to-symbols mapping
-        """
+        """Set vocab"""
         self.spm.SetVocabulary(itos)
 
     def copy_cfg_file(self, model_dir: Path) -> None:
@@ -208,6 +214,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         self.dropout: float = kwargs.get("dropout", 0.0)
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
+        """Tokenize"""
         dropout = self.dropout if is_train else 0.0
         tokenized = self.bpe.process_line(raw_input, dropout).strip().split()
         if is_train and self._filter_by_length(len(tokenized)):
@@ -215,6 +222,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         return tokenized
 
     def post_process(self, sequence: List[str], remove_unk: bool = False) -> str:
+        """Detokenize"""
         sequence = self._remove_special(sequence, remove_unk=remove_unk)
 
         # Remove separators, join with spaces
@@ -228,7 +236,13 @@ class SubwordNMTTokenizer(BasicTokenizer):
             detokenized = remove_extra_spaces(detokenized)
         return detokenized
 
+    def set_vocab(self, itos: List[str]) -> None:
+        """Set vocab"""
+        vocab = set(itos) - set([BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN])
+        self.bpe.vocab = vocab
+
     def copy_cfg_file(self, model_dir: Path) -> None:
+        """Copy confg file to model_dir"""
         shutil.copy2(self.codes, (model_dir / self.codes.name).as_posix())
 
     def __repr__(self):

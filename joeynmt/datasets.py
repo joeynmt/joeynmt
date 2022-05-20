@@ -161,14 +161,15 @@ class PlaintextDataset(BaseDataset):
                 seq = [self.tokenizer[lang].pre_process(s) for s in seq]
             return seq
 
-        src_file = Path(path).with_suffix(f".{self.src_lang}")
+        path = Path(path)
+        src_file = path.with_suffix(f"{path.suffix}.{self.src_lang}")
         assert src_file.is_file(), f"{src_file} not found. Abort."
 
         src_list = read_list_from_file(src_file)
         data = {self.src_lang: _pre_process(src_list, self.src_lang)}
 
         if self.has_trg:
-            trg_file = Path(path).with_suffix(f".{self.trg_lang}")
+            trg_file = path.with_suffix(f"{path.suffix}.{self.trg_lang}")
             assert trg_file.is_file(), f"{trg_file} not found. Abort."
 
             trg_list = read_list_from_file(trg_file)
@@ -257,7 +258,8 @@ class TsvDataset(BaseDataset):
         self._initial_df = None
 
     def load_data(self, path: str, **kwargs) -> Any:
-        file_path = Path(path).with_suffix(".tsv")
+        path = Path(path)
+        file_path = path.with_suffix(f"{path.suffix}.tsv")
         assert file_path.is_file(), f"{file_path} not found. Abort."
 
         # read tsv data
@@ -330,7 +332,7 @@ class TsvDataset(BaseDataset):
 
 class StreamDataset(BaseDataset):
     """
-    StreamDataset which nteracts with stream inputs.
+    StreamDataset which interacts with stream inputs.
     - called by `translate()` func in `prediction.py`.
     """
 
@@ -521,7 +523,7 @@ def build_dataset(
     """
     Builds a dataset.
 
-    :param dataset_type: (str)
+    :param dataset_type: (str) one of {`plain`, `tsv`, `stream`, `huggingface`}
     :param path: (str) either a local file name or
         dataset name to download from remote
     :param src_lang: (str) language code for source
@@ -536,7 +538,7 @@ def build_dataset(
     has_trg = True  # by default, we expect src-trg pairs
 
     if dataset_type == "plain":
-        if not Path(path).with_suffix(f".{trg_lang}").is_file():
+        if not Path(path).with_suffix(f"{Path(path).suffix}.{trg_lang}").is_file():
             # no target is given -> create dataset from src only
             has_trg = False
         dataset = PlaintextDataset(

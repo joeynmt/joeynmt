@@ -98,6 +98,7 @@ class Batch:
         Normalizes batch tensor (i.e. loss). Takes sum over multiple gpus, divides by
         nseqs or ntokens, divide by n_gpu, then divide by n_accumulation.
 
+        :param tensor: (Tensor) tensor to normalize, i.e. batch loss
         :param normalization: (str) one of {`batch`, `tokens`, `none`}
         :param n_gpu: (int) the number of gpus
         :param n_accumulation: (int) the number of gradient accumulation
@@ -158,6 +159,7 @@ class Batch:
         return rev_index
 
     def score(self, log_probs: Tensor) -> List[List[float]]:
+        """Look up the score of the given trg token"""
         scores = []
         for i in range(self.nseqs):
             scores.append(
