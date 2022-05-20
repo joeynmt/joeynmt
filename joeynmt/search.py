@@ -2,7 +2,7 @@
 """
 Search module
 """
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -24,8 +24,7 @@ def greedy(
     model: Model,
     encoder_output: Tensor,
     encoder_hidden: Tensor,
-    generate_unk: bool = False,
-    return_prob: bool = False,
+    **kwargs,
 ) -> Tuple[np.array, np.array, np.ndarray]:
     """
     Greedy decoding. Select the token word highest probability at each time step.
@@ -37,9 +36,6 @@ def greedy(
     :param model: model to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
     :param encoder_hidden: encoder last state for decoder initialization
-    :param generate_unk: whether to generate UNK token. if false,
-            the probability of UNK token will artificially be set to zero.
-    :param return_prob: whether to return prob or not.
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_scores: scores (2d array of token-wise log probabilities),
@@ -53,18 +49,11 @@ def greedy(
             model,
             encoder_output,
             encoder_hidden,
-            generate_unk,
-            return_prob,
+            **kwargs,
         )
     elif isinstance(model.decoder, RecurrentDecoder):
         return recurrent_greedy(
-            src_mask,
-            max_output_length,
-            model,
-            encoder_output,
-            encoder_hidden,
-            generate_unk,
-            return_prob,
+            src_mask, max_output_length, model, encoder_output, encoder_hidden, **kwargs
         )
     else:
         raise NotImplementedError(
@@ -78,8 +67,7 @@ def recurrent_greedy(
     model: Model,
     encoder_output: Tensor,
     encoder_hidden: Tensor,
-    generate_unk: bool = False,
-    return_prob: bool = False,
+    **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Greedy decoding: in each step, choose the word that gets highest score.
@@ -90,9 +78,6 @@ def recurrent_greedy(
     :param model: model to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
     :param encoder_hidden: encoder last state for decoder initialization
-    :param generate_unk: whether to generate UNK token. if false,
-            the probability of UNK token will artificially be set to zero.
-    :param return_prob: whether to return prob or not.
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_scores: scores (2d array of token-wise log probabilities),
@@ -102,6 +87,9 @@ def recurrent_greedy(
     eos_index = model.eos_index
     unk_index = model.unk_index
     batch_size = src_mask.size(0)
+    min_output_length: int = kwargs.get("min_output_length", 1)
+    generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
+    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
     prev_y = src_mask.new_full((batch_size, 1), fill_value=bos_index, dtype=torch.long)
 
     output = []
@@ -111,7 +99,7 @@ def recurrent_greedy(
     prev_att_vector = None
     finished = src_mask.new_zeros((batch_size, 1)).byte()
 
-    for _ in range(max_output_length):
+    for step in range(max_output_length):
         # decode one single step
         with torch.no_grad():
             out, hidden, att_probs, prev_att_vector = model(
@@ -131,6 +119,10 @@ def recurrent_greedy(
 
         if not generate_unk:
             out[:, :, unk_index] = float("-inf")
+
+        # don't generate EOS until we reached min_output_length
+        if step < min_output_length:
+            out[:, :, eos_index] = float("-inf")
 
         # greedy decoding: choose arg max over vocabulary in each step
         prob, next_word = torch.max(out, dim=-1)  # batch x time=1
@@ -160,8 +152,7 @@ def transformer_greedy(
     model: Model,
     encoder_output: Tensor,
     encoder_hidden: Tensor,
-    generate_unk: bool = False,
-    return_prob: bool = False,
+    **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, None]:
     """
     Special greedy function for transformer, since it works differently.
@@ -172,9 +163,6 @@ def transformer_greedy(
     :param model: model to use for greedy decoding
     :param encoder_output: encoder hidden states for attention
     :param encoder_hidden: encoder final state (unused in Transformer)
-    :param generate_unk: whether to generate UNK token. if false, the probability of UNK
-        token will artificially be set to zero.
-    :param return_prob: whether to return prob or not.
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_scores: scores (2d array of token-wise log probabilities),
@@ -184,7 +172,22 @@ def transformer_greedy(
     bos_index = model.bos_index
     eos_index = model.eos_index
     unk_index = model.unk_index
+    pad_index = model.pad_index
     batch_size = src_mask.size(0)
+
+    # options to control generation
+    generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
+    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
+    min_output_length: int = kwargs.get("min_output_length", 1)
+    repetition_penalty: float = kwargs.get("repetition_penalty", -1)
+    no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
+    encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
+    compute_softmax: bool = (
+        return_prob
+        or repetition_penalty > 0
+        or no_repeat_ngram_size > 0
+        or encoder_input is not None
+    )
 
     # start with BOS-symbol for each sentence in the batch
     ys = encoder_output.new_full((batch_size, 1), bos_index, dtype=torch.long)
@@ -199,7 +202,7 @@ def transformer_greedy(
 
     finished = src_mask.new_zeros(batch_size).byte()
 
-    for _ in range(max_output_length):
+    for step in range(max_output_length):
         with torch.no_grad():
             out, _, _, _ = model(
                 return_type="decode",
@@ -212,10 +215,27 @@ def transformer_greedy(
                 trg_mask=trg_mask,
             )
             out = out[:, -1]  # logits
-            if return_prob:
-                out = F.log_softmax(out, dim=-1)
             if not generate_unk:
                 out[:, unk_index] = float("-inf")
+
+            # don't generate EOS until we reached min_output_length
+            if step < min_output_length:
+                out[:, eos_index] = float("-inf")
+
+            if compute_softmax:
+                out = F.log_softmax(out, dim=-1)
+                if no_repeat_ngram_size > 0:
+                    out = block_repeat_ngrams(ys, out, no_repeat_ngram_size, step)
+                if encoder_input is not None and repetition_penalty > 1.0:
+                    # give penalty for src tokens (to avoid untranslated tokens)
+                    out = penalize_repetition(
+                        encoder_input,
+                        out,
+                        repetition_penalty,
+                        exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                    )
+
+            # take the most likely token
             prob, next_word = torch.max(out, dim=1)
             next_word = next_word.data
             ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
@@ -250,8 +270,7 @@ def beam_search(
     max_output_length: int,
     alpha: float,
     n_best: int = 1,
-    generate_unk: bool = False,
-    return_prob: bool = False,
+    **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, None]:
     """
     Beam search with size k. In each decoding step, find the k most likely partial
@@ -265,9 +284,6 @@ def beam_search(
     :param max_output_length:
     :param alpha: `alpha` factor for length penalty
     :param n_best: return this many hypotheses, <= beam (currently only 1)
-    :param generate_unk: whether to generate UNK token. if false,
-            the probability of UNK token will artificially be set to zero.
-    :param return_prob: whether to return prob or not.
     :return:
         - stacked_output: output hypotheses (2d array of indices),
         - stacked_scores: scores (2d array of sequence-wise log probabilities),
@@ -286,16 +302,25 @@ def beam_search(
     eos_index = model.eos_index
     pad_index = model.pad_index
     unk_index = model.unk_index
+    batch_size = src_mask.size(0)
+
+    generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
+    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
+    min_output_length: int = kwargs.get("min_output_length", 1)
+    repetition_penalty: float = kwargs.get("repetition_penalty", -1)
+    no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
+    encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
+
     trg_vocab_size = model.decoder.output_size
     device = encoder_output.device
-    transformer = isinstance(model.decoder, TransformerDecoder)
-    batch_size = src_mask.size(0)
+    is_transformer = isinstance(model.decoder, TransformerDecoder)
+
     att_vectors = None  # for RNN only, not used for Transformer
     hidden = None  # for RNN only, not used for Transformer
     trg_mask = None  # for Transformer only, not used for RNN
 
     # Recurrent models only: initialize RNN hidden state
-    if not transformer:
+    if not is_transformer:
         # pylint: disable=protected-access
         # tile encoder states and decoder initial states beam_size times
         # `hidden` shape: (layers, batch_size * beam_size, dec_hidden_size)
@@ -314,9 +339,14 @@ def beam_search(
     encoder_output = tile(encoder_output.contiguous(), beam_size, dim=0)
     # `src_mask` shape: (batch_size * beam_size, 1, src_len)
     src_mask = tile(src_mask, beam_size, dim=0)
+    # `encoder_input` shape: (batch_size * beam_size, src_len)
+    if encoder_input is not None:  # used in src-side repetition blocker
+        encoder_input = tile(encoder_input.contiguous(), beam_size, dim=0).view(
+            batch_size * beam_size, -1
+        )
 
     # Transformer only: create target mask
-    if transformer:
+    if is_transformer:
         trg_mask = src_mask.new_ones([1, 1, 1])
         if isinstance(model, torch.nn.DataParallel):
             trg_mask = torch.stack(
@@ -358,7 +388,7 @@ def beam_search(
     )
 
     for step in range(max_output_length):
-        if transformer:
+        if is_transformer:
             # For Transformer, we feed the complete predicted sentence so far.
             decoder_input = alive_seq
 
@@ -402,6 +432,25 @@ def beam_search(
         log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
         if not generate_unk:
             log_probs[:, unk_index] = float("-inf")
+
+        # don't generate EOS until we reached min_output_length
+        if step < min_output_length:
+            log_probs[:, eos_index] = float("-inf")
+
+        # block repetitions
+        if no_repeat_ngram_size > 0:
+            log_probs = block_repeat_ngrams(
+                alive_seq, log_probs, no_repeat_ngram_size, step
+            )
+
+        # give penalty for src tokens (to avoid untranslated tokens)
+        if encoder_input is not None and repetition_penalty > 1.0:
+            log_probs = penalize_repetition(
+                encoder_input,
+                log_probs,
+                repetition_penalty,
+                exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+            )
 
         # multiply probs by the beam probability (=add logprobs)
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
@@ -463,15 +512,20 @@ def beam_search(
                 # i.e. finished_hyp = [0, 1] means 0th and 1st candidates reached eos
                 finished_hyp = is_finished[i].nonzero(as_tuple=False).view(-1)
                 for j in finished_hyp:  # loop over finished beam candidates
-                    # If the prediction doesn't end with EOS, it means that either
-                    # max_output_length reached or the prediction has already been
-                    # added to the hypotheses, so we don't add them again.
                     n_eos = (predictions[i, j, 1:] == eos_index).count_nonzero().item()
-                    if (
-                        (n_eos == 2 and predictions[i, j, -1] == eos_index)
-                        or n_eos == 0
-                        and step + 1 == max_output_length
+                    if n_eos > 1:
+                        # If the prediction has more than one EOS, it means that the
+                        # prediction should have already been added to the hypotheses,
+                        # so we don't add them again.
+                        continue
+                    elif (n_eos == 0 and step + 1 == max_output_length) or (
+                        n_eos == 1 and predictions[i, j, -1] == eos_index
                     ):
+                        # If the prediction has no EOS, it means we reached max length.
+                        # If the prediction has exactly one EOS, it should be the last
+                        # token of the sequence. Then we add it to the hypotheses.
+                        # We exclude the candidate which has one EOS but some other
+                        # token was appended after EOS.
                         hypotheses[b].append((topk_scores[i, j], predictions[i, j, 1:]))
 
                 # if all nbest candidates of the i-th example reached the end, save them
@@ -500,19 +554,40 @@ def beam_search(
             batch_offset = batch_offset.index_select(0, unfinished)
 
             # CAUTION: `alive_seq` still can contain finished beam candidates
-            # because we only remove finished examples.
-            # We won't add already finished candidates to `hypotheses` list.
+            # because we only remove finished examples. For instance, beam_size = 3,
+            # 2 sents remain in batch and all 3 candidates of the 1st sent is finished.
+            #     end_condition = [True, False]
+            #     unfinished = [1]  # 2nd sent (idx 1) remaining in batch is unfinished
+            # Say, the first and the second beam candidate of the second example are
+            # finished but the third candidate of the second example is still alive.
+            # Then we include all three candidates of the second example in `alive_seq`,
+            # even though the 1st and 2nd candidates of the second example are finished.
+            #     alive_seq = [
+            #         [5, 8, 7, 3, 1],  # eos_index = 3; already finished in prev step
+            #         [4, 9, 6, 5, 3],  # eos_index = 3; finished in this step
+            #         [4, 9, 5, 6, 7],  # not finished yet
+            #     ]
+            # Yet, we won't add already finished candidates to the `hypotheses` list,
+            # but only the candidates that finished in the time step.
+            # TODO: release the space of finished ones, explore more unfinished ones.
             # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
             alive_seq = predictions.index_select(0, unfinished).view(
                 -1, alive_seq.size(-1)
             )
+            if encoder_input is not None:
+                src_len = encoder_input.size(-1)
+                encoder_input = (
+                    encoder_input.view(-1, beam_size, src_len)
+                    .index_select(0, unfinished)
+                    .view(-1, src_len)
+                )
 
         # reorder indices, outputs and masks
         select_indices = batch_index.view(-1)
         encoder_output = encoder_output.index_select(0, select_indices)
         src_mask = src_mask.index_select(0, select_indices)
 
-        if hidden is not None and not transformer:
+        if hidden is not None and not is_transformer:
             if isinstance(hidden, tuple):
                 # for LSTMs, states are tuples of tensors
                 h, c = hidden
@@ -526,7 +601,7 @@ def beam_search(
         if att_vectors is not None:
             att_vectors = att_vectors.index_select(0, select_indices)
 
-    def pad_and_stack_hyps(hyps):
+    def pad_and_stack_hyps(hyps: List[np.ndarray]):
         filled = (
             np.ones((len(hyps), max([h.shape[0] for h in hyps])), dtype=int) * pad_index
         )
@@ -536,9 +611,13 @@ def beam_search(
         return filled
 
     # from results to stacked outputs
+    # `final_outputs`: shape (batch_size * n_best, hyp_len)
     final_outputs = pad_and_stack_hyps(
         [u.cpu().numpy() for r in results["predictions"] for u in r],
     )
+
+    # sequence-wise log probabilities (summed up over the sequence)
+    # `scores`: shape (batch_size * n_best, 1)
     scores = (
         np.array([[u.item()] for r in results["scores"] for u in r])
         if return_prob
@@ -554,9 +633,7 @@ def search(
     beam_size: int,
     beam_alpha: float,
     n_best: int = 1,
-    generate_unk: bool = False,
-    return_prob: bool = False,
-    **kwards,
+    **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Get outputs and attentions scores for a given batch.
@@ -567,9 +644,6 @@ def search(
     :param beam_size: size of the beam for beam search, if 0 use greedy
     :param beam_alpha: alpha value for beam search
     :param n_best: candidates to return
-    :param generate_unk: whether to generate UNK token. if false,
-            the probability of UNK token will artificially be set to zero.
-    :param return_prob: whether to return prob or not.
     :returns:
         - stacked_output: hypotheses for batch,
         - stacked_scores: log probabilities for batch,
@@ -584,6 +658,10 @@ def search(
     if max_output_length is None:
         max_output_length = int(max(batch.src_length.cpu().numpy()) * 1.5)
 
+    # block src-side repetition (to avoid untranslated copy in trg)
+    if kwargs.get("repetition_penalty", -1) > 1.0:
+        kwargs["encoder_input"] = batch.src
+
     # decoding
     if beam_size < 2:  # greedy
         stacked_output, stacked_scores, stacked_attention_scores = greedy(
@@ -592,8 +670,7 @@ def search(
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            generate_unk=generate_unk,
-            return_prob=return_prob,
+            **kwargs,
         )
 
     else:  # beam search
@@ -606,8 +683,67 @@ def search(
             max_output_length=max_output_length,
             alpha=beam_alpha,
             n_best=n_best,
-            generate_unk=generate_unk,
-            return_prob=return_prob,
+            **kwargs,
         )
 
     return stacked_output, stacked_scores, stacked_attention_scores
+
+
+def block_repeat_ngrams(
+    tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int, step: int
+) -> Tensor:
+    """
+    For each hypothesis, generate a list of previous ngrams
+    and set associated log_probs to -inf.
+    """
+    hyp_size = tokens.size(0)
+    banned_batch_tokens = [set([]) for _ in range(hyp_size)]
+
+    cpu_tokens = tokens.cpu().tolist()
+    check_end_pos = step + 2 - no_repeat_ngram_size
+    offset = no_repeat_ngram_size - 1
+
+    # get repeated ngrams
+    for hyp_idx in range(hyp_size):
+        if len(cpu_tokens[hyp_idx]) > no_repeat_ngram_size:
+            # (n-1) token prefix at the time step
+            #                       0  1  2  3  4  <- step
+            # if tokens[hyp_idx] = [2, 5, 5, 6, 5] at step 4 with ngram_size = 3,
+            #                             ^  ^  ^
+            # then ngram_to_check = [6, 5]
+            ngram_to_check = cpu_tokens[hyp_idx][-offset:]
+
+            for i in range(1, check_end_pos):
+                if ngram_to_check == cpu_tokens[hyp_idx][i : i + offset]:
+                    banned_batch_tokens[hyp_idx].add(cpu_tokens[hyp_idx][i + offset])
+
+    # set the score of the banned tokens to -inf
+    for i, banned_tokens in enumerate(banned_batch_tokens):
+        scores[i, list(banned_tokens)] = float("-inf")
+    return scores
+
+
+def penalize_repetition(
+    tokens: Tensor, scores: Tensor, penalty: float, exclude_tokens: List[int] = None
+) -> Tensor:
+    """
+    Reduce probability of the given tokens
+
+    :param tokens: token ids to penalize
+    :param scores: log probs
+    :param penalty: penalty value, bigger value implies less probability
+    :param exclude_tokens: list of token ids to exclude from penalty
+    """
+    scores_before = scores
+    score = torch.gather(scores, 1, tokens)
+
+    # if score < 0 then repetition penalty has to be multiplied
+    # to reduce the previous token probability
+    score = torch.where(score < 0, score * penalty, score / penalty)
+
+    scores.scatter_(1, tokens, score)
+
+    if exclude_tokens:
+        for token in exclude_tokens:
+            scores[:, token] = scores_before[:, token]
+    return scores

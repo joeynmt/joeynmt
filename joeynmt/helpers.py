@@ -348,6 +348,85 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
     )
 
 
+def parse_test_args(cfg: Dict) -> Tuple:
+    """Parse test args"""
+    # batch options
+    batch_size: int = cfg.get("batch_size", 64)
+    batch_type: str = cfg.get("batch_type", "sentences")
+    if batch_type not in ["sentence", "token"]:
+        raise ConfigurationError(
+            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}."
+        )
+    if batch_size > 1000 and batch_type == "sentence":
+        logger.warning(
+            "WARNING: Are you sure you meant to work on huge batches like this? "
+            "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
+            "or switching to `batch_type: 'token'`."
+        )
+
+    # limit on generation length
+    max_output_length = cfg.get("max_output_length", None)
+    min_output_length = cfg.get("min_output_length", None)
+
+    # eval metrics
+    if "eval_metrics" in cfg:
+        eval_metrics = [s.strip().lower() for s in cfg["eval_metrics"].split(",")]
+    elif "eval_metric" in cfg:
+        eval_metrics = [cfg["eval_metric"].strip().lower()]
+        logger.warning(
+            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead."
+        )
+    else:
+        eval_metrics = []
+    for eval_metric in eval_metrics:
+        if eval_metric not in ["bleu", "chrf", "token_accuracy", "sequence_accuracy"]:
+            raise ConfigurationError(
+                "Invalid setting for `eval_metrics`. "
+                "Valid options: 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'."
+            )
+
+    # sacrebleu cfg
+    sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
+    if "sacrebleu" in cfg:
+        sacrebleu_cfg: Dict = cfg["sacrebleu"]
+        logger.warning(
+            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead."
+        )
+
+    # beam search options
+    n_best: int = cfg.get("n_best", 1)
+    beam_size: int = cfg.get("beam_size", 1)
+    beam_alpha: float = cfg.get("beam_alpha", -1)
+    if "alpha" in cfg:
+        beam_alpha = cfg["alpha"]
+        logger.warning("`alpha` option is obsolete. Please use `beam_alpha`, instead.")
+    assert beam_size > 0, "Beam size must be >0."
+    assert n_best > 0, "N-best size must be >0."
+    assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
+
+    # control options
+    return_prob: float = cfg.get("return_prob", False)
+    generate_unk: float = cfg.get("generate_unk", True)
+    repetition_penalty: float = cfg.get("repetition_penalty", -1)
+    no_repeat_ngram_size: int = cfg.get("no_repeat_ngram_size", -1)
+
+    return (
+        batch_size,
+        batch_type,
+        max_output_length,
+        min_output_length,
+        eval_metrics,
+        sacrebleu_cfg,
+        beam_size,
+        beam_alpha,
+        n_best,
+        return_prob,
+        generate_unk,
+        repetition_penalty,
+        no_repeat_ngram_size,
+    )
+
+
 def store_attention_plots(
     attentions: np.ndarray,
     targets: List[List[str]],

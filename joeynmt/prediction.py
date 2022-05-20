@@ -18,11 +18,11 @@ from torch.utils.data import Dataset
 from joeynmt.data import load_data, make_data_iter
 from joeynmt.datasets import build_dataset
 from joeynmt.helpers import (
-    ConfigurationError,
     expand_reverse_index,
     load_checkpoint,
     load_config,
     make_logger,
+    parse_test_args,
     parse_train_args,
     resolve_ckpt_path,
     store_attention_plots,
@@ -36,70 +36,6 @@ from joeynmt.vocabulary import build_vocab
 
 
 logger = logging.getLogger(__name__)
-
-
-def parse_test_args(cfg: Dict) -> Tuple:
-    """Parse test args"""
-    # batch options
-    batch_size: int = cfg.get("batch_size", 64)
-    batch_type: str = cfg.get("batch_type", "sentences")
-    if batch_type not in ["sentence", "token"]:
-        raise ConfigurationError(
-            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}."
-        )
-
-    # limit on generation length
-    max_output_length = cfg.get("max_output_length", None)
-
-    # eval metrics
-    if "eval_metrics" in cfg:
-        eval_metrics = [s.strip().lower() for s in cfg["eval_metrics"].split(",")]
-    elif "eval_metric" in cfg:
-        eval_metrics = [cfg["eval_metric"].strip().lower()]
-        logger.warning(
-            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead."
-        )
-    else:
-        eval_metrics = []
-    for eval_metric in eval_metrics:
-        if eval_metric not in ["bleu", "chrf", "token_accuracy", "sequence_accuracy"]:
-            raise ConfigurationError(
-                "Invalid setting for `eval_metrics`. "
-                "Valid options: 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'."
-            )
-
-    # sacrebleu cfg
-    sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
-    if "sacrebleu" in cfg:
-        sacrebleu_cfg: Dict = cfg["sacrebleu"]
-        logger.warning(
-            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead."
-        )
-
-    # beam search options
-    n_best: int = cfg.get("n_best", 1)
-    beam_size: int = cfg.get("beam_size", 1)
-    beam_alpha: float = cfg.get("beam_alpha", -1)
-    if "alpha" in cfg:
-        beam_alpha: Dict = cfg["alpha"]
-        logger.warning("`alpha` option is obsolete. Please use `beam_alpha`, instead.")
-    assert beam_size > 0, "Beam size must be >0."
-    assert n_best > 0, "N-best size must be >0."
-    assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
-
-    return_prob: float = cfg.get("return_prob", False)
-
-    return (
-        batch_size,
-        batch_type,
-        max_output_length,
-        eval_metrics,
-        sacrebleu_cfg,
-        beam_size,
-        beam_alpha,
-        n_best,
-        return_prob,
-    )
 
 
 def predict(
@@ -133,22 +69,27 @@ def predict(
     :param cfg: `testing` section in yaml config file
     :return:
         - valid_scores: (dict) current validation scores,
-        - valid_ref: validation references,
-        - valid_hyp: validation hypotheses,
-        - decoded_valid: token-level validation hypotheses (before post-processing),
-        - valid_attention_scores: attention scores for validation hypotheses
+        - valid_ref: (list) validation references,
+        - valid_hyp: (list) validation hypotheses,
+        - decoded_valid: (list) token-level validation hypotheses (before post-process),
+        - valid_sequence_scores: (list) log probabilities for validation hypotheses
+        - valid_attention_scores: (list) attention scores for validation hypotheses
     """
     # parse test cfg
     (
         eval_batch_size,
         eval_batch_type,
         max_output_length,
+        min_output_length,
         eval_metrics,
         sacrebleu_cfg,
         beam_size,
         beam_alpha,
         n_best,
         return_prob,
+        generate_unk,
+        repetition_penalty,
+        no_repeat_ngram_size,
     ) = parse_test_args(cfg)
 
     decoding_description = (
@@ -159,12 +100,6 @@ def predict(
     logger.info("Predicting %d example(s)... (%s)", len(data), decoding_description)
 
     assert eval_batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
-    if eval_batch_size > 1000 and eval_batch_type == "sentence":
-        logger.warning(
-            "WARNING: Are you sure you meant to work on huge batches like this? "
-            "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to `batch_type: 'token'`."
-        )
     # CAUTION: a batch will be expanded to batch.nseqs * beam_size, and it might cause
     # an out-of-memory error.
     # if batch_size > beam_size:
@@ -228,8 +163,10 @@ def predict(
             beam_alpha=beam_alpha,
             max_output_length=max_output_length,
             n_best=n_best,
-            generate_unk=False,
             return_prob=return_prob,
+            generate_unk=generate_unk,
+            repetition_penalty=repetition_penalty,
+            no_repeat_ngram_size=no_repeat_ngram_size,
         )
 
         # sort outputs back to original order
@@ -394,7 +331,6 @@ def test(
 
     # restore model and optimizer parameters
     model.load_state_dict(model_checkpoint["model_state"])
-    model.loss_function = ("crossentropy", 0.1)
     if device.type == "cuda":
         model.to(device)
 
@@ -410,7 +346,7 @@ def test(
         _, _, hypotheses, hypotheses_raw, sequence_scores, attention_scores, = predict(
             model=model,
             data=data_set,
-            compute_loss=True,
+            compute_loss=False,
             device=device,
             n_gpu=n_gpu,
             num_workers=num_workers,
@@ -547,9 +483,9 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
 
     else:
         # enter interactive mode
-        test_cfg["batch_size"] = 2
+        test_cfg["batch_size"] = 1
         test_cfg["batch_type"] = "sentence"
-        np.set_printoptions(linewidth=1000)
+        np.set_printoptions(linewidth=1000)  # for printing score in stdout
         while True:
             try:
                 src_input = input("\nPlease enter a source sentence:\n")
