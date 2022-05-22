@@ -11,6 +11,7 @@ import operator
 import random
 import re
 import shutil
+import sys
 import unicodedata
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
@@ -29,6 +30,9 @@ from joeynmt.plotting import plot_heatmap
 if TYPE_CHECKING:
     from joeynmt.dataset import BaseDataset
     from joeynmt.vocabulary import Vocabulary  # to avoid circular import
+
+
+np.set_printoptions(linewidth=sys.maxsize)  # format for printing numpy array
 
 
 class ConfigurationError(Exception):
@@ -197,7 +201,7 @@ def load_config(path: Union[Path, str] = "configs/default.yaml") -> Dict:
     return cfg
 
 
-def write_list_to_file(output_path: Path, array: List[str]) -> None:
+def write_list_to_file(output_path: Path, array: List[Any]) -> None:
     """
     Write list of str to file in `output_path`.
 
@@ -350,6 +354,8 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
 
 def parse_test_args(cfg: Dict) -> Tuple:
     """Parse test args"""
+    logger = logging.getLogger(__name__)
+
     # batch options
     batch_size: int = cfg.get("batch_size", 64)
     batch_type: str = cfg.get("batch_type", "sentences")
@@ -365,12 +371,12 @@ def parse_test_args(cfg: Dict) -> Tuple:
         )
 
     # limit on generation length
-    max_output_length = cfg.get("max_output_length", None)
-    min_output_length = cfg.get("min_output_length", None)
+    max_output_length: int = cfg.get("max_output_length", -1)
+    min_output_length: int = cfg.get("min_output_length", 1)
 
     # eval metrics
     if "eval_metrics" in cfg:
-        eval_metrics = [s.strip().lower() for s in cfg["eval_metrics"].split(",")]
+        eval_metrics = [s.strip().lower() for s in cfg["eval_metrics"]]
     elif "eval_metric" in cfg:
         eval_metrics = [cfg["eval_metric"].strip().lower()]
         logger.warning(
@@ -400,14 +406,22 @@ def parse_test_args(cfg: Dict) -> Tuple:
     if "alpha" in cfg:
         beam_alpha = cfg["alpha"]
         logger.warning("`alpha` option is obsolete. Please use `beam_alpha`, instead.")
-    assert beam_size > 0, "Beam size must be >0."
-    assert n_best > 0, "N-best size must be >0."
+    assert beam_size > 0, "Beam size must be > 0."
+    assert n_best > 0, "N-best size must be > 0."
     assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
 
     # control options
-    return_prob: float = cfg.get("return_prob", False)
-    generate_unk: float = cfg.get("generate_unk", True)
+    return_prob: str = cfg.get("return_prob", "none")
+    if return_prob not in ["hyp", "ref", "none"]:
+        raise ConfigurationError(
+            "Invalid `return_prob` option. Valid options: {`hyp`, `ref`, `none`}."
+        )
+    generate_unk: bool = cfg.get("generate_unk", True)
     repetition_penalty: float = cfg.get("repetition_penalty", -1)
+    if 0 < repetition_penalty < 1:
+        raise ConfigurationError(
+            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)"
+        )
     no_repeat_ngram_size: int = cfg.get("no_repeat_ngram_size", -1)
 
     return (
@@ -663,8 +677,11 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
 
 def remove_extra_spaces(s: str) -> str:
     """
-    remove extra spaces
+    Remove extra spaces
     - used in pre_process() / post_process() in tokenizer.py
+
+    :param s: input string
+    :return: string w/o extra white spaces
     """
     s = re.sub("\u200b", "", s)
     s = re.sub("[ 　]+", " ", s)
@@ -681,6 +698,9 @@ def unicode_normalize(s: str) -> str:
     """
     apply unicodedata NFKC normalization
     - used in pre_process() in tokenizer.py
+
+    :param s: input string
+    :return: normalized string
     """
     s = unicodedata.normalize("NFKC", s)
     s = s.replace("’", "'")

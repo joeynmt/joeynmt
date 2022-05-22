@@ -5,6 +5,7 @@ Implementation of a mini-batch.
 import logging
 from typing import List, Optional
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -158,18 +159,21 @@ class Batch:
         assert max(rev_index) < len(rev_index), rev_index
         return rev_index
 
-    def score(self, log_probs: Tensor) -> List[List[float]]:
-        """Look up the score of the given trg token"""
+    def score(self, log_probs: Tensor) -> np.ndarray:
+        """Look up the score of the trg token (ground truth) in the batch"""
         scores = []
         for i in range(self.nseqs):
             scores.append(
-                [
-                    log_probs[i, j, ind].item()
-                    for j, ind in enumerate(self.trg[i])
-                    if ind != PAD_ID
-                ]
+                np.array(
+                    [
+                        log_probs[i, j, ind].item()
+                        for j, ind in enumerate(self.trg[i])
+                        if ind != PAD_ID
+                    ]
+                )
             )
-        return scores
+        # Note: each element in `scores` list can have different lengths.
+        return np.array(scores, dtype=object)
 
     def __repr__(self) -> str:
         return (

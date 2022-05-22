@@ -2,7 +2,7 @@
 """
 Search module
 """
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -89,7 +89,7 @@ def recurrent_greedy(
     batch_size = src_mask.size(0)
     min_output_length: int = kwargs.get("min_output_length", 1)
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
-    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
+    return_prob: bool = kwargs.get("return_prob", "none") == "hyp"
     prev_y = src_mask.new_full((batch_size, 1), fill_value=bos_index, dtype=torch.long)
 
     output = []
@@ -177,7 +177,7 @@ def transformer_greedy(
 
     # options to control generation
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
-    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
+    return_prob: bool = kwargs.get("return_prob", "none") == "hyp"
     min_output_length: int = kwargs.get("min_output_length", 1)
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
     no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
@@ -224,16 +224,33 @@ def transformer_greedy(
 
             if compute_softmax:
                 out = F.log_softmax(out, dim=-1)
-                if no_repeat_ngram_size > 0:
-                    out = block_repeat_ngrams(ys, out, no_repeat_ngram_size, step)
-                if encoder_input is not None and repetition_penalty > 1.0:
-                    # give penalty for src tokens (to avoid untranslated tokens)
+
+                # ngram blocker
+                if no_repeat_ngram_size > 1:
+                    out = block_repeat_ngrams(
+                        ys,
+                        out,
+                        no_repeat_ngram_size,
+                        step,
+                        src_tokens=encoder_input,
+                        exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                    )
+
+                # repetition_penalty
+                if repetition_penalty > 1.0:
                     out = penalize_repetition(
-                        encoder_input,
+                        ys,
                         out,
                         repetition_penalty,
                         exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
                     )
+                    if encoder_input is not None:
+                        out = penalize_repetition(
+                            encoder_input,
+                            out,
+                            repetition_penalty,
+                            exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                        )
 
             # take the most likely token
             prob, next_word = torch.max(out, dim=1)
@@ -305,7 +322,7 @@ def beam_search(
     batch_size = src_mask.size(0)
 
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
-    return_prob: bool = kwargs.get("return_prob", False)  # whether to return prob
+    return_prob: bool = kwargs.get("return_prob", "none") == "hyp"
     min_output_length: int = kwargs.get("min_output_length", 1)
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
     no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
@@ -343,6 +360,10 @@ def beam_search(
     if encoder_input is not None:  # used in src-side repetition blocker
         encoder_input = tile(encoder_input.contiguous(), beam_size, dim=0).view(
             batch_size * beam_size, -1
+        )
+        assert encoder_input.size(0) == batch_size * beam_size, (
+            encoder_input.size(0),
+            batch_size * beam_size,
         )
 
     # Transformer only: create target mask
@@ -440,17 +461,28 @@ def beam_search(
         # block repetitions
         if no_repeat_ngram_size > 0:
             log_probs = block_repeat_ngrams(
-                alive_seq, log_probs, no_repeat_ngram_size, step
+                alive_seq,
+                log_probs,
+                no_repeat_ngram_size,
+                step,
+                src_tokens=encoder_input,
+                exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
             )
 
-        # give penalty for src tokens (to avoid untranslated tokens)
-        if encoder_input is not None and repetition_penalty > 1.0:
+        if repetition_penalty > 1.0:
             log_probs = penalize_repetition(
-                encoder_input,
+                alive_seq,
                 log_probs,
                 repetition_penalty,
                 exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
             )
+            if encoder_input is not None:  # src
+                log_probs = penalize_repetition(
+                    encoder_input,
+                    log_probs,
+                    repetition_penalty,
+                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                )
 
         # multiply probs by the beam probability (=add logprobs)
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
@@ -553,7 +585,7 @@ def beam_search(
             is_finished = is_finished.index_select(0, unfinished)
             batch_offset = batch_offset.index_select(0, unfinished)
 
-            # CAUTION: `alive_seq` still can contain finished beam candidates
+            # **CAUTION:** `alive_seq` still can contain finished beam candidates
             # because we only remove finished examples. For instance, beam_size = 3,
             # 2 sents remain in batch and all 3 candidates of the 1st sent is finished.
             #     end_condition = [True, False]
@@ -568,7 +600,7 @@ def beam_search(
             #         [4, 9, 5, 6, 7],  # not finished yet
             #     ]
             # Yet, we won't add already finished candidates to the `hypotheses` list,
-            # but only the candidates that finished in the time step.
+            # but only the candidates that finished in the very current time step.
             # TODO: release the space of finished ones, explore more unfinished ones.
             # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
             alive_seq = predictions.index_select(0, unfinished).view(
@@ -581,6 +613,7 @@ def beam_search(
                     .index_select(0, unfinished)
                     .view(-1, src_len)
                 )
+                assert encoder_input.size(0) == alive_seq.size(0)
 
         # reorder indices, outputs and masks
         select_indices = batch_index.view(-1)
@@ -655,11 +688,14 @@ def search(
         )
 
     # if maximum output length is not globally specified, adapt to src len
-    if max_output_length is None:
+    if max_output_length < 0:
         max_output_length = int(max(batch.src_length.cpu().numpy()) * 1.5)
 
     # block src-side repetition (to avoid untranslated copy in trg)
-    if kwargs.get("repetition_penalty", -1) > 1.0:
+    if (
+        kwargs.get("no_repeat_ngram_size", -1) > 1
+        or kwargs.get("repetition_penalty", -1) > 1
+    ):
         kwargs["encoder_input"] = batch.src
 
     # decoding
@@ -690,35 +726,58 @@ def search(
 
 
 def block_repeat_ngrams(
-    tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int, step: int
+    tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int, step: int, **kwargs
 ) -> Tensor:
     """
-    For each hypothesis, generate a list of previous ngrams
-    and set associated log_probs to -inf.
+    For each hypothesis, check a list of previous ngrams and set associated log probs
+    to -inf. Taken from fairseq's NGramRepeatBlock.
+
+    :param tokens: target tokens generated so far
+    :param scores: log probabilities of the next token to generate in this time step
+    :param no_repeat_ngram_size: ngram size to prohibit
+    :param step: generation step (= length of hypotheses so far)
     """
     hyp_size = tokens.size(0)
     banned_batch_tokens = [set([]) for _ in range(hyp_size)]
 
-    cpu_tokens = tokens.cpu().tolist()
+    trg_tokens = tokens.cpu().tolist()
     check_end_pos = step + 2 - no_repeat_ngram_size
     offset = no_repeat_ngram_size - 1
 
+    src_tokens = kwargs.get("src_tokens", None)
+    if src_tokens is not None:
+        src_length = src_tokens.size(-1)
+        assert src_tokens.size(0) == hyp_size, (src_tokens.size(), hyp_size)
+        src_tokens = src_tokens.cpu().tolist()
+    exclude_tokens = kwargs.get("exclude_tokens", [])
+
     # get repeated ngrams
     for hyp_idx in range(hyp_size):
-        if len(cpu_tokens[hyp_idx]) > no_repeat_ngram_size:
+        if len(trg_tokens[hyp_idx]) > no_repeat_ngram_size:
             # (n-1) token prefix at the time step
             #                       0  1  2  3  4  <- step
-            # if tokens[hyp_idx] = [2, 5, 5, 6, 5] at step 4 with ngram_size = 3,
-            #                             ^  ^  ^
-            # then ngram_to_check = [6, 5]
-            ngram_to_check = cpu_tokens[hyp_idx][-offset:]
+            # if tokens[hyp_idx] = [2, 5, 5, 6, 5]    at step 4 with ngram_size = 3,
+            #                                ^  ^  ^
+            # then ngram_to_check = [6, 5], and set the token in the next position to
+            # -inf, if there are ngrams starts with [6, 5].
+            ngram_to_check = trg_tokens[hyp_idx][-offset:]
 
-            for i in range(1, check_end_pos):
-                if ngram_to_check == cpu_tokens[hyp_idx][i : i + offset]:
-                    banned_batch_tokens[hyp_idx].add(cpu_tokens[hyp_idx][i + offset])
+            for i in range(1, check_end_pos):  # ignore BOS
+                if ngram_to_check == trg_tokens[hyp_idx][i : i + offset]:
+                    banned_batch_tokens[hyp_idx].add(trg_tokens[hyp_idx][i + offset])
+
+            # src_tokens
+            if src_tokens is not None:
+                check_end_pos_src = src_length + 1 - no_repeat_ngram_size
+                for i in range(check_end_pos_src):  # no BOS in src
+                    if ngram_to_check == src_tokens[hyp_idx][i : i + offset]:
+                        banned_batch_tokens[hyp_idx].add(
+                            src_tokens[hyp_idx][i + offset]
+                        )
 
     # set the score of the banned tokens to -inf
     for i, banned_tokens in enumerate(banned_batch_tokens):
+        banned_tokens = set(banned_tokens) - set(exclude_tokens)
         scores[i, list(banned_tokens)] = float("-inf")
     return scores
 
@@ -727,14 +786,15 @@ def penalize_repetition(
     tokens: Tensor, scores: Tensor, penalty: float, exclude_tokens: List[int] = None
 ) -> Tensor:
     """
-    Reduce probability of the given tokens
+    Reduce probability of the given tokens.
+    Taken from Huggingface's RepetitionPenaltyLogitsProcessor.
 
     :param tokens: token ids to penalize
-    :param scores: log probs
+    :param scores: log probabilities of the next token to generate
     :param penalty: penalty value, bigger value implies less probability
-    :param exclude_tokens: list of token ids to exclude from penalty
+    :param exclude_tokens: list of token ids to exclude from penalizing
     """
-    scores_before = scores
+    scores_before = scores if exclude_tokens else None
     score = torch.gather(scores, 1, tokens)
 
     # if score < 0 then repetition penalty has to be multiplied
@@ -743,6 +803,7 @@ def penalize_repetition(
 
     scores.scatter_(1, tokens, score)
 
+    # exclude special tokens
     if exclude_tokens:
         for token in exclude_tokens:
             scores[:, token] = scores_before[:, token]

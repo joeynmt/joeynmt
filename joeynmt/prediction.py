@@ -25,6 +25,7 @@ from joeynmt.helpers import (
     parse_test_args,
     parse_train_args,
     resolve_ckpt_path,
+    set_seed,
     store_attention_plots,
     write_list_to_file,
 )
@@ -92,16 +93,27 @@ def predict(
         no_repeat_ngram_size,
     ) = parse_test_args(cfg)
 
-    decoding_description = (
-        "Greedy decoding"
-        if beam_size < 2
-        else f"Beam search decoding with beam size={beam_size}, alpha={beam_alpha}"
-    )
-    logger.info("Predicting %d example(s)... (%s)", len(data), decoding_description)
+    if return_prob == "ref":  # no decoding needed
+        decoding_description = ""
+    else:
+        decoding_description = (  # write the decoding strategy in the log
+            " (Greedy decoding with "
+            if beam_size < 2
+            else f" (Beam search with beam_size={beam_size}, beam_alpha={beam_alpha}, "
+            f"n_best={n_best}, "
+        )
+        decoding_description += (
+            f"min_output_length={min_output_length}, "
+            f"max_output_length={max_output_length}, "
+            f"return_prob='{return_prob}', generate_unk={generate_unk}, "
+            f"repetition_penalty={repetition_penalty}, "
+            f"no_repeat_ngram_size={no_repeat_ngram_size})"
+        )
+    logger.info("Predicting %d example(s)...%s", len(data), decoding_description)
 
     assert eval_batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
-    # CAUTION: a batch will be expanded to batch.nseqs * beam_size, and it might cause
-    # an out-of-memory error.
+    # **CAUTION:** a batch will be expanded to batch.nseqs * beam_size, and it might
+    # cause an out-of-memory error.
     # if batch_size > beam_size:
     #     batch_size //= beam_size
 
@@ -127,6 +139,7 @@ def predict(
     total_nseqs = 0
     total_ntokens = 0
     total_n_correct = 0
+    output, ref_scores, hyp_scores, attention_scores = None, None, None, None
 
     gen_start_time = time.time()
     for batch in valid_iter:
@@ -148,34 +161,42 @@ def predict(
                 # sum over multiple gpus
                 batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
                 n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
-                # TODO: enable scoring from given trg
-                # score = batch.score(log_probs)
+                if return_prob == "ref":
+                    ref_scores = batch.score(log_probs)
+                    output = batch.trg
 
             total_loss += batch_loss.item()  # cast Tensor to float
             total_n_correct += n_correct.item()  # cast Tensor to int
             total_ntokens += batch.ntokens
 
-        # run as during inference to produce translations
-        output, sequence_scores, attention_scores = search(
-            model=model,
-            batch=batch,
-            beam_size=beam_size,
-            beam_alpha=beam_alpha,
-            max_output_length=max_output_length,
-            n_best=n_best,
-            return_prob=return_prob,
-            generate_unk=generate_unk,
-            repetition_penalty=repetition_penalty,
-            no_repeat_ngram_size=no_repeat_ngram_size,
-        )
+        # if return_prob == "ref", then no search needed.
+        # (just look up the prob of the ground truth.)
+        if return_prob != "ref":
+            # run search as during inference to produce translations
+            output, hyp_scores, attention_scores = search(
+                model=model,
+                batch=batch,
+                beam_size=beam_size,
+                beam_alpha=beam_alpha,
+                max_output_length=max_output_length,
+                n_best=n_best,
+                return_prob=return_prob,
+                generate_unk=generate_unk,
+                repetition_penalty=repetition_penalty,
+                no_repeat_ngram_size=no_repeat_ngram_size,
+            )
 
         # sort outputs back to original order
-        all_outputs.extend(output[sort_reverse_index])
+        all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
         valid_attention_scores.extend(
             attention_scores[sort_reverse_index] if attention_scores is not None else []
         )
         valid_sequence_scores.extend(
-            sequence_scores[sort_reverse_index] if sequence_scores is not None else []
+            ref_scores[sort_reverse_index]
+            if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
+            else hyp_scores[sort_reverse_index]
+            if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
+            else []
         )
     gen_duration = time.time() - gen_start_time
 
@@ -201,12 +222,25 @@ def predict(
         # exponent of token-level negative log likelihood
         valid_scores["ppl"] = math.exp(total_loss / total_ntokens)
 
-    # decode ids back to str symbols (cut-off AFTER eos)
+    # decode ids back to str symbols (cut-off AFTER eos; eos itself is included.)
     decoded_valid = model.trg_vocab.arrays_to_sentences(
         arrays=all_outputs, cut_at_eos=True
     )
     # TODO: `valid_sequence_scores` should have the same seq length as `decoded_valid`
     #     -> needed to be cut-off at eos synchronously
+
+    if return_prob == "ref":  # no evaluation needed
+        logger.info(
+            "Evaluation result (scoring) %s, duration: %.4f[sec]",
+            ", ".join(
+                [
+                    f"{eval_metric}: {valid_scores[eval_metric]:6.2f}"
+                    for eval_metric in ["loss", "ppl", "acc"]
+                ]
+            ),
+            gen_duration,
+        )
+        return valid_scores, None, None, decoded_valid, valid_sequence_scores, None
 
     # retrieve detokenized hypotheses and references
     valid_hyp = [data.tokenizer[data.trg_lang].post_process(s) for s in decoded_valid]
@@ -223,7 +257,7 @@ def predict(
 
         eval_start_time = time.time()
 
-        # evaluate with metric on full dataset
+        # evaluate with metrics on full dataset
         for eval_metric in eval_metrics:
             if eval_metric == "bleu":
                 valid_scores[eval_metric] = bleu(
@@ -288,6 +322,7 @@ def test(
     output_path: str = None,
     datasets: dict = None,
     save_attention: bool = False,
+    save_scores: bool = False,
 ) -> None:
     """
     Main test function. Handles loading a model from checkpoint, generating translations
@@ -322,6 +357,25 @@ def test(
 
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    model.log_parameters_list()
+    return_prob = cfg["testing"].get("return_prob", "none")
+    if save_scores:
+        assert output_path, "Please specify --output_path for saving scores."
+        if return_prob == "none":
+            logger.warning(
+                "Please specify prob type: {`ref` or `hyp`} in the config. "
+                "Scores will not be saved."
+            )
+            save_scores = False
+        elif return_prob == "ref":
+            assert cfg["testing"].get("beam_size", 1) == 1, (
+                "Scores of given references can be computed with greedy decoding only."
+                "Please set `beam_size: 1` in the config."
+            )
+            model.loss_function = (
+                cfg["training"].get("loss_type", "crossentropy"),
+                cfg["training"].get("label_smoothing", 0.1),
+            )
 
     # when checkpoint is not specified, take latest (best) from model dir
     ckpt = resolve_ckpt_path(ckpt, load_model, model_dir)
@@ -338,15 +392,22 @@ def test(
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
         model = _DataParallel(model)
 
+    # set the random seed
+    set_seed(seed=cfg["training"].get("random_seed", 42))
+
     for data_set_name, data_set in data_to_predict.items():
         if data_set is None:
             continue
 
-        logger.info("Decoding on %s set...", data_set_name)
+        logger.info(
+            "%s on %s set...",
+            "Scoring" if return_prob == "ref" else "Decoding",
+            data_set_name,
+        )
         _, _, hypotheses, hypotheses_raw, sequence_scores, attention_scores, = predict(
             model=model,
             data=data_set,
-            compute_loss=False,
+            compute_loss=save_scores,
             device=device,
             n_gpu=n_gpu,
             num_workers=num_workers,
@@ -375,9 +436,21 @@ def test(
                 )
 
         if output_path is not None:
-            output_path_set = Path(f"{output_path}.{data_set_name}")
-            write_list_to_file(output_path_set, hypotheses)
-            logger.info("Translations saved to: %s.", output_path_set)
+            if sequence_scores is not None and save_scores:
+                # save scores
+                output_path_scores = Path(f"{output_path}.{data_set_name}.scores")
+                write_list_to_file(output_path_scores, sequence_scores)
+                # save tokens
+                output_path_tokens = Path(f"{output_path}.{data_set_name}.tokens")
+                write_list_to_file(output_path_tokens, hypotheses_raw)
+                logger.info(
+                    "Scores and corresponding tokens saved to: %s.{scores|tokens}",
+                    f"{output_path}.{data_set_name}",
+                )
+            if hypotheses is not None:
+                output_path_set = Path(f"{output_path}.{data_set_name}")
+                write_list_to_file(output_path_set, hypotheses)
+                logger.info("Translations saved to: %s.", output_path_set)
 
 
 def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
@@ -450,7 +523,11 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
         sequence_encoder=sequence_encoder,
     )
 
-    _, _, _, _, _, beam_size, _, n_best, return_prob = parse_test_args(test_cfg)
+    # set the random seed
+    set_seed(seed=cfg["training"].get("random_seed", 42))
+
+    n_best = test_cfg.get("n_best", 1)
+    return_prob = test_cfg.get("return_prob", "none")
     if not sys.stdin.isatty():
         # input stream given
         for line in sys.stdin.readlines():
@@ -485,7 +562,7 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
         # enter interactive mode
         test_cfg["batch_size"] = 1
         test_cfg["batch_type"] = "sentence"
-        np.set_printoptions(linewidth=1000)  # for printing score in stdout
+        np.set_printoptions(linewidth=sys.maxsize)  # for printing scores in stdout
         while True:
             try:
                 src_input = input("\nPlease enter a source sentence:\n")
@@ -496,23 +573,24 @@ def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
                 test_data.set_item(src_input.rstrip())
                 hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
 
-                print(f"JoeyNMT:")
+                print("JoeyNMT:")
                 for i, (hyp, token, score) in enumerate(
                     zip_longest(hypotheses, tokens, scores)
                 ):
                     assert hyp is not None, (i, hyp, token, score)
                     print(f"#{i + 1}: {hyp}")
-                    if beam_size > 1:
-                        if token is not None:
-                            print(f"\ttokens: {token}")
-                        if score is not None:
-                            print(f"\tsequence score: {score[0]}")
-                    else:
-                        assert len(token) == len(score), (token, score)
-                        if token is not None:
-                            print(f"\ttokens: {token}")
-                        if score is not None:
-                            print(f"\tscores: {score}")
+                    if return_prob in ["hyp"]:
+                        if n_best > 1:  # beam search: sequence-level scores
+                            if token is not None:
+                                print(f"\ttokens: {token}")
+                            if score is not None:
+                                print(f"\tsequence score: {score[0]}")
+                        else:  # greedy: token-level scores
+                            assert len(token) == len(score), (token, score)
+                            if token is not None:
+                                print(f"\ttokens: {token}")
+                            if score is not None:
+                                print(f"\tscores: {score}")
 
                 # reset cache
                 test_data.cache = {}

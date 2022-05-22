@@ -56,8 +56,8 @@ class TestPrediction(unittest.TestCase):
                 "batch_type": "sentence",
                 "beam_size": 5,
                 "beam_alpha": 1.0,
-                "eval_metrics": "bleu",
-                "return_prob": False,
+                "eval_metrics": ["bleu"],
+                "return_prob": "none",
                 "sacrebleu_cfg": {"tokenize": "13a"},
             },
             "model": {

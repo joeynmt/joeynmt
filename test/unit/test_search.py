@@ -95,7 +95,7 @@ class TestSearchTransformer(TestSearch):
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         # Transformer greedy doesn't return attention scores
         self.assertIsNone(attention_scores)
@@ -127,7 +127,7 @@ class TestSearchTransformer(TestSearch):
             n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
@@ -144,7 +144,7 @@ class TestSearchTransformer(TestSearch):
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         np.testing.assert_equal(beam_output, greedy_output)
         np.testing.assert_allclose(
@@ -172,13 +172,13 @@ class TestSearchTransformer(TestSearch):
             n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
-        
-        # batch_size*n_best x hyp_len(=time steps)
-        self.assertEqual(output.shape, (batch_size*n_best, max_output_length))
+
+        # batch_size * n_best x hyp_len (= time steps)
+        self.assertEqual(output.shape, (batch_size * n_best, max_output_length))
         expected_output = [[5, 5, 5], [0, 5, 5], [0, 0, 5], [5, 5, 0], [5, 0, 5],
                            [5, 5, 5], [0, 5, 5], [5, 0, 5], [5, 5, 0], [0, 0, 5]]
         np.testing.assert_equal(output, expected_output)
@@ -195,23 +195,36 @@ class TestSearchTransformer(TestSearch):
             batch_size=batch_size
         )
 
-        expected_output = [[5, 6, 4], [5, 6, 4], [5, 6, 6]]
+        # no repetition penalty
         output, _, _ = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            generate_unk=False,
         )
+        expected_output = [[5, 6, 4], [5, 6, 4], [5, 6, 6]]
         np.testing.assert_equal(output, expected_output)
+        np.testing.assert_equal(np.count_nonzero(output), 9)  # no unk token generated
 
+        # trg repetition penalty
+        output_trg_penalty, _, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=None,
+            repetition_penalty=1.5,
+            generate_unk=False,
+        )
+        expected_output_trg_penalty = [[5, 6, 4], [5, 6, 4], [5, 6, 4]]
+        np.testing.assert_equal(output_trg_penalty, expected_output_trg_penalty)
+
+        # src + trg repetition penalty
         src_tokens = torch.tensor([[4, 3, 1], [5, 4, 3], [5, 5, 6]])
-        expected_output_with_penalty = [
-            [5, 6, 6],  # before [5, 6, 4] <- penalty on 4
-            [6, 6, 6],  # before [5, 6, 4] <- penalty on 4 and 5
-            [4, 4, 4],  # before [5, 6, 6] <- penalty on 5 and 6
-        ]
-        output_with_penalty, scores, _ = greedy(
+        output_src_penalty, _, _ = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
@@ -221,8 +234,8 @@ class TestSearchTransformer(TestSearch):
             repetition_penalty=1.5,
             generate_unk=False,
         )
-        np.testing.assert_equal(output_with_penalty, expected_output_with_penalty)
-        np.testing.assert_equal(np.count_nonzero(output_with_penalty), 9)
+        expected_output_src_penalty = [[5, 6, 4], [6, 4, 5], [4, 5, 6]]
+        np.testing.assert_equal(output_src_penalty, expected_output_src_penalty)
 
     def test_repetition_penalty_in_beam_search(self):
         batch_size = 2
@@ -236,10 +249,14 @@ class TestSearchTransformer(TestSearch):
 
         src_tokens = torch.tensor([[5, 5, 4], [5, 6, 6]])
         expected_output_with_penalty = [
-            [0, 0, 0], [6, 0, 0], [0, 6, 0], [1, 0, 0], [0, 0, 5],
-            [0, 0, 0], [1, 0, 0], [0, 0, 5], [4, 0, 0], [0, 1, 0],
+            [6, 0, 5], [6, 0, 1], [6, 1, 0], [6, 0, 0], [0, 5, 6],
+            [5, 1, 0], [1, 0, 5], [4, 0, 5], [0, 5, 1], [0, 5, 3],
         ]
-        output_with_penalty, _, _ = beam_search(
+        expected_scores_with_penalty = [
+            [-3.97227573], [-4.04966927], [-4.13298225], [-4.1490984], [-4.20313644],
+            [-4.25672293], [-4.28554916], [-4.31342602], [-4.3269372], [-4.34846115],
+        ]
+        output_with_penalty, scores_with_penalty, _ = beam_search(
             beam_size=beam_size,
             src_mask=src_mask,
             max_output_length=max_output_length,
@@ -250,8 +267,12 @@ class TestSearchTransformer(TestSearch):
             encoder_hidden=encoder_hidden,
             encoder_input=src_tokens,
             repetition_penalty=1.5,
+            return_prob="hyp",
         )
         np.testing.assert_equal(output_with_penalty, expected_output_with_penalty)
+        np.testing.assert_allclose(
+            scores_with_penalty, expected_scores_with_penalty, rtol=1e-5
+        )
 
     def test_ngram_blocker(self):
         batch_size = 2
@@ -262,18 +283,26 @@ class TestSearchTransformer(TestSearch):
         )
 
         expected_output = [
-            [5, 5, 5, 0, 5, 5, 6, 0, 5, 0], [5, 5, 5, 0, 5, 5, 6, 0, 5, 0]
+            [5, 5, 5, 0, 5, 5, 0, 0, 5, 0], [5, 5, 5, 0, 5, 5, 0, 0, 5, 0]
         ]
-        output, _, _ = greedy(
+        expected_scores = [
+            [-1.256322, -1.3881024, -1.4247599, -1.7823244, -1.3601547,
+             -1.4100374, -1.8323467, -1.4702327, -1.3825183, -1.8272306],
+            [-1.2362098, -1.384755, -1.4188296, -1.7987821, -1.3441339,
+             -1.4011306, -1.845073, -1.5097935, -1.3674619, -1.8354796]
+        ]
+        output, scores, _ = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            encoder_input=None,
+            return_prob="hyp",
             no_repeat_ngram_size=no_repeat_ngram_size,
         )
         np.testing.assert_equal(output, expected_output)
+        np.testing.assert_allclose(scores, expected_scores, rtol=1e-5)
 
     def test_ngram_blocker_in_beam_search(self):
         batch_size = 2
@@ -287,14 +316,17 @@ class TestSearchTransformer(TestSearch):
         )
 
         expected_output = [
-            [5, 5, 5, 0, 0, 0, 5, 5, 6, 0],
-            [5, 5, 5, 0, 0, 0, 5, 0, 5, 5],
-            [5, 5, 5, 0, 0, 0, 5, 5, 6, 5],
-            [5, 5, 5, 0, 0, 5, 5, 6, 0, 5],
-            [5, 5, 5, 0, 0, 5, 5, 6, 0, 0],
-            [5, 5, 5, 0, 0, 5, 5, 6, 5, 5],
+            [5, 5, 5, 0, 0, 0, 0, 0, 0, 5],
+            [5, 5, 5, 0, 0, 0, 0, 0, 5, 5],
+            [5, 5, 5, 0, 0, 0, 0, 0, 0, 0],
+            [5, 5, 5, 0, 0, 5, 5, 0, 0, 0],
+            [5, 5, 5, 0, 0, 0, 0, 5, 5, 0],
+            [5, 5, 5, 0, 0, 0, 0, 5, 5, 2],
         ]
-        output, _, _ = beam_search(
+        expected_scores = [
+            [-5.882798], [-5.884224], [-5.889960], [-5.969066], [-6.015323], [-6.062648]
+        ]
+        output, scores, _ = beam_search(
             beam_size=beam_size,
             src_mask=src_mask,
             max_output_length=max_output_length,
@@ -303,9 +335,12 @@ class TestSearchTransformer(TestSearch):
             n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
+            encoder_input=None,
+            return_prob="hyp",
             no_repeat_ngram_size=no_repeat_ngram_size,
         )
         np.testing.assert_equal(output, expected_output)
+        np.testing.assert_allclose(scores, expected_scores, rtol=1e-5)
 
 
 class TestSearchRecurrent(TestSearch):
@@ -372,7 +407,7 @@ class TestSearchRecurrent(TestSearch):
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         self.assertEqual(output.shape, (batch_size, max_output_length))
         np.testing.assert_equal(output, self.expected_recurrent_ids)
@@ -405,7 +440,7 @@ class TestSearchRecurrent(TestSearch):
             model=model,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         self.assertEqual(greedy_output.shape, (batch_size, max_output_length))
         np.testing.assert_equal(greedy_output, self.expected_recurrent_ids)
@@ -427,7 +462,7 @@ class TestSearchRecurrent(TestSearch):
             alpha=alpha,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
         np.testing.assert_array_equal(greedy_output, beam_output)
         np.testing.assert_allclose(
@@ -455,10 +490,10 @@ class TestSearchRecurrent(TestSearch):
             n_best=n_best,
             encoder_output=encoder_output,
             encoder_hidden=encoder_hidden,
-            return_prob=True,
+            return_prob="hyp",
         )
 
-        self.assertEqual(output.shape, (batch_size*n_best, max_output_length))
+        self.assertEqual(output.shape, (batch_size * n_best, max_output_length))
 
         # output indices
         expected_output = [[4, 4, 4], [4, 4, 0], [4, 0, 4], [4, 0, 0], [0, 4, 4],
