@@ -11,7 +11,6 @@ from torch import Tensor
 
 from joeynmt.constants import PAD_ID
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -164,19 +163,14 @@ class Batch:
         scores = []
         for i in range(self.nseqs):
             scores.append(
-                np.array(
-                    [
-                        log_probs[i, j, ind].item()
-                        for j, ind in enumerate(self.trg[i])
-                        if ind != PAD_ID
-                    ]
-                )
-            )
+                np.array([
+                    log_probs[i, j, ind].item() for j, ind in enumerate(self.trg[i])
+                    if ind != PAD_ID
+                ]))
         # Note: each element in `scores` list can have different lengths.
         return np.array(scores, dtype=object)
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(nseqs={self.nseqs}, ntokens={self.ntokens}, "
-            f"has_trg={self.has_trg}, is_train={self.is_train})"
-        )
+            f"has_trg={self.has_trg}, is_train={self.is_train})")

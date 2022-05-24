@@ -8,6 +8,7 @@ from joeynmt.helpers import read_list_from_file, write_list_to_file
 
 
 class TestPlaintextDataset(unittest.TestCase):
+
     def setUp(self):
         self.train_path = "test/data/toy/train"
         self.dev_path = "test/data/toy/dev"
@@ -53,9 +54,8 @@ class TestPlaintextDataset(unittest.TestCase):
                 if "test" in datasets:
                     datasets.remove("test")
 
-            _, _, train_data, dev_data, test_data = load_data(
-                current_cfg, datasets=datasets
-            )
+            _, _, train_data, dev_data, test_data = load_data(current_cfg,
+                                                              datasets=datasets)
 
             self.assertIs(type(train_data), PlaintextDataset)
             self.assertIs(type(dev_data), PlaintextDataset)
@@ -73,19 +73,15 @@ class TestPlaintextDataset(unittest.TestCase):
                 self.assertEqual(test_data.split, "test")
                 self.assertFalse(test_data.has_trg)
 
-            self.assertEqual(
-                train_data.tokenizer[train_data.src_lang].max_length, self.max_length
-            )
-            self.assertEqual(
-                train_data.tokenizer[train_data.trg_lang].max_length, self.max_length
-            )
+            self.assertEqual(train_data.tokenizer[train_data.src_lang].max_length,
+                             self.max_length)
+            self.assertEqual(train_data.tokenizer[train_data.trg_lang].max_length,
+                             self.max_length)
 
-            self.assertEqual(
-                train_data.tokenizer[train_data.src_lang].min_length, self.min_length
-            )
-            self.assertEqual(
-                train_data.tokenizer[train_data.trg_lang].min_length, self.min_length
-            )
+            self.assertEqual(train_data.tokenizer[train_data.src_lang].min_length,
+                             self.min_length)
+            self.assertEqual(train_data.tokenizer[train_data.trg_lang].min_length,
+                             self.min_length)
 
             # check the number of examples loaded
             # NOTE: since tokenization is applied in batch construction,
@@ -119,11 +115,9 @@ class TestPlaintextDataset(unittest.TestCase):
             # check the length filtering of the training examples
             src_len, trg_len = zip(*train_ex)
             self.assertTrue(
-                all(self.min_length <= len(s) <= self.max_length for s in src_len)
-            )
+                all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
-                all(self.min_length <= len(t) <= self.max_length for t in trg_len)
-            )
+                all(self.min_length <= len(t) <= self.max_length for t in trg_len))
 
             # check the lowercasing
             if current_cfg["src"]["lowercase"]:
@@ -146,9 +140,8 @@ class TestPlaintextDataset(unittest.TestCase):
 
     def testRandomSubset(self):
         # Load data
-        _, _, train_data, _, test_data = load_data(
-            self.data_cfg, datasets=["train", "test"]
-        )
+        _, _, train_data, _, test_data = load_data(self.data_cfg,
+                                                   datasets=["train", "test"])
         self.assertEqual(len(train_data), 1000)
         self.assertEqual(train_data.random_subset, 100)
         train_data.sample_random_subset(seed=self.seed)
@@ -161,36 +154,32 @@ class TestPlaintextDataset(unittest.TestCase):
         train_data.random_subset = 2000
         with self.assertRaises(AssertionError) as e:
             train_data.sample_random_subset(seed=self.seed)
-        self.assertEqual(
-            "Can only subsample from train or dev set larger than 2000.",
-            str(e.exception)
-        )
+        self.assertEqual("Can only subsample from train or dev set larger than 2000.",
+                         str(e.exception))
 
         # a random subset should be selected for training only
         self.assertEqual(test_data.random_subset, -1)
         test_data.random_subset = 100
         with self.assertRaises(AssertionError) as e:
             test_data.sample_random_subset(seed=self.seed)
-        self.assertEqual(
-            "Can only subsample from train or dev set larger than 100.",
-            str(e.exception)
-        )
+        self.assertEqual("Can only subsample from train or dev set larger than 100.",
+                         str(e.exception))
 
 
 class TestTsvDataset(unittest.TestCase):
+
     def setUp(self):
         # save toy data temporarily in tsv format
         def _read_write_sents(path, src_lang, trg_lang):
-            with tempfile.NamedTemporaryFile(
-                prefix="joeynmt_unittest_", suffix=".tsv", delete=False
-            ) as temp:
+            with tempfile.NamedTemporaryFile(prefix="joeynmt_unittest_",
+                                             suffix=".tsv",
+                                             delete=False) as temp:
                 tsv_file = Path(temp.name)
                 src = read_list_from_file(Path(path).with_suffix(f".{src_lang}"))
                 if trg_lang:
                     trg = read_list_from_file(Path(path).with_suffix(f".{trg_lang}"))
-                    lines = [f"{src_lang}\t{trg_lang}"] + [
-                        f"{s}\t{t}" for s, t in zip(src, trg)
-                    ]
+                    lines = [f"{src_lang}\t{trg_lang}"
+                             ] + [f"{s}\t{t}" for s, t in zip(src, trg)]
                 else:
                     lines = [src_lang] + src
                 write_list_to_file(tsv_file, lines)
@@ -247,9 +236,8 @@ class TestTsvDataset(unittest.TestCase):
         try:
             expected_train_len, after_filtering = 1000, 290
             expected_dev_len = 20
-            _, _, train_data, dev_data, _ = load_data(
-                self.data_cfg, datasets=["train", "dev"]
-            )
+            _, _, train_data, dev_data, _ = load_data(self.data_cfg,
+                                                      datasets=["train", "dev"])
 
             self.assertIs(type(train_data), TsvDataset)
             self.assertIs(type(dev_data), TsvDataset)
@@ -263,19 +251,15 @@ class TestTsvDataset(unittest.TestCase):
             self.assertTrue(train_data.has_trg)
             self.assertTrue(dev_data.has_trg)
 
-            self.assertEqual(
-                train_data.tokenizer[train_data.src_lang].max_length, self.max_length
-            )
-            self.assertEqual(
-                train_data.tokenizer[train_data.trg_lang].max_length, self.max_length
-            )
+            self.assertEqual(train_data.tokenizer[train_data.src_lang].max_length,
+                             self.max_length)
+            self.assertEqual(train_data.tokenizer[train_data.trg_lang].max_length,
+                             self.max_length)
 
-            self.assertEqual(
-                train_data.tokenizer[train_data.src_lang].min_length, self.min_length
-            )
-            self.assertEqual(
-                train_data.tokenizer[train_data.trg_lang].min_length, self.min_length
-            )
+            self.assertEqual(train_data.tokenizer[train_data.src_lang].min_length,
+                             self.min_length)
+            self.assertEqual(train_data.tokenizer[train_data.trg_lang].min_length,
+                             self.min_length)
 
             train_ex = [train_data[i] for i in range(len(train_data))]
             train_ex = [(s, t) for s, t in train_ex if s is not None and t is not None]
@@ -284,11 +268,9 @@ class TestTsvDataset(unittest.TestCase):
             # check the length filtering of the training examples
             src_len, trg_len = zip(*train_ex)
             self.assertTrue(
-                all(self.min_length <= len(s) <= self.max_length for s in src_len)
-            )
+                all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
-                all(self.min_length <= len(t) <= self.max_length for t in trg_len)
-            )
+                all(self.min_length <= len(t) <= self.max_length for t in trg_len))
 
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
             dev_src, dev_trg = zip(*dev_ex)
@@ -305,9 +287,8 @@ class TestTsvDataset(unittest.TestCase):
     def testRandomSubset(self):
         try:
             # load the data
-            _, _, train_data, _, test_data = load_data(
-                self.data_cfg, datasets=["train", "test"]
-            )
+            _, _, train_data, _, test_data = load_data(self.data_cfg,
+                                                       datasets=["train", "test"])
             self.assertEqual(len(train_data), 1000)
             self.assertEqual(train_data.random_subset, 100)
             train_data.sample_random_subset(seed=self.seed)
@@ -319,8 +300,7 @@ class TestTsvDataset(unittest.TestCase):
                 train_data.sample_random_subset(seed=self.seed)
             self.assertEqual(
                 "Can only subsample from train or dev set larger than 2000.",
-                str(e.exception)
-            )
+                str(e.exception))
 
             # a random subset should be selected for training only
             self.assertEqual(test_data.random_subset, -1)
@@ -329,8 +309,7 @@ class TestTsvDataset(unittest.TestCase):
                 test_data.sample_random_subset(seed=self.seed)
             self.assertEqual(
                 "Can only subsample from train or dev set larger than 100.",
-                str(e.exception)
-            )
+                str(e.exception))
 
         except ImportError as e:
             raise unittest.SkipTest(f"{e} Skip.")

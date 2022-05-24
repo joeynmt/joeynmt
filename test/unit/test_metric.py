@@ -5,6 +5,7 @@ from joeynmt.metrics import bleu, chrf, token_accuracy
 
 
 class TestMetrics(TensorTestCase):
+
     def test_chrf_without_whitespace(self):
         hyp1 = ["t est"]
         ref1 = ["tez t"]

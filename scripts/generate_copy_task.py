@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 
-
 np.random.seed(42)
 
 
@@ -22,14 +21,15 @@ def sample_to_str(sample):
     return " ".join(map(str, sample))
 
 
-def save_samples(
-    samples, output_dir="copy_task", prefix="train", ext="src", reverse=False
-):
+def save_samples(samples,
+                 output_dir="copy_task",
+                 prefix="train",
+                 ext="src",
+                 reverse=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    with open(
-        os.path.join(output_dir, prefix + "." + ext), mode="w", encoding="utf-8"
-    ) as f:
+    with open(os.path.join(output_dir, prefix + "." + ext), mode="w",
+              encoding="utf-8") as f:
         for sample in samples:
             sample = sample[::-1] if reverse else sample
             f.write(sample_to_str(sample) + "\n")

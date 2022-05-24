@@ -14,7 +14,6 @@ from joeynmt.decoders import RecurrentDecoder, TransformerDecoder
 from joeynmt.helpers import tile
 from joeynmt.model import Model
 
-
 __all__ = ["greedy", "beam_search", "search"]
 
 
@@ -52,13 +51,11 @@ def greedy(
             **kwargs,
         )
     elif isinstance(model.decoder, RecurrentDecoder):
-        return recurrent_greedy(
-            src_mask, max_output_length, model, encoder_output, encoder_hidden, **kwargs
-        )
+        return recurrent_greedy(src_mask, max_output_length, model, encoder_output,
+                                encoder_hidden, **kwargs)
     else:
         raise NotImplementedError(
-            f"model.decoder({model.decoder.__class__.__name__}) not supported."
-        )
+            f"model.decoder({model.decoder.__class__.__name__}) not supported.")
 
 
 def recurrent_greedy(
@@ -182,12 +179,8 @@ def transformer_greedy(
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
     no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
     encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
-    compute_softmax: bool = (
-        return_prob
-        or repetition_penalty > 0
-        or no_repeat_ngram_size > 0
-        or encoder_input is not None
-    )
+    compute_softmax: bool = (return_prob or repetition_penalty > 0
+                             or no_repeat_ngram_size > 0 or encoder_input is not None)
 
     # start with BOS-symbol for each sentence in the batch
     ys = encoder_output.new_full((batch_size, 1), bos_index, dtype=torch.long)
@@ -358,9 +351,8 @@ def beam_search(
     src_mask = tile(src_mask, beam_size, dim=0)
     # `encoder_input` shape: (batch_size * beam_size, src_len)
     if encoder_input is not None:  # used in src-side repetition blocker
-        encoder_input = tile(encoder_input.contiguous(), beam_size, dim=0).view(
-            batch_size * beam_size, -1
-        )
+        encoder_input = tile(encoder_input.contiguous(), beam_size,
+                             dim=0).view(batch_size * beam_size, -1)
         assert encoder_input.size(0) == batch_size * beam_size, (
             encoder_input.size(0),
             batch_size * beam_size,
@@ -371,23 +363,25 @@ def beam_search(
         trg_mask = src_mask.new_ones([1, 1, 1])
         if isinstance(model, torch.nn.DataParallel):
             trg_mask = torch.stack(
-                [src_mask.new_ones([1, 1]) for _ in model.device_ids]
-            )
+                [src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
     # numbering elements in the batch
     batch_offset = torch.arange(batch_size, dtype=torch.long, device=device)
 
     # numbering elements in the extended batch, i.e. k copies of each batch element
-    beam_offset = torch.arange(
-        0, batch_size * beam_size, step=beam_size, dtype=torch.long, device=device
-    )
+    beam_offset = torch.arange(0,
+                               batch_size * beam_size,
+                               step=beam_size,
+                               dtype=torch.long,
+                               device=device)
 
     # keeps track of the top beam size hypotheses to expand for each element in the
     # batch to be further decoded (that are still "alive")
     # `alive_seq` shape: (batch_size * beam_size, hyp_len) ... now hyp_len = 1
-    alive_seq = torch.full(
-        (batch_size * beam_size, 1), bos_index, dtype=torch.long, device=device
-    )
+    alive_seq = torch.full((batch_size * beam_size, 1),
+                           bos_index,
+                           dtype=torch.long,
+                           device=device)
 
     # Give full probability (=zero in log space) to the first beam on the first step.
     # `topk_log_probs` shape: (batch_size, beam_size)
@@ -404,9 +398,10 @@ def beam_search(
 
     # indicator if the generation is finished
     # `is_finished` shape: (batch_size, beam_size)
-    is_finished = torch.full(
-        (batch_size, beam_size), False, dtype=torch.bool, device=device
-    )
+    is_finished = torch.full((batch_size, beam_size),
+                             False,
+                             dtype=torch.bool,
+                             device=device)
 
     for step in range(max_output_length):
         if is_transformer:
@@ -436,6 +431,7 @@ def beam_search(
             decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
 
             with torch.no_grad():
+                # pylint: disable=unused-variable
                 logits, hidden, att_scores, att_vectors = model(
                     return_type="decode",
                     encoder_output=encoder_output,
@@ -491,7 +487,7 @@ def beam_search(
 
         # compute length penalty
         if alpha > 0:
-            length_penalty = ((5.0 + (step + 1)) / 6.0) ** alpha
+            length_penalty = ((5.0 + (step + 1)) / 6.0)**alpha
             curr_scores /= length_penalty
 
         # flatten log_probs into a list of possibilities
@@ -514,13 +510,14 @@ def beam_search(
 
         # map topk_beam_index to batch_index in the flat representation
         # `batch_index` shape: (remaining_batch_size, beam_size)
-        batch_index = topk_beam_index + beam_offset[: topk_ids.size(0)].unsqueeze(1)
+        batch_index = topk_beam_index + beam_offset[:topk_ids.size(0)].unsqueeze(1)
         select_indices = batch_index.view(-1)
 
         # append latest prediction
         # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
         alive_seq = torch.cat(
-            [alive_seq.index_select(0, select_indices), topk_ids.view(-1, 1)],
+            [alive_seq.index_select(0, select_indices),
+             topk_ids.view(-1, 1)],
             -1,
         )
         # `is_finished` shape: (remaining_batch_size, beam_size)
@@ -545,14 +542,13 @@ def beam_search(
                 finished_hyp = is_finished[i].nonzero(as_tuple=False).view(-1)
                 for j in finished_hyp:  # loop over finished beam candidates
                     n_eos = (predictions[i, j, 1:] == eos_index).count_nonzero().item()
-                    if n_eos > 1:
+                    if n_eos > 1:  # pylint: disable=no-else-continue
                         # If the prediction has more than one EOS, it means that the
                         # prediction should have already been added to the hypotheses,
                         # so we don't add them again.
                         continue
                     elif (n_eos == 0 and step + 1 == max_output_length) or (
-                        n_eos == 1 and predictions[i, j, -1] == eos_index
-                    ):
+                            n_eos == 1 and predictions[i, j, -1] == eos_index):
                         # If the prediction has no EOS, it means we reached max length.
                         # If the prediction has exactly one EOS, it should be the last
                         # token of the sequence. Then we add it to the hypotheses.
@@ -604,15 +600,13 @@ def beam_search(
             # TODO: release the space of finished ones, explore more unfinished ones.
             # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
             alive_seq = predictions.index_select(0, unfinished).view(
-                -1, alive_seq.size(-1)
-            )
+                -1, alive_seq.size(-1))
             if encoder_input is not None:
                 src_len = encoder_input.size(-1)
-                encoder_input = (
-                    encoder_input.view(-1, beam_size, src_len)
-                    .index_select(0, unfinished)
-                    .view(-1, src_len)
-                )
+                encoder_input = (encoder_input.view(-1, beam_size,
+                                                    src_len).index_select(
+                                                        0,
+                                                        unfinished).view(-1, src_len))
                 assert encoder_input.size(0) == alive_seq.size(0)
 
         # reorder indices, outputs and masks
@@ -635,9 +629,8 @@ def beam_search(
             att_vectors = att_vectors.index_select(0, select_indices)
 
     def pad_and_stack_hyps(hyps: List[np.ndarray]):
-        filled = (
-            np.ones((len(hyps), max([h.shape[0] for h in hyps])), dtype=int) * pad_index
-        )
+        filled = (np.ones(
+            (len(hyps), max([h.shape[0] for h in hyps])), dtype=int) * pad_index)
         for j, h in enumerate(hyps):
             for k, i in enumerate(h):
                 filled[j, k] = i
@@ -646,16 +639,12 @@ def beam_search(
     # from results to stacked outputs
     # `final_outputs`: shape (batch_size * n_best, hyp_len)
     final_outputs = pad_and_stack_hyps(
-        [u.cpu().numpy() for r in results["predictions"] for u in r],
-    )
+        [u.cpu().numpy() for r in results["predictions"] for u in r], )
 
     # sequence-wise log probabilities (summed up over the sequence)
     # `scores`: shape (batch_size * n_best, 1)
-    scores = (
-        np.array([[u.item()] for r in results["scores"] for u in r])
-        if return_prob
-        else None
-    )
+    scores = (np.array([[u.item()] for r in results["scores"]
+                        for u in r]) if return_prob else None)
     return final_outputs, scores, None
 
 
@@ -683,19 +672,16 @@ def search(
         - stacked_attention_scores: attention scores for batch
     """
     with torch.no_grad():
-        encoder_output, encoder_hidden, _, _ = model(
-            return_type="encode", **vars(batch)
-        )
+        encoder_output, encoder_hidden, _, _ = model(return_type="encode",
+                                                     **vars(batch))
 
     # if maximum output length is not globally specified, adapt to src len
     if max_output_length < 0:
         max_output_length = int(max(batch.src_length.cpu().numpy()) * 1.5)
 
     # block src-side repetition (to avoid untranslated copy in trg)
-    if (
-        kwargs.get("no_repeat_ngram_size", -1) > 1
-        or kwargs.get("repetition_penalty", -1) > 1
-    ):
+    if (kwargs.get("no_repeat_ngram_size", -1) > 1
+            or kwargs.get("repetition_penalty", -1) > 1):
         kwargs["encoder_input"] = batch.src
 
     # decoding
@@ -725,9 +711,8 @@ def search(
     return stacked_output, stacked_scores, stacked_attention_scores
 
 
-def block_repeat_ngrams(
-    tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int, step: int, **kwargs
-) -> Tensor:
+def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int,
+                        step: int, **kwargs) -> Tensor:
     """
     For each hypothesis, check a list of previous ngrams and set associated log probs
     to -inf. Taken from fairseq's NGramRepeatBlock.
@@ -763,17 +748,16 @@ def block_repeat_ngrams(
             ngram_to_check = trg_tokens[hyp_idx][-offset:]
 
             for i in range(1, check_end_pos):  # ignore BOS
-                if ngram_to_check == trg_tokens[hyp_idx][i : i + offset]:
+                if ngram_to_check == trg_tokens[hyp_idx][i:i + offset]:
                     banned_batch_tokens[hyp_idx].add(trg_tokens[hyp_idx][i + offset])
 
             # src_tokens
             if src_tokens is not None:
                 check_end_pos_src = src_length + 1 - no_repeat_ngram_size
                 for i in range(check_end_pos_src):  # no BOS in src
-                    if ngram_to_check == src_tokens[hyp_idx][i : i + offset]:
-                        banned_batch_tokens[hyp_idx].add(
-                            src_tokens[hyp_idx][i + offset]
-                        )
+                    if ngram_to_check == src_tokens[hyp_idx][i:i + offset]:
+                        banned_batch_tokens[hyp_idx].add(src_tokens[hyp_idx][i +
+                                                                             offset])
 
     # set the score of the banned tokens to -inf
     for i, banned_tokens in enumerate(banned_batch_tokens):
@@ -782,9 +766,10 @@ def block_repeat_ngrams(
     return scores
 
 
-def penalize_repetition(
-    tokens: Tensor, scores: Tensor, penalty: float, exclude_tokens: List[int] = None
-) -> Tensor:
+def penalize_repetition(tokens: Tensor,
+                        scores: Tensor,
+                        penalty: float,
+                        exclude_tokens: List[int] = None) -> Tensor:
     """
     Reduce probability of the given tokens.
     Taken from Huggingface's RepetitionPenaltyLogitsProcessor.
@@ -806,5 +791,6 @@ def penalize_repetition(
     # exclude special tokens
     if exclude_tokens:
         for token in exclude_tokens:
+            # pylint: disable=unsubscriptable-object
             scores[:, token] = scores_before[:, token]
     return scores

@@ -10,6 +10,7 @@ from joeynmt.vocabulary import Vocabulary
 
 
 class TestVocabulary(unittest.TestCase):
+
     def setUp(self):
         self.voc_limit = 1000
         self.cfg = {
@@ -135,17 +136,7 @@ class TestVocabulary(unittest.TestCase):
         # pylint: disable=protected-access
         bpe_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_bpe))
         expected_bpe_itos = [
-            "t@@",
-            "s@@",
-            "e",
-            "e@@",
-            "d@@",
-            "o@@",
-            "b@@",
-            "g@@",
-            "en",
-            "m@@",
-            "u@@",
+            "t@@", "s@@", "e", "e@@", "d@@", "o@@", "b@@", "g@@", "en", "m@@", "u@@"
         ]
         self.assertEqual(bpe_vocab._itos[:15], self.specials + expected_bpe_itos)
 
@@ -155,16 +146,17 @@ class TestVocabulary(unittest.TestCase):
         # pylint: enable=protected-access
 
     def testVocabularyFromDataset(self):
-        src_vocab, trg_vocab, train_data, _, _ = load_data(self.cfg, datasets=["train"])
+        src_vocab, trg_vocab, _, _, _ = load_data(self.cfg, datasets=["train"])
         self.assertEqual(len(src_vocab), self.voc_limit + len(self.specials))
         self.assertEqual(len(trg_vocab), self.voc_limit + len(self.specials))
 
         expected_src_itos = [
-            "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von",
+            "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von"
         ]
         expected_trg_itos = [
-            "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And",
+            "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And"
         ]
+        # pylint: disable=protected-access
         self.assertEqual(src_vocab._itos[:15], self.specials + expected_src_itos)
         self.assertEqual(trg_vocab._itos[:15], self.specials + expected_trg_itos)
 
@@ -180,16 +172,18 @@ class TestVocabulary(unittest.TestCase):
         tokenized = [s.split() for s in self.sents]
         ids, length = self.word_vocab.sentences_to_ids(tokenized, bos=True, eos=True)
         expected_ids = [
-            [2, 4, 10, 17, 14, 15, 9, 23, 20, 21, 11, 7, 13, 23, 19, 16, 15, 12, 6, 22,
-             8, 18, 3],
+            [
+                2, 4, 10, 17, 14, 15, 9, 23, 20, 21, 11, 7, 13, 23, 19, 16, 15, 12, 6,
+                22, 8, 18, 3
+            ],
             [2, 5, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ]
         expected_length = [23, 3]
         self.assertEqual(ids, expected_ids)
         self.assertEqual(length, expected_length)
 
-        decoded = self.word_vocab.arrays_to_sentences(
-            np.array(ids), cut_at_eos=True, skip_pad=True
-        )
+        decoded = self.word_vocab.arrays_to_sentences(np.array(ids),
+                                                      cut_at_eos=True,
+                                                      skip_pad=True)
         self.assertEqual(decoded[0], ["<s>"] + tokenized[0] + ["</s>"])
         self.assertEqual(decoded[1], ["<s>"] + tokenized[1] + ["</s>"])

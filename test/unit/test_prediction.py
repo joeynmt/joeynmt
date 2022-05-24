@@ -7,11 +7,11 @@ from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
 from joeynmt.prediction import predict
 
-
 # TODO make sure rnn also returns the nbest list in the resorted order
 
 
 class TestHelpers(unittest.TestCase):
+
     def test_expand_reverse_index(self):
         reverse_index = [1, 0, 2]
 
@@ -29,6 +29,7 @@ class TestHelpers(unittest.TestCase):
 
 
 class TestPrediction(unittest.TestCase):
+
     def setUp(self):
         seed = 42
         torch.manual_seed(seed)
@@ -58,7 +59,9 @@ class TestPrediction(unittest.TestCase):
                 "beam_alpha": 1.0,
                 "eval_metrics": ["bleu"],
                 "return_prob": "none",
-                "sacrebleu_cfg": {"tokenize": "13a"},
+                "sacrebleu_cfg": {
+                    "tokenize": "13a"
+                },
             },
             "model": {
                 "tied_embeddings": False,
@@ -67,7 +70,9 @@ class TestPrediction(unittest.TestCase):
                     "type": "transformer",
                     "hidden_size": 12,
                     "ff_size": 24,
-                    "embeddings": {"embedding_dim": 12},
+                    "embeddings": {
+                        "embedding_dim": 12
+                    },
                     "num_layers": 1,
                     "num_heads": 4,
                     "layer_norm": "pre",
@@ -76,7 +81,9 @@ class TestPrediction(unittest.TestCase):
                     "type": "transformer",
                     "hidden_size": 12,
                     "ff_size": 24,
-                    "embeddings": {"embedding_dim": 12},
+                    "embeddings": {
+                        "embedding_dim": 12
+                    },
                     "num_layers": 1,
                     "num_heads": 4,
                     "layer_norm": "pre",
@@ -86,13 +93,12 @@ class TestPrediction(unittest.TestCase):
 
         # load data
         src_vocab, trg_vocab, _, _, self.test_data = load_data(
-            self.cfg["data"], datasets=["train", "test"]
-        )
+            self.cfg["data"], datasets=["train", "test"])
 
         # build model
-        self.model = build_model(
-            self.cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab
-        )
+        self.model = build_model(self.cfg["model"],
+                                 src_vocab=src_vocab,
+                                 trg_vocab=trg_vocab)
 
     def _translate(self, n_best):
         cfg = self.cfg["testing"].copy()
@@ -130,6 +136,5 @@ class TestPrediction(unittest.TestCase):
         n_best = 10
         with self.assertRaises(AssertionError) as e:
             self._translate(n_best)
-        self.assertEqual(
-            "`n_best` must be smaller than or equal to `beam_size`.", str(e.exception)
-        )
+        self.assertEqual("`n_best` must be smaller than or equal to `beam_size`.",
+                         str(e.exception))

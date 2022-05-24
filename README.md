@@ -1,5 +1,6 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) JoeyNMT 2.0
-![joeynmt](https://github.com/may-/main/actions/workflows/main.yml/badge.svg)
+[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
 :koala: JoeyNMT framework is developed for educational purposes.
@@ -66,7 +67,7 @@ B. From source (for local development)
   ```
   3. Run the unit tests:
   ```bash
-  $ python -m unittest
+  $ python -m pytest
   ```
 
 > :warning: **Warning**
@@ -95,7 +96,7 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 - `joeynmt/datasets.py`: loads data from plaintext, tsv, and huggingface's [datasets](https://github.com/huggingface/datasets)
 - `scripts/build_vocab.py`: trains subwords, creates joint vocab
 - scoring with hypotheses or references
-- black, isort, flake8 introduced
+- yapf, isort, flake8 introduced
 - bugfixes, minor refactoring
 
 > :warning: **Warning**
@@ -279,7 +280,7 @@ sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:ex
 In order to keep the code clean and readable, we make use of:
 - Style checks:
   - [pylint](https://pylint.pycqa.org/) with (mostly) PEP8 conventions, see `.pylintrc`.
-  - [black](https://github.com/psf/black), [isort](https://github.com/PyCQA/isort),
+  - [yapf](https://github.com/google/yapf), [isort](https://github.com/PyCQA/isort),
     and [flake8](https://flake8.pycqa.org/); see `setup.cfg` and `Makefile`.
 - Typing: Every function has documented input types.
 - Docstrings: Every function, class and module has docstrings describing their purpose and usage.

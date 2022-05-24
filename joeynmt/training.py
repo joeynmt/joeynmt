@@ -2,7 +2,6 @@
 """
 Training module
 """
-
 import argparse
 import heapq
 import logging
@@ -39,13 +38,12 @@ from joeynmt.helpers import (
 from joeynmt.model import Model, _DataParallel, build_model
 from joeynmt.prediction import predict, test
 
-
 # for fp16 training
 try:
     from apex import amp
 
     amp.register_half_function(torch, "einsum")
-except ImportError as no_apex:
+except ImportError as no_apex:  # noqa: F841
     # error handling in TrainManager object construction
     pass
 
@@ -121,9 +119,8 @@ class TrainManager:
 
         # optimization
         self.clip_grad_fun = build_gradient_clipper(config=cfg["training"])
-        self.optimizer = build_optimizer(
-            config=cfg["training"], parameters=self.model.parameters()
-        )
+        self.optimizer = build_optimizer(config=cfg["training"],
+                                         parameters=self.model.parameters())
 
         # save/delete checkpoints
         self.num_ckpts = keep_best_ckpts
@@ -177,14 +174,14 @@ class TrainManager:
         self.fp16 = fp16
         if self.fp16:
             if "apex" not in sys.modules:
+                # pylint: disable=used-before-assignment
                 raise ImportError(
                     "Please install apex from https://www.github.com/nvidia/apex "
-                    "to use fp16 training."
-                ) from no_apex  # pylint: disable=used-before-assignment
+                    "to use fp16 training.") from no_apex  # noqa: F821
 
-            self.model, self.optimizer = amp.initialize(
-                self.model, self.optimizer, opt_level="O1"
-            )
+            self.model, self.optimizer = amp.initialize(self.model,
+                                                        self.optimizer,
+                                                        opt_level="O1")
             # opt level: one of {"O0", "O1", "O2", "O3"}
             # see https://nvidia.github.io/apex/amp.html#opt-levels
 
@@ -235,25 +232,27 @@ class TrainManager:
             float('nan'), the queue won't be updated.
         """
         model_path = Path(self.model_dir) / f"{self.stats.steps}.ckpt"
-        model_state_dict = (
-            self.model.module.state_dict()
-            if isinstance(self.model, torch.nn.DataParallel)
-            else self.model.state_dict()
-        )
+        model_state_dict = (self.model.module.state_dict() if isinstance(
+            self.model, torch.nn.DataParallel) else self.model.state_dict())
         state = {
-            "steps": self.stats.steps,
-            "total_tokens": self.stats.total_tokens,
-            "best_ckpt_score": self.stats.best_ckpt_score,
-            "best_ckpt_iteration": self.stats.best_ckpt_iter,
-            "model_state": model_state_dict,
-            "optimizer_state": self.optimizer.state_dict(),
-            "scheduler_state": (
-                self.scheduler.state_dict() if self.scheduler is not None else None
-            ),
-            "amp_state": amp.state_dict() if self.fp16 else None,
-            "train_iter_state": (
-                self.train_iter.batch_sampler.sampler.generator.get_state()
-            ),
+            "steps":
+            self.stats.steps,
+            "total_tokens":
+            self.stats.total_tokens,
+            "best_ckpt_score":
+            self.stats.best_ckpt_score,
+            "best_ckpt_iteration":
+            self.stats.best_ckpt_iter,
+            "model_state":
+            model_state_dict,
+            "optimizer_state":
+            self.optimizer.state_dict(),
+            "scheduler_state":
+            (self.scheduler.state_dict() if self.scheduler is not None else None),
+            "amp_state":
+            amp.state_dict() if self.fp16 else None,
+            "train_iter_state":
+            (self.train_iter.batch_sampler.sampler.generator.get_state()),
         }
         torch.save(state, model_path.as_posix())
 
@@ -292,7 +291,7 @@ class TrainManager:
 
             # remove old symlink target if not in queue after push/pop
             if prev_path is not None and prev_path.stem not in [
-                c[1].stem for c in self.ckpt_queue
+                    c[1].stem for c in self.ckpt_queue
             ]:
                 delete_ckpt(prev_path)
 
@@ -333,10 +332,8 @@ class TrainManager:
             logger.info("Reset optimizer.")
 
         if not reset_scheduler:
-            if (
-                model_checkpoint["scheduler_state"] is not None
-                and self.scheduler is not None
-            ):
+            if (model_checkpoint["scheduler_state"] is not None
+                    and self.scheduler is not None):
                 self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
         else:
             logger.info("Reset scheduler.")
@@ -388,7 +385,7 @@ class TrainManager:
         :param train_data: training data
         :param valid_data: validation data
         """
-        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-branches,too-many-statements
         self.train_iter = make_data_iter(
             dataset=train_data,
             batch_size=self.batch_size,
@@ -402,8 +399,7 @@ class TrainManager:
 
         if self.train_iter_state is not None:
             self.train_iter.batch_sampler.sampler.generator.set_state(
-                self.train_iter_state.cpu()
-            )
+                self.train_iter_state.cpu())
 
         #################################################################
         # simplify accumulation logic:
@@ -492,8 +488,7 @@ class TrainManager:
                         if self.clip_grad_fun is not None:
                             if self.fp16:
                                 self.clip_grad_fun(
-                                    parameters=amp.master_params(self.optimizer)
-                                )
+                                    parameters=amp.master_params(self.optimizer))
                             else:
                                 self.clip_grad_fun(parameters=self.model.parameters())
 
@@ -517,12 +512,11 @@ class TrainManager:
                             elapsed = time.time() - start - total_valid_duration
                             elapsed_tok = self.stats.total_tokens - start_tokens
                             token_accuracy = total_n_correct / elapsed_tok
-                            self.tb_writer.add_scalar(
-                                "train/batch_loss", total_batch_loss, self.stats.steps
-                            )
-                            self.tb_writer.add_scalar(
-                                "train/batch_acc", token_accuracy, self.stats.steps
-                            )
+                            self.tb_writer.add_scalar("train/batch_loss",
+                                                      total_batch_loss,
+                                                      self.stats.steps)
+                            self.tb_writer.add_scalar("train/batch_acc", token_accuracy,
+                                                      self.stats.steps)
                             logger.info(
                                 "Epoch %3d, "
                                 "Step: %8d, "
@@ -556,19 +550,16 @@ class TrainManager:
                         if current_lr < self.learning_rate_min:
                             self.stats.is_min_lr = True
 
-                        self.tb_writer.add_scalar(
-                            "train/learning_rate", current_lr, self.stats.steps
-                        )
+                        self.tb_writer.add_scalar("train/learning_rate", current_lr,
+                                                  self.stats.steps)
 
                     if self.stats.is_min_lr or self.stats.is_max_update:
                         break
 
                 if self.stats.is_min_lr or self.stats.is_max_update:
-                    log_str = (
-                        f"minimum lr {self.learning_rate_min}"
-                        if self.stats.is_min_lr
-                        else f"maximum num. of updates {self.max_updates}"
-                    )
+                    log_str = (f"minimum lr {self.learning_rate_min}"
+                               if self.stats.is_min_lr else
+                               f"maximum num. of updates {self.max_updates}")
                     logger.info("Training ended since %s was reached.", log_str)
                     break
 
@@ -580,7 +571,8 @@ class TrainManager:
             else:
                 logger.info("Training ended after %3d epochs.", epoch_no + 1)
             logger.info(
-                "Best validation result (greedy) " "at step %8d: %6.2f %s.",
+                "Best validation result (greedy) "
+                "at step %8d: %6.2f %s.",
                 self.stats.best_ckpt_iter,
                 self.stats.best_ckpt_score,
                 self.early_stopping_metric,
@@ -647,7 +639,7 @@ class TrainManager:
             valid_references,
             valid_hypotheses,
             valid_hypotheses_raw,
-            valid_sequence_scores,
+            valid_sequence_scores,  # pylint: disable=unused-variable
             valid_attention_scores,
         ) = predict(
             model=self.model,
@@ -663,9 +655,8 @@ class TrainManager:
         # for eval_metric in ['loss', 'ppl', 'acc'] + self.eval_metrics:
         for eval_metric, score in valid_scores.items():
             if not math.isnan(score):
-                self.tb_writer.add_scalar(
-                    f"valid/{eval_metric}", score, self.stats.steps
-                )
+                self.tb_writer.add_scalar(f"valid/{eval_metric}", score,
+                                          self.stats.steps)
 
         ckpt_score = valid_scores[self.early_stopping_metric]
 
@@ -683,11 +674,8 @@ class TrainManager:
             )
 
         # save checkpoints
-        is_better = (
-            self.stats.is_better(ckpt_score, self.ckpt_queue)
-            if len(self.ckpt_queue) > 0
-            else True
-        )
+        is_better = (self.stats.is_better(ckpt_score, self.ckpt_queue)
+                     if len(self.ckpt_queue) > 0 else True)
         if self.num_ckpts < 0 or is_better:
             self._save_checkpoint(new_best, ckpt_score)
 
@@ -702,9 +690,8 @@ class TrainManager:
         )
 
         # store validation set outputs
-        write_list_to_file(
-            self.model_dir / f"{self.stats.steps}.hyps", valid_hypotheses
-        )
+        write_list_to_file(self.model_dir / f"{self.stats.steps}.hyps",
+                           valid_hypotheses)
 
         # store attention plots for selected valid sentences
         if valid_attention_scores:
@@ -731,15 +718,10 @@ class TrainManager:
 
         valid_file = self.model_dir / "validations.txt"
         with valid_file.open("a", encoding="utf-8") as opened_file:
-            score_str = "\t".join(
-                [f"Steps: {self.stats.steps}"]
-                + [
-                    f"{eval_metric}: {score:.5f}"
-                    for eval_metric, score in valid_scores.items()
-                    if not math.isnan(score)
-                ]
-                + [f"LR: {current_lr:.8f}", "*" if new_best else ""]
-            )
+            score_str = "\t".join([f"Steps: {self.stats.steps}"] + [
+                f"{eval_metric}: {score:.5f}"
+                for eval_metric, score in valid_scores.items() if not math.isnan(score)
+            ] + [f"LR: {current_lr:.8f}", "*" if new_best else ""])
             opened_file.write(f"{score_str}\n")
 
     def _log_examples(
@@ -775,6 +757,7 @@ class TrainManager:
             logger.info("\tHypothesis: %s", hypotheses[p])
 
     class TrainStatistics:
+
         def __init__(
             self,
             steps: int = 0,
@@ -828,8 +811,7 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
     if "joeynmt_version" in cfg:
         assert str(joeynmt_version) == str(cfg["joeynmt_version"]), (
             f"You are using JoeyNMT version {joeynmt_version}, "
-            f'but {cfg["joeynmt_version"]} is expected in the given config.'
-        )
+            f'but {cfg["joeynmt_version"]} is expected in the given config.')
     # TODO: save version number in model checkpoints
 
     # write all entries of config to the log
@@ -843,8 +825,7 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
 
     # load the data
     src_vocab, trg_vocab, train_data, dev_data, test_data = load_data(
-        data_cfg=cfg["data"]
-    )
+        data_cfg=cfg["data"])
 
     # store the vocabs and tokenizers
     src_vocab.to_file(model_dir / "src_vocab.txt")
