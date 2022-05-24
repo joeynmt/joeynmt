@@ -151,10 +151,30 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(len(trg_vocab), self.voc_limit + len(self.specials))
 
         expected_src_itos = [
-            "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von"
+            "die",
+            "und",
+            "der",
+            "ist",
+            "in",
+            "das",
+            "wir",
+            "zu",
+            "Sie",
+            "es",
+            "von",
         ]
         expected_trg_itos = [
-            "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And"
+            "the",
+            "of",
+            "to",
+            "and",
+            "a",
+            "that",
+            "in",
+            "is",
+            "you",
+            "we",
+            "And",
         ]
         # pylint: disable=protected-access
         self.assertEqual(src_vocab._itos[:15], self.specials + expected_src_itos)

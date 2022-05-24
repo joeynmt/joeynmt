@@ -28,6 +28,7 @@ class BasicTokenizer:
         max_length: int = -1,
         min_length: int = -1,
     ):
+        # pylint: disable=unused-argument
         self.level = level
         self.lowercase = lowercase
         self.normalize = normalize

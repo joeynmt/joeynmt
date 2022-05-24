@@ -99,6 +99,7 @@ class Model(nn.Module):
             log_probs = F.log_softmax(out, dim=-1)
 
             # compute batch loss
+            # pylint: disable=not-callable
             batch_loss = self.loss_function(log_probs, **kwargs)
 
             # count correct tokens before decoding (for accuracy)

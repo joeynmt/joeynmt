@@ -147,6 +147,7 @@ def save_bpe(
         separator: str = "@@",
         **kwargs,  # pylint: disable=unused-argument
 ) -> None:
+    # pylint: disable=unused-argument
     bpe_parser = apply_bpe.create_parser()
     bpe_args = bpe_parser.parse_args([
         f"--codes={codes}",
