@@ -28,15 +28,14 @@ def _unicode_normalize(cls, s):
 def _remove_extra_spaces(s):
     s = re.sub("\u200b", "", s)
     s = re.sub("[ 　]+", " ", s)
-    blocks = "".join(
-        (
-            "\u4E00-\u9FFF",  # CJK UNIFIED IDEOGRAPHS
-            "\u3040-\u309F",  # HIRAGANA
-            "\u30A0-\u30FF",  # KATAKANA
-            "\u3000-\u303F",  # CJK SYMBOLS AND PUNCTUATION
-            "\uFF00-\uFFEF",  # HALFWIDTH AND FULLWIDTH FORMS
-        )
-    )
+    blocks = "".join((
+        "\u4E00-\u9FFF",  # CJK UNIFIED IDEOGRAPHS
+        "\u3040-\u309F",  # HIRAGANA
+        "\u30A0-\u30FF",  # KATAKANA
+        "\u3000-\u303F",  # CJK SYMBOLS AND PUNCTUATION
+        "\uFF00-\uFFEF",  # HALFWIDTH AND FULLWIDTH FORMS
+    ))
+
     # latin = ''.join(('\u0000-\u007F',   # Basic Latin[g]
     #                 '\u0080-\u00FF',   # Latin-1 Supplement[h]
     # ))
@@ -69,8 +68,7 @@ def normalize(s):
         _maketrans(
             "!\"#$%&'()*+,-./:;<=>?@[¥]^_`{|}~｡､･｢｣",
             "！”＃＄％＆’（）＊＋，－．／：；＜＝＞？＠［￥］＾＿｀｛｜｝〜。、・「」",
-        )
-    )
+        ))
 
     s = _remove_extra_spaces(s)
     s = _unicode_normalize("！”＃＄％＆’（）＊＋，－．／：；＜＞？＠［￥］＾＿｀｛｜｝〜", s)  # keep ＝,・,「,」

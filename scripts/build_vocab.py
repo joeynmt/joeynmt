@@ -2,7 +2,6 @@
 """
 Build a vocab file
 """
-
 import argparse
 import sys
 import tempfile
@@ -27,7 +26,6 @@ from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import flatten, load_config, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
-
 
 # Sentencepiece Training Params
 CHARACTER_COVERAGE = {"en": 1.0, "de": 1.0, "fr": 1.0, "ja": 0.995, "zh": 0.995}
@@ -122,14 +120,12 @@ def train_bpe(
         write_list_to_file(txt_file, sents)
 
         bpe_parser = learn_bpe.create_parser()
-        bpe_args = bpe_parser.parse_args(
-            [
-                f"--input={txt_file}",
-                f"--output={codes}",
-                f"--symbols={max_size}",
-                f"--min-frequency={min_freq}",
-            ]
-        )
+        bpe_args = bpe_parser.parse_args([
+            f"--input={txt_file}",
+            f"--output={codes}",
+            f"--symbols={max_size}",
+            f"--min-frequency={min_freq}",
+        ])
         print("### Training bpe...")
         learn_bpe.learn_bpe(
             bpe_args.input,
@@ -151,13 +147,12 @@ def save_bpe(
     separator: str = "@@",
     **kwargs,
 ) -> None:
+    # pylint: disable=unused-argument
     bpe_parser = apply_bpe.create_parser()
-    bpe_args = bpe_parser.parse_args(
-        [
-            f"--codes={codes}",
-            f"--separator={separator}",
-        ]
-    )
+    bpe_args = bpe_parser.parse_args([
+        f"--codes={codes}",
+        f"--separator={separator}",
+    ])
     print("### Applying bpe...")
     bpe = apply_bpe.BPE(
         bpe_args.codes,
@@ -181,6 +176,7 @@ def run(
     tokenizer_type: str,
     tokenizer_cfg: Dict,
 ):
+    # pylint: disable=redefined-outer-name
     # Warn overwriting
     if vocab_file.is_file():
         print(f"### Vocab file {vocab_file} will be overwritten.")
@@ -246,12 +242,14 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
 
     # build basic tokenizer just for preprocessing purpose
     tokenizer = {
-        src_cfg["lang"]: BasicTokenizer(
+        src_cfg["lang"]:
+        BasicTokenizer(
             level=src_cfg["level"],
             lowercase=src_cfg.get("lowercase", False),
             normalize=src_cfg.get("normalize", False),
         ),
-        trg_cfg["lang"]: BasicTokenizer(
+        trg_cfg["lang"]:
+        BasicTokenizer(
             level=trg_cfg["level"],
             lowercase=trg_cfg.get("lowercase", False),
             normalize=trg_cfg.get("normalize", False),
@@ -299,8 +297,8 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
 
     else:
         for lang, level, min_freq, max_size, voc_file, tok_type, tok_cfg in [
-            src_tuple,
-            trg_tuple,
+                src_tuple,
+                trg_tuple,
         ]:
             run(
                 args,
@@ -320,9 +318,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Builds a vocabulary from training data.")
 
     ap.add_argument("config_path", type=str, help="path to YAML config file")
-    ap.add_argument(
-        "--joint", action="store_true", help="Jointly train src and trg vocab"
-    )
+    ap.add_argument("--joint",
+                    action="store_true",
+                    help="Jointly train src and trg vocab")
     ap.add_argument(
         "--random-subset",
         type=int,

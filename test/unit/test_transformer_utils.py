@@ -6,6 +6,7 @@ from joeynmt.transformer_layers import PositionalEncoding
 
 
 class TestTransformerUtils(TensorTestCase):
+
     def setUp(self):
         seed = 42
         torch.manual_seed(seed)
@@ -20,4 +21,4 @@ class TestTransformerUtils(TensorTestCase):
         pe = PositionalEncoding(emb_size)
         output = pe(x)
         self.assertEqual(pe.pe.size(2), hidden_size)
-        self.assertTensorAlmostEqual(output, pe.pe[:, : x.size(1)])
+        self.assertTensorAlmostEqual(output, pe.pe[:, :x.size(1)])

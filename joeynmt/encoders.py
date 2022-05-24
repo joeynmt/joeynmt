@@ -79,9 +79,8 @@ class RecurrentEncoder(Encoder):
         if freeze:
             freeze_params(self)
 
-    def _check_shapes_input_forward(
-        self, embed_src: Tensor, src_length: Tensor, mask: Tensor
-    ) -> None:
+    def _check_shapes_input_forward(self, embed_src: Tensor, src_length: Tensor,
+                                    mask: Tensor) -> None:
         """
         Make sure the shape of the inputs to `self.forward` are correct.
         Same input semantics as `self.forward`.
@@ -96,9 +95,8 @@ class RecurrentEncoder(Encoder):
         # assert mask.shape == embed_src.shape
         assert len(src_length.shape) == 1
 
-    def forward(
-        self, embed_src: Tensor, src_length: Tensor, mask: Tensor, **kwargs
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, embed_src: Tensor, src_length: Tensor, mask: Tensor,
+                **kwargs) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Applies a bidirectional RNN to sequence of embeddings x.
         The input mini-batch x needs to be sorted by src length.
@@ -117,9 +115,9 @@ class RecurrentEncoder(Encoder):
             - hidden_concat: last hidden state with
                 shape (batch_size, directions*hidden)
         """
-        self._check_shapes_input_forward(
-            embed_src=embed_src, src_length=src_length, mask=mask
-        )
+        self._check_shapes_input_forward(embed_src=embed_src,
+                                         src_length=src_length,
+                                         mask=mask)
         total_length = embed_src.size(1)
 
         # apply dropout to the rnn input
@@ -131,9 +129,9 @@ class RecurrentEncoder(Encoder):
         if isinstance(hidden, tuple):
             hidden, memory_cell = hidden  # pylint: disable=unused-variable
 
-        output, _ = pad_packed_sequence(
-            output, batch_first=True, total_length=total_length
-        )
+        output, _ = pad_packed_sequence(output,
+                                        batch_first=True,
+                                        total_length=total_length)
         # hidden: dir*layers x batch x hidden
         # output: batch x max_length x directions*hidden
         batch_size = hidden.size()[1]
@@ -199,28 +197,22 @@ class TransformerEncoder(Encoder):
         self._output_size = hidden_size
 
         # build all (num_layers) layers
-        self.layers = nn.ModuleList(
-            [
-                TransformerEncoderLayer(
-                    size=hidden_size,
-                    ff_size=ff_size,
-                    num_heads=num_heads,
-                    dropout=dropout,
-                    alpha=kwargs.get("alpha", 1.0),
-                    layer_norm=kwargs.get("layer_norm", "post"),
-                )
-                for _ in range(num_layers)
-            ]
-        )
+        self.layers = nn.ModuleList([
+            TransformerEncoderLayer(
+                size=hidden_size,
+                ff_size=ff_size,
+                num_heads=num_heads,
+                dropout=dropout,
+                alpha=kwargs.get("alpha", 1.0),
+                layer_norm=kwargs.get("layer_norm", "post"),
+            ) for _ in range(num_layers)
+        ])
 
         self.pe = PositionalEncoding(hidden_size)
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
-        self.layer_norm = (
-            nn.LayerNorm(hidden_size, eps=1e-6)
-            if kwargs.get("layer_norm", "post") == "pre"
-            else None
-        )
+        self.layer_norm = (nn.LayerNorm(hidden_size, eps=1e-6) if kwargs.get(
+            "layer_norm", "post") == "pre" else None)
 
         if freeze:
             freeze_params(self)
@@ -260,9 +252,7 @@ class TransformerEncoder(Encoder):
         return x, None
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
-            f"num_heads={self.layers[0].src_src_att.num_heads}, "
-            f"alpha={self.layers[0].alpha}, "
-            f'layer_norm="{self.layers[0]._layer_norm_position}")'
-        )
+        return (f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
+                f"num_heads={self.layers[0].src_src_att.num_heads}, "
+                f"alpha={self.layers[0].alpha}, "
+                f'layer_norm="{self.layers[0]._layer_norm_position}")')

@@ -19,7 +19,6 @@ from joeynmt.initialization import initialize_model
 from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -71,13 +70,12 @@ class Model(nn.Module):
     def loss_function(self, cfg: Tuple):
         loss_type, label_smoothing = cfg
         assert loss_type == "crossentropy"
-        self._loss_function = XentLoss(
-            pad_index=self.pad_index, smoothing=label_smoothing
-        )
+        self._loss_function = XentLoss(pad_index=self.pad_index,
+                                       smoothing=label_smoothing)
 
-    def forward(
-        self, return_type: str = None, **kwargs
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self,
+                return_type: str = None,
+                **kwargs) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Interface for multi-gpu
 
         For DataParallel, We need to encapsulate all model call: `model.encode()`,
@@ -88,9 +86,8 @@ class Model(nn.Module):
         :param return_type: one of {"loss", "encode", "decode"}
         """
         if return_type is None:
-            raise ValueError(
-                "Please specify return_type: " "{`loss`, `encode`, `decode`}."
-            )
+            raise ValueError("Please specify return_type: "
+                             "{`loss`, `encode`, `decode`}.")
 
         if return_type == "loss":
             assert self.loss_function is not None
@@ -102,16 +99,15 @@ class Model(nn.Module):
             log_probs = F.log_softmax(out, dim=-1)
 
             # compute batch loss
+            # pylint: disable=not-callable
             batch_loss = self.loss_function(log_probs, **kwargs)
 
             # count correct tokens before decoding (for accuracy)
             trg_mask = kwargs["trg_mask"].squeeze(1)
             assert kwargs["trg"].size() == trg_mask.size()
             n_correct = torch.sum(
-                log_probs.argmax(-1)
-                .masked_select(trg_mask)
-                .eq(kwargs["trg"].masked_select(trg_mask))
-            )
+                log_probs.argmax(-1).masked_select(trg_mask).eq(
+                    kwargs["trg"].masked_select(trg_mask)))
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
@@ -152,9 +148,10 @@ class Model(nn.Module):
         :param trg_mask: target mask
         :return: decoder outputs
         """
-        encoder_output, encoder_hidden = self._encode(
-            src=src, src_length=src_length, src_mask=src_mask, **kwargs
-        )
+        encoder_output, encoder_hidden = self._encode(src=src,
+                                                      src_length=src_length,
+                                                      src_mask=src_mask,
+                                                      **kwargs)
 
         unroll_steps = trg_input.size(1)
 
@@ -168,9 +165,8 @@ class Model(nn.Module):
             **kwargs,
         )
 
-    def _encode(
-        self, src: Tensor, src_length: Tensor, src_mask: Tensor, **_kwargs
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor,
+                **_kwargs) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Encodes the source sentence.
 
@@ -232,14 +228,12 @@ class Model(nn.Module):
 
         :return: string representation
         """
-        return (
-            f"{self.__class__.__name__}(\n"
-            f"\tencoder={self.encoder},\n"
-            f"\tdecoder={self.decoder},\n"
-            f"\tsrc_embed={self.src_embed},\n"
-            f"\ttrg_embed={self.trg_embed},\n"
-            f"\tloss_function={self.loss_function})"
-        )
+        return (f"{self.__class__.__name__}(\n"
+                f"\tencoder={self.encoder},\n"
+                f"\tdecoder={self.decoder},\n"
+                f"\tsrc_embed={self.src_embed},\n"
+                f"\ttrg_embed={self.trg_embed},\n"
+                f"\tloss_function={self.loss_function})")
 
     def log_parameters_list(self) -> None:
         """
@@ -263,9 +257,9 @@ class _DataParallel(nn.DataParallel):
             return getattr(self.module, name)
 
 
-def build_model(
-    cfg: dict = None, src_vocab: Vocabulary = None, trg_vocab: Vocabulary = None
-) -> Model:
+def build_model(cfg: dict = None,
+                src_vocab: Vocabulary = None,
+                trg_vocab: Vocabulary = None) -> Model:
     """
     Build and initialize the model according to the configuration.
 
@@ -293,8 +287,7 @@ def build_model(
             trg_embed = src_embed  # share embeddings for src and trg
         else:
             raise ConfigurationError(
-                "Embedding cannot be tied since vocabularies differ."
-            )
+                "Embedding cannot be tied since vocabularies differ.")
     else:
         trg_embed = Embeddings(
             **dec_cfg["embeddings"],
@@ -307,8 +300,8 @@ def build_model(
     enc_emb_dropout = enc_cfg["embeddings"].get("dropout", enc_dropout)
     if enc_cfg.get("type", "recurrent") == "transformer":
         assert enc_cfg["embeddings"]["embedding_dim"] == enc_cfg["hidden_size"], (
-            "for transformer, emb_size must be " "the same as hidden_size"
-        )
+            "for transformer, emb_size must be "
+            "the same as hidden_size")
         emb_size = src_embed.embedding_dim
         encoder = TransformerEncoder(
             **enc_cfg,
@@ -360,8 +353,7 @@ def build_model(
         else:
             raise ConfigurationError(
                 "For tied_softmax, the decoder embedding_dim and decoder hidden_size "
-                "must be the same. The decoder must be a Transformer."
-            )
+                "must be the same. The decoder must be a Transformer.")
 
     # custom initialization of model parameters
     initialize_model(model, cfg, src_pad_index, trg_pad_index)
@@ -372,11 +364,8 @@ def build_model(
     if enc_embed_path and src_vocab is not None:
         logger.info("Loading pretrained src embeddings...")
         model.src_embed.load_from_file(Path(enc_embed_path), src_vocab)
-    if (
-        dec_embed_path
-        and src_vocab is not None
-        and not cfg.get("tied_embeddings", False)
-    ):
+    if (dec_embed_path and src_vocab is not None
+            and not cfg.get("tied_embeddings", False)):
         logger.info("Loading pretrained trg embeddings...")
         model.trg_embed.load_from_file(Path(dec_embed_path), trg_vocab)
 

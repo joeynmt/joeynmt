@@ -12,9 +12,8 @@ seaborn
 pyyaml>=5.1
 six>=1.12
 wrapt>=1.11.1
-pylint>=2.9.6
-black
+pylint
+yapf
 flake8
-isort
 pytest
 datasets

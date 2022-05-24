@@ -17,9 +17,10 @@ def main():
 
     ap.add_argument("-c", "--ckpt", type=str, help="checkpoint for prediction")
 
-    ap.add_argument(
-        "-o", "--output_path", type=str, help="path for saving translation output"
-    )
+    ap.add_argument("-o",
+                    "--output_path",
+                    type=str,
+                    help="path for saving translation output")
 
     ap.add_argument(
         "-a",

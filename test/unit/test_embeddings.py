@@ -6,6 +6,7 @@ from joeynmt.embeddings import Embeddings
 
 
 class TestEmbeddings(TensorTestCase):
+
     def setUp(self):
         self.emb_size = 10
         self.vocab_size = 11
@@ -19,9 +20,8 @@ class TestEmbeddings(TensorTestCase):
             vocab_size=self.vocab_size,
             padding_idx=self.pad_idx,
         )
-        self.assertEqual(
-            emb.lut.weight.shape, torch.Size([self.vocab_size, self.emb_size])
-        )
+        self.assertEqual(emb.lut.weight.shape,
+                         torch.Size([self.vocab_size, self.emb_size]))
 
     def test_pad_zeros(self):
         emb = Embeddings(
@@ -30,9 +30,8 @@ class TestEmbeddings(TensorTestCase):
             padding_idx=self.pad_idx,
         )
         # pad embedding should be zeros
-        self.assertTensorEqual(
-            emb.lut.weight[self.pad_idx], torch.zeros([self.emb_size])
-        )
+        self.assertTensorEqual(emb.lut.weight[self.pad_idx],
+                               torch.zeros([self.emb_size]))
 
     def test_freeze(self):
         encoder = Embeddings(
@@ -56,9 +55,8 @@ class TestEmbeddings(TensorTestCase):
         indices = torch.Tensor([0, 1, self.pad_idx, 9]).long()
         embedded = emb.forward(x=indices)
         # embedding operation is just slicing from weights matrix
-        self.assertTensorEqual(
-            embedded, torch.index_select(input=weights, index=indices, dim=0)
-        )
+        self.assertTensorEqual(embedded,
+                               torch.index_select(input=weights, index=indices, dim=0))
         # after embedding, representations for PAD should still be zero
         self.assertTensorEqual(embedded[2], torch.zeros([self.emb_size]))
 
@@ -76,11 +74,10 @@ class TestEmbeddings(TensorTestCase):
         embedded = emb.forward(x=indices)
         # now scaled
         self.assertTensorNotEqual(
-            torch.index_select(input=weights, index=indices, dim=0), embedded
-        )
+            torch.index_select(input=weights, index=indices, dim=0), embedded)
         self.assertTensorEqual(
-            torch.index_select(input=weights, index=indices, dim=0)
-            * (self.emb_size**0.5),
+            torch.index_select(input=weights, index=indices, dim=0) *
+            (self.emb_size**0.5),
             embedded,
         )
 

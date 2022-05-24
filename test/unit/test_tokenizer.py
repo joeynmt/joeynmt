@@ -12,6 +12,7 @@ from joeynmt.tokenizers import (
 
 
 class TestTokenizer(unittest.TestCase):
+
     def setUp(self):
         self.train_path = "test/data/toy/train"
         self.dev_path = "test/data/toy/dev"
@@ -108,22 +109,29 @@ class TestTokenizer(unittest.TestCase):
         # 6th example from the training set
         expected = {
             "de": {
-                "tokenized": ['▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 'te', 'il', '▁der',
-                              '▁E', 'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'as',
-                              's', 'er', '.'],
-                "dropout": ['▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 't', 'e', 'il', '▁der',
-                            '▁E', 'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'a', 's',
-                            'se', 'r', '.'],
-                "detokenized": "Der Großteil der Erde ist Meerwasser.",
+                "tokenized": [
+                    '▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 'te', 'il', '▁der', '▁E', 'r',
+                    'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'as', 's', 'er', '.'
+                ],
+                "dropout": [
+                    '▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 't', 'e', 'il', '▁der', '▁E',
+                    'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'a', 's', 'se', 'r',
+                    '.'
+                ],
+                "detokenized":
+                "Der Großteil der Erde ist Meerwasser.",
             },
             "en": {
-                "tokenized": ['▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e',
-                              't', '▁is', '▁', 'o', 'c', 'e', 'an', '▁w', 'at', 'er',
-                              '.'],
-                "dropout": ['▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e',
-                            't', '▁is', '▁', 'o', 'c', 'e', 'an', '▁', 'w', 'a', 'te',
-                            'r', '.'],
-                "detokenized": "Most of the planet is ocean water.",
+                "tokenized": [
+                    '▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e', 't',
+                    '▁is', '▁', 'o', 'c', 'e', 'an', '▁w', 'at', 'er', '.'
+                ],
+                "dropout": [
+                    '▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e', 't',
+                    '▁is', '▁', 'o', 'c', 'e', 'an', '▁', 'w', 'a', 'te', 'r', '.'
+                ],
+                "detokenized":
+                "Most of the planet is ocean water.",
             }
         }
 

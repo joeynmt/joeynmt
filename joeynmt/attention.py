@@ -44,9 +44,8 @@ class BahdanauAttention(AttentionMechanism):
         self.proj_keys = None  # to store projected keys
         self.proj_query = None  # projected query
 
-    def forward(
-        self, query: Tensor, mask: Tensor, values: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+    def forward(self, query: Tensor, mask: Tensor,
+                values: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Bahdanau MLP attention forward pass.
 
@@ -109,9 +108,8 @@ class BahdanauAttention(AttentionMechanism):
         """
         self.proj_query = self.query_layer(query)
 
-    def _check_input_shapes_forward(
-        self, query: Tensor, mask: Tensor, values: Tensor
-    ) -> None:
+    def _check_input_shapes_forward(self, query: Tensor, mask: Tensor,
+                                    values: Tensor) -> None:
         """
         Make sure that inputs to `self.forward` are of correct shape.
         Same input semantics as for `self.forward`.
@@ -148,14 +146,13 @@ class LuongAttention(AttentionMechanism):
         """
 
         super().__init__()
-        self.key_layer = nn.Linear(
-            in_features=key_size, out_features=hidden_size, bias=False
-        )
+        self.key_layer = nn.Linear(in_features=key_size,
+                                   out_features=hidden_size,
+                                   bias=False)
         self.proj_keys = None  # projected keys
 
-    def forward(
-        self, query: Tensor, mask: Tensor, values: Tensor
-    ) -> Tuple[Tensor, Tensor]:
+    def forward(self, query: Tensor, mask: Tensor,
+                values: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Luong (multiplicative / bilinear) attention forward pass.
         Computes context vectors and attention scores for a given query and
@@ -202,9 +199,8 @@ class LuongAttention(AttentionMechanism):
         # proj_keys: batch x src_len x hidden_size
         self.proj_keys = self.key_layer(keys)
 
-    def _check_input_shapes_forward(
-        self, query: Tensor, mask: Tensor, values: Tensor
-    ) -> None:
+    def _check_input_shapes_forward(self, query: Tensor, mask: Tensor,
+                                    values: Tensor) -> None:
         """
         Make sure that inputs to `self.forward` are of correct shape.
         Same input semantics as for `self.forward`.

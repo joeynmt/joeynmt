@@ -9,7 +9,6 @@ from matplotlib import rcParams
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
-
 matplotlib.use("Agg")
 
 
@@ -20,7 +19,6 @@ def plot_heatmap(
     output_path: Optional[str] = None,
     dpi: int = 300,
 ) -> Figure:
-
     """
     Plotting function that can be used to visualize (self-)attention.
     Plots are saved if `output_path` is specified, in format that this file
@@ -36,8 +34,7 @@ def plot_heatmap(
 
     if output_path is not None:
         assert output_path.endswith(".png") or output_path.endswith(
-            ".pdf"
-        ), "output path must have .png or .pdf extension"
+            ".pdf"), "output path must have .png or .pdf extension"
 
     x_sent_len = len(column_labels)
     y_sent_len = len(row_labels)

@@ -82,11 +82,9 @@ class MultiHeadedAttention(nn.Module):
         # get context vector (select values with attention) and reshape
         # back to [B, M, D]
         context = torch.matmul(attention, v)
-        context = (
-            context.transpose(1, 2)
-            .contiguous()
-            .view(batch_size, -1, num_heads * self.head_size)
-        )
+        context = (context.transpose(1,
+                                     2).contiguous().view(batch_size, -1,
+                                                          num_heads * self.head_size))
 
         output = self.output_layer(context)
         return output
@@ -160,13 +158,11 @@ class PositionalEncoding(nn.Module):
         """
         if size % 2 != 0:
             raise ValueError(
-                f"Cannot use sin/cos positional encoding with odd dim (got dim={size})"
-            )
+                f"Cannot use sin/cos positional encoding with odd dim (got dim={size})")
         pe = torch.zeros(max_len, size)
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp(
-            (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size))
-        )
+            (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size)))
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
         pe = pe.unsqueeze(0)  # shape: (1, size, max_len)
@@ -183,7 +179,7 @@ class PositionalEncoding(nn.Module):
         :return: positionally encoded word embeddings
         """
         # Add position encodings
-        return emb + self.pe[:, : emb.size(1)]
+        return emb + self.pe[:, :emb.size(1)]
 
 
 class TransformerEncoderLayer(nn.Module):
