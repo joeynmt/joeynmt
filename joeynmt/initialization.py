@@ -1,5 +1,4 @@
 # coding: utf-8
-
 """
 Implements custom initialization
 """
@@ -21,7 +20,7 @@ def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.0) -> None:
     with torch.no_grad():
         for _, hh, _, _ in cell.all_weights:
             for i in range(0, hh.size(0), cell.hidden_size):
-                nn.init.orthogonal_(hh.data[i : i + cell.hidden_size], gain=gain)
+                nn.init.orthogonal_(hh.data[i:i + cell.hidden_size], gain=gain)
 
 
 def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.0) -> None:
@@ -34,8 +33,8 @@ def lstm_forget_gate_init_(cell: nn.RNNBase, value: float = 1.0) -> None:
     with torch.no_grad():
         for _, _, ih_b, hh_b in cell.all_weights:
             length = len(ih_b)
-            ih_b.data[length // 4 : length // 2].fill_(value)
-            hh_b.data[length // 4 : length // 2].fill_(value)
+            ih_b.data[length // 4:length // 2].fill_(value)
+            hh_b.data[length // 4:length // 2].fill_(value)
 
 
 def xavier_uniform_n_(w: Tensor, gain: float = 1.0, n: int = 4) -> None:
@@ -63,19 +62,18 @@ def compute_alpha_beta(num_enc_layers: int, num_dec_layers: int) -> float:
     """
     return {
         "alpha": {
-            "encoder": 0.81 * (num_enc_layers**4 * num_dec_layers) ** (1 / 16),
-            "decoder": (3 * num_dec_layers) ** (1 / 4),
+            "encoder": 0.81 * (num_enc_layers**4 * num_dec_layers)**(1 / 16),
+            "decoder": (3 * num_dec_layers)**(1 / 4),
         },
         "beta": {
-            "encoder": 0.87 * (num_enc_layers**4 * num_dec_layers) ** (-1 / 16),
-            "decoder": (12 * num_dec_layers) ** (-1 / 4),
+            "encoder": 0.87 * (num_enc_layers**4 * num_dec_layers)**(-1 / 16),
+            "decoder": (12 * num_dec_layers)**(-1 / 4),
         },
     }
 
 
-def initialize_model(
-    model: nn.Module, cfg: dict, src_padding_idx: int, trg_padding_idx: int
-) -> None:
+def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
+                     trg_padding_idx: int) -> None:
     """
     This initializes a model based on the provided config.
 
@@ -121,15 +119,13 @@ def initialize_model(
     bias_init = cfg.get("bias_initializer", "zeros")
     bias_init_weight = float(cfg.get("bias_init_weight", 0.01))
 
-    if (
-        init == "xavier_normal"
-        and cfg["encoder"]["type"] == cfg["decoder"]["type"] == "transformer"
-    ):
+    if (init == "xavier_normal"
+            and cfg["encoder"]["type"] == cfg["decoder"]["type"] == "transformer"):
         # apply `alpha`: weight factor for residual connection
         deepnet = {
-            "xavier_normal": compute_alpha_beta(
-                cfg["encoder"]["num_layers"], cfg["decoder"]["num_layers"]
-            )
+            "xavier_normal":
+            compute_alpha_beta(cfg["encoder"]["num_layers"],
+                               cfg["decoder"]["num_layers"])
         }
         for layer in model.encoder.layers:
             layer.alpha = deepnet["xavier_normal"]["alpha"]["encoder"]
@@ -183,11 +179,8 @@ def initialize_model(
                 elif init == "xavier_normal" and init in deepnet:
                     # use beta value suggested in https://arxiv.org/abs/2203.00555
                     beta = 1.0
-                    if (
-                        "pwff_layer" in name
-                        or "v_layer" in name
-                        or "output_layer" in name
-                    ):
+                    if ("pwff_layer" in name or "v_layer" in name
+                            or "output_layer" in name):
                         if "encoder" in name:
                             beta = deepnet[init]["beta"]["encoder"]
                         elif "decoder" in name:

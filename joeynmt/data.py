@@ -23,20 +23,15 @@ from joeynmt.helpers import log_data_info
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import Vocabulary, build_vocab
 
-
 logger = logging.getLogger(__name__)
 CPU_DEVICE = torch.device("cpu")
 
 
 def load_data(
-    data_cfg: dict, datasets: list = None
-) -> Tuple[
-    Vocabulary,
-    Vocabulary,
-    Optional[Dataset],
-    Optional[Dataset],
-    Optional[Dataset],
-]:
+    data_cfg: dict,
+    datasets: list = None
+) -> Tuple[Vocabulary, Vocabulary, Optional[Dataset], Optional[Dataset],
+           Optional[Dataset], ]:
     """
     Load train, dev and optionally test data as specified in configuration.
     Vocabularies are created from the training set with a limit of `voc_limit` tokens
@@ -173,6 +168,7 @@ def collate_fn(
     """
 
     def _is_valid(s, t):
+        # pylint: disable=no-else-return
         if has_trg:
             return s is not None and t is not None
         else:
@@ -239,13 +235,13 @@ def make_data_iter(
 
     # batch generator
     if batch_type == "sentence":
-        batch_sampler = SentenceBatchSampler(
-            sampler, batch_size=batch_size, drop_last=False
-        )
+        batch_sampler = SentenceBatchSampler(sampler,
+                                             batch_size=batch_size,
+                                             drop_last=False)
     elif batch_type == "token":
-        batch_sampler = TokenBatchSampler(
-            sampler, batch_size=batch_size, drop_last=False
-        )
+        batch_sampler = TokenBatchSampler(sampler,
+                                          batch_size=batch_size,
+                                          drop_last=False)
 
     assert dataset.sequence_encoder[dataset.src_lang] is not None
     if dataset.has_trg:
@@ -288,7 +284,7 @@ class SentenceBatchSampler(BatchSampler):
         batch = []
         d = self.sampler.data_source
         for idx in self.sampler:
-            src, trg = d[idx]  # call __getitem__()
+            src, trg = d[idx]  # pylint: disable=unused-variable
             if src is not None:  # otherwise drop instance
                 batch.append(idx)
                 if len(batch) >= self.batch_size:

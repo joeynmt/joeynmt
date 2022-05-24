@@ -8,6 +8,7 @@ from joeynmt.vocabulary import Vocabulary
 
 
 class TestWeightTying(TensorTestCase):
+
     def setUp(self):
         self.seed = 42
         vocab_size = 30
@@ -21,13 +22,17 @@ class TestWeightTying(TensorTestCase):
                 "encoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {"embedding_dim": 32},
+                    "embeddings": {
+                        "embedding_dim": 32
+                    },
                     "num_layers": 1,
                 },
                 "decoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {"embedding_dim": 32},
+                    "embeddings": {
+                        "embedding_dim": 32
+                    },
                     "num_layers": 1,
                 },
             }
@@ -47,9 +52,8 @@ class TestWeightTying(TensorTestCase):
         self.assertEqual(src_vocab, trg_vocab)
         self.assertEqual(model.src_embed, model.trg_embed)
         self.assertTensorEqual(model.src_embed.lut.weight, model.trg_embed.lut.weight)
-        self.assertEqual(
-            model.src_embed.lut.weight.shape, model.trg_embed.lut.weight.shape
-        )
+        self.assertEqual(model.src_embed.lut.weight.shape,
+                         model.trg_embed.lut.weight.shape)
 
     def test_tied_softmax(self):
 
@@ -69,9 +73,8 @@ class TestWeightTying(TensorTestCase):
             model.decoder.output_layer.weight.shape,
         )
 
-        self.assertTensorEqual(
-            model.trg_embed.lut.weight, model.decoder.output_layer.weight
-        )
+        self.assertTensorEqual(model.trg_embed.lut.weight,
+                               model.decoder.output_layer.weight)
 
     def test_tied_src_trg_softmax(self):
 

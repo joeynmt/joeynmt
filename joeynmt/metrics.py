@@ -8,7 +8,6 @@ from typing import List
 
 from sacrebleu.metrics import BLEU, CHRF
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +96,5 @@ def sequence_accuracy(hypotheses: List[str], references: List[str]) -> float:
     """
     assert len(hypotheses) == len(references)
     correct_sequences = sum(
-        [1 for (hyp, ref) in zip(hypotheses, references) if hyp == ref]
-    )
+        [1 for (hyp, ref) in zip(hypotheses, references) if hyp == ref])
     return (correct_sequences / len(hypotheses)) * 100 if hypotheses else 0.0

@@ -9,6 +9,7 @@ from joeynmt.vocabulary import Vocabulary
 
 
 class TestModelInit(TensorTestCase):
+
     def setUp(self):
         self.seed = 42
         vocab_size = 30
@@ -23,14 +24,18 @@ class TestModelInit(TensorTestCase):
                 "encoder": {
                     "type": "transformer",
                     "hidden_size": self.hidden_size,
-                    "embeddings": {"embedding_dim": self.hidden_size},
+                    "embeddings": {
+                        "embedding_dim": self.hidden_size
+                    },
                     "num_layers": 1,
                     "layer_norm": "pre",
                 },
                 "decoder": {
                     "type": "transformer",
                     "hidden_size": self.hidden_size,
-                    "embeddings": {"embedding_dim": self.hidden_size},
+                    "embeddings": {
+                        "embedding_dim": self.hidden_size
+                    },
                     "num_layers": 1,
                     "layer_norm": "pre",
                 },

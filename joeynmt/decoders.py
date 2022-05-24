@@ -104,9 +104,9 @@ class RecurrentDecoder(Decoder):
         )
 
         # combine output with context vector before output layer (Luong-style)
-        self.att_vector_layer = nn.Linear(
-            hidden_size + encoder.output_size, hidden_size, bias=True
-        )
+        self.att_vector_layer = nn.Linear(hidden_size + encoder.output_size,
+                                          hidden_size,
+                                          bias=True)
 
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
         self._output_size = vocab_size
@@ -118,14 +118,12 @@ class RecurrentDecoder(Decoder):
                 query_size=hidden_size,
             )
         elif attention == "luong":
-            self.attention = LuongAttention(
-                hidden_size=hidden_size, key_size=encoder.output_size
-            )
+            self.attention = LuongAttention(hidden_size=hidden_size,
+                                            key_size=encoder.output_size)
         else:
             raise ConfigurationError(
                 f"Unknown attention mechanism: "
-                f"{attention}. Valid options: 'bahdanau', 'luong'."
-            )
+                f"{attention}. Valid options: 'bahdanau', 'luong'.")
 
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -141,8 +139,7 @@ class RecurrentDecoder(Decoder):
                         f"For initializing the decoder state with the "
                         f"last encoder state, their sizes have to match "
                         f"(encoder: {encoder.output_size} "
-                        f"vs. decoder: {self.hidden_size})"
-                    )
+                        f"vs. decoder: {self.hidden_size})")
         if freeze:
             freeze_params(self)
 
@@ -277,9 +274,9 @@ class RecurrentDecoder(Decoder):
         # compute context vector using attention mechanism
         # only use last layer for attention mechanism
         # key projections are pre-computed
-        context, att_probs = self.attention(
-            query=query, values=encoder_output, mask=src_mask
-        )
+        context, att_probs = self.attention(query=query,
+                                            values=encoder_output,
+                                            mask=src_mask)
 
         # return attention vector (Luong)
         # combine context with decoder hidden state before prediction
@@ -390,8 +387,7 @@ class RecurrentDecoder(Decoder):
         if prev_att_vector is None:
             with torch.no_grad():
                 prev_att_vector = encoder_output.new_zeros(
-                    [batch_size, 1, self.hidden_size]
-                )
+                    [batch_size, 1, self.hidden_size])
 
         # unroll the decoder RNN for `unroll_steps` steps
         for i in range(unroll_steps):
@@ -429,9 +425,8 @@ class RecurrentDecoder(Decoder):
 
         return outputs, hidden, att_probs, att_vectors
 
-    def _init_hidden(
-        self, encoder_final: Tensor = None
-    ) -> Tuple[Tensor, Optional[Tensor]]:
+    def _init_hidden(self,
+                     encoder_final: Tensor = None) -> Tuple[Tensor, Optional[Tensor]]:
         """
         Returns the initial decoder state, conditioned on the final encoder state of the
         last encoder layer.
@@ -461,28 +456,23 @@ class RecurrentDecoder(Decoder):
         # for multiple layers: is the same for all layers
         if self.init_hidden_option == "bridge" and encoder_final is not None:
             # num_layers x batch_size x hidden_size
-            hidden = (
-                torch.tanh(self.bridge_layer(encoder_final))
-                .unsqueeze(0)
-                .repeat(self.num_layers, 1, 1)
-            )
+            hidden = (torch.tanh(self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
+                self.num_layers, 1, 1))
         elif self.init_hidden_option == "last" and encoder_final is not None:
             # special case: encoder is bidirectional: use only forward state
             if encoder_final.shape[1] == 2 * self.hidden_size:  # bidirectional
-                encoder_final = encoder_final[:, : self.hidden_size]
+                encoder_final = encoder_final[:, :self.hidden_size]
             hidden = encoder_final.unsqueeze(0).repeat(self.num_layers, 1, 1)
         else:  # initialize with zeros
             with torch.no_grad():
-                hidden = encoder_final.new_zeros(
-                    self.num_layers, batch_size, self.hidden_size
-                )
+                hidden = encoder_final.new_zeros(self.num_layers, batch_size,
+                                                 self.hidden_size)
 
         return (hidden, hidden) if isinstance(self.rnn, nn.LSTM) else hidden
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(rnn={self.rnn}, " f"attention={self.attention})"
-        )
+        return (f"{self.__class__.__name__}(rnn={self.rnn}, "
+                f"attention={self.attention})")
 
 
 class TransformerDecoder(Decoder):
@@ -523,26 +513,20 @@ class TransformerDecoder(Decoder):
         self._output_size = vocab_size
 
         # create num_layers decoder layers and put them in a list
-        self.layers = nn.ModuleList(
-            [
-                TransformerDecoderLayer(
-                    size=hidden_size,
-                    ff_size=ff_size,
-                    num_heads=num_heads,
-                    dropout=dropout,
-                    alpha=kwargs.get("alpha", 1.0),
-                    layer_norm=kwargs.get("layer_norm", "post"),
-                )
-                for _ in range(num_layers)
-            ]
-        )
+        self.layers = nn.ModuleList([
+            TransformerDecoderLayer(
+                size=hidden_size,
+                ff_size=ff_size,
+                num_heads=num_heads,
+                dropout=dropout,
+                alpha=kwargs.get("alpha", 1.0),
+                layer_norm=kwargs.get("layer_norm", "post"),
+            ) for _ in range(num_layers)
+        ])
 
         self.pe = PositionalEncoding(hidden_size)
-        self.layer_norm = (
-            nn.LayerNorm(hidden_size, eps=1e-6)
-            if kwargs.get("layer_norm", "post") == "pre"
-            else None
-        )
+        self.layer_norm = (nn.LayerNorm(hidden_size, eps=1e-6) if kwargs.get(
+            "layer_norm", "post") == "pre" else None)
 
         self.emb_dropout = nn.Dropout(p=emb_dropout)
         self.output_layer = nn.Linear(hidden_size, vocab_size, bias=False)
@@ -596,9 +580,7 @@ class TransformerDecoder(Decoder):
         return out, x, None, None
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
-            f"num_heads={self.layers[0].trg_trg_att.num_heads}, "
-            f"alpha={self.layers[0].alpha}, "
-            f'layer_norm="{self.layers[0]._layer_norm_position}")'
-        )
+        return (f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
+                f"num_heads={self.layers[0].trg_trg_att.num_heads}, "
+                f"alpha={self.layers[0].alpha}, "
+                f'layer_norm="{self.layers[0]._layer_norm_position}")')

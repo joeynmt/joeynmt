@@ -2,7 +2,6 @@
 """
 Tokenizer module
 """
-
 import logging
 import shutil
 from pathlib import Path
@@ -13,7 +12,6 @@ from subword_nmt import apply_bpe
 
 from joeynmt.constants import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
 from joeynmt.helpers import ConfigurationError, remove_extra_spaces, unicode_normalize
-
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +29,7 @@ class BasicTokenizer:
         min_length: int = -1,
         **kwargs,
     ):
+        # pylint: disable=unused-argument
         self.level = level
         self.lowercase = lowercase
         self.normalize = normalize
@@ -72,12 +71,10 @@ class BasicTokenizer:
         :param length: (int) number of tokens
         :return: True if the length is invalid(= to be filtered out), False if valid.
         """
-        if length > self.max_length > 0 or self.min_length > length > 0:
-            return True
-        else:
-            return False
+        return length > self.max_length > 0 or self.min_length > length > 0
 
     def _remove_special(self, sequence: List[str], remove_unk: bool = False):
+        # pylint: disable=no-self-use
         specials = [BOS_TOKEN, EOS_TOKEN, PAD_TOKEN]
         if remove_unk:
             specials.append(UNK_TOKEN)
@@ -101,17 +98,16 @@ class BasicTokenizer:
         Set vocab
         :param itos: (list) indices-to-symbols mapping
         """
-        pass
+        pass  # pylint: disable=unnecessary-pass
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(level={self.level}, "
-            f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_length}, {self.max_length}))"
-        )
+        return (f"{self.__class__.__name__}(level={self.level}, "
+                f"lowercase={self.lowercase}, normalize={self.normalize}, "
+                f"filter_by_length=({self.min_length}, {self.max_length}))")
 
 
 class SentencePieceTokenizer(BasicTokenizer):
+
     def __init__(
         self,
         level: str = "bpe",
@@ -174,16 +170,15 @@ class SentencePieceTokenizer(BasicTokenizer):
         shutil.copy2(self.model_file, (model_dir / self.model_file.name).as_posix())
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(level={self.level}, "
-            f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_length}, {self.max_length}), "
-            f"tokenizer={self.spm.__class__.__name__}, "
-            f"nbest_size={self.nbest_size}, alpha={self.alpha})"
-        )
+        return (f"{self.__class__.__name__}(level={self.level}, "
+                f"lowercase={self.lowercase}, normalize={self.normalize}, "
+                f"filter_by_length=({self.min_length}, {self.max_length}), "
+                f"tokenizer={self.spm.__class__.__name__}, "
+                f"nbest_size={self.nbest_size}, alpha={self.alpha})")
 
 
 class SubwordNMTTokenizer(BasicTokenizer):
+
     def __init__(
         self,
         level: str = "bpe",
@@ -201,8 +196,8 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
         bpe_parser = apply_bpe.create_parser()
         bpe_args = bpe_parser.parse_args(
-            ["--codes", kwargs["codes"], "--separator", kwargs.get("separator", "@@")]
-        )
+            ["--codes", kwargs["codes"], "--separator",
+             kwargs.get("separator", "@@")])
         self.bpe = apply_bpe.BPE(
             bpe_args.codes,
             bpe_args.merges,
@@ -246,13 +241,11 @@ class SubwordNMTTokenizer(BasicTokenizer):
         shutil.copy2(self.codes, (model_dir / self.codes.name).as_posix())
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(level={self.level}, "
-            f"lowercase={self.lowercase}, normalize={self.normalize}, "
-            f"filter_by_length=({self.min_length}, {self.max_length}), "
-            f"tokenizer={self.bpe.__class__.__name__}, "
-            f"separator={self.separator}, dropout={self.dropout})"
-        )
+        return (f"{self.__class__.__name__}(level={self.level}, "
+                f"lowercase={self.lowercase}, normalize={self.normalize}, "
+                f"filter_by_length=({self.min_length}, {self.max_length}), "
+                f"tokenizer={self.bpe.__class__.__name__}, "
+                f"separator={self.separator}, dropout={self.dropout})")
 
 
 def _build_tokenizer(cfg: Dict) -> BasicTokenizer:

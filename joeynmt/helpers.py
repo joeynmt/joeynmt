@@ -26,11 +26,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.plotting import plot_heatmap
 
-
 if TYPE_CHECKING:
     from joeynmt.dataset import BaseDataset
     from joeynmt.vocabulary import Vocabulary  # to avoid circular import
-
 
 np.set_printoptions(linewidth=sys.maxsize)  # format for printing numpy array
 
@@ -50,9 +48,8 @@ def make_model_dir(model_dir: Path, overwrite: bool = False) -> Path:
     model_dir = model_dir.absolute()
     if model_dir.is_dir():
         if not overwrite:
-            raise FileExistsError(
-                f"Model directory {model_dir} exists " f"and overwriting is disabled."
-            )
+            raise FileExistsError(f"Model directory {model_dir} exists "
+                                  f"and overwriting is disabled.")
         # delete previous directory to start with empty dir again
         shutil.rmtree(model_dir)
     model_dir.mkdir()
@@ -74,8 +71,7 @@ def make_logger(log_dir: Path = None, mode: str = "train") -> str:
     if len(logger.handlers) == 0:
         logger.setLevel(level=logging.DEBUG)
         formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-        )
+            "%(asctime)s - %(levelname)s - %(name)s - %(message)s")
 
         if log_dir is not None:
             if log_dir.is_dir():
@@ -173,11 +169,9 @@ def log_data_info(
 
     if train_data:
         src = "\n\t[SRC] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False)
-        )
+            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False))
         trg = "\n\t[TRG] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False)
-        )
+            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False))
         logger.info("First training example:%s%s", src, trg)
 
     logger.info("First 10 Src tokens: %s", src_vocab.log_vocab(10))
@@ -280,10 +274,8 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
     _keep_last_ckpts: Optional[int] = cfg.get("keep_last_ckpts", None)
     if _keep_last_ckpts is not None:  # backward compatibility
         keep_best_ckpts = _keep_last_ckpts
-        logger.warning(
-            "`keep_last_ckpts` option is outdated. "
-            "Please use `keep_best_ckpts`, instead."
-        )
+        logger.warning("`keep_last_ckpts` option is outdated. "
+                       "Please use `keep_best_ckpts`, instead.")
 
     # logging, validation
     logging_freq: int = cfg.get("logging_freq", 100)
@@ -295,8 +287,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
     if early_stopping_metric not in ["acc", "loss", "ppl", "bleu", "chrf"]:
         raise ConfigurationError(
             "Invalid setting for `early_stopping_metric`. "
-            "Valid options: {`acc`, `loss`, `ppl`, `bleu`, `chrf`}."
-        )
+            "Valid options: {`acc`, `loss`, `ppl`, `bleu`, `chrf`}.")
 
     # data & batch handling
     seed: int = cfg.get("random_seed", 42)
@@ -307,8 +298,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
     batch_type: str = cfg.get("batch_type", "sentence")
     if batch_type not in ["sentence", "token"]:
         raise ConfigurationError(
-            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}."
-        )
+            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
     batch_multiplier: int = cfg.get("batch_multiplier", 1)
 
     # fp16
@@ -361,14 +351,12 @@ def parse_test_args(cfg: Dict) -> Tuple:
     batch_type: str = cfg.get("batch_type", "sentences")
     if batch_type not in ["sentence", "token"]:
         raise ConfigurationError(
-            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}."
-        )
+            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
     if batch_size > 1000 and batch_type == "sentence":
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like this? "
             "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to `batch_type: 'token'`."
-        )
+            "or switching to `batch_type: 'token'`.")
 
     # limit on generation length
     max_output_length: int = cfg.get("max_output_length", -1)
@@ -380,24 +368,21 @@ def parse_test_args(cfg: Dict) -> Tuple:
     elif "eval_metric" in cfg:
         eval_metrics = [cfg["eval_metric"].strip().lower()]
         logger.warning(
-            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead."
-        )
+            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead.")
     else:
         eval_metrics = []
     for eval_metric in eval_metrics:
         if eval_metric not in ["bleu", "chrf", "token_accuracy", "sequence_accuracy"]:
             raise ConfigurationError(
                 "Invalid setting for `eval_metrics`. "
-                "Valid options: 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'."
-            )
+                "Valid options: 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'.")
 
     # sacrebleu cfg
     sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
     if "sacrebleu" in cfg:
         sacrebleu_cfg: Dict = cfg["sacrebleu"]
         logger.warning(
-            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead."
-        )
+            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead.")
 
     # beam search options
     n_best: int = cfg.get("n_best", 1)
@@ -414,14 +399,12 @@ def parse_test_args(cfg: Dict) -> Tuple:
     return_prob: str = cfg.get("return_prob", "none")
     if return_prob not in ["hyp", "ref", "none"]:
         raise ConfigurationError(
-            "Invalid `return_prob` option. Valid options: {`hyp`, `ref`, `none`}."
-        )
+            "Invalid `return_prob` option. Valid options: {`hyp`, `ref`, `none`}.")
     generate_unk: bool = cfg.get("generate_unk", True)
     repetition_penalty: float = cfg.get("repetition_penalty", -1)
     if 0 < repetition_penalty < 1:
         raise ConfigurationError(
-            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)"
-        )
+            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)")
     no_repeat_ngram_size: int = cfg.get("no_repeat_ngram_size", -1)
 
     return (
@@ -488,11 +471,9 @@ def store_attention_plots(
                 )
                 tb_writer.add_figure(f"attention/{i}.", fig, global_step=steps)
         except Exception:  # pylint: disable=broad-except
-            print(
-                f"Couldn't plot example {i}: "
-                f"src len {len(src)}, trg len {len(trg)}, "
-                f"attention scores shape {attention_scores.shape}"
-            )
+            print(f"Couldn't plot example {i}: "
+                  f"src len {len(src)}, trg len {len(trg)}, "
+                  f"attention scores shape {attention_scores.shape}")
             continue
 
 
@@ -572,14 +553,10 @@ def tile(x: Tensor, count: int, dim=0) -> Tensor:
     out_size = list(x.size())
     out_size[0] *= count
     batch = x.size(0)
-    x = (
-        x.view(batch, -1)
-        .transpose(0, 1)
-        .repeat(count, 1)
-        .transpose(0, 1)
-        .contiguous()
-        .view(*out_size)
-    )
+    x = (x.view(batch,
+                -1).transpose(0, 1).repeat(count,
+                                           1).transpose(0,
+                                                        1).contiguous().view(*out_size))
     if dim != 0:
         x = x.permute(perm).contiguous()
     return x
@@ -609,7 +586,8 @@ def delete_ckpt(to_delete: Path) -> None:
 
     except FileNotFoundError as e:
         logger.warning(
-            "Wanted to delete old checkpoint %s but " "file does not exist. (%s)",
+            "Wanted to delete old checkpoint %s but "
+            "file does not exist. (%s)",
             to_delete,
             e,
         )

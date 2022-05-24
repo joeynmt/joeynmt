@@ -38,9 +38,12 @@ def prepare(data_dir, size, seed=None):
     for lang in ["en", "ja"]:
         for data_set, drop_index in [("train", train_index), ("dev", dev_index)]:
             path = (Path(data_dir) / data_set).with_suffix("." + lang)
-            df[lang].drop(index=drop_index, inplace=False).to_csv(
-                path, header=False, index=False, sep="\t", encoding="utf8", quoting=3
-            )
+            df[lang].drop(index=drop_index, inplace=False).to_csv(path,
+                                                                  header=False,
+                                                                  index=False,
+                                                                  sep="\t",
+                                                                  encoding="utf8",
+                                                                  quoting=3)
 
 
 def main():
@@ -54,9 +57,10 @@ def main():
         help="path to data dir. default: ../test/data/jparacrawl",
     )
     ap.add_argument("--dev_size", type=int, default=1000, help="development set size")
-    ap.add_argument(
-        "--seed", type=int, default=12345, help="random seed for train-dev-split"
-    )
+    ap.add_argument("--seed",
+                    type=int,
+                    default=12345,
+                    help="random seed for train-dev-split")
     args = ap.parse_args()
 
     prepare(args.data_dir, args.dev_size, args.seed)
