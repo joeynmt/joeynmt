@@ -139,13 +139,13 @@ def train_bpe(
 
 
 def save_bpe(
-    sents: List[str],
-    vocab_file: str,
-    codes: str,
-    max_size: int,
-    min_freq: int,
-    separator: str = "@@",
-    **kwargs,
+        sents: List[str],
+        vocab_file: str,
+        codes: str,
+        max_size: int,
+        min_freq: int,
+        separator: str = "@@",
+        **kwargs,  # pylint: disable=unused-argument
 ) -> None:
     # pylint: disable=unused-argument
     bpe_parser = apply_bpe.create_parser()

@@ -27,7 +27,6 @@ class BasicTokenizer:
         normalize: bool = False,
         max_length: int = -1,
         min_length: int = -1,
-        **kwargs,
     ):
         # pylint: disable=unused-argument
         self.level = level

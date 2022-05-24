@@ -136,17 +136,7 @@ class TestVocabulary(unittest.TestCase):
         # pylint: disable=protected-access
         bpe_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_bpe))
         expected_bpe_itos = [
-            "t@@",
-            "s@@",
-            "e",
-            "e@@",
-            "d@@",
-            "o@@",
-            "b@@",
-            "g@@",
-            "en",
-            "m@@",
-            "u@@",
+            "t@@", "s@@", "e", "e@@", "d@@", "o@@", "b@@", "g@@", "en", "m@@", "u@@"
         ]
         self.assertEqual(bpe_vocab._itos[:15], self.specials + expected_bpe_itos)
 
