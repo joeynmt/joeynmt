@@ -99,6 +99,7 @@ class TestSearchTransformer(TestSearch):
             return_prob="hyp",
         )
         # Transformer greedy doesn't return attention scores
+        # `return_attention = False` by default
         self.assertIsNone(attention_scores)
 
         # outputs
@@ -229,8 +230,10 @@ class TestSearchTransformer(TestSearch):
         np.testing.assert_equal(output_trg_penalty, expected_output_trg_penalty)
 
         # src + trg repetition penalty
-        src_tokens = torch.tensor([[4, 3, 1], [5, 4, 3], [5, 5, 6]])
-        output_src_penalty, _, _ = greedy(
+        # src_len = 4 (see self._build())
+        src_tokens = torch.tensor([[4, 3, 1, 1], [5, 4, 3, 1], [5, 5, 6, 3]])
+        src_mask = (src_tokens != 1).unsqueeze(1)
+        output_src_penalty, _, attention = greedy(
             src_mask=src_mask,
             max_output_length=max_output_length,
             model=model,
@@ -239,9 +242,23 @@ class TestSearchTransformer(TestSearch):
             encoder_input=src_tokens,
             repetition_penalty=1.5,
             generate_unk=False,
+            return_attention=True,
         )
-        expected_output_src_penalty = [[5, 6, 4], [6, 4, 5], [4, 5, 6]]
+        expected_output_src_penalty = [[5, 6, 4], [6, 4, 6], [4, 5, 6]]
         np.testing.assert_equal(output_src_penalty, expected_output_src_penalty)
+
+        # Transformer Greedy can return attention probs
+        expected_attention = np.array([[[0.50552493, 0.49447513, 0.0, 0.0],
+                                        [0.49927852, 0.50072145, 0.0, 0.0],
+                                        [0.4978183, 0.5021817, 0.0, 0.0]],
+                                       [[0.33627957, 0.3340565, 0.32966393, 0.0],
+                                        [0.33195895, 0.34128872, 0.32675233, 0.0],
+                                        [0.33139172, 0.33966494, 0.3289433, 0.0]],
+                                       [[0.25297716, 0.24552101, 0.26504526, 0.2364566],
+                                        [0.25382724, 0.24408112, 0.2637272, 0.23836446],
+                                        [0.24418367, 0.2407347, 0.26917717, 0.24590445]]
+                                       ])  # (batch_size, trg_len, src_len) = (3, 3, 4)
+        np.testing.assert_allclose(attention, expected_attention, rtol=1e-5)
 
     def test_repetition_penalty_in_beam_search(self):
         batch_size = 2

@@ -81,6 +81,7 @@ def predict(
         beam_size,
         beam_alpha,
         n_best,
+        return_attention,
         return_prob,
         generate_unk,
         repetition_penalty,
@@ -170,6 +171,7 @@ def predict(
                 beam_alpha=beam_alpha,
                 max_output_length=max_output_length,
                 n_best=n_best,
+                return_attention=return_attention,
                 return_prob=return_prob,
                 generate_unk=generate_unk,
                 repetition_penalty=repetition_penalty,
@@ -307,7 +309,9 @@ def test(
     :param output_path: path to output
     :param datasets: datasets to predict
     :param save_attention: whether to save attention visualizations
+    :param save_scores: whether to save scores
     """
+    # pylint: disable=too-many-branches
     cfg = load_config(Path(cfg_file))
     # parse train cfg
     model_dir, load_model, device, n_gpu, num_workers, normalization = parse_train_args(
@@ -330,6 +334,14 @@ def test(
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
     model.log_parameters_list()
+
+    # check options
+    if save_attention:
+        if cfg["model"]["decoder"]["type"] == "transformer":
+            assert cfg["testing"].get("beam_size", 1) == 1, (
+                "Attention plots can be saved with greedy decoding only. Please set "
+                "`beam_size: 1` in the config.")
+        cfg["testing"]["save_attention"] = True
     return_prob = cfg["testing"].get("return_prob", "none")
     if save_scores:
         assert output_path, "Please specify --output_path for saving scores."
@@ -421,7 +433,11 @@ def test(
                 logger.info("Translations saved to: %s.", output_path_set)
 
 
-def translate(cfg_file: str, ckpt: str = None, output_path: str = None) -> None:
+def translate(
+    cfg_file: str,
+    ckpt: str = None,
+    output_path: str = None,
+) -> None:
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or asks for

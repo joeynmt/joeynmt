@@ -560,7 +560,7 @@ class TransformerDecoder(Decoder):
         :return:
             - decoder_output: shape (batch_size, seq_len, vocab_size)
             - decoder_hidden: shape (batch_size, seq_len, emb_size)
-            - None
+            - att_probs: shape (batch_size, trg_length, src_length),
             - None
         """
         assert trg_mask is not None, "trg_mask required for Transformer"
@@ -570,14 +570,20 @@ class TransformerDecoder(Decoder):
 
         trg_mask = trg_mask & subsequent_mask(trg_embed.size(1)).type_as(trg_mask)
 
-        for layer in self.layers:
-            x = layer(x=x, memory=encoder_output, src_mask=src_mask, trg_mask=trg_mask)
+        last_layer = len(self.layers) - 1
+        return_attention = kwargs.get("return_attention", False)
+        for i, layer in enumerate(self.layers):
+            x, att = layer(x=x,
+                           memory=encoder_output,
+                           src_mask=src_mask,
+                           trg_mask=trg_mask,
+                           return_attention=(return_attention and i == last_layer))
 
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
         out = self.output_layer(x)
-        return out, x, None, None
+        return out, x, att, None
 
     def __repr__(self):
         return (f"{self.__class__.__name__}(num_layers={len(self.layers)}, "

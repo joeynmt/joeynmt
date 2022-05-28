@@ -22,7 +22,7 @@ class MultiHeadedAttention(nn.Module):
         Create a multi-headed attention layer.
 
         :param num_heads: the number of heads
-        :param size: model size (must be divisible by num_heads)
+        :param size: hidden size (must be divisible by num_heads)
         :param dropout: probability of dropping a unit
         """
         super().__init__()
@@ -41,18 +41,30 @@ class MultiHeadedAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, k: Tensor, v: Tensor, q: Tensor, mask: Optional[Tensor] = None):
+    def forward(
+        self,
+        k: Tensor,
+        v: Tensor,
+        q: Tensor,
+        mask: Optional[Tensor] = None,
+        return_weights: Optional[bool] = None,
+    ):
         """
         Computes multi-headed attention.
 
-        :param k: keys   [B, M, D] with M being the sentence length.
-        :param v: values [B, M, D]
-        :param q: query  [B, M, D]
-        :param mask: optional mask [B, 1, M]
+        :param k: keys   [batch_size, seq_len, hidden_size]
+        :param v: values [batch_size, seq_len, hidden_size]
+        :param q: query  [batch_size, seq_len, hidden_size]
+        :param mask: optional mask [batch_size, 1, seq_len]
+        :param return_weights: whether to return the attention weights,
+            averaged over heads.
         :return:
+            - output  [batch_size, query_len, hidden_size]
+            - attention_weights  [batch_size, query_len, key_len]
         """
         batch_size = k.size(0)
-        num_heads = self.num_heads
+        key_len = k.size(1)
+        query_len = q.size(1)
 
         # project the queries (q), keys (k), and values (v)
         k = self.k_layer(k)
@@ -60,34 +72,39 @@ class MultiHeadedAttention(nn.Module):
         q = self.q_layer(q)
 
         # reshape q, k, v for our computation to [batch_size, num_heads, ..]
-        k = k.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
-        v = v.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
-        q = q.view(batch_size, -1, num_heads, self.head_size).transpose(1, 2)
+        k = k.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
+        v = v.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
+        q = q.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
 
         # compute scores
         q = q / math.sqrt(self.head_size)
 
-        # batch x num_heads x query_len x key_len
+        # [batch_size, num_heads, query_len, key_len]
         scores = torch.matmul(q, k.transpose(2, 3))
 
         # apply the mask (if we have one)
-        # we add a dimension for the heads to it below: [B, 1, 1, M]
+        # we add a dimension for the heads to it below: [batch_size, 1, 1, key_len]
         if mask is not None:
             scores = scores.masked_fill(~mask.unsqueeze(1), float("-inf"))
 
         # apply attention dropout and compute context vectors.
-        attention = self.softmax(scores)
-        attention = self.dropout(attention)
+        attention_weights = self.softmax(scores)
+        attention_probs = self.dropout(attention_weights)
 
         # get context vector (select values with attention) and reshape
-        # back to [B, M, D]
-        context = torch.matmul(attention, v)
-        context = (context.transpose(1,
-                                     2).contiguous().view(batch_size, -1,
-                                                          num_heads * self.head_size))
+        # back to [batch_size, query_len, hidden_size]
+        context = torch.matmul(attention_probs, v)
+        context = context.transpose(1, 2).contiguous().view(
+            batch_size, -1, self.num_heads * self.head_size)
 
         output = self.output_layer(context)
-        return output
+
+        if return_weights:
+            # average attention weights over heads: [batch_size, query_len, key_len]
+            attention_output_weights = attention_weights.view(
+                batch_size, self.num_heads, query_len, key_len)
+            return output, attention_output_weights.sum(dim=1) / self.num_heads
+        return output, None
 
 
 class PositionwiseFeedForward(nn.Module):
@@ -245,7 +262,7 @@ class TransformerEncoderLayer(nn.Module):
         if self._layer_norm_position == "pre":
             x = self.layer_norm(x)
 
-        x = self.src_src_att(x, x, x, mask)
+        x, _ = self.src_src_att(x, x, x, mask)
         x = self.dropout(x) + self.alpha * residual
 
         if self._layer_norm_position == "post":
@@ -314,6 +331,7 @@ class TransformerDecoderLayer(nn.Module):
         memory: Tensor,
         src_mask: Tensor,
         trg_mask: Tensor,
+        return_attention: bool = False,
     ) -> Tensor:
         """
         Forward pass of a single Transformer decoder layer.
@@ -330,14 +348,17 @@ class TransformerDecoderLayer(nn.Module):
         :param memory: source representations
         :param src_mask: source mask
         :param trg_mask: target mask (so as to not condition on future steps)
-        :return: output tensor
+        :param return_attention: whether to return the attention weights
+        :return:
+            - output tensor
+            - attention weights
         """
         # 1. target-target self-attention
         residual = x
         if self._layer_norm_position == "pre":
             x = self.x_layer_norm(x)
 
-        h1 = self.trg_trg_att(x, x, x, mask=trg_mask)
+        h1, _ = self.trg_trg_att(x, x, x, mask=trg_mask)
         h1 = self.dropout(h1) + self.alpha * residual
 
         if self._layer_norm_position == "post":
@@ -348,7 +369,11 @@ class TransformerDecoderLayer(nn.Module):
         if self._layer_norm_position == "pre":
             h1 = self.dec_layer_norm(h1)
 
-        h2 = self.src_trg_att(memory, memory, h1, mask=src_mask)
+        h2, att = self.src_trg_att(memory,
+                                   memory,
+                                   h1,
+                                   mask=src_mask,
+                                   return_weights=return_attention)
         h2 = self.dropout(h2) + self.alpha * h1_residual
 
         if self._layer_norm_position == "post":
@@ -356,4 +381,7 @@ class TransformerDecoderLayer(nn.Module):
 
         # 3. final position-wise feed-forward layer
         out = self.feed_forward(h2)
-        return out
+
+        if return_attention:
+            return out, att
+        return out, None

@@ -213,6 +213,7 @@ class TrainManager:
         self.valid_cfg["batch_type"] = self.batch_type
         # no further exploration during training
         self.valid_cfg["n_best"] = 1
+        # self.valid_cfg["return_attention"] = False  # don't override this param
         self.valid_cfg["return_prob"] = "none"
         self.valid_cfg["generate_unk"] = True
         self.valid_cfg["repetition_penalty"] = -1  # turn off

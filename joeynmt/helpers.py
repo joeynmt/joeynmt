@@ -139,6 +139,7 @@ def set_seed(seed: int) -> None:
     :param seed: random seed
     """
     torch.manual_seed(seed)
+    torch.use_deterministic_algorithms(True)
     np.random.seed(seed)
     random.seed(seed)
     if torch.cuda.is_available() and torch.cuda.device_count() > 0:
@@ -396,6 +397,7 @@ def parse_test_args(cfg: Dict) -> Tuple:
     assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
 
     # control options
+    return_attention: bool = cfg.get("return_attention", False)
     return_prob: str = cfg.get("return_prob", "none")
     if return_prob not in ["hyp", "ref", "none"]:
         raise ConfigurationError(
@@ -417,6 +419,7 @@ def parse_test_args(cfg: Dict) -> Tuple:
         beam_size,
         beam_alpha,
         n_best,
+        return_attention,
         return_prob,
         generate_unk,
         repetition_penalty,

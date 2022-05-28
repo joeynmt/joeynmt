@@ -170,10 +170,11 @@ def transformer_greedy(
     eos_index = model.eos_index
     unk_index = model.unk_index
     pad_index = model.pad_index
-    batch_size = src_mask.size(0)
+    batch_size, _, src_len = src_mask.size()
 
     # options to control generation
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
+    return_attention: bool = kwargs.get("return_attention", False)
     return_prob: bool = kwargs.get("return_prob", "none") == "hyp"
     min_output_length: int = kwargs.get("min_output_length", 1)
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
@@ -188,6 +189,10 @@ def transformer_greedy(
     # placeholder for scores
     yv = ys.new_zeros((batch_size, 1), dtype=torch.float) if return_prob else None
 
+    # placeholder for attentions
+    yt = ys.new_zeros((batch_size, 1, src_len), dtype=torch.float) \
+        if return_attention else None
+
     # a subsequent mask is intersected with this in decoder forward pass
     trg_mask = src_mask.new_ones([1, 1, 1])
     if isinstance(model, torch.nn.DataParallel):
@@ -197,7 +202,7 @@ def transformer_greedy(
 
     for step in range(max_output_length):
         with torch.no_grad():
-            out, _, _, _ = model(
+            out, _, att, _ = model(
                 return_type="decode",
                 trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
                 encoder_output=encoder_output,
@@ -206,6 +211,7 @@ def transformer_greedy(
                 unroll_steps=None,
                 decoder_hidden=None,
                 trg_mask=trg_mask,
+                return_attention=return_attention,
             )
             out = out[:, -1]  # logits
             if not generate_unk:
@@ -252,6 +258,10 @@ def transformer_greedy(
             if return_prob:
                 prob = prob.data
                 yv = torch.cat([yv, prob.unsqueeze(-1)], dim=1)
+            if return_attention:
+                assert att is not None
+                att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
+                yt = torch.cat([yt, att], dim=1)  # (batch_size, trg_len, src_len)
 
         # check if previous symbol was <eos>
         is_eos = torch.eq(next_word, eos_index)
@@ -260,15 +270,11 @@ def transformer_greedy(
         if (finished >= 1).sum() == batch_size:
             break
 
-    ys = ys[:, 1:]  # remove BOS-symbol
-
-    # scores
-    if return_prob:
-        yv = yv[:, 1:]
-        scores = yv.detach().cpu().numpy()
-    else:
-        scores = None
-    return ys.detach().cpu().numpy(), scores, None
+    # remove BOS-symbol
+    output = ys[:, 1:].detach().cpu().numpy()
+    scores = yv[:, 1:].detach().cpu().numpy() if return_prob else None
+    attention = yt[:, 1:, :].detach().cpu().numpy() if return_attention else None
+    return output, scores, attention
 
 
 def beam_search(
