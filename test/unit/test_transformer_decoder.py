@@ -74,7 +74,7 @@ class TestTransformerDecoder(TensorTestCase):
         decoder_hidden = None  # unused
         unroll_steps = None  # unused
 
-        output, states, _, _ = decoder(
+        output, states, att, _ = decoder(
             trg_embed,
             encoder_output,
             encoder_hidden,
@@ -82,6 +82,7 @@ class TestTransformerDecoder(TensorTestCase):
             unroll_steps,
             decoder_hidden,
             trg_mask,
+            return_attention=True,
         )
         output_target = torch.Tensor(
             [[[0.1718, 0.5595, -0.1996, -0.6924, 0.4351, -0.0850, 0.2805],
@@ -96,6 +97,19 @@ class TestTransformerDecoder(TensorTestCase):
               [0.0133, 0.4409, -0.1186, -0.5694, 0.4450, 0.0290, 0.1643]]])
         self.assertEqual(output.shape, output_target.shape)
         self.assertTensorAlmostEqual(output, output_target)
+
+        att_target = torch.tensor([[[0.2494, 0.2482, 0.2419, 0.2605],
+                                    [0.2442, 0.2544, 0.2415, 0.2599],
+                                    [0.2415, 0.2542, 0.2400, 0.2643],
+                                    [0.2410, 0.2558, 0.2393, 0.2639],
+                                    [0.2406, 0.2583, 0.2377, 0.2634]],
+                                   [[0.2604, 0.2420, 0.2504, 0.2471],
+                                    [0.2591, 0.2425, 0.2504, 0.2480],
+                                    [0.2643, 0.2398, 0.2495, 0.2464],
+                                    [0.2661, 0.2397, 0.2491, 0.2451],
+                                    [0.2685, 0.2418, 0.2469, 0.2427]]])
+        self.assertEqual(att.shape, att_target.shape)  # (batch_size, trg_len, src_len)
+        self.assertTensorAlmostEqual(att, att_target)
 
         greedy_predictions = output.argmax(-1)
         expect_predictions = output_target.argmax(-1)
