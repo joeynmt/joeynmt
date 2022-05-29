@@ -253,9 +253,12 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
 def build_vocab(cfg: Dict,
                 dataset: BaseDataset = None,
                 model_dir: Path = None) -> Tuple[Vocabulary, Vocabulary]:
-    if model_dir is not None and dataset is None:
-        # use the vocab file saved in model_dir
+    # use the vocab file saved in model_dir
+    if model_dir is not None and cfg["src"].get("voc_file", None) is None:
+        assert (model_dir / "src_vocab.txt").is_file()
         cfg["src"]["voc_file"] = (model_dir / "src_vocab.txt").as_posix()
+    if model_dir is not None and cfg["trg"].get("voc_file", None) is None:
+        assert (model_dir / "trg_vocab.txt").is_file()
         cfg["trg"]["voc_file"] = (model_dir / "trg_vocab.txt").as_posix()
 
     src_vocab = _build_vocab(cfg["src"], dataset)

@@ -155,7 +155,7 @@ class PlaintextDataset(BaseDataset):
 
         def _pre_process(seq, lang):
             if self.tokenizer[lang] is not None:
-                seq = [self.tokenizer[lang].pre_process(s) for s in seq]
+                seq = [self.tokenizer[lang].pre_process(s) for s in seq if len(s) > 0]
             return seq
 
         path = Path(path)
@@ -190,10 +190,14 @@ class PlaintextDataset(BaseDataset):
         return item
 
     def _look_up_item(self, idx: int, lang: str) -> str:
-        if len(self.idx_map) > 0:
-            idx = self.idx_map[idx]
-        line = self.data[lang][idx]
-        return line
+        try:
+            if len(self.idx_map) > 0:
+                idx = self.idx_map[idx]
+            line = self.data[lang][idx]
+            return line
+        except Exception as e:
+            print(idx, self._initial_len)
+            raise Exception from e
 
     def get_list(self,
                  lang: str,
@@ -417,7 +421,6 @@ class BaseHuggingfaceDataset(BaseDataset):
         # pylint: disable=import-outside-toplevel
         try:
             from datasets import load_dataset
-
             return load_dataset(path, **kwargs)
 
         except ImportError as e:

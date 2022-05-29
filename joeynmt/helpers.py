@@ -139,7 +139,6 @@ def set_seed(seed: int) -> None:
     :param seed: random seed
     """
     torch.manual_seed(seed)
-    torch.use_deterministic_algorithms(True)
     np.random.seed(seed)
     random.seed(seed)
     if torch.cuda.is_available() and torch.cuda.device_count() > 0:
@@ -228,7 +227,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
     logger = logging.getLogger(__name__)
 
     model_dir: Path = Path(cfg["model_dir"])
-    assert model_dir.is_dir()
+    assert model_dir.is_dir(), f"{model_dir} not found."
 
     use_cuda: bool = cfg["use_cuda"] and torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")

@@ -1,5 +1,7 @@
 # coding: utf-8
 import argparse
+from pathlib import Path
+from typing import Dict, List
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -9,7 +11,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 matplotlib.use("Agg")
 
 
-def read_vfiles(vfiles):
+def read_vfiles(vfiles: List[Path]) -> Dict:
     """
     Parse validation report files
     :param vfiles: list of files
@@ -17,22 +19,23 @@ def read_vfiles(vfiles):
     """
     models = {}
     for vfile in vfiles:
-        model_name = vfile.split("/")[-2] if "//" not in vfile else vfile.split("/")[-3]
-        with open(vfile, "r", encoding="utf-8") as validf:
-            steps = {}
-            for line in validf:
-                entries = line.strip().split()
-                key = int(entries[1])
-                steps[key] = {}
-                for i in range(2, len(entries) - 1, 2):
-                    name = entries[i].strip(":")
-                    value = float(entries[i + 1])
-                    steps[key][name] = value
+        assert vfile.is_file(), f"{vfile} not found."
+        model_name = vfile.parent.stem
+
+        steps = {}
+        for line in vfile.read_text(encoding="utf-8").splitlines():
+            entries = line.strip().split()
+            key = int(entries[1])
+            steps[key] = {}
+            for i in range(2, len(entries) - 1, 2):
+                name = entries[i].strip(":")
+                value = float(entries[i + 1])
+                steps[key][name] = value
         models[model_name] = steps
     return models
 
 
-def plot_models(models, plot_values, output_path):
+def plot_models(models: Dict, plot_values: List, output_path: str) -> None:
     """
     Plot the learning curves for several models
     :param models:
@@ -67,6 +70,8 @@ def plot_models(models, plot_values, output_path):
             axes[row][col].plot(values[plot_value][0], values[plot_value][1])
             axes[row][0].set_ylabel(plot_value)
             axes[0][col].set_title(model_name)
+        axes[-1][col].set_xlabel("steps")
+
     plt.tight_layout()
     if output_path.endswith(".pdf"):
         pp = PdfPages(output_path)
@@ -81,8 +86,7 @@ def plot_models(models, plot_values, output_path):
 
 
 def main(args):  # pylint: disable=redefined-outer-name
-    vfiles = [m + "/validations.txt" for m in args.model_dirs]
-    models = read_vfiles(vfiles)
+    models = read_vfiles([Path(m) / "validations.txt" for m in args.model_dirs])
     plot_models(models, args.plot_values, args.output_path)
 
 

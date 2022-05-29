@@ -229,7 +229,10 @@ def predict(
         return valid_scores, None, None, decoded_valid, valid_sequence_scores, None
 
     # retrieve detokenized hypotheses and references
-    valid_hyp = [data.tokenizer[data.trg_lang].post_process(s) for s in decoded_valid]
+    valid_hyp = [
+        data.tokenizer[data.trg_lang].post_process(s, generate_unk=generate_unk)
+        for s in decoded_valid
+    ]
     valid_ref = data.trg  # not length-filtered, not duplicated for n_best > 1
 
     # if references are given, evaluate 1best generation against them
@@ -301,8 +304,8 @@ def test(
     save_scores: bool = False,
 ) -> None:
     """
-    Main test function. Handles loading a model from checkpoint, generating translations
-    and storing them and attention plots.
+    Main test function. Handles loading a model from checkpoint, generating
+    translations, storing them, and plotting attention.
 
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
@@ -322,7 +325,6 @@ def test(
 
     # load the data
     if datasets is None:
-        # load data
         src_vocab, trg_vocab, _, dev_data, test_data = load_data(
             data_cfg=cfg["data"], datasets=["dev", "test"])
         data_to_predict = {"dev": dev_data, "test": test_data}
@@ -353,7 +355,7 @@ def test(
             assert cfg["testing"].get("beam_size", 1) == 1, (
                 "Scores of given references can be computed with greedy decoding only."
                 "Please set `beam_size: 1` in the config.")
-            model.loss_function = (
+            model.loss_function = (  # need to instantiate loss func to compute scores
                 cfg["training"].get("loss_type", "crossentropy"),
                 cfg["training"].get("label_smoothing", 0.1),
             )
@@ -441,9 +443,8 @@ def translate(
     """
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or asks for
-    input to translate interactively. The input has to be pre-processed according to
-    the data that the model was trained on, i.e. tokenized or split into subwords.
-    Translations are printed to stdout.
+    input to translate interactively. Translations and scores are printed to stdout.
+    Note: The input sentences don't have to be pre-tokenized.
 
     :param cfg_file: path to configuration file
     :param ckpt: path to checkpoint to load
@@ -511,6 +512,7 @@ def translate(
     set_seed(seed=cfg["training"].get("random_seed", 42))
 
     n_best = test_cfg.get("n_best", 1)
+    beam_size = test_cfg.get("beam_size", 1)
     return_prob = test_cfg.get("return_prob", "none")
     if not sys.stdin.isatty():  # pylint: disable=too-many-nested-blocks
         # input stream given
@@ -544,7 +546,7 @@ def translate(
 
     else:
         # enter interactive mode
-        test_cfg["batch_size"] = 1
+        test_cfg["batch_size"] = 1  # CAUTION: this will raise an error if n_gpus > 1
         test_cfg["batch_type"] = "sentence"
         np.set_printoptions(linewidth=sys.maxsize)  # for printing scores in stdout
         while True:
@@ -563,17 +565,11 @@ def translate(
                     assert hyp is not None, (i, hyp, token, score)
                     print(f"#{i + 1}: {hyp}")
                     if return_prob in ["hyp"]:
-                        if n_best > 1:  # beam search: sequence-level scores
-                            if token is not None:
-                                print(f"\ttokens: {token}")
-                            if score is not None:
-                                print(f"\tsequence score: {score[0]}")
+                        if beam_size > 1:  # beam search: sequence-level scores
+                            print(f"\ttokens: {token}\n\tsequence score: {score[0]}")
                         else:  # greedy: token-level scores
                             assert len(token) == len(score), (token, score)
-                            if token is not None:
-                                print(f"\ttokens: {token}")
-                            if score is not None:
-                                print(f"\tscores: {score}")
+                            print(f"\ttokens: {token}\n\tscores: {score}")
 
                 # reset cache
                 test_data.cache = {}

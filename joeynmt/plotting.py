@@ -1,5 +1,7 @@
-#!/usr/bin/env python
-
+# coding: utf-8
+"""
+Plot attentions
+"""
 from typing import List, Optional
 
 import matplotlib
@@ -10,6 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
 matplotlib.use("Agg")
+# matplotlib.font_manager.fontManager.addfont("ipaexg.ttf")
 
 
 def plot_heatmap(
@@ -33,8 +36,8 @@ def plot_heatmap(
     """
 
     if output_path is not None:
-        assert output_path.endswith(".png") or output_path.endswith(
-            ".pdf"), "output path must have .png or .pdf extension"
+        assert output_path.endswith(".png") or output_path.endswith(".pdf"), \
+            "output path must have .png or .pdf extension"
 
     x_sent_len = len(column_labels)
     y_sent_len = len(row_labels)
@@ -48,9 +51,7 @@ def plot_heatmap(
     # font config
     rcParams["xtick.labelsize"] = labelsize
     rcParams["ytick.labelsize"] = labelsize
-    # rcParams['font.family'] = "sans-serif"
-    # rcParams['font.sans-serif'] = ["Fira Sans"]
-    # rcParams['font.weight'] = "regular"
+    # rcParams['font.family'] = "IPAexGothic"  # support CJK
 
     fig, ax = plt.subplots(figsize=(10, 10), dpi=dpi)
     plt.imshow(
