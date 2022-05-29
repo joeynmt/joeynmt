@@ -50,24 +50,25 @@ We tested JoeyNMT 2.0 with
 
 You can install JoeyNMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
-A. For latest stable version:
-  ```bash
-  $ pip install joeynmt
-  ```
+### A. Via pip
+for latest stable version:
+```bash
+$ pip install joeynmt
+```
   
-B. From source (for local development)
-  1. Clone this repository:
+### B. From source
+1. Clone this repository:
   ```bash
   $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
-  2. Install JoeyNMT and it's requirements:
+2. Install JoeyNMT and it's requirements:
   ```bash
   $ pip install . -e
   ```
-  3. Run the unit tests:
+3. Run the unit tests:
   ```bash
-  $ python -m pytest
+  $ python -m unittest
   ```
 
 > :warning: **Warning**
@@ -95,7 +96,10 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 - `joeynmt/tokenizers.py`: handles tokenization internally (also supports bpe-dropout!)
 - `joeynmt/datasets.py`: loads data from plaintext, tsv, and huggingface's [datasets](https://github.com/huggingface/datasets)
 - `scripts/build_vocab.py`: trains subwords, creates joint vocab
-- scoring with hypotheses or references
+- enhancement in decoding
+  - scoring with hypotheses or references
+  - repetition penalty, ngram blocker
+  - attention plots for transformers
 - yapf, isort, flake8 introduced
 - bugfixes, minor refactoring
 
@@ -143,7 +147,7 @@ Most importantly, the configuration contains the description of the model archit
 (e.g. number of hidden units in the encoder RNN), paths to the training, development and
 test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
-> :bulb: **Info**
+> :memo: **Info**
 > Note that subword model training and joint vocabulary creation is not included
 > in the 3 modes above, has to be done separately.
 > We provide a script that takes care of it: `scritps/build_vocab.py`.
@@ -173,7 +177,7 @@ model_dir/
 └── validation.txt  # validation scores
 ```
 
-> :memo: **Tip**
+> :bulb: **Tip**
 > Be careful not to overwrite `model_dir`, set `overwrite: False` in the config file.
 
 
@@ -190,7 +194,7 @@ file or the best model in `model_dir` will be used to generate translations.
 You can specify i.e. [sacrebleu](https://github.com/mjpost/sacrebleu) options in the
 `test` section of the config file.
 
-> :memo: **Tip**
+> :bulb: **Tip**
 > `scripts/average_checkpoints.py` will generate averaged checkpoints for you.
 > ```
 > $ python scripts/average_checkpoints.py configs/small.yaml --joint
@@ -226,8 +230,8 @@ This mode accepts inputs from stdin and generate translations.
   You'll be prompted to type an input sentence. JoeyNMT will then translate with the 
   model specified in `--ckpt` or the config file.
 
-  > :memo: **Tip**
-  > interactive `translate` mode doesn't work with Multi-GPU.
+  > :bulb: **Tip**
+  > Interactive `translate` mode doesn't work with Multi-GPU.
   > Please run it on single GPU or CPU.
 
 
@@ -235,8 +239,8 @@ This mode accepts inputs from stdin and generate translations.
 ## Benchmarks & pretrained models
 
 > :warning: **Warning**
-> These models are trained with JoeynNMT v1.x, and decoded with
-> JoeyNMT v2.0. See `train.log` and `test.log` in downloaded zip, respectively.
+> These models are trained with JoeynNMT v1.x, and decoded with JoeyNMT v2.0. 
+> See `config_v1.yaml` and `config_v2.yaml` in the linked zip, respectively.
 > JoeyNMT v1.x benchmarks are archived [here](docs/benchmarks_v1.md).
 
 ### iwslt14 deen
@@ -249,6 +253,11 @@ de->en | RNN | subword-nmt | 31.77 | 30.74 | 61M | [rnn_iwslt14_deen_bpe.tar.gz]
 de->en | Transformer | subword-nmt | 34.53 | 33.73 | 19M | [transformer_iwslt14_deen_bpe.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_iwslt14_deen_bpe.tar.gz) (211M)
 
 sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.0.0`
+
+> :memo: **Info**
+> For interactive translate mode, you should specify `pretokenizer: "moses"` in the both src's and trg's `tokenizer_cfg`,
+> so that you can input raw sentence. Then `MosesTokenizer` and `MosesDetokenizer` will be applied internally.
+> For test mode, we used the preprocessed texts as input and set `pretokenizer: "none"` in the config.
 
 
 ### Masakhane JW300 afen / enaf
@@ -281,14 +290,18 @@ In order to keep the code clean and readable, we make use of:
 - Style checks:
   - [pylint](https://pylint.pycqa.org/) with (mostly) PEP8 conventions, see `.pylintrc`.
   - [yapf](https://github.com/google/yapf), [isort](https://github.com/PyCQA/isort),
-    and [flake8](https://flake8.pycqa.org/); see `setup.cfg` and `Makefile`.
+    and [flake8](https://flake8.pycqa.org/); see `.style.yapf`, `setup.cfg` and `Makefile`.
 - Typing: Every function has documented input types.
 - Docstrings: Every function, class and module has docstrings describing their purpose and usage.
 - Unittests: Every module has unit tests, defined in `test/unit/`.
 
 To ensure the repository stays clean, unittests and linters are triggered by github's
-workflow on every push.
-
+workflow on every push or pull request to `main` branch. Before you create a pull request,
+you can check the validity of your modifications with the following commands:
+```
+$ make check
+$ make test
+```
 
 ## Contributing
 Since this codebase is supposed to stay clean and minimalistic, contributions addressing
