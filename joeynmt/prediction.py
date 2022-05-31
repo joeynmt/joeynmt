@@ -197,7 +197,7 @@ def parse_test_args(cfg, mode="test"):
     :param mode: 'test' or 'translate'
     :return:
     """
-    if "test" not in cfg["data"].keys():
+    if mode == "test" and "test" not in cfg["data"].keys():
         raise ValueError("Test data must be specified in config.")
 
     batch_size = cfg["training"].get(
