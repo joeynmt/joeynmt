@@ -1,9 +1,9 @@
-# &nbsp; ![Joey-NMT](joey2-small.png) JoeyNMT 2.0
-[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
+# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT 2.0
+[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
-:koala: JoeyNMT framework is developed for educational purposes.
+:koala: Joey NMT framework is developed for educational purposes.
 It aims to be a **clean** and **minimalistic** code base to help novices 
 find fast answers to the following questions.
 - :grey_question: How to implement classic NMT architectures (RNN and Transformer) in PyTorch?
@@ -15,19 +15,19 @@ In contrast to other NMT frameworks, we will **not** aim for the most recent fea
 or speed through engineering or training tricks since this often goes in hand with an
 increase in code complexity and a decrease in readability. :eyes:
 
-However, JoeyNMT re-implements baselines from major publications.
+However, Joey NMT re-implements baselines from major publications.
 
 Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our
 [paper](https://arxiv.org/abs/1907.12484).
 
 ## Contributors
-JoeyNMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. [Mayumi Ohta](https://www.cl.uni-heidelberg.de/statnlpgroup/members/ohta/) at Heidelberg University is continuing the legacy.
+Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. [Mayumi Ohta](https://www.cl.uni-heidelberg.de/statnlpgroup/members/ohta/) at Heidelberg University is continuing the legacy.
 
 Welcome to our new contributors :hearts:, please don't hesitate to open a PR or an issue
 if there's something that needs improvement!
 
 ## Features
-JoeyNMT implements the following features (aka the minimalist toolkit of NMT :wrench:):
+Joey NMT implements the following features (aka the minimalist toolkit of NMT :wrench:):
 - Recurrent Encoder-Decoder with GRUs or LSTMs
 - Transformer Encoder-Decoder
 - Attention Types: MLP, Dot, Multi-Head, Bilinear
@@ -42,13 +42,13 @@ JoeyNMT implements the following features (aka the minimalist toolkit of NMT :wr
 
 
 ## Installation
-JoeyNMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested JoeyNMT 2.0 with
+Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
+We tested Joey NMT 2.0 with
 - python 3.9
 - torch 1.11.0
 - cuda 11.5
 
-You can install JoeyNMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
+You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
 ### A. Via pip
 for latest stable version:
@@ -59,10 +59,10 @@ $ pip install joeynmt
 ### B. From source
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
+  $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
-2. Install JoeyNMT and it's requirements:
+2. Install Joey NMT and it's requirements:
   ```bash
   $ pip install . -e
   ```
@@ -104,7 +104,7 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 - bugfixes, minor refactoring
 
 > :warning: **Warning**
-> The models trained with JoeyNMT v1.x can be decoded with JoeyNMT v2.0.
+> The models trained with Joey NMT v1.x can be decoded with Joey NMT v2.0.
 > But there is no guarantee that you can reproduce the same score as before.
 
 <details><summary>previous releases</summary>
@@ -126,7 +126,7 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 
 ## Documentation & Tutorials
 
-We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for JoeyNMT 2.0!
+We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
 - [quick-start-with-joeynmt2.0]() (will be released in June 2022)
@@ -136,9 +136,9 @@ For details, follow the tutorials in [notebooks](notebooks) dir.
 
 ## Usage
 > :warning: **Warning**
-> For JoeyNMT v1.x, please refer the archive [here](docs/JoeyNMT_v1.md).
+> For Joey NMT v1.x, please refer the archive [here](docs/JoeyNMT_v1.md).
 
-JoeyNMT has 3 modes: `train`, `test`, and `translate`, and all of them takes a
+Joey NMT has 3 modes: `train`, `test`, and `translate`, and all of them takes a
 [YAML](https://yaml.org/)-style config file as argument.
 You can find examples in the `configs` directory.
 `small.yaml` contains a detailed explanation of configuration options.
@@ -227,7 +227,7 @@ This mode accepts inputs from stdin and generate translations.
   ```
   $ python -m joeynmt translate configs/small.yaml
   ```
-  You'll be prompted to type an input sentence. JoeyNMT will then translate with the 
+  You'll be prompted to type an input sentence. Joey NMT will then translate with the 
   model specified in `--ckpt` or the config file.
 
   > :bulb: **Tip**
@@ -239,9 +239,9 @@ This mode accepts inputs from stdin and generate translations.
 ## Benchmarks & pretrained models
 
 > :warning: **Warning**
-> These models are trained with JoeynNMT v1.x, and decoded with JoeyNMT v2.0. 
+> These models are trained with JoeynNMT v1.x, and decoded with Joey NMT v2.0. 
 > See `config_v1.yaml` and `config_v2.yaml` in the linked zip, respectively.
-> JoeyNMT v1.x benchmarks are archived [here](docs/benchmarks_v1.md).
+> Joey NMT v1.x benchmarks are archived [here](docs/benchmarks_v1.md).
 
 ### iwslt14 deen
 
@@ -318,31 +318,31 @@ the following are welcome:
 - providing pre-trained models
 
 Code extending the functionalities beyond the basics will most likely not end up in the
-main branch, but we're curious to learn what you used JoeyNMT for.
+main branch, but we're curious to learn what you used Joey NMT for.
 
 
 ## Projects and Extensions
-Here we'll collect projects and repositories that are based on JoeyNMT, so you can find
+Here we'll collect projects and repositories that are based on Joey NMT, so you can find
 inspiration and examples on how to modify and extend the code.
 
-### JoeyNMT v1.x
-- :spider_web: **Masakhane Web**. [@CateGitau](https://github.com/categitau), [@Kabongosalomon](https://github.com/Kabongosalomon), [@vukosim](https://github.com/vukosim) and team built a whole web translation platform for the African NMT models that Masakhane built with JoeyNMT. The best is: it's completely open-source, so anyone can contribute new models or features. Try it out [here](http://translate.masakhane.io/), and check out the [code](https://github.com/dsfsi/masakhane-web).
-- :gear: **MutNMT**. [@sjarmero](https://github.com/sjarmero) created a web application to train NMT: it lets the user train, inspect, evaluate and translate with JoeyNMT --- perfect for NMT newbies! Code [here](https://github.com/Prompsit/mutnmt). The tool was developed by [Prompsit](https://www.prompsit.com/) in the framework of the European project [MultiTraiNMT](http://www.multitrainmt.eu/).
+### Joey NMT v1.x
+- :spider_web: **Masakhane Web**. [@CateGitau](https://github.com/categitau), [@Kabongosalomon](https://github.com/Kabongosalomon), [@vukosim](https://github.com/vukosim) and team built a whole web translation platform for the African NMT models that Masakhane built with Joey NMT. The best is: it's completely open-source, so anyone can contribute new models or features. Try it out [here](http://translate.masakhane.io/), and check out the [code](https://github.com/dsfsi/masakhane-web).
+- :gear: **MutNMT**. [@sjarmero](https://github.com/sjarmero) created a web application to train NMT: it lets the user train, inspect, evaluate and translate with Joey NMT --- perfect for NMT newbies! Code [here](https://github.com/Prompsit/mutnmt). The tool was developed by [Prompsit](https://www.prompsit.com/) in the framework of the European project [MultiTraiNMT](http://www.multitrainmt.eu/).
 - :star2: **Cantonese-Mandarin Translator**. [@evelynkyl](https://github.com/evelynkyl/) trained different NMT models for translating between the low-resourced Cantonese and Mandarin,  with the help of some cool parallel sentence mining tricks! Check out her work [here](https://github.com/evelynkyl/yue_nmt).
 - :book: **Russian-Belarusian Translator**. [@tsimafeip](https://github.com/tsimafeip) built a translator from Russian to Belarusian and adapted it to legal and medical domains. The code can be found [here](https://github.com/tsimafeip/Translator/).
-- :muscle: **Reinforcement Learning**. [@samuki](https://github.com/samuki/) implemented various policy gradient variants in JoeyNMT: here's the [code](https://github.com/samuki/reinforce-joey), could the logo be any more perfect? :muscle: :koala:
+- :muscle: **Reinforcement Learning**. [@samuki](https://github.com/samuki/) implemented various policy gradient variants in Joey NMT: here's the [code](https://github.com/samuki/reinforce-joey), could the logo be any more perfect? :muscle: :koala:
 - :hand: **Sign Language Translation**. [@neccam](https://github.com/neccam/) built a sign language translator that continuosly recognizes sign language and translates it. Check out the [code](https://github.com/neccam/slt) and the [CVPR 2020 paper](https://openaccess.thecvf.com/content_CVPR_2020/html/Camgoz_Sign_Language_Transformers_Joint_End-to-End_Sign_Language_Recognition_and_Translation_CVPR_2020_paper.html)!
 - :abc: [@bpopeters](https://github.com/bpopeters/) built [Possum-NMT](https://github.com/deep-spin/sigmorphon-seq2seq) for multilingual grapheme-to-phoneme transduction and morphologic inflection. Read their [paper](https://www.aclweb.org/anthology/2020.sigmorphon-1.4.pdf) for SIGMORPHON 2020!
-- :camera: **Image Captioning**. [@pperle](https://github.com/pperle) and [@stdhd](https://github.com/stdhd) built an image captioning tool on top of JoeyNMT, check out the [code](https://github.com/stdhd/image_captioning) and the [demo](https://image2caption.pascalperle.de/)!
-- :bulb: **Joey Toy Models**. [@bricksdont](https://github.com/bricksdont) built a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) showing how to install JoeyNMT, preprocess data, train and evaluate models. This is a great starting point for anyone who wants to run systematic experiments, tends to forget python calls, or doesn't like to run notebook cells! 
-- :earth_africa: **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/masakhane-io/masakhane-mt) contains and explains all the code you need to train JoeyNMT and points to data sources. It also contains benchmark models and configurations that members of Masakhane have built for various African languages. Furthermore, you might be interested in joining the [Masakhane community](https://github.com/masakhane-io/masakhane-community) if you're generally interested in low-resource NLP/NMT. Also see the [EMNLP Findings paper](https://arxiv.org/abs/2010.02353).
-- :speech_balloon: **Slack Joey**. [Code](https://github.com/juliakreutzer/slack-joey) to locally deploy a JoeyNMT model as chat bot in a Slack workspace. It's a convenient way to probe your model without having to implement an API. And bad translations for chat messages can be very entertaining, too ;)
+- :camera: **Image Captioning**. [@pperle](https://github.com/pperle) and [@stdhd](https://github.com/stdhd) built an image captioning tool on top of Joey NMT, check out the [code](https://github.com/stdhd/image_captioning) and the [demo](https://image2caption.pascalperle.de/)!
+- :bulb: **Joey Toy Models**. [@bricksdont](https://github.com/bricksdont) built a [collection of scripts](https://github.com/bricksdont/joeynmt-toy-models) showing how to install Joey NMT, preprocess data, train and evaluate models. This is a great starting point for anyone who wants to run systematic experiments, tends to forget python calls, or doesn't like to run notebook cells! 
+- :earth_africa: **African NMT**. [@jaderabbit](https://github.com/jaderabbit) started an initiative at the Indaba Deep Learning School 2019 to ["put African NMT on the map"](https://twitter.com/alienelf/status/1168159616167010305). The goal is to build and collect NMT models for low-resource African languages. The [Masakhane repository](https://github.com/masakhane-io/masakhane-mt) contains and explains all the code you need to train Joey NMT and points to data sources. It also contains benchmark models and configurations that members of Masakhane have built for various African languages. Furthermore, you might be interested in joining the [Masakhane community](https://github.com/masakhane-io/masakhane-community) if you're generally interested in low-resource NLP/NMT. Also see the [EMNLP Findings paper](https://arxiv.org/abs/2010.02353).
+- :speech_balloon: **Slack Joey**. [Code](https://github.com/juliakreutzer/slack-joey) to locally deploy a Joey NMT model as chat bot in a Slack workspace. It's a convenient way to probe your model without having to implement an API. And bad translations for chat messages can be very entertaining, too ;)
 - :globe_with_meridians: **Flask Joey**. [@kevindegila](https://github.com/kevindegila) built a [flask interface to Joey](https://github.com/kevindegila/flask-joey), so you can deploy your trained model in a web app and query it in the browser. 
-- :busts_in_silhouette: **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [JoeyNMT paper](https://arxiv.org/abs/1907.12484).
+- :busts_in_silhouette: **User Study**. We evaluated the code quality of this repository by testing the understanding of novices through quiz questions. Find the details in Section 3 of the [Joey NMT paper](https://arxiv.org/abs/1907.12484).
 - :pencil: **Self-Regulated Interactive Seq2Seq Learning**. Julia Kreutzer and Stefan Riezler. Published at ACL 2019. [Paper](https://arxiv.org/abs/1907.05190) and [Code](https://github.com/juliakreutzer/joeynmt/tree/acl19). This project augments the standard fully-supervised learning regime by weak and self-supervision for a better trade-off of quality and supervision costs in interactive NMT.
-- :camel: **Hieroglyph Translation**. JoeyNMT was used to translate hieroglyphs in [this IWSLT 2019 paper](https://www.cl.uni-heidelberg.de/statnlpgroup/publications/IWSLT2019.pdf) by Philipp Wiesenbach and Stefan Riezler. They gave JoeyNMT multi-tasking abilities. 
+- :camel: **Hieroglyph Translation**. Joey NMT was used to translate hieroglyphs in [this IWSLT 2019 paper](https://www.cl.uni-heidelberg.de/statnlpgroup/publications/IWSLT2019.pdf) by Philipp Wiesenbach and Stefan Riezler. They gave Joey NMT multi-tasking abilities. 
 
-If you used JoeyNMT for a project, publication or built some code on top of it, let us know and we'll link it here.
+If you used Joey NMT for a project, publication or built some code on top of it, let us know and we'll link it here.
 
 
 ## Contact
@@ -352,7 +352,7 @@ For general questions, email us at `joeynmt <at> gmail.com`. :love_letter:
 
 
 ## Reference
-If you use JoeyNMT in a publication or thesis, please cite the following [paper](https://arxiv.org/abs/1907.12484):
+If you use Joey NMT in a publication or thesis, please cite the following [paper](https://arxiv.org/abs/1907.12484):
 
 ```
 @inproceedings{kreutzer-etal-2019-joey,
