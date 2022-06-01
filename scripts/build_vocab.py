@@ -185,7 +185,8 @@ def run(
         assert len(langs) in [1, 2], langs
         if len(dataset) > args.random_subset:
             n = args.random_subset if len(langs) == 1 else args.random_subset // 2
-            dataset.sample_random_subset(n=n, seed=args.seed)
+            dataset.random_subset = n
+            dataset.sample_random_subset(seed=args.seed)
 
         sents = []
         for lang in langs:

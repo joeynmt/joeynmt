@@ -158,7 +158,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         self.spm = sp.SentencePieceProcessor()
         self.spm.load(kwargs["model_file"])
 
-        self.nbest_size: bool = kwargs.get("nbest_size", 5)
+        self.nbest_size: int = kwargs.get("nbest_size", 5)
         self.alpha: float = kwargs.get("alpha", 0.0)
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
@@ -182,6 +182,7 @@ class SentencePieceTokenizer(BasicTokenizer):
 
         # Decode back to str
         detokenized = self.spm.decode(sequence)
+        detokenized = detokenized.replace(self.SPACE_ESCAPE, self.SPACE).strip()
 
         # Apply moses detokenizer
         if self.pretokenizer == "moses":
