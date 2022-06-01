@@ -1,0 +1,89 @@
+name: "reverse_experiment"
+joeynmt_version: "2.0.0"
+
+data:
+    # generate data with scripts/generate_reverse_task.py
+    train: "test/data/reverse/train"
+    dev: "test/data/reverse/dev"
+    test: "test/data/reverse/test"
+    src:
+        lang: "src"
+        max_length: 25
+        level: "word"
+        voc_limit: 100
+        voc_min_freq: 0
+    trg:
+        lang: "trg"
+        max_length: 25
+        level: "word"
+        voc_limit: 100
+        voc_min_freq: 0
+    dataset_type: "plain"
+
+testing:
+    n_best: 1
+    beam_size: 1
+    beam_alpha: 1.0
+    eval_metrics: "bleu"
+    max_output_length: 30
+    batch_size: 10
+    batch_type: "sentence"
+    return_prob: False
+    sacrebleu_cfg:
+        tokenize: "13a"
+
+training:
+    random_seed: 42
+    optimizer: "adam"
+    learning_rate: 0.001
+    learning_rate_min: 0.0002
+    weight_decay: 0.0
+    clip_grad_norm: 1.0
+    batch_size: 10
+    batch_type: "sentence"
+    scheduling: "plateau"
+    patience: 5
+    decrease_factor: 0.5
+    early_stopping_metric: "bleu"
+    epochs: 1
+    validation_freq: 1000
+    logging_freq: 100
+    model_dir: "reverse_transformer"
+    overwrite: True
+    shuffle: True
+    use_cuda: False
+    print_valid_sents: [0, 3, 6]
+    keep_best_ckpts: 2
+
+model:
+    initializer: "xavier"           # initializer for all trainable weights (xavier, zeros, normal, uniform)
+    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
+    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
+    embed_initializer: "xavier"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
+    tied_embeddings: True          # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    tied_softmax: True
+    encoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
+        layer_norm: "pre"
+    decoder:
+        type: "transformer"
+        num_layers: 2
+        num_heads: 4
+        embeddings:
+            embedding_dim: 64
+            scale: True
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 64
+        ff_size: 256
+        dropout: 0.1
+        layer_norm: "pre"

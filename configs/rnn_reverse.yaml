@@ -1,25 +1,36 @@
 name: "reverse_experiment"
+joeynmt_version: "2.0.0"
 
 data:
-    src: "src"
-    trg: "trg"
     # generate data with scripts/generate_reverse_task.py
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
-    level: "word"
-    lowercase: False
-    max_sent_length: 25
-    src_voc_min_freq: 0
-    src_voc_limit: 100
-    trg_voc_min_freq: 0
-    trg_voc_limit: 100
-    #src_vocab: "reverse_model/src_vocab.txt"
-    #trg_vocab: "reverse_model/trg_vocab.txt"
+    src:
+        lang: "src"
+        max_length: 25
+        level: "word"
+        voc_limit: 100
+        voc_min_freq: 0
+    trg:
+        lang: "trg"
+        max_length: 25
+        level: "word"
+        voc_limit: 100
+        voc_min_freq: 0
+    dataset_type: "plain"
 
 testing:
+    n_best: 1
     beam_size: 1
-    alpha: 1.0
+    beam_alpha: 1.0
+    eval_metrics: ["bleu"]
+    max_output_length: 30
+    batch_size: 10
+    batch_type: "sentence"
+    return_prob: "none"
+    sacrebleu_cfg:
+        tokenize: "13a"
 
 training:
     random_seed: 42
@@ -33,16 +44,14 @@ training:
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.5
-    early_stopping_metric: "eval_metric"
+    early_stopping_metric: "bleu"
     epochs: 1
     validation_freq: 1000
     logging_freq: 100
-    eval_metric: "bleu"
     model_dir: "reverse_model"
     overwrite: True
     shuffle: True
     use_cuda: False
-    max_output_length: 30
     print_valid_sents: [0, 3, 6]
     keep_best_ckpts: 2
 
@@ -54,6 +63,7 @@ model:
     init_rnn_orthogonal: False
     lstm_forget_gate: 0.
     encoder:
+        type: "recurrent"
         rnn_type: "lstm"
         embeddings:
             embedding_dim: 16
@@ -63,6 +73,7 @@ model:
         dropout: 0.1
         num_layers: 1
     decoder:
+        type: "recurrent"
         rnn_type: "lstm"
         embeddings:
             embedding_dim: 16

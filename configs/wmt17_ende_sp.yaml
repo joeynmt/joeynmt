@@ -1,4 +1,4 @@
-name: "wmt17_ende_bpe"
+name: "wmt17_ende_sp"
 joeynmt_version: "2.0.0"
 
 data:
@@ -18,11 +18,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/subwords/wmt17_bpe.vocab"
-        tokenizer_type: "subword-nmt"
+        voc_file: "test/data/spm/wmt17_sp.vocab"
+        tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            codes: "test/data/subwords/wmt17_bpe.codes"
-            dropout: 0.1
+            model_file: "test/data/spm/wmt17_sp.model"
+            nbest_size: 10
+            alpha: 0.1
             pretokenizer: "moses"
     trg:
         lang: "de"
@@ -32,11 +33,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/subwords/wmt17_bpe.vocab"
-        tokenizer_type: "subword-nmt"
+        voc_file: "test/data/spm/wmt17_sp.vocab"
+        tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            codes: "test/data/subwords/wmt17_bpe.codes"
-            dropout: 0.1
+            model_file: "test/data/spm/wmt17_sp.model"
+            nbest_size: 10
+            alpha: 0.1
             pretokenizer: "moses"
 
 testing:
@@ -56,7 +58,7 @@ testing:
         tokenize: "13a"
 
 training:
-    #load_model: "models/wmt17_ende_bpe/best.ckpt"
+    #load_model: "models/wmt17_ende_sp/best.ckpt"
     reset_best_ckpt: False
     reset_scheduler: False
     reset_optimizer: False
@@ -80,7 +82,7 @@ training:
     updates: 100000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_bpe_moses"
+    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_sp_moses"
     overwrite: False
     shuffle: True
     use_cuda: True

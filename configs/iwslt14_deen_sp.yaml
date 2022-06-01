@@ -2,62 +2,64 @@ name: "iwslt14_deen_sp"
 joeynmt_version: "2.0.0"
 
 data:
-    train: "../datasets/datasets/iwslt14"
-    dev: "../datasets/datasets/iwslt14"
-    test: "../datasets/datasets/iwslt14"
-    src:
-        lang: "de"
-        max_length: 512
-        lowercase: False
-        normalize: True
-        level: "bpe"
-        voc_limit: 32000
-        voc_min_freq: 1
-        voc_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/trg_vocab.txt"
-        tokenizer_type: "sentencepiece"
-        tokenizer_cfg:
-            model_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/iwslt14_sp.model"
-            enable_sampling: True
-            alpha: 0.1
-    trg:
-        lang: "en"
-        max_length: 512
-        lowercase: False
-        normalize: True
-        level: "bpe"
-        voc_limit: 32000
-        voc_min_freq: 1
-        voc_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/trg_vocab.txt"
-        tokenizer_type: "sentencepiece"
-        tokenizer_cfg:
-            model_file: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/iwslt14_sp.model"
-            enable_sampling: True
-            alpha: 0.1
+    # CAUTION: the data splits and preprocessing here are different from the data splits created by scripts/get_iwslt14_sp.sh
+    train: "iwslt14"    # cf. https://github.com/may-/datasets/blob/master/datasets/iwslt14/iwslt14.py
+    dev: "iwslt14"      # ['TED.dev2010', 'TEDX.dev2012']
+    test: "iwslt14"     # ['TED.tst2010', 'TED.tst2011', 'TED.tst2012']
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
+    src:
+        lang: "de"
+        max_length: 512
+        lowercase: True
+        normalize: False
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/iwslt14_sp.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/iwslt14_sp.model"
+            alpha: 0.1
+            pretokenize: "moses"
+    trg:
+        lang: "en"
+        max_length: 512
+        lowercase: True
+        normalize: False
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/iwslt14_sp.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/iwslt14_sp.model"
+            alpha: 0.1
+            pretokenize: "moses"
 
 testing:
-    n_best: 5
+    n_best: 1
     beam_size: 5
     beam_alpha: 1.0
     batch_size: 1024
     batch_type: "token"
     max_output_length: 100
-    eval_metrics: "bleu"
-    sacrebleu:
+    eval_metrics: ["bleu"]
+    sacrebleu_cfg:
         tokenize: "13a"
+        lowercase: True
 
 training:
-    load_model: "/workspace/mitarb/ohta/models/iwslt14_deen_resume2/latest.ckpt"
-    reset_best_ckpt: True
-    reset_scheduler: True
-    reset_optimizer: True
-    reset_iter_state: True
+    #load_model: "models/iwslt14_deen_sp/latest.ckpt"
+    #reset_best_ckpt: True
+    #reset_scheduler: True
+    #reset_optimizer: True
+    #reset_iter_state: True
     random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
-    adam_betas: [0.9, 0.98]
+    adam_betas: [0.9, 0.999]
     scheduling: "warmupinversesquareroot"
     learning_rate_warmup: 4000
     learning_rate: 0.0002
@@ -65,19 +67,19 @@ training:
     weight_decay: 0.0
     label_smoothing: 0.1
     loss: "crossentropy"
-    batch_size: 2048
+    batch_size: 8192
     batch_type: "token"
-    batch_multiplier: 4
+    batch_multiplier: 1
     early_stopping_metric: "bleu"
     epochs: 100
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "/workspace/mitarb/ohta/models/iwslt14_deen_resume3"
-    overwrite: True
+    model_dir: "models/iwslt14_deen_sp"
+    overwrite: False
     shuffle: True
     use_cuda: True
     print_valid_sents: [0, 1, 2, 3]
-    keep_best_ckpts: 3
+    keep_best_ckpts: 5
 
 model:
     initializer: "xavier_normal"
@@ -99,6 +101,7 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
+        layer_norm: "post"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -111,3 +114,4 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
+        layer_norm: "post"
