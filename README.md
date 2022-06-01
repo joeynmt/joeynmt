@@ -1,5 +1,5 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) JoeyNMT 2.0
-[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
+[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
@@ -59,7 +59,7 @@ $ pip install joeynmt
 ### B. From source
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/may-/joeynmt.git
+  $ git clone https://github.com/joeynmt/joeynmt.git
   $ cd joeynmt
   ```
 2. Install JoeyNMT and it's requirements:
@@ -168,7 +168,7 @@ specified in the `data`, `training` and `model` section of the config file (here
 ```
 model_dir/
 ├── *.ckpt          # checkpoints
-├── *.hyp           # translated texts at the iteration
+├── *.hyps          # translated texts at validation
 ├── config.yaml     # config file
 ├── spm.model       # sentencepiece model / subword-nmt codes file
 ├── src_vocab.txt   # src vocab
@@ -249,8 +249,8 @@ Pre-processing with Moses decoder tools as in [this script](scripts/get_iwslt14_
 
 Direction | Architecture | tok | dev | test | #params | download
 --------- | :----------: | :-- | --: | ---: | ------: | :-------
-de->en | RNN | subword-nmt | 31.77 | 30.74 | 61M | [rnn_iwslt14_deen_bpe.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/rnn_iwslt14_deen_bpe.tar.gz) (640M)
-de->en | Transformer | subword-nmt | 34.53 | 33.73 | 19M | [transformer_iwslt14_deen_bpe.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_iwslt14_deen_bpe.tar.gz) (211M)
+de->en | RNN | subword-nmt | 31.77 | 30.74 | 61M | [rnn_iwslt14_deen_bpe.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/rnn_iwslt14_deen_bpe.tar.gz) (672MB)
+de->en | Transformer | subword-nmt | 34.53 | 33.73 | 19M | [transformer_iwslt14_deen_bpe.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_iwslt14_deen_bpe.tar.gz) (221MB)
 
 sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.0.0`
 
@@ -266,8 +266,8 @@ We picked the pretrained models and configs (bpe codes file etc.) from [masakhan
 
 Direction | Architecture | tok | dev | test | #params | download
 --------- | :----------: | :-- | --: | ---: | ------: | :-------
-af->en | Transformer | subword-nmt | - | 57.70 | 46M | [transformer_jw300_afen.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_jw300_afen.tar.gz) (501M)
-en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_enaf.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_jw300_enaf.tar.gz) (271M)
+af->en | Transformer | subword-nmt | - | 57.70 | 46M | [transformer_jw300_afen.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_jw300_afen.tar.gz) (525MB)
+en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_enaf.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_jw300_enaf.tar.gz) (285MB)
 
 sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
@@ -276,14 +276,18 @@ sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.
 
 For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
 Please check the preprocessing script [here](scripts/get_jparacrawl.sh).
-We tested then on kftt test set and wmt20 test set, respectively. 
+We tested then on [kftt](http://www.phontron.com/kftt/) test set and [wmt20]() test set, respectively. 
 
 Direction | Architecture | tok | wmt20 | kftt | #params | download
 --------- | ------------ | :-- | ---: | ------: | ------: | :-------
-en->ja | Transformer | sentencepiece | 17.66 | 14.31 | 225M | [jparacrawl_enja.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_enja.tar.gz) (271M)
+en->ja | Transformer | sentencepiece | 17.66 | 14.31 | 225M | [jparacrawl_enja.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_enja.tar.gz) (2.3GB)
+ja->en | Transformer | sentencepiece | 14.97 | 11.49 | 221M | [jparacrawl_jaen.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_jaen.tar.gz) (2.2GB)
 
-sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
+sacrebleu signature: 
+- en->ja `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
+- ja->en `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
+* In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.
 
 ## Coding
 In order to keep the code clean and readable, we make use of:
