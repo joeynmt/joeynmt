@@ -28,7 +28,7 @@ testing:
     max_output_length: 30
     batch_size: 10
     batch_type: "sentence"
-    return_prob: False
+    return_prob: "none"
     sacrebleu_cfg:
         tokenize: "13a"
 
