@@ -1,65 +1,110 @@
-name: "iwslt14-deen-bpe"
+name: "transformer_iwslt14_deen_bpe"
+joeynmt_version: "2.0.0"
 
 data:
-    src: "de"
-    trg: "en"
-    train: "test/data/iwslt14/train.bpe.32000"
-    dev: "test/data/iwslt14/valid.bpe.32000" 
-    test: "test/data/iwslt14/test.bpe.32000"
-    level: "bpe"
-    lowercase: True
-    max_sent_length: 62
-    src_voc_min_freq: 1
-    src_voc_limit: 32000
-    trg_voc_min_freq: 1
-    trg_voc_limit: 32000
+    train: "test/data/iwslt14/train"
+    dev: "test/data/iwslt14/valid"
+    test: "test/data/iwslt14/test"
+    dataset_type: "plain"
+    src:
+        lang: "de"
+        max_length: 62
+        lowercase: True
+        normalize: False
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "models/transformer_iwslt14_deen_bpe/src_vocab.txt"
+        tokenizer_type: "subword-nmt"
+        tokenizer_cfg:
+            codes: "models/transformer_iwslt14_deen_bpe/bpe.32000"
+            pretokenizer: "none"
+    trg:
+        lang: "en"
+        max_length: 62
+        lowercase: True
+        normalize: False
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "models/transformer_iwslt14_deen_bpe/trg_vocab.txt"
+        tokenizer_type: "subword-nmt"
+        tokenizer_cfg:
+            codes: "models/transformer_iwslt14_deen_bpe/bpe.32000"
+            pretokenizer: "none"
 
 testing:
+    n_best: 1
     beam_size: 5
-    alpha: 1.0
+    beam_alpha: 1.0
+    batch_size: 1024
+    batch_type: "token"
+    max_output_length: 100
+    eval_metrics: ["bleu"]
+    return_prob: "none"
+    return_attention: False
+    sacrebleu_cfg:
+        tokenize: "13a"
+        lowercase: True
 
 training:
+    load_model: "models/transformer_iwslt14_deen_bpe/best.ckpt"
+    random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
-    learning_rate: 0.0002
-    batch_size: 80
+    adam_betas: [0.9, 0.999]
     scheduling: "plateau"
-    patience: 8
-    #clip_grad_norm: 1.0
-    weight_decay: 0.0
+    patience: 5
     decrease_factor: 0.7
-    early_stopping_metric: "loss"
+    loss: "crossentropy"
+    learning_rate: 0.0003
+    learning_rate_min: 0.00000001
+    weight_decay: 0.0
+    label_smoothing: 0.1
+    batch_size: 4096
+    batch_type: "token"
+    early_stopping_metric: "bleu"
     epochs: 100
-    validation_freq: 2000
-    logging_freq: 500
-    eval_metric: "bleu"
-    model_dir: "models/iwslt14_deen_bpe"
+    validation_freq: 1000
+    logging_freq: 100
+    model_dir: "models/transformer_iwslt14_deen_bpe"
     overwrite: False
     shuffle: True
     use_cuda: True
-    max_output_length: 80
     print_valid_sents: [0, 1, 2, 3, 4]
+    keep_best_ckpts: 5
 
 model:
+    initializer: "xavier"
+    embed_initializer: "xavier"
+    embed_init_gain: 1.0
+    init_gain: 1.0
+    bias_initializer: "zeros"
+    tied_embeddings: True
+    tied_softmax: True
     encoder:
-        rnn_type: "gru"
+        type: "transformer"
+        num_layers: 6
+        num_heads: 4
         embeddings:
-            embedding_dim: 620
-            scale: False
-        hidden_size: 500
-        bidirectional: True
-        dropout: 0.0
-        num_layers: 1
+            embedding_dim: 256
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 256
+        ff_size: 1024
+        dropout: 0.3
+        layer_norm: "pre"
     decoder:
-        rnn_type: "gru"
+        type: "transformer"
+        num_layers: 6
+        num_heads: 4
         embeddings:
-            embedding_dim: 620
-            scale: False
-        emb_scale: False
-        hidden_size: 1000
-        dropout: 0.0
-        hidden_dropout: 0.2
-        num_layers: 1
-        input_feeding: True
-        init_hidden: "bridge"
-        attention: "bahdanau"
+            embedding_dim: 256
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 256
+        ff_size: 1024
+        dropout: 0.3
+        layer_norm: "pre"

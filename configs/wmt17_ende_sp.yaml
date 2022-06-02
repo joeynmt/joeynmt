@@ -1,0 +1,125 @@
+name: "wmt17_ende_sp"
+joeynmt_version: "2.0.0"
+
+data:
+    train: "wmt17"
+    dev: "wmt17"
+    test: "wmt17"
+    dataset_type: "huggingface"
+    dataset_cfg:
+        name: "de-en"
+    sampel_train_subset: -1
+    random_dev_subset: 200
+    src:
+        lang: "en"
+        max_length: 512
+        lowercase: False
+        normalize: True
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/spm/wmt17_sp.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/spm/wmt17_sp.model"
+            nbest_size: 10
+            alpha: 0.1
+            pretokenizer: "moses"
+    trg:
+        lang: "de"
+        max_length: 512
+        lowercase: False
+        normalize: True
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/spm/wmt17_sp.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/spm/wmt17_sp.model"
+            nbest_size: 10
+            alpha: 0.1
+            pretokenizer: "moses"
+
+testing:
+    n_best: 1
+    beam_size: 5
+    beam_alpha: 1.0
+    batch_size: 1024
+    batch_type: "token"
+    max_output_length: 100
+    min_output_length: 1
+    eval_metrics: ["bleu"]
+    return_prob: "hyp"
+    generate_unk: False
+    repetition_penalty: -1
+    no_repeat_ngram_size: -1
+    sacrebleu_cfg:
+        tokenize: "13a"
+
+training:
+    #load_model: "models/wmt17_ende_sp/best.ckpt"
+    reset_best_ckpt: False
+    reset_scheduler: False
+    reset_optimizer: False
+    reset_iter_state: False
+    random_seed: 42
+    optimizer: "adam"
+    normalization: "tokens"
+    adam_betas: [0.9, 0.98]
+    scheduling: "warmupinversesquareroot"
+    learning_rate_warmup: 4000
+    learning_rate: 0.0002
+    learning_rate_min: 0.00000001
+    loss: "crossentropy"
+    weight_decay: 0.0
+    label_smoothing: 0.1
+    batch_size: 4096
+    batch_type: "token"
+    batch_multiplier: 1
+    early_stopping_metric: "bleu"
+    epochs: 100
+    updates: 100000
+    validation_freq: 1000
+    logging_freq: 100
+    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_sp_moses"
+    overwrite: False
+    shuffle: True
+    use_cuda: True
+    print_valid_sents: [0, 1, 2, 3, 4]
+    keep_best_ckpts: 5
+
+model:
+    initializer: "xavier_normal"
+    embed_initializer: "xavier_normal"
+    embed_init_gain: 1.0
+    init_gain: 1.0
+    bias_initializer: "zeros"
+    tied_embeddings: True
+    tied_softmax: True
+    encoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+            dropout: 0.1
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1
+        layer_norm: "post"
+    decoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+            dropout: 0.1
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1
+        layer_norm: "post"

@@ -1,0 +1,118 @@
+name: "jparacrawl_enja_sp"
+joeynmt_version: "2.0.0"
+
+data:
+    train: "jparacrawl"
+    dev: "wmt21"
+    test: "kftt"
+    dataset_type: "huggingface"
+    dataset_cfg:
+        name: "ja-en"
+    random_train_subset: -1
+    random_dev_subset: 200
+    src:
+        lang: "en"
+        max_length: 512
+        lowercase: False
+        normalize: True
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/spm/jparacrawl_en.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/spm/jparacrawl_en.model"
+            nbest_size: 10
+            alpha: 0.1
+    trg:
+        lang: "ja"
+        max_length: 512
+        lowercase: False
+        normalize: True
+        level: "bpe"
+        voc_limit: 32000
+        voc_min_freq: 1
+        voc_file: "test/data/spm/jparacrawl_ja.vocab"
+        tokenizer_type: "sentencepiece"
+        tokenizer_cfg:
+            model_file: "test/data/spm/jparacrawl_ja.model"
+            nbest_size: 10
+            alpha: 0.1
+
+testing:
+    n_best: 1
+    beam_size: 5
+    beam_alpha: 1.0
+    batch_size: 1024
+    batch_type: "token"
+    max_output_length: 100
+    eval_metrics: ["bleu"]
+    return_prob: "none"
+    return_attention: False
+    generate_unk: False
+    no_repeat_ngram_size: 4
+    repetition_penalty: -1
+    sacrebleu_cfg:
+        tokenize: "ja-mecab"
+
+training:
+    #load_model: "models/jparacrawl_enja_sp/best.ckpt"
+    random_seed: 42
+    optimizer: "adam"
+    normalization: "tokens"
+    adam_betas: [0.9, 0.98]
+    scheduling: "warmupinversesquareroot"
+    learning_rate_warmup: 4000
+    learning_rate: 0.0002
+    learning_rate_min: 0.00000001
+    weight_decay: 0.0
+    label_smoothing: 0.1
+    loss: "crossentropy"
+    batch_size: 4096
+    batch_type: "token"
+    batch_multiplier: 2
+    early_stopping_metric: "ppl"
+    epochs: 100
+    validation_freq: 1000
+    logging_freq: 100
+    model_dir: "models/jparacrawl_enja_sp"
+    overwrite: False
+    shuffle: True
+    use_cuda: True
+    print_valid_sents: [0, 1, 2, 3]
+    keep_best_ckpts: 3
+
+model:
+    initializer: "xavier_normal"
+    bias_initializer: "zeros"
+    init_gain: 1.0
+    embed_initializer: "xavier_normal"
+    embed_init_gain: 1.0
+    tied_embeddings: False
+    tied_softmax: False
+    encoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1
+        layer_norm: "post"
+    decoder:
+        type: "transformer"
+        num_layers: 6
+        num_heads: 8
+        embeddings:
+            embedding_dim: 512
+            scale: True
+            dropout: 0.
+        # typically ff_size = 4 x hidden_size
+        hidden_size: 512
+        ff_size: 2048
+        dropout: 0.1
+        layer_norm: "post"

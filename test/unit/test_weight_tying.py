@@ -1,12 +1,10 @@
-from torch.nn import GRU, LSTM
-import torch
-import numpy as np
+import copy
+from test.unit.test_helpers import TensorTestCase
 
-from joeynmt.encoders import RecurrentEncoder
-from .test_helpers import TensorTestCase
+import torch
+
 from joeynmt.model import build_model
 from joeynmt.vocabulary import Vocabulary
-import copy
 
 
 class TestWeightTying(TensorTestCase):
@@ -14,7 +12,7 @@ class TestWeightTying(TensorTestCase):
     def setUp(self):
         self.seed = 42
         vocab_size = 30
-        tokens = ["tok{:02d}".format(i) for i in range(vocab_size)]
+        tokens = [f"tok{i:02d}" for i in range(vocab_size)]
         self.vocab = Vocabulary(tokens=tokens)
 
         self.cfg = {
@@ -24,13 +22,17 @@ class TestWeightTying(TensorTestCase):
                 "encoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {"embedding_dim": 32},
+                    "embeddings": {
+                        "embedding_dim": 32
+                    },
                     "num_layers": 1,
                 },
                 "decoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {"embedding_dim": 32},
+                    "embeddings": {
+                        "embedding_dim": 32
+                    },
                     "num_layers": 1,
                 },
             }
@@ -45,13 +47,11 @@ class TestWeightTying(TensorTestCase):
 
         src_vocab = trg_vocab = self.vocab
 
-        model = build_model(cfg["model"],
-                            src_vocab=src_vocab, trg_vocab=trg_vocab)
+        model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
 
-        self.assertEqual(src_vocab.itos, trg_vocab.itos)
+        self.assertEqual(src_vocab, trg_vocab)
         self.assertEqual(model.src_embed, model.trg_embed)
-        self.assertTensorEqual(model.src_embed.lut.weight,
-                               model.trg_embed.lut.weight)
+        self.assertTensorEqual(model.src_embed.lut.weight, model.trg_embed.lut.weight)
         self.assertEqual(model.src_embed.lut.weight.shape,
                          model.trg_embed.lut.weight.shape)
 
@@ -66,11 +66,12 @@ class TestWeightTying(TensorTestCase):
 
         src_vocab = trg_vocab = self.vocab
 
-        model = build_model(cfg["model"],
-                            src_vocab=src_vocab, trg_vocab=trg_vocab)
+        model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
 
-        self.assertEqual(model.trg_embed.lut.weight.shape,
-                         model.decoder.output_layer.weight.shape)
+        self.assertEqual(
+            model.trg_embed.lut.weight.shape,
+            model.decoder.output_layer.weight.shape,
+        )
 
         self.assertTensorEqual(model.trg_embed.lut.weight,
                                model.decoder.output_layer.weight)
@@ -88,8 +89,7 @@ class TestWeightTying(TensorTestCase):
         cfg["model"]["encoder"]["embeddings"]["embedding_dim"] = 64
 
         src_vocab = trg_vocab = self.vocab
-        model = build_model(cfg["model"],
-                            src_vocab=src_vocab, trg_vocab=trg_vocab)
+        model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
 
         src_weight = model.src_embed.lut.weight
         trg_weight = model.trg_embed.lut.weight
@@ -100,7 +100,7 @@ class TestWeightTying(TensorTestCase):
         self.assertEqual(src_weight.shape, trg_weight.shape)
         self.assertEqual(trg_weight.shape, output_weight.shape)
 
-        output_weight.data.fill_(3.)
+        output_weight.data.fill_(3.0)
         self.assertEqual(output_weight.sum().item(), 6528)
         self.assertEqual(output_weight.sum().item(), src_weight.sum().item())
         self.assertEqual(output_weight.sum().item(), trg_weight.sum().item())

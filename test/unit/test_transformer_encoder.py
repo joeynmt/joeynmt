@@ -1,7 +1,8 @@
+from test.unit.test_helpers import TensorTestCase
+
 import torch
 
-from joeynmt.encoders import TransformerEncoder
-from .test_helpers import TensorTestCase
+from joeynmt.encoders import TransformerEncoder, TransformerEncoderLayer
 
 
 class TestTransformerEncoder(TensorTestCase):
@@ -12,13 +13,15 @@ class TestTransformerEncoder(TensorTestCase):
         self.hidden_size = 12
         self.ff_size = 24
         self.num_heads = 4
-        self.dropout = 0.
+        self.dropout = 0.0
+        self.alpha = 1.0
+        self.layer_norm = "pre"
         self.seed = 42
         torch.manual_seed(self.seed)
 
     def test_transformer_encoder_freeze(self):
         encoder = TransformerEncoder(freeze=True)
-        for n, p in encoder.named_parameters():
+        for _, p in encoder.named_parameters():
             self.assertFalse(p.requires_grad)
 
     def test_transformer_encoder_forward(self):
@@ -27,9 +30,15 @@ class TestTransformerEncoder(TensorTestCase):
         torch.manual_seed(self.seed)
 
         encoder = TransformerEncoder(
-            hidden_size=self.hidden_size, ff_size=self.ff_size,
-            num_layers=self.num_layers, num_heads=self.num_heads,
-            dropout=self.dropout, emb_dropout=self.dropout)
+            hidden_size=self.hidden_size,
+            ff_size=self.ff_size,
+            num_layers=self.num_layers,
+            num_heads=self.num_heads,
+            dropout=self.dropout,
+            emb_dropout=self.dropout,
+            alpha=self.alpha,
+            layer_norm=self.layer_norm,
+        )
 
         for p in encoder.parameters():
             torch.nn.init.uniform_(p, -0.5, 0.5)
@@ -42,34 +51,64 @@ class TestTransformerEncoder(TensorTestCase):
 
         output, hidden = encoder(x, x_length, mask)
 
-        self.assertEqual(output.shape, torch.Size(
-            [batch_size, time_dim, self.hidden_size]))
+        self.assertEqual(output.shape,
+                         torch.Size([batch_size, time_dim, self.hidden_size]))
         self.assertEqual(hidden, None)
 
-        output_target = torch.Tensor(
-            [[[1.9728e-01, -1.2042e-01, 8.0998e-02, 1.3411e-03, -3.5960e-01,
-               -5.2988e-01, -5.6056e-01, -3.5297e-01, 2.6680e-01, 2.8343e-01,
-               -3.7342e-01, -5.9112e-03],
-              [8.9687e-02, -1.2491e-01, 7.7809e-02, -1.3500e-03, -2.7002e-01,
-               -4.7312e-01, -5.7981e-01, -4.1998e-01, 1.0457e-01, 2.9726e-01,
-               -3.9461e-01, 8.1598e-02],
-              [3.4988e-02, -1.3020e-01, 6.0043e-02, 2.7782e-02, -3.1483e-01,
-               -3.8940e-01, -5.5557e-01, -5.9540e-01, -2.9808e-02, 3.1468e-01,
-               -4.5809e-01, 4.3313e-03],
-              [1.2234e-01, -1.3285e-01, 6.3068e-02, -2.3343e-02, -2.3519e-01,
-               -4.0794e-01, -5.6063e-01, -5.5484e-01, -1.1272e-01, 3.0103e-01,
-               -4.0983e-01, 3.3038e-02]],
-             [[9.8597e-02, -1.2121e-01, 1.0718e-01, -2.2644e-02, -4.0282e-01,
-               -4.2646e-01, -5.9981e-01, -3.7200e-01, 1.9538e-01, 2.7036e-01,
-               -3.4072e-01, -1.7966e-03],
-              [8.8470e-02, -1.2618e-01, 5.3351e-02, -1.8531e-02, -3.3834e-01,
-               -4.9047e-01, -5.7063e-01, -4.9790e-01, 2.2070e-01, 3.3964e-01,
-               -4.1604e-01, 2.3519e-02],
-              [5.8373e-02, -1.2706e-01, 1.0598e-01, 9.3277e-05, -3.0493e-01,
-               -4.4406e-01, -5.4723e-01, -5.2214e-01, 8.0374e-02, 2.6307e-01,
-               - 4.4571e-01, 8.7052e-02],
-              [7.9567e-02, -1.2977e-01, 1.1731e-01, 2.6198e-02, -2.4024e-01,
-               -4.2161e-01, -5.7604e-01, -7.3298e-01, 1.6698e-01, 3.1454e-01,
-               -4.9189e-01, 2.4027e-02]]]
-        )
-        self.assertTensorAlmostEqual(output_target, output)
+        output_target = torch.Tensor([
+            [[
+                1.9728e-01, -1.2042e-01, 8.0998e-02, 1.3411e-03, -3.5960e-01,
+                -5.2988e-01, -5.6056e-01, -3.5297e-01, 2.6680e-01, 2.8343e-01,
+                -3.7342e-01, -5.9113e-03
+            ],
+             [
+                 8.9687e-02, -1.2491e-01, 7.7809e-02, -1.3499e-03, -2.7002e-01,
+                 -4.7312e-01, -5.7981e-01, -4.1998e-01, 1.0457e-01, 2.9726e-01,
+                 -3.9461e-01, 8.1598e-02
+             ],
+             [
+                 3.4988e-02, -1.3020e-01, 6.0043e-02, 2.7782e-02, -3.1483e-01,
+                 -3.8940e-01, -5.5557e-01, -5.9540e-01, -2.9808e-02, 3.1468e-01,
+                 -4.5809e-01, 4.3312e-03
+             ],
+             [
+                 1.2234e-01, -1.3285e-01, 6.3068e-02, -2.3343e-02, -2.3519e-01,
+                 -4.0794e-01, -5.6063e-01,
+                 -5.5484e-01, -1.1272e-01,
+                 3.0103e-01, -4.0983e-01, 3.3038e-02
+             ]],
+            [[
+                9.8597e-02, -1.2121e-01, 1.0718e-01, -2.2644e-02, -4.0282e-01,
+                -4.2646e-01, -5.9981e-01,
+                -3.7200e-01, 1.9538e-01, 2.7036e-01, -3.4072e-01, -1.7965e-03
+            ],
+             [
+                 8.8470e-02, -1.2618e-01, 5.3351e-02, -1.8531e-02, -3.3834e-01,
+                 -4.9047e-01, -5.7063e-01, -4.9790e-01, 2.2070e-01, 3.3964e-01,
+                 -4.1604e-01, 2.3519e-02
+             ],
+             [
+                 5.8373e-02, -1.2706e-01, 1.0598e-01, 9.3256e-05, -3.0493e-01,
+                 -4.4406e-01, -5.4723e-01, -5.2214e-01, 8.0374e-02, 2.6307e-01,
+                 -4.4571e-01, 8.7052e-02
+             ],
+             [
+                 7.9567e-02, -1.2977e-01, 1.1731e-01, 2.6198e-02, -2.4024e-01,
+                 -4.2161e-01, -5.7604e-01, -7.3298e-01, 1.6698e-01, 3.1454e-01,
+                 -4.9189e-01, 2.4027e-02
+             ]]
+        ])
+        self.assertTensorAlmostEqual(output, output_target)
+
+        for layer in encoder.layers:
+            self.assertTrue(isinstance(layer, TransformerEncoderLayer))
+            self.assertTrue(hasattr(layer, "src_src_att"))
+            self.assertTrue(hasattr(layer, "feed_forward"))
+            self.assertEqual(layer.alpha, self.alpha)
+            self.assertEqual(layer.size, self.hidden_size)
+            self.assertEqual(layer.feed_forward.pwff_layer[0].in_features,
+                             self.hidden_size)
+            self.assertEqual(layer.feed_forward.pwff_layer[0].out_features,
+                             self.ff_size)
+            # pylint: disable=protected-access
+            self.assertEqual(layer._layer_norm_position, self.layer_norm)

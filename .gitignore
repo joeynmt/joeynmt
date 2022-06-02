@@ -1,6 +1,9 @@
+.ipynb_checkpoints
 .idea/*
 build/*
 dist/*
 *.egg-info/*
 docs/build/*
-*__pycache__*
+__pycache__
+*.pyc
+jnmt

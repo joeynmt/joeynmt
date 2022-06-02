@@ -7,7 +7,7 @@ np.random.seed(42)
 
 def generate_samples(n=10000, low=0, high=10, maxlen=10):
     samples = []
-    for i in range(n):
+    for _ in range(n):
         size = np.random.randint(1, maxlen + 1)
         sample = np.random.randint(low, high, size)
         samples.append(sample)
@@ -33,7 +33,7 @@ def generate_task(train="train", dev="dev", test="test", src="src", trg="trg"):
     save_samples(samples, prefix=train, ext=trg, reverse=True)
 
     # dev
-    samples = generate_samples(1000, high=50,  maxlen=30)
+    samples = generate_samples(1000, high=50, maxlen=30)
     save_samples(samples, prefix=dev, ext=src, reverse=False)
     save_samples(samples, prefix=dev, ext=trg, reverse=True)
 
