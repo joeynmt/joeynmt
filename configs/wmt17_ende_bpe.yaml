@@ -8,7 +8,7 @@ data:
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
-    sampel_train_subset: -1
+    random_train_subset: -1
     random_dev_subset: 200
     src:
         lang: "en"

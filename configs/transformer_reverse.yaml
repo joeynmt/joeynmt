@@ -24,11 +24,11 @@ testing:
     n_best: 1
     beam_size: 1
     beam_alpha: 1.0
-    eval_metrics: "bleu"
+    eval_metrics: ["bleu"]
     max_output_length: 30
     batch_size: 10
     batch_type: "sentence"
-    return_prob: False
+    return_prob: "none"
     sacrebleu_cfg:
         tokenize: "13a"
 
