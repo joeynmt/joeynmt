@@ -34,9 +34,9 @@ MODEL_TYPE = "unigram"
 
 def build_vocab_from_sents(
     tokens: List[List[str]],
-    max_size: int,
     min_freq: int,
     vocab_file: Path,
+    max_size: int = sys.maxsize,
 ) -> None:
     """
     Builds char/word vocabulary from sentences.
@@ -106,7 +106,7 @@ def train_spm(
 
 def train_bpe(
     sents: List[str],
-    max_size: int,
+    num_merges: int,
     min_freq: int,
     codes: str,
 ) -> None:
@@ -123,7 +123,7 @@ def train_bpe(
         bpe_args = bpe_parser.parse_args([
             f"--input={txt_file}",
             f"--output={codes}",
-            f"--symbols={max_size}",
+            f"--symbols={num_merges}",
             f"--min-frequency={min_freq}",
         ])
         print("### Training bpe...")
@@ -162,7 +162,8 @@ def save_bpe(
         bpe_args.glossaries,
     )
     tokens = [bpe.process_line(sent).strip().split() for sent in sents]
-    build_vocab_from_sents(tokens, max_size, min_freq, vocab_file)
+    # No max_size: include all bpes (can be more than merges).
+    build_vocab_from_sents(tokens, min_freq=min_freq, vocab_file=vocab_file)
 
 
 def run(
@@ -222,7 +223,7 @@ def run(
         elif tokenizer_type == "subword-nmt":
             train_bpe(
                 sents=sents,
-                max_size=max_size,
+                num_merges=tokenizer_cfg["num_merges"],
                 min_freq=min_freq,
                 codes=tokenizer_cfg["codes"],
             )

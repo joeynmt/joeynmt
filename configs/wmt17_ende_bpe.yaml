@@ -16,11 +16,11 @@ data:
         lowercase: False
         normalize: True
         level: "bpe"
-        voc_limit: 32000
         voc_min_freq: 1
         voc_file: "test/data/subwords/wmt17_bpe.vocab"
         tokenizer_type: "subword-nmt"
         tokenizer_cfg:
+            num_merges: 32000
             codes: "test/data/subwords/wmt17_bpe.codes"
             dropout: 0.1
             pretokenizer: "moses"
@@ -35,6 +35,7 @@ data:
         voc_file: "test/data/subwords/wmt17_bpe.vocab"
         tokenizer_type: "subword-nmt"
         tokenizer_cfg:
+            num_merges: 32000
             codes: "test/data/subwords/wmt17_bpe.codes"
             dropout: 0.1
             pretokenizer: "moses"
