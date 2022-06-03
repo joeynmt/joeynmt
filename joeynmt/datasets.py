@@ -420,7 +420,9 @@ class BaseHuggingfaceDataset(BaseDataset):
     def load_data(self, path: str, **kwargs) -> Any:
         # pylint: disable=import-outside-toplevel
         try:
-            from datasets import load_dataset
+            from datasets import config, load_dataset, load_from_disk
+            if Path(path, config.DATASET_STATE_JSON_FILENAME).exists():
+                return load_from_disk(path)
             return load_dataset(path, **kwargs)
 
         except ImportError as e:
@@ -490,12 +492,22 @@ class HuggingfaceDataset(BaseHuggingfaceDataset):
                 ret[tl] = self.tokenizer[tl].pre_process(item[tl])
             return ret
 
+        def _drop_nan(item):
+            sl = self.src_lang
+            tl = self.trg_lang
+            is_src_valid = item[sl] is not None and len(item[sl]) > 0
+            if self.has_trg:
+                is_trg_valid = item[tl] is not None and len(item[tl]) > 0
+                return is_src_valid and is_trg_valid
+            return is_src_valid
+
         columns = {
             f"translation.{self.src_lang}": self.src_lang,
             f"translation.{self.trg_lang}": self.trg_lang,
         }
-        return (dataset.flatten().rename_columns(columns).map(_pre_process,
-                                                              desc="Preprocessing..."))
+
+        dataset = dataset.flatten().rename_columns(columns).filter(_drop_nan)
+        return dataset.map(_pre_process, desc="Preprocessing...")
 
 
 def build_dataset(
@@ -567,7 +579,8 @@ def build_dataset(
         )
     elif dataset_type == "huggingface":
         # "split" should be specified in kwargs
-        kwargs["split"] = "validation" if split == "dev" else split
+        if "split" not in kwargs:
+            kwargs["split"] = "validation" if split == "dev" else split
         dataset = HuggingfaceDataset(
             path=path,
             src_lang=src_lang,
