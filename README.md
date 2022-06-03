@@ -1,5 +1,5 @@
-# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT 2.0
-[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
+# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
+[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
@@ -35,7 +35,7 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 - BLEU, ChrF evaluation
 - Beam search with length penalty and greedy decoding
 - Customizable initialization
-- Attention visualization (for RNN)
+- Attention visualization
 - Learning curve plotting
 - Scoring hypotheses and references
 
@@ -48,6 +48,16 @@ We tested Joey NMT 2.0 with
 - torch 1.11.0
 - cuda 11.5
 
+> :warning: **Warning**
+> When running on **GPU** you need to manually install the suitable PyTorch version 
+> for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
+> For example, you can install PyTorch 1.11.0 with CUDA v11.3 as follows:
+> ```
+> $ pip install --upgrade torch==1.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+> ```
+> See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+
+
 You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
 ### A. Via pip
@@ -55,8 +65,14 @@ for latest stable version:
 ```bash
 $ pip install joeynmt
 ```
-  
-### B. From source
+
+> :warning: **Warning**
+> You'll need a particular python version when working on Google Colab. Please specify the branch name in such a case.
+> ```
+> pip install git+https://github.com/joeynmt/joeynmt.git@py3.7
+> ```
+
+### B. From source (for local development)
 1. Clone this repository:
   ```bash
   $ git clone https://github.com/may-/joeynmt.git
@@ -71,16 +87,6 @@ $ pip install joeynmt
   $ python -m unittest
   ```
 
-> :warning: **Warning**
-> When running on **GPU** you need to manually install the suitable PyTorch version 
-> for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.11.0 with CUDA v11.3 as follows:
-> ```
-> $ pip install --upgrade torch==1.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-> ```
-> This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
-> You'll need this in particular when working on Google Colab (if it doesn't already
-> have the right PyTorch version installed).
 
 **[Optional]** For fp16 training, install NVIDIA's [apex](https://github.com/NVIDIA/apex) library:
 ```bash
