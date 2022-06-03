@@ -12,12 +12,12 @@ data:
         lowercase: True
         normalize: False
         level: "bpe"
-        voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "models/transformer_iwslt14_deen_bpe/src_vocab.txt"
+        voc_file: "test/data/iwslt14/bpe_vocab.txt"
         tokenizer_type: "subword-nmt"
         tokenizer_cfg:
-            codes: "models/transformer_iwslt14_deen_bpe/bpe.32000"
+            num_merges: 32000
+            codes: "test/data/iwslt14/bpe.32000"
             pretokenizer: "none"
     trg:
         lang: "en"
@@ -25,12 +25,12 @@ data:
         lowercase: True
         normalize: False
         level: "bpe"
-        voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "models/transformer_iwslt14_deen_bpe/trg_vocab.txt"
+        voc_file: "test/data/iwslt14/bpe_vocab.txt"
         tokenizer_type: "subword-nmt"
         tokenizer_cfg:
-            codes: "models/transformer_iwslt14_deen_bpe/bpe.32000"
+            num_merges: 32000
+            codes: "test/data/iwslt14/bpe.32000"
             pretokenizer: "none"
 
 testing:
@@ -48,7 +48,7 @@ testing:
         lowercase: True
 
 training:
-    load_model: "models/transformer_iwslt14_deen_bpe/best.ckpt"
+    #load_model: "models/transformer_iwslt14_deen_bpe/best.ckpt"
     random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
