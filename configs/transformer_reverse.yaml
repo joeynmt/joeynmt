@@ -6,6 +6,7 @@ data:
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
+    dataset_type: "plain"
     src:
         lang: "src"
         max_length: 25
@@ -18,17 +19,16 @@ data:
         level: "word"
         voc_limit: 100
         voc_min_freq: 0
-    dataset_type: "plain"
 
 testing:
     n_best: 1
     beam_size: 1
     beam_alpha: 1.0
-    eval_metrics: "bleu"
+    eval_metrics: ["bleu"]
     max_output_length: 30
     batch_size: 10
     batch_type: "sentence"
-    return_prob: False
+    return_prob: "none"
     sacrebleu_cfg:
         tokenize: "13a"
 

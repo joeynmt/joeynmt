@@ -8,8 +8,8 @@ data:
     dataset_type: "plain"           # dataset type: one of {"plain", "tsv", "huggingface"} (default: "plain")
     #dataset_cfg:                   # dataset config (used only if dataset_type="huggingface")
     #    name: "de-en"              # name: argument passed to huggingface's datasets.load_data() func
-    random_train_subset: -1         # select this many training examples randomly for training in each epoch, default: -1 (no subsampling)
-    random_dev_subset: -1           # select this many validation examples randomly for training in each epoch, default: -1 (no subsampling)
+    sample_train_subset: -1         # select this many training examples randomly for training in each epoch, default: -1 (no subsampling)
+    sample_dev_subset: -1           # select this many validation examples randomly for training in each epoch, default: -1 (no subsampling)
     src:
         lang: "de"                  # src language: expected suffix of train files, e.g. "train.de"
         max_length: 30              # filter out longer sentences from training
@@ -17,13 +17,14 @@ data:
         lowercase: False            # whether to lowercase the data, also for validation and test applied
         normalize: False            # whether to normalize the data, also for validation and test applied
         level: "bpe"                # segmentation level: either "char", "word", or "bpe"
-        voc_limit: 200              # vocabulary only includes this many most frequent tokens, default: -1 (unlimited)
+        voc_limit: 400              # vocabulary only includes this many most frequent tokens, default: sys.maxsize (unlimited)
         voc_min_freq: 1             # minimum frequency for a token to become part of the vocabulary
         voc_file: "test/data/toy/bpe200.txt" # load a vocabulary from this file
         tokenizer_type: "subword-nmt" # tokenizer type, currently either "subword-nmt" or "sentencepiece" is supported.
         tokenizer_cfg:              # tokenizer config
-            codes: "test/data/toy/bpe200.codes" # BPE codes file (for subowrd-nmt)
-            dropout: 0.0            # BPE dropout probability (for subowrd-nmt)
+            num_merges: 200         # Number of merges for subword-nmt. Resulting vocabulary size can be slightly smaller or larger.
+            codes: "test/data/toy/bpe200.codes" # BPE codes file (for subword-nmt)
+            dropout: 0.0            # BPE dropout probability (for subword-nmt)
             #model_file:            # sentencepiece model file path (for sentencepiece)
             #alpha:                 # BPE dropout probability (for sentencepiece)
             pretokenizer: "none"    # either "moses" or "none" (default: "none")
@@ -34,13 +35,14 @@ data:
         lowercase: False            # whether to lowercase the data, also for validation and test applied
         normalize: False            # whether to normalize the data, also for validation and test applied
         level: "bpe"                # segmentation level: either "char", "word", or "bpe"
-        voc_limit: 200              # vocabulary only includes this many most frequent tokens, default: -1 (unlimited)
+        voc_limit: 400              # vocabulary only includes this many most frequent tokens, default: sys.maxsize (unlimited)
         voc_min_freq: 1             # minimum frequency for a token to become part of the vocabulary
         voc_file: "test/data/toy/bpe200.txt" # load a vocabulary from this file
         tokenizer_type: "subword-nmt" # tokenizer type, currently either "subword-nmt" or "sentencepiece" is supported.
         tokenizer_cfg:              # tokenizer config
-            codes: "test/data/toy/bpe200.codes" # BPE codes file (for subowrd-nmt)
-            dropout: 0.0            # BPE dropout probability (for subowrd-nmt)
+            num_merges: 200         # Number of merges for subword-nmt. Resulting vocabulary size can be slightly smaller or larger.
+            codes: "test/data/toy/bpe200.codes" # BPE codes file (for subword-nmt)
+            dropout: 0.0            # BPE dropout probability (for subword-nmt)
             #model_file:            # sentencepiece model file path (for sentencepiece)
             #alpha:                 # BPE dropout probability (for sentencepiece)
             pretokenizer: "none"    # either "moses" or "none" (default: "none")

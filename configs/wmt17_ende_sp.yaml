@@ -8,8 +8,8 @@ data:
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
-    sampel_train_subset: -1
-    random_dev_subset: 200
+    sample_train_subset: -1
+    sample_dev_subset: 200
     src:
         lang: "en"
         max_length: 512
@@ -82,7 +82,7 @@ training:
     updates: 100000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_sp_moses"
+    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_sp_prenorm"
     overwrite: False
     shuffle: True
     use_cuda: True
@@ -90,8 +90,8 @@ training:
     keep_best_ckpts: 5
 
 model:
-    initializer: "xavier_normal"
-    embed_initializer: "xavier_normal"
+    initializer: "xavier"
+    embed_initializer: "xavier"
     embed_init_gain: 1.0
     init_gain: 1.0
     bias_initializer: "zeros"
@@ -109,7 +109,7 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -122,4 +122,4 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
