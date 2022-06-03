@@ -163,7 +163,7 @@ def save_bpe(
     )
     tokens = [bpe.process_line(sent).strip().split() for sent in sents]
     # No max_size: include all bpes (can be more than merges).
-    build_vocab_from_sents(tokens, min_freq=min_freq, vocab_file=vocab_file)
+    build_vocab_from_sents(tokens=tokens, min_freq=min_freq, vocab_file=vocab_file)
 
 
 def run(
