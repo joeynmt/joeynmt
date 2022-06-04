@@ -81,7 +81,7 @@ training:
     updates: 100000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "/workspace/mitarb/ohta/models/wmt17_ende_bpe_moses"
+    model_dir: "models/wmt17_ende_bpe"
     overwrite: False
     shuffle: True
     use_cuda: True
