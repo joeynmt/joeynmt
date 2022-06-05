@@ -183,10 +183,11 @@ def predict(
         valid_attention_scores.extend(attention_scores[sort_reverse_index]
                                       if attention_scores is not None else [])
         valid_sequence_scores.extend(
-            ref_scores[sort_reverse_index] if ref_scores is not None
-            and ref_scores.shape[0] == len(sort_reverse_index) else
-            hyp_scores[sort_reverse_index] if hyp_scores is not None and hyp_scores.
-            shape[0] == len(sort_reverse_index) else [])
+            ref_scores[sort_reverse_index] \
+            if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
+            else hyp_scores[sort_reverse_index] \
+            if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
+            else [])
     gen_duration = time.time() - gen_start_time
 
     assert total_nseqs == len(data), (total_nseqs, len(data))
@@ -343,7 +344,7 @@ def test(
             assert cfg["testing"].get("beam_size", 1) == 1, (
                 "Attention plots can be saved with greedy decoding only. Please set "
                 "`beam_size: 1` in the config.")
-        cfg["testing"]["save_attention"] = True
+        cfg["testing"]["return_attention"] = True
     return_prob = cfg["testing"].get("return_prob", "none")
     if save_scores:
         assert output_path, "Please specify --output_path for saving scores."
@@ -379,60 +380,62 @@ def test(
     set_seed(seed=cfg["training"].get("random_seed", 42))
 
     for data_set_name, data_set in data_to_predict.items():
-        if data_set is None:
-            continue
+        if data_set is not None:
+            data_set.reset_random_subset()  # no subsampling in evaluation
 
-        logger.info(
-            "%s on %s set...",
-            "Scoring" if return_prob == "ref" else "Decoding",
-            data_set_name,
-        )
-        _, _, hypotheses, hypotheses_raw, sequence_scores, attention_scores, = predict(
-            model=model,
-            data=data_set,
-            compute_loss=save_scores,
-            device=device,
-            n_gpu=n_gpu,
-            num_workers=num_workers,
-            normalization=normalization,
-            cfg=cfg["testing"],
-        )
+            logger.info(
+                "%s on %s set...",
+                "Scoring" if return_prob == "ref" else "Decoding",
+                data_set_name,
+            )
+            _, _, hypotheses, hypotheses_raw, seq_scores, att_scores, = predict(
+                model=model,
+                data=data_set,
+                compute_loss=save_scores,
+                device=device,
+                n_gpu=n_gpu,
+                num_workers=num_workers,
+                normalization=normalization,
+                cfg=cfg["testing"],
+            )
 
-        if save_attention:
-            if attention_scores:
-                attention_file_name = f"{data_set_name}.{ckpt.stem}.att"
-                attention_file_path = (model_dir / attention_file_name).as_posix()
-                logger.info("Saving attention plots. This might take a while..")
-                store_attention_plots(
-                    attentions=attention_scores,
-                    targets=hypotheses_raw,
-                    sources=data_set.get_list(lang=data_set.src_lang, tokenized=True),
-                    indices=range(len(hypotheses)),
-                    output_prefix=attention_file_path,
-                )
-                logger.info("Attention plots saved to: %s", attention_file_path)
-            else:
-                logger.warning(
-                    "Attention scores could not be saved. Note that attention scores "
-                    "are not available when using beam search. Set beam_size to 1 for "
-                    "greedy decoding.")
+            if save_attention:
+                if att_scores:
+                    attention_file_name = f"{data_set_name}.{ckpt.stem}.att"
+                    attention_file_path = (model_dir / attention_file_name).as_posix()
+                    logger.info("Saving attention plots. This might take a while..")
+                    store_attention_plots(
+                        attentions=att_scores,
+                        targets=hypotheses_raw,
+                        sources=data_set.get_list(lang=data_set.src_lang,
+                                                  tokenized=True),
+                        indices=range(len(hypotheses)),
+                        output_prefix=attention_file_path,
+                    )
+                    logger.info("Attention plots saved to: %s", attention_file_path)
+                else:
+                    logger.warning(
+                        "Attention scores could not be saved. Note that attention "
+                        "scores are not available when using beam search. "
+                        "Set beam_size to 1 for greedy decoding.")
 
-        if output_path is not None:
-            if sequence_scores is not None and save_scores:
-                # save scores
-                output_path_scores = Path(f"{output_path}.{data_set_name}.scores")
-                write_list_to_file(output_path_scores, sequence_scores)
-                # save tokens
-                output_path_tokens = Path(f"{output_path}.{data_set_name}.tokens")
-                write_list_to_file(output_path_tokens, hypotheses_raw)
-                logger.info(
-                    "Scores and corresponding tokens saved to: %s.{scores|tokens}",
-                    f"{output_path}.{data_set_name}",
-                )
-            if hypotheses is not None:
-                output_path_set = Path(f"{output_path}.{data_set_name}")
-                write_list_to_file(output_path_set, hypotheses)
-                logger.info("Translations saved to: %s.", output_path_set)
+            if output_path is not None:
+                if save_scores and seq_scores is not None:
+                    # save scores
+                    output_path_scores = Path(f"{output_path}.{data_set_name}.scores")
+                    write_list_to_file(output_path_scores, seq_scores)
+                    # save tokens
+                    output_path_tokens = Path(f"{output_path}.{data_set_name}.tokens")
+                    write_list_to_file(output_path_tokens, hypotheses_raw)
+                    logger.info(
+                        "Scores and corresponding tokens saved to: %s.{scores|tokens}",
+                        f"{output_path}.{data_set_name}",
+                    )
+                if hypotheses is not None:
+                    # save translations
+                    output_path_set = Path(f"{output_path}.{data_set_name}")
+                    write_list_to_file(output_path_set, hypotheses)
+                    logger.info("Translations saved to: %s.", output_path_set)
 
 
 def translate(

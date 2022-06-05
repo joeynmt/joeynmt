@@ -1,5 +1,5 @@
-# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT 2.0
-[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
+# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
+[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
@@ -35,7 +35,7 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 - BLEU, ChrF evaluation
 - Beam search with length penalty and greedy decoding
 - Customizable initialization
-- Attention visualization (for RNN)
+- Attention visualization
 - Learning curve plotting
 - Scoring hypotheses and references
 
@@ -48,6 +48,16 @@ We tested Joey NMT 2.0 with
 - torch 1.11.0
 - cuda 11.5
 
+> :warning: **Warning**
+> When running on **GPU** you need to manually install the suitable PyTorch version 
+> for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
+> For example, you can install PyTorch 1.11.0 with CUDA v11.3 as follows:
+> ```
+> $ pip install --upgrade torch==1.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+> ```
+> See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
+
+
 You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
 ### A. Via pip
@@ -55,11 +65,17 @@ for latest stable version:
 ```bash
 $ pip install joeynmt
 ```
-  
-### B. From source
+
+> :warning: **Warning**
+> You'll need a particular python version when working on Google Colab. Please specify the branch name in such a case.
+> ```
+> pip install git+https://github.com/joeynmt/joeynmt.git@py3.7
+> ```
+
+### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/may-/joeynmt.git
+  $ git clone https://github.com/joeynmt/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -71,16 +87,6 @@ $ pip install joeynmt
   $ python -m unittest
   ```
 
-> :warning: **Warning**
-> When running on **GPU** you need to manually install the suitable PyTorch version 
-> for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.11.0 with CUDA v11.3 as follows:
-> ```
-> $ pip install --upgrade torch==1.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
-> ```
-> This is described in the [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
-> You'll need this in particular when working on Google Colab (if it doesn't already
-> have the right PyTorch version installed).
 
 **[Optional]** For fp16 training, install NVIDIA's [apex](https://github.com/NVIDIA/apex) library:
 ```bash
@@ -129,7 +135,7 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
-- [quick-start-with-joeynmt2.0]() (will be released in June 2022)
+- [quick-start-with-joeynmt2](notebooks/quick-start-with-joeynmt2.ipynb)
 - [how-to-extend-joeynmt]() (will be released in July 2022)
 - [speech-translation]() (will be released in August 2022)
 
@@ -272,7 +278,7 @@ en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_en
 sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
 
-### JParaCrawl enja
+### JParaCrawl enja / jaen
 
 For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
 Please check the preprocessing script [here](scripts/get_jparacrawl.sh).
@@ -287,7 +293,8 @@ sacrebleu signature:
 - en->ja `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
 - ja->en `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
-* In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.
+*Note: In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.*
+
 
 ## Coding
 In order to keep the code clean and readable, we make use of:

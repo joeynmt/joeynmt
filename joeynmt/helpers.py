@@ -52,7 +52,7 @@ def make_model_dir(model_dir: Path, overwrite: bool = False) -> Path:
                                   f"and overwriting is disabled.")
         # delete previous directory to start with empty dir again
         shutil.rmtree(model_dir)
-    model_dir.mkdir()
+    model_dir.mkdir(parents=True)  # create model_dir recursively
     return model_dir
 
 

@@ -78,6 +78,11 @@ def load_data(
     # train data
     train_data = None
     if "train" in datasets and train_path is not None:
+        train_subset = data_cfg.get("sample_train_subset", -1)
+        if "random_train_subset" in data_cfg:
+            logger.warning("`random_train_subset` option is obsolete. "
+                           "Please use `sample_train_subset` instead.")
+            train_subset = data_cfg.get("random_train_subset", train_subset)
         logger.info("Loading train set...")
         train_data = build_dataset(
             dataset_type=dataset_type,
@@ -86,7 +91,7 @@ def load_data(
             trg_lang=trg_lang,
             split="train",
             tokenizer=tokenizer,
-            random_subset=data_cfg.get("random_train_subset", -1),
+            random_subset=train_subset,
             **dataset_cfg,
         )
 
@@ -109,6 +114,11 @@ def load_data(
     # dev data
     dev_data = None
     if "dev" in datasets and dev_path is not None:
+        dev_subset = data_cfg.get("sample_dev_subset", -1)
+        if "random_dev_subset" in data_cfg:
+            logger.warning("`random_dev_subset` option is obsolete. "
+                           "Please use `sample_dev_subset` instead.")
+            dev_subset = data_cfg.get("random_dev_subset", dev_subset)
         logger.info("Loading dev set...")
         dev_data = build_dataset(
             dataset_type=dataset_type,
@@ -118,7 +128,7 @@ def load_data(
             split="dev",
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
-            random_subset=data_cfg.get("random_dev_subset", -1),
+            random_subset=dev_subset,
             **dataset_cfg,
         )
 

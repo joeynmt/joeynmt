@@ -8,8 +8,8 @@ data:
     dataset_type: "huggingface"
     dataset_cfg:
         name: "ja-en"
-    random_train_subset: -1
-    random_dev_subset: 200
+    sample_train_subset: -1
+    sample_dev_subset: 200
     src:
         lang: "ja"
         max_length: 512
