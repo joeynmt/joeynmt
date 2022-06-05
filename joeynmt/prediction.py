@@ -344,7 +344,7 @@ def test(
             assert cfg["testing"].get("beam_size", 1) == 1, (
                 "Attention plots can be saved with greedy decoding only. Please set "
                 "`beam_size: 1` in the config.")
-        cfg["testing"]["save_attention"] = True
+        cfg["testing"]["return_attention"] = True
     return_prob = cfg["testing"].get("return_prob", "none")
     if save_scores:
         assert output_path, "Please specify --output_path for saving scores."
