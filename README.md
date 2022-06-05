@@ -76,7 +76,7 @@ $ pip install joeynmt
 ### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/may-/joeynmt.git
+  $ git clone https://github.com/joeynmt/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -136,7 +136,7 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
-- [quick-start-with-joeynmt2.0]() (will be released in June 2022)
+- [quick-start-with-joeynmt2](notebooks/quick-start-with-joeynmt2.ipynb)
 - [how-to-extend-joeynmt]() (will be released in July 2022)
 - [speech-translation]() (will be released in August 2022)
 
@@ -279,7 +279,7 @@ en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_en
 sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
 
-### JParaCrawl enja
+### JParaCrawl enja / jaen
 
 For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
 Please check the preprocessing script [here](scripts/get_jparacrawl.sh).
@@ -294,7 +294,8 @@ sacrebleu signature:
 - en->ja `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
 - ja->en `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
-* In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.
+*Note: In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.*
+
 
 ## Coding
 In order to keep the code clean and readable, we make use of:

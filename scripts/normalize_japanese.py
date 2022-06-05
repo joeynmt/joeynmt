@@ -1,14 +1,15 @@
+#!/usr/bin/env python
 # coding: utf-8
-#
-# Normalize Japanese texts
-#
-# Usage:
-# $ python sanitize.py < input.txt > output.txt
-#
-# cf.
-# https://github.com/neologd/mecab-ipadic-neologd/wiki/Regexp.ja
-# http://lotus.kuee.kyoto-u.ac.jp/WAT/Timely_Disclosure_Documents_Corpus/specifications.html
+"""
+Normalize Japanese texts
 
+Usage:
+$ python sanitize.py < input.txt > output.txt
+
+cf.
+https://github.com/neologd/mecab-ipadic-neologd/wiki/Regexp.ja
+http://lotus.kuee.kyoto-u.ac.jp/WAT/Timely_Disclosure_Documents_Corpus/specifications.html
+"""
 import re
 import sys
 import unicodedata
