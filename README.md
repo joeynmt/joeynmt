@@ -1,4 +1,4 @@
-# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT 2.0
+# &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
 [![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -48,7 +48,6 @@ We tested Joey NMT 2.0 with
 - torch 1.11.0
 - cuda 11.5
 
-
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
@@ -76,7 +75,7 @@ $ pip install joeynmt
 ### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
+  $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -332,6 +331,9 @@ main branch, but we're curious to learn what you used Joey NMT for.
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey NMT, so you can find
 inspiration and examples on how to modify and extend the code.
+
+### Joey NMT v2.x
+- :right_anger_bubble: **Discord Joey**. [Code](https://github.com/may-/joeynmt/scripts/discord_joey.py)
 
 ### Joey NMT v1.x
 - :spider_web: **Masakhane Web**. [@CateGitau](https://github.com/categitau), [@Kabongosalomon](https://github.com/Kabongosalomon), [@vukosim](https://github.com/vukosim) and team built a whole web translation platform for the African NMT models that Masakhane built with Joey NMT. The best is: it's completely open-source, so anyone can contribute new models or features. Try it out [here](http://translate.masakhane.io/), and check out the [code](https://github.com/dsfsi/masakhane-web).
