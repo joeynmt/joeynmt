@@ -28,10 +28,6 @@ from joeynmt.helpers import flatten, load_config, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
 
-# Sentencepiece Training Params
-CHARACTER_COVERAGE = {"en": 1.0, "de": 1.0, "fr": 1.0, "ja": 0.995, "zh": 0.995}
-MODEL_TYPE = "unigram"
-
 
 def build_vocab_from_sents(
     tokens: List[List[str]],
@@ -57,6 +53,8 @@ def train_spm(
     model_file: str,
     random_subset: int,
     vocab_file: Path,
+    character_coverage: float,
+    model_type: int,
 ) -> None:
     """
     Train SentencePiece Model
@@ -74,9 +72,9 @@ def train_spm(
         arguments = [
             f"--input={txt_file}",
             f"--model_prefix={model_prefix.as_posix()}",
-            f"--model_type={MODEL_TYPE}",
+            f"--model_type={model_type}",
             f"--vocab_size={max_size}",
-            f"--character_coverage={CHARACTER_COVERAGE.get(langs[0], 1.0)}",
+            f"--character_coverage={character_coverage}",
             f"--accept_language={','.join(langs)}",
             f"--unk_piece={UNK_TOKEN}",
             f"--bos_piece={BOS_TOKEN}",
@@ -219,6 +217,8 @@ def run(
                 model_file=tokenizer_cfg["model_file"],
                 random_subset=args.random_subset,
                 vocab_file=vocab_file,
+                character_coverage=tokenizer_cfg.get("character_coverage", 1.0),
+                model_type=tokenizer_cfg.get("model_type", "unigram"),
             )
 
         elif tokenizer_type == "subword-nmt":

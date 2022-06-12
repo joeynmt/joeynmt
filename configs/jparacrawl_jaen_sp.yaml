@@ -18,10 +18,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/spm/jparacrawl_ja.vocab"
+        voc_file: "data/subwords/jparacrawl_ja.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/spm/jparacrawl_ja.model"
+            model_file: "data/subwords/jparacrawl_ja.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             nbest_size: 10
             alpha: 0.1
     trg:
@@ -32,10 +34,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/spm/jparacrawl_en.vocab"
+        voc_file: "data/subwords/jparacrawl_en.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/spm/jparacrawl_en.model"
+            model_file: "data/subwords/jparacrawl_en.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             nbest_size: 10
             alpha: 0.1
 
@@ -56,26 +60,28 @@ testing:
         tokenize: "intl"
 
 training:
-    #load_model: "models/jparacrawl_jaen_sp/best.ckpt"
+    #load_model: "models/jparacrawl_jaen/best.ckpt"
     random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
     adam_betas: [0.9, 0.98]
     scheduling: "warmupinversesquareroot"
     learning_rate_warmup: 4000
-    learning_rate: 0.0002
+    learning_rate: 0.001
     learning_rate_min: 0.00000001
     weight_decay: 0.0
     label_smoothing: 0.1
+    clip_grad_norm: 1.0
     loss: "crossentropy"
-    batch_size: 4096
+    batch_size: 5120
     batch_type: "token"
-    batch_multiplier: 2
+    batch_multiplier: 10
     early_stopping_metric: "ppl"
     epochs: 100
+    updates: 36000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "models/jparacrawl_enja_sp"
+    model_dir: "models/jparacrawl_jaen"
     overwrite: False
     shuffle: True
     use_cuda: True
@@ -97,7 +103,7 @@ model:
         embeddings:
             embedding_dim: 512
             scale: True
-            dropout: 0.
+            dropout: 0.1
         # typically ff_size = 4 x hidden_size
         hidden_size: 512
         ff_size: 2048
@@ -110,7 +116,7 @@ model:
         embeddings:
             embedding_dim: 512
             scale: True
-            dropout: 0.
+            dropout: 0.1
         # typically ff_size = 4 x hidden_size
         hidden_size: 512
         ff_size: 2048

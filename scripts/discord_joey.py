@@ -27,19 +27,18 @@ from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import build_vocab
 # joeynmt v2.0.0
 
+client = discord.Client()
+
 # access token
 # Go https://discord.com/developers/applications -> Bot -> Token
 TOKEN = 'your-access-token-here'
 
-DEVICE = torch.device("cuda")  # DEVICE = torch.device("cpu")
-N_GPU = 1  # N_GPU = 0
-
-cfg_files = {
+CFG_FILES = {
     'en-ja': './models/jparacrawl_enja/config.yaml',
     'ja-en': './models/jparacrawl_jaen/config.yaml'
 }
-
-client = discord.Client()
+DEVICE = torch.device("cuda")  # DEVICE = torch.device("cpu")
+N_GPU = 1  # N_GPU = 0
 
 
 def load_joeynmt_model(cfg_file):
@@ -50,16 +49,14 @@ def load_joeynmt_model(cfg_file):
     assert device.type == DEVICE.type
     assert n_gpu == N_GPU
 
-    # when checkpoint is not specified, take latest (best) from model dir
-    ckpt = resolve_ckpt_path(None, load_model, model_dir)
-
     # read vocabs
     src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
 
-    # build model and load parameters into it
+    # build model
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
 
     # load model state from disk
+    ckpt = resolve_ckpt_path(None, load_model, model_dir)
     model_checkpoint = load_checkpoint(ckpt, device=device)
     model.load_state_dict(model_checkpoint["model_state"])
 
@@ -83,6 +80,7 @@ def load_joeynmt_model(cfg_file):
         sequence_encoder=sequence_encoder,
     )
 
+    # override decoding options
     test_cfg = cfg["testing"]
     test_cfg["batch_type"] = "sentence"
     test_cfg["batch_size"] = 1
@@ -96,7 +94,7 @@ def load_joeynmt_model(cfg_file):
 
 def get_language_tag(src_input):
     lang_tag = src_input[:7].strip('/')
-    assert lang_tag in cfg_files
+    assert lang_tag in CFG_FILES
 
     src_input = src_input[7:]
     src_input = src_input.strip()
@@ -107,13 +105,14 @@ def get_language_tag(src_input):
     src_input = src_input.strip()
     assert src_input is not None and len(src_input) > 0
 
+    print(f"/{lang_tag}/", src_input)  # print console log
     return lang_tag, src_input
 
 
 def translate(src_input, model, test_data, cfg):
     test_data.cache = {}  # reset cache
     test_data.set_item(src_input)
-    _, _, hypotheses, _, _, _ = predict(
+    _, _, translations, _, _, _ = predict(
         model=model,
         data=test_data,
         compute_loss=False,
@@ -124,24 +123,26 @@ def translate(src_input, model, test_data, cfg):
         cfg=cfg,
     )
     test_data.cache = {}  # reset cache
-    return hypotheses[0]
+    return translations[0]
 
 
 @client.event
 async def on_ready():
-    # print console log
-    print('logged in.')
-
-    test_data_enja, model_enja, cfg_enja = load_joeynmt_model(cfg_files['en-ja'])
-    test_data_jaen, model_jaen, cfg_jaen = load_joeynmt_model(cfg_files['ja-en'])
+    print('Logged in.')
 
     global data_dict, model_dict, cfg_dict  # pylint: disable=global-variable-undefined
-    data_dict = {'en-ja': test_data_enja, 'ja-en': test_data_jaen}
-    model_dict = {'en-ja': model_enja, 'ja-en': model_jaen}
-    cfg_dict = {'en-ja': cfg_enja, 'ja-en': cfg_jaen}
+    data_dict = {}
+    model_dict = {}
+    cfg_dict = {}
+    for lang_tag, cfg_file in CFG_FILES.items():
+        test_data, model, test_cfg = load_joeynmt_model(cfg_file)
+        data_dict[lang_tag] = test_data
+        model_dict[lang_tag] = model
+        cfg_dict[lang_tag] = test_cfg
+
+    print('=' * 20)  # ready to go!
 
 
-# message event
 @client.event
 async def on_message(message):
     # ignore, if a bot throws a message
@@ -149,18 +150,21 @@ async def on_message(message):
         return
 
     # get source input
-    src_input = (message.content).strip()
-    if src_input.startswith('/en-ja/') or src_input.startswith('/ja-en/'):
-        lang_tag, src_input = get_language_tag(src_input)
-        print(lang_tag, src_input)  # print console log
+    src_input = message.content.strip()
+    lang_tag, src_input = get_language_tag(src_input)
 
+    if lang_tag in CFG_FILES:
         # get translation
-        hypothesis = translate(src_input, model_dict[lang_tag], data_dict[lang_tag],
-                               cfg_dict[lang_tag])
-        print('JoeyNMT', hypothesis)  # print console log
+        translation = translate(
+            src_input,
+            model_dict[lang_tag],
+            data_dict[lang_tag],
+            cfg_dict[lang_tag],
+        )
+        print(f'JoeyNMT: {translation}\n')  # print console log
 
         # return translation
-        await message.channel.send(hypothesis)
+        await message.channel.send(translation)
 
 
 client.run(TOKEN)
