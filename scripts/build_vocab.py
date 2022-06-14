@@ -59,6 +59,21 @@ def train_spm(
     """
     Train SentencePiece Model
     See: https://github.com/google/sentencepiece/blob/master/doc/options.md
+
+    Note: model_file and vocab_file should not exist before sentencepiece training,
+        will be overwritten if exist!
+
+    :param sents: sentence list from training set
+    :param langs: list of language codes, i.e ['en', 'de']
+    :param max_size: same as vocab_limit in config
+    :param model_file: sentencepiece model file (with ".model" extension)
+    :param random_subset: subset size to train sentencepiece
+    :param vocab_file: path to vocab file (one token per line)
+    :param character_coverage: amount of characters covered by the model,
+        good defaults are: 0.9995 for languages with rich character set like Japanese
+        or Chinese and 1.0 for other languages with small character set.
+    :param model_type: model type. Choose from unigram (default), bpe, char, or word.
+        The input sentence must be pretokenized when using word type.
     """
     model_file = Path(model_file)
     if model_file.is_file():
@@ -109,7 +124,16 @@ def train_bpe(
     min_freq: int,
     codes: str,
 ) -> None:
-    """Train BPE Model"""
+    """
+    Train BPE Model
+    See: https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+
+    :param sents: sentence list from training set
+    :param num_merges: number of merges.
+        Resulting vocabulary size can be slightly smaller or larger.
+    :param min_freq: minimum frequency for a token to become part of the vocabulary
+    :param codes: codes file. should not exist before bpe training, will be overwritten!
+    """
     codes = Path(codes)
     if codes.is_file():
         print(f"### Codes file {codes} will be overwitten.")

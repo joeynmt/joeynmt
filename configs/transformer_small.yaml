@@ -29,8 +29,9 @@ data:
             #alpha:                 # BPE dropout probability (for sentencepiece)
             #nbest_size: 10         # size of the nbest list from where you pick a tokenization, used only if alpha > 0 (for sentencepiece)
             #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
-            #model_type: "bpe"      # Model tyoe, default "unigram" (for sentencepiece training)
-            pretokenizer: "none"    # either "moses" or "none" (default: "none")
+            #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
+            pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
+
     trg:
         lang: "en"                  # trg language. If dataset_type is "plain", expected suffix of train files, e.g. "train.en".
         max_length: 30              # filter out longer sentences from training
@@ -50,8 +51,8 @@ data:
             #alpha:                 # BPE dropout probability (for sentencepiece)
             #nbest_size: 10         # size of the nbest list from where you pick a tokenization, used only if alpha > 0 (for sentencepiece)
             #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
-            #model_type: "bpe"      # Model tyoe, default "unigram" (for sentencepiece training)
-            pretokenizer: "none"    # either "moses" or "none" (default: "none")
+            #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
+            pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
 
 testing:                            # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
     n_best: 1                       # n_best size, must be smaller than or equal to beam_size
