@@ -450,7 +450,7 @@ def store_attention_plots(
     for i in indices:
         if i >= len(sources):
             continue
-        plot_file = f"{output_prefix}.{i}.pdf"
+        plot_file = f"{output_prefix}.{i}.png"
         src = sources[i]
         trg = targets[i]
         attention_scores = attentions[i].T

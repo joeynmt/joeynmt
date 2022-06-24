@@ -24,7 +24,7 @@ data:
             model_type: "unigram"
             character_coverage: 1.0
             alpha: 0.1
-            pretokenize: "moses"
+            pretokenizer: "moses"
     trg:
         lang: "en"
         max_length: 512
@@ -40,7 +40,7 @@ data:
             model_type: "unigram"
             character_coverage: 1.0
             alpha: 0.1
-            pretokenize: "moses"
+            pretokenizer: "moses"
 
 testing:
     n_best: 1
