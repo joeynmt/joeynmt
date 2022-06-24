@@ -415,7 +415,6 @@ class BaseHuggingfaceDataset(BaseDataset):
         # load data
         self.dataset = self.load_data(path, **kwargs)
         self._kwargs = kwargs  # should contain arguments passed to `load_dataset()`
-        self._kwargs["path"] = path
 
     def load_data(self, path: str, **kwargs) -> Any:
         # pylint: disable=import-outside-toplevel
@@ -437,7 +436,7 @@ class BaseHuggingfaceDataset(BaseDataset):
 
     def reset_random_subset(self) -> None:
         # reload from cache
-        self.dataset = self.load_data(**self._kwargs)
+        self.dataset = self.load_data(self.path, **self._kwargs)
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # lookup
@@ -479,11 +478,34 @@ class HuggingfaceDataset(BaseHuggingfaceDataset):
     def load_data(self, path: str, **kwargs) -> Any:
         dataset = super().load_data(path=path, **kwargs)
 
-        lang_pair = dataset.features["translation"].languages
-        assert self.src_lang in lang_pair, (self.src_lang, lang_pair)
-        if self.has_trg:
-            assert self.trg_lang in lang_pair, (self.trg_lang, lang_pair)
+        # rename columns
+        if "translation" in dataset.features:
+            # check language pair
+            lang_pair = dataset.features["translation"].languages
+            assert self.src_lang in lang_pair, (self.src_lang, lang_pair)
 
+            # rename columns
+            columns = {f"translation.{self.src_lang}": self.src_lang}
+            if self.has_trg:
+                assert self.trg_lang in lang_pair, (self.trg_lang, lang_pair)
+                columns[f"translation.{self.trg_lang}"] = self.trg_lang
+
+            # flatten
+            dataset = dataset.flatten()
+
+        elif f"{self.src_lang}_sentence" in dataset.features:
+            # rename columns
+            columns = {f"{self.src_lang}_sentence": self.src_lang}
+            if self.has_trg:
+                assert f"{self.trg_lang}_sentence" in dataset.features
+                columns[f"{self.trg_lang}_sentence"] = self.trg_lang
+
+        else:
+            pass
+            # TODO: support other field names
+        dataset = dataset.rename_columns(columns)
+
+        # preprocess (lowercase, pretokenize, etc.)
         def _pre_process(item):
             sl = self.src_lang
             tl = self.trg_lang
@@ -501,12 +523,6 @@ class HuggingfaceDataset(BaseHuggingfaceDataset):
                 return is_src_valid and is_trg_valid
             return is_src_valid
 
-        columns = {
-            f"translation.{self.src_lang}": self.src_lang,
-            f"translation.{self.trg_lang}": self.trg_lang,
-        }
-
-        dataset = dataset.flatten().rename_columns(columns)
         dataset = dataset.filter(_drop_nan, desc="Dropping NaN...")
         return dataset.map(_pre_process, desc="Preprocessing...")
 

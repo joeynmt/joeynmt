@@ -13,7 +13,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple
 
-import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -166,7 +165,7 @@ class TrainManager:
             is_max_update=False,
             total_tokens=0,
             best_ckpt_iter=0,
-            best_ckpt_score=np.inf if self.minimize_metric else -np.inf,
+            best_ckpt_score=float("inf") if self.minimize_metric else float("-inf"),
             minimize_metric=self.minimize_metric,
             total_correct=0,
         )
@@ -771,7 +770,7 @@ class TrainManager:
             is_max_update: bool = False,
             total_tokens: int = 0,
             best_ckpt_iter: int = 0,
-            best_ckpt_score: float = np.inf,
+            best_ckpt_score: float = float("inf"),
             minimize_metric: bool = True,
             total_correct: int = 0,
         ) -> None:
@@ -782,7 +781,7 @@ class TrainManager:
             self.best_ckpt_iter = best_ckpt_iter  # store iteration point of best ckpt
             self.best_ckpt_score = best_ckpt_score  # initial values for best scores
             self.minimize_metric = minimize_metric  # minimize or maximize score
-            self.total_tokens = total_tokens  # number of correct tokens seen so far
+            self.total_correct = total_correct  # number of correct tokens seen so far
 
         def is_best(self, score):
             if self.minimize_metric:
