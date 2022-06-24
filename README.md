@@ -1,5 +1,5 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
-[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
+[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Goal and Purpose
@@ -75,7 +75,7 @@ $ pip install joeynmt
 ### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
+  $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -135,10 +135,14 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
+#### v2.0
 - [quick-start-with-joeynmt2](notebooks/quick-start-with-joeynmt2.ipynb)
-- [how-to-extend-joeynmt]() (will be released in July 2022)
-- [speech-translation]() (will be released in August 2022)
+- [speech-to-text-with-joeynmt2](https://github.com/may-/joeynmt/blob/joeyS2T/notebooks/speech-to-text-with-joeynmt2.ipynb) 
 
+#### v1.x
+- [demo notebook](notebooks/joey_demo.ipynb)
+- [starter notebook](https://github.com/masakhane-io/masakhane-mt/blob/master/starter_notebook-custom-data.ipynb) Masakhane - Machine Translation for African Languages in [masakhane-io](https://github.com/masakhane-io/masakhane-mt)
+- [joeynmt toy models](https://github.com/bricksdont/joeynmt-toy-models) Collection of Joey NMT scripts by [@bricksdont](https://github.com/bricksdont)
 
 ## Usage
 > :warning: **Warning**
@@ -331,6 +335,10 @@ main branch, but we're curious to learn what you used Joey NMT for.
 ## Projects and Extensions
 Here we'll collect projects and repositories that are based on Joey NMT, so you can find
 inspiration and examples on how to modify and extend the code.
+
+### Joey NMT v2.x
+- :ear: **JoeyS2T**. Joey NMT is extended for Speech-to-Text tasks! [Code](https://github.com/may-/joeynmt/tree/joeyS2T)
+- :right_anger_bubble: **Discord Joey**. This script demonstrates how to deploy Joey NMT models as a Chatbot on Discord. [Code](scripts/discord_joey.py)
 
 ### Joey NMT v1.x
 - :spider_web: **Masakhane Web**. [@CateGitau](https://github.com/categitau), [@Kabongosalomon](https://github.com/Kabongosalomon), [@vukosim](https://github.com/vukosim) and team built a whole web translation platform for the African NMT models that Masakhane built with Joey NMT. The best is: it's completely open-source, so anyone can contribute new models or features. Try it out [here](http://translate.masakhane.io/), and check out the [code](https://github.com/dsfsi/masakhane-web).

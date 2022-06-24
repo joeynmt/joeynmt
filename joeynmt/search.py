@@ -609,10 +609,8 @@ def beam_search(
                 -1, alive_seq.size(-1))
             if encoder_input is not None:
                 src_len = encoder_input.size(-1)
-                encoder_input = (encoder_input.view(-1, beam_size,
-                                                    src_len).index_select(
-                                                        0,
-                                                        unfinished).view(-1, src_len))
+                encoder_input = encoder_input.view(-1, beam_size, src_len) \
+                    .index_select(0, unfinished).view(-1, src_len)
                 assert encoder_input.size(0) == alive_seq.size(0)
 
         # reorder indices, outputs and masks
@@ -634,9 +632,20 @@ def beam_search(
         if att_vectors is not None:
             att_vectors = att_vectors.index_select(0, select_indices)
 
+    # if num_predictions < n_best, fill the results list up with UNK.
+    for b in range(batch_size):
+        num_predictions = len(results["predictions"][b])
+        num_scores = len(results["scores"][b])
+        assert num_predictions == num_scores
+        for _ in range(n_best - num_predictions):
+            results["predictions"][b].append(torch.tensor([unk_index]).long())
+            results["scores"][b].append(torch.tensor([-1]).float())
+        assert len(results["predictions"][b]) == n_best
+        assert len(results["scores"][b]) == n_best
+
     def pad_and_stack_hyps(hyps: List[np.ndarray]):
-        filled = (np.ones(
-            (len(hyps), max([h.shape[0] for h in hyps])), dtype=int) * pad_index)
+        max_len = max([hyp.shape[0] for hyp in hyps])
+        filled = np.ones((len(hyps), max_len), dtype=int) * pad_index
         for j, h in enumerate(hyps):
             for k, i in enumerate(h):
                 filled[j, k] = i
@@ -644,13 +653,15 @@ def beam_search(
 
     # from results to stacked outputs
     # `final_outputs`: shape (batch_size * n_best, hyp_len)
-    final_outputs = pad_and_stack_hyps(
-        [u.cpu().numpy() for r in results["predictions"] for u in r], )
+    predictions_list = [u.cpu().numpy() for r in results["predictions"] for u in r]
+    final_outputs = pad_and_stack_hyps(predictions_list)
 
     # sequence-wise log probabilities (summed up over the sequence)
     # `scores`: shape (batch_size * n_best, 1)
-    scores = (np.array([[u.item()] for r in results["scores"]
-                        for u in r]) if return_prob else None)
+    scores = np.array([[u.item()] for r in results["scores"] for u in r]) \
+        if return_prob else None
+
+    assert final_outputs.shape[0] == batch_size * n_best
     return final_outputs, scores, None
 
 

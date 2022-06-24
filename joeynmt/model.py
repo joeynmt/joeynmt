@@ -178,8 +178,7 @@ class Model(nn.Module):
             - hidden_concat
             - src_mask
         """
-        src_input = src if self.src_embed is None else self.src_embed(src)
-        return self.encoder(src_input, src_length, src_mask, **_kwargs)
+        return self.encoder(self.src_embed(src), src_length, src_mask, **_kwargs)
 
     def _decode(
         self,
@@ -361,11 +360,10 @@ def build_model(cfg: dict = None,
     # initialize embeddings from file
     enc_embed_path = enc_cfg["embeddings"].get("load_pretrained", None)
     dec_embed_path = dec_cfg["embeddings"].get("load_pretrained", None)
-    if enc_embed_path and src_vocab is not None:
+    if enc_embed_path:
         logger.info("Loading pretrained src embeddings...")
         model.src_embed.load_from_file(Path(enc_embed_path), src_vocab)
-    if (dec_embed_path and src_vocab is not None
-            and not cfg.get("tied_embeddings", False)):
+    if dec_embed_path and not cfg.get("tied_embeddings", False):
         logger.info("Loading pretrained trg embeddings...")
         model.trg_embed.load_from_file(Path(dec_embed_path), trg_vocab)
 

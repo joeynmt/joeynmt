@@ -28,10 +28,6 @@ from joeynmt.helpers import flatten, load_config, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
 
-# Sentencepiece Training Params
-CHARACTER_COVERAGE = {"en": 1.0, "de": 1.0, "fr": 1.0, "ja": 0.995, "zh": 0.995}
-MODEL_TYPE = "unigram"
-
 
 def build_vocab_from_sents(
     tokens: List[List[str]],
@@ -57,10 +53,27 @@ def train_spm(
     model_file: str,
     random_subset: int,
     vocab_file: Path,
+    character_coverage: float,
+    model_type: int,
 ) -> None:
     """
     Train SentencePiece Model
     See: https://github.com/google/sentencepiece/blob/master/doc/options.md
+
+    Note: model_file and vocab_file should not exist before sentencepiece training,
+        will be overwritten if exist!
+
+    :param sents: sentence list from training set
+    :param langs: list of language codes, i.e ['en', 'de']
+    :param max_size: same as vocab_limit in config
+    :param model_file: sentencepiece model file (with ".model" extension)
+    :param random_subset: subset size to train sentencepiece
+    :param vocab_file: path to vocab file (one token per line)
+    :param character_coverage: amount of characters covered by the model,
+        good defaults are: 0.9995 for languages with rich character set like Japanese
+        or Chinese and 1.0 for other languages with small character set.
+    :param model_type: model type. Choose from unigram (default), bpe, char, or word.
+        The input sentence must be pretokenized when using word type.
     """
     model_file = Path(model_file)
     if model_file.is_file():
@@ -74,9 +87,9 @@ def train_spm(
         arguments = [
             f"--input={txt_file}",
             f"--model_prefix={model_prefix.as_posix()}",
-            f"--model_type={MODEL_TYPE}",
+            f"--model_type={model_type}",
             f"--vocab_size={max_size}",
-            f"--character_coverage={CHARACTER_COVERAGE.get(langs[0], 1.0)}",
+            f"--character_coverage={character_coverage}",
             f"--accept_language={','.join(langs)}",
             f"--unk_piece={UNK_TOKEN}",
             f"--bos_piece={BOS_TOKEN}",
@@ -111,7 +124,16 @@ def train_bpe(
     min_freq: int,
     codes: str,
 ) -> None:
-    """Train BPE Model"""
+    """
+    Train BPE Model
+    See: https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+
+    :param sents: sentence list from training set
+    :param num_merges: number of merges.
+        Resulting vocabulary size can be slightly smaller or larger.
+    :param min_freq: minimum frequency for a token to become part of the vocabulary
+    :param codes: codes file. should not exist before bpe training, will be overwritten!
+    """
     codes = Path(codes)
     if codes.is_file():
         print(f"### Codes file {codes} will be overwitten.")
@@ -219,6 +241,8 @@ def run(
                 model_file=tokenizer_cfg["model_file"],
                 random_subset=args.random_subset,
                 vocab_file=vocab_file,
+                character_coverage=tokenizer_cfg.get("character_coverage", 1.0),
+                model_type=tokenizer_cfg.get("model_type", "unigram"),
             )
 
         elif tokenizer_type == "subword-nmt":

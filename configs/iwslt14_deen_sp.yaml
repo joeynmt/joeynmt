@@ -21,8 +21,10 @@ data:
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
             model_file: "test/data/iwslt14_sp.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             alpha: 0.1
-            pretokenize: "moses"
+            pretokenizer: "moses"
     trg:
         lang: "en"
         max_length: 512
@@ -35,8 +37,10 @@ data:
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
             model_file: "test/data/iwslt14_sp.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             alpha: 0.1
-            pretokenize: "moses"
+            pretokenizer: "moses"
 
 testing:
     n_best: 1
