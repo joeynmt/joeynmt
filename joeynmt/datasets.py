@@ -415,7 +415,6 @@ class BaseHuggingfaceDataset(BaseDataset):
         # load data
         self.dataset = self.load_data(path, **kwargs)
         self._kwargs = kwargs  # should contain arguments passed to `load_dataset()`
-        self._kwargs["path"] = path
 
     def load_data(self, path: str, **kwargs) -> Any:
         # pylint: disable=import-outside-toplevel
@@ -437,7 +436,7 @@ class BaseHuggingfaceDataset(BaseDataset):
 
     def reset_random_subset(self) -> None:
         # reload from cache
-        self.dataset = self.load_data(**self._kwargs)
+        self.dataset = self.load_data(self.path, **self._kwargs)
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # lookup
