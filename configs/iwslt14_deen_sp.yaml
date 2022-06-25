@@ -17,10 +17,10 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/iwslt14_sp.vocab"
+        voc_file: "test/data/iwslt14/sp.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/iwslt14_sp.model"
+            model_file: "test/data/iwslt14/sp.model"
             model_type: "unigram"
             character_coverage: 1.0
             alpha: 0.1
@@ -33,10 +33,10 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/iwslt14_sp.vocab"
+        voc_file: "test/data/iwslt14/sp.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/iwslt14_sp.model"
+            model_file: "test/data/iwslt14/sp.model"
             model_type: "unigram"
             character_coverage: 1.0
             alpha: 0.1
@@ -86,10 +86,10 @@ training:
     keep_best_ckpts: 5
 
 model:
-    initializer: "xavier_normal"
+    initializer: "xavier"
     bias_initializer: "zeros"
     init_gain: 1.0
-    embed_initializer: "xavier_normal"
+    embed_initializer: "xavier"
     embed_init_gain: 1.0
     tied_embeddings: True
     tied_softmax: True
@@ -105,7 +105,7 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -118,4 +118,4 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"

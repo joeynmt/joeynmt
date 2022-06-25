@@ -2,9 +2,9 @@ name: "jparacrawl_jaen_sp"
 joeynmt_version: "2.0.0"
 
 data:
-    train: "../datasets/datasets/jparacrawl"
-    dev: "../datasets/datasets/wmt21"
-    test: "../datasets/datasets/kftt"
+    train: "jparacrawl"
+    dev: "wmt21"
+    test: "kftt"
     dataset_type: "huggingface"
     dataset_cfg:
         name: "ja-en"
@@ -18,10 +18,10 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "/scratch5t/ohta/jparacrawl_v3/spm_ja.vocab"
+        voc_file: "subwords/jparacrawl_ja.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "/scratch5t/ohta/jparacrawl_v3/spm_ja.model"
+            model_file: "subwords/jparacrawl_ja.model"
             model_type: "unigram"
             character_coverage: 1.0
             nbest_size: 10
@@ -34,10 +34,10 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "/scratch5t/ohta/jparacrawl_v3/spm_en.vocab"
+        voc_file: "subwords/jparacrawl_en.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "/scratch5t/ohta/jparacrawl_v3/spm_en.model"
+            model_file: "subwords/jparacrawl_en.model"
             model_type: "unigram"
             character_coverage: 1.0
             nbest_size: 10
@@ -60,7 +60,7 @@ testing:
         tokenize: "intl"
 
 training:
-    #load_model: "/workspace/mitarb/ohta/models/jparacrawl_enja_seed456/best.ckpt"
+    #load_model: "models/jparacrawl_enja/best.ckpt"
     random_seed: 456
     optimizer: "adam"
     normalization: "tokens"
@@ -81,7 +81,7 @@ training:
     updates: 36000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "/workspace/mitarb/ohta/models/jparacrawl_jaen_seed123"
+    model_dir: "models/jparacrawl_jaen"
     overwrite: False
     shuffle: True
     use_cuda: True
@@ -89,10 +89,10 @@ training:
     keep_best_ckpts: 3
 
 model:
-    initializer: "xavier_normal"
+    initializer: "xavier"
     bias_initializer: "zeros"
     init_gain: 1.0
-    embed_initializer: "xavier_normal"
+    embed_initializer: "xavier"
     embed_init_gain: 1.0
     tied_embeddings: False
     tied_softmax: False
@@ -108,7 +108,7 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -121,4 +121,4 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
