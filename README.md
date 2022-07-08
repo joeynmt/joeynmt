@@ -2,13 +2,6 @@
 [![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-## What's new
-
-- 29th June 2022 [Joey NMT v2.0 Hands-on Tutorial](notebooks/fine_tuning_tutorial_enja.ipynb) (in Japanese)  
-  [＠IT](https://atmarkit.itmedia.co.jp/ait/articles/2206/29/news008.html) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳](https://atmarkit.itmedia.co.jp/ait/articles/2206/29/news008.html) 第一回の記事が公開されました。
-
-- 2nd June 2022 [Joey NMT v2.0](https://github.com/joeynmt/joeynmt/releases/tag/2.0) has been merged in the [official joeynmt's repo](https://github.com/joeynmt/joeynmt). See [Breaking changes in v2.0](https://github.com/may-/joeynmt#v20-breaking-change).
-
 
 ## Goal and Purpose
 :koala: Joey NMT framework is developed for educational purposes.

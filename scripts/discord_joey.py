@@ -2,6 +2,10 @@
 """
 JoeyNMT Discord Bot
 
+You need to modify the constants at the beginning of the file
+to add your bot's access token and the pointers to your configuration files.
+Go https://discord.com/developers/applications -> Bot -> Token
+
 cf.)
 Install discord.py: https://discordpy.readthedocs.io/en/stable/intro.html#installing
 A Minimal Bot: https://discordpy.readthedocs.io/en/stable/quickstart.html
@@ -30,7 +34,6 @@ from joeynmt.vocabulary import build_vocab
 client = discord.Client()
 
 # access token
-# Go https://discord.com/developers/applications -> Bot -> Token
 TOKEN = 'your-access-token-here'
 
 CFG_FILES = {
