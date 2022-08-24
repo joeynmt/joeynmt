@@ -59,7 +59,6 @@ class TestData(unittest.TestCase):
         # make batches by number of tokens
         train_iter = iter(
             train_data.make_iter(
-                train_data,
                 batch_size=100,
                 batch_type="token",
                 shuffle=True,
