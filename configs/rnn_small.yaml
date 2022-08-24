@@ -22,12 +22,16 @@ data:
         voc_file: "test/data/toy/bpe200.txt" # load a vocabulary from this file
         tokenizer_type: "subword-nmt" # tokenizer type: either "subword-nmt" or "sentencepiece" (default: subword-nmt)
         tokenizer_cfg:              # tokenizer config
-            num_merges: 200         # Number of merges for subword-nmt. Resulting vocabulary size can be slightly smaller or larger.
+            num_merges: 200         # Number of merges for subword-nmt training. Resulting vocabulary size can be slightly smaller or larger.
             codes: "test/data/toy/bpe200.codes" # BPE codes file (for subword-nmt)
             dropout: 0.0            # BPE dropout probability (for subword-nmt)
             #model_file:            # sentencepiece model file path (for sentencepiece)
             #alpha:                 # BPE dropout probability (for sentencepiece)
-            pretokenizer: "none"    # either "moses" or "none" (default: "none")
+            #nbest_size: 10         # size of the nbest list from where you pick a tokenization, used only if alpha > 0 (for sentencepiece)
+            #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
+            #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
+            pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
+
     trg:
         lang: "en"                  # trg language. If dataset_type is "plain", expected suffix of train files, e.g. "train.en".
         max_length: 30              # filter out longer sentences from training
@@ -40,12 +44,15 @@ data:
         voc_file: "test/data/toy/bpe200.txt" # load a vocabulary from this file
         tokenizer_type: "subword-nmt" # tokenizer type: either "subword-nmt" or "sentencepiece" (default: subword-nmt)
         tokenizer_cfg:              # tokenizer config
-            num_merges: 200         # Number of merges for subword-nmt. Resulting vocabulary size can be slightly smaller or larger.
+            num_merges: 200         # Number of merges for subword-nmt training. Resulting vocabulary size can be slightly smaller or larger.
             codes: "test/data/toy/bpe200.codes" # BPE codes file (for subword-nmt)
             dropout: 0.0            # BPE dropout probability (for subword-nmt)
             #model_file:            # sentencepiece model file path (for sentencepiece)
             #alpha:                 # BPE dropout probability (for sentencepiece)
-            pretokenizer: "none"    # either "moses" or "none" (default: "none")
+            #nbest_size: 10         # size of the nbest list from where you pick a tokenization, used only if alpha > 0 (for sentencepiece)
+            #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
+            #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
+            pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
 
 testing:                            # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
     n_best: 1                       # n_best size, must be smaller than or equal to beam_size

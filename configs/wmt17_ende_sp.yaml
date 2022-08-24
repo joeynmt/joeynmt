@@ -18,10 +18,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/spm/wmt17_sp.vocab"
+        voc_file: "subwords/wmt17_sp.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/spm/wmt17_sp.model"
+            model_file: "subwords/wmt17_sp.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             nbest_size: 10
             alpha: 0.1
             pretokenizer: "moses"
@@ -33,10 +35,12 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "test/data/spm/wmt17_sp.vocab"
+        voc_file: "subwords/wmt17_sp.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "test/data/spm/wmt17_sp.model"
+            model_file: "subwords/wmt17_sp.model"
+            model_type: "unigram"
+            character_coverage: 1.0
             nbest_size: 10
             alpha: 0.1
             pretokenizer: "moses"
