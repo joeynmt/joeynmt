@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from joeynmt.data import load_data, make_data_iter
+from joeynmt.data import load_data
 
 
 class TestData(unittest.TestCase):
@@ -42,8 +42,7 @@ class TestData(unittest.TestCase):
 
         # make batches by number of sentences
         train_iter = iter(
-            make_data_iter(
-                train_data,
+            train_data.make_iter(
                 batch_size=10,
                 batch_type="sentence",
                 shuffle=True,
@@ -59,7 +58,7 @@ class TestData(unittest.TestCase):
 
         # make batches by number of tokens
         train_iter = iter(
-            make_data_iter(
+            train_data.make_iter(
                 train_data,
                 batch_size=100,
                 batch_type="token",

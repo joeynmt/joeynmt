@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 
 from joeynmt.helpers import ConfigurationError, read_list_from_file
 from joeynmt.tokenizers import BasicTokenizer
+from joeynmt.data import make_data_iter
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,9 @@ class BaseDataset(Dataset):
     def trg(self) -> List[str]:
         """get detokenized preprocessed data in trg language."""
         return self.get_list(self.trg_lang, tokenized=False) if self.has_trg else []
+
+    def make_iter(self, **kwargs):
+        return make_data_iter(dataset=self, **kwargs)
 
     def __len__(self) -> int:
         raise NotImplementedError

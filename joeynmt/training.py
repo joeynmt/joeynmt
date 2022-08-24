@@ -21,7 +21,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.batch import Batch
 from joeynmt.builders import build_gradient_clipper, build_optimizer, build_scheduler
-from joeynmt.data import load_data, make_data_iter
+from joeynmt.data import load_data
 from joeynmt.helpers import (
     delete_ckpt,
     load_checkpoint,
@@ -387,8 +387,7 @@ class TrainManager:
         :param valid_data: validation data
         """
         # pylint: disable=too-many-branches,too-many-statements
-        self.train_iter = make_data_iter(
-            dataset=train_data,
+        self.train_iter = train_data.make_iter(
             batch_size=self.batch_size,
             batch_type=self.batch_type,
             seed=self.seed,
