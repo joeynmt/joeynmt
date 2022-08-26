@@ -4,7 +4,8 @@ import torch
 from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
 
 from joeynmt.batch import Batch
-from joeynmt.data import TokenBatchSampler, load_data
+from joeynmt.data import TokenBatchSampler
+from joeynmt.data_loader import load_data
 
 
 class TestBatch(TensorTestCase):

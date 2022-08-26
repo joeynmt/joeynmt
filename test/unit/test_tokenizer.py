@@ -3,7 +3,7 @@ import unittest
 
 import sentencepiece as spm
 
-from joeynmt.data import load_data
+from joeynmt.data_loader import load_data
 from joeynmt.tokenizers import (
     BasicTokenizer,
     SentencePieceTokenizer,

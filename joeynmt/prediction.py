@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from joeynmt.data import load_data
+from joeynmt.data_loader import load_data
 from joeynmt.datasets import build_dataset
 from joeynmt.helpers import (
     expand_reverse_index,

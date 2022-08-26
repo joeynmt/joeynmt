@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from joeynmt.data import load_data
+from joeynmt.data_loader import load_data
 from joeynmt.datasets import PlaintextDataset, TsvDataset
 from joeynmt.helpers import read_list_from_file, write_list_to_file
 

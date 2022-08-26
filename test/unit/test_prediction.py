@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from joeynmt.data import load_data
+from joeynmt.data_loader import load_data
 from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
 from joeynmt.prediction import predict

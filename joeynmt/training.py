@@ -21,7 +21,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.batch import Batch
 from joeynmt.builders import build_gradient_clipper, build_optimizer, build_scheduler
-from joeynmt.data import load_data
+from joeynmt.data_loader import load_data
 from joeynmt.helpers import (
     delete_ckpt,
     load_checkpoint,
