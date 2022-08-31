@@ -47,7 +47,7 @@ class BasicTokenizer:
         if self.pretokenizer == "moses":
             try:
                 from sacremoses import (  # pylint: disable=import-outside-toplevel
-                    MosesTokenizer, MosesDetokenizer, MosesPunctNormalizer,
+                    MosesDetokenizer, MosesPunctNormalizer, MosesTokenizer,
                 )
                 # sacremoses package has to be installed.
                 # https://github.com/alvations/sacremoses

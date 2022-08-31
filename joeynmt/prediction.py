@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from joeynmt.data import load_data, make_data_iter
+from joeynmt.data import load_data
 from joeynmt.datasets import build_dataset
 from joeynmt.helpers import (
     expand_reverse_index,
@@ -109,8 +109,7 @@ def predict(
     # if batch_size > beam_size:
     #     batch_size //= beam_size
 
-    valid_iter = make_data_iter(
-        dataset=data,
+    valid_iter = data.make_iter(
         batch_size=eval_batch_size,
         batch_type=eval_batch_type,
         shuffle=False,
