@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from joeynmt.data_loader import load_data
+from joeynmt.data import load_data
 from joeynmt.helpers import read_list_from_file
 from joeynmt.vocabulary import Vocabulary
 

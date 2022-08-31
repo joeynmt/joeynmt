@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from joeynmt.data_loader import load_data
+from joeynmt.data import load_data
 
 
 class TestData(unittest.TestCase):
