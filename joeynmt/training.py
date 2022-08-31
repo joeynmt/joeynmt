@@ -235,6 +235,8 @@ class TrainManager:
         model_path = Path(self.model_dir) / f"{self.stats.steps}.ckpt"
         model_state_dict = (self.model.module.state_dict() if isinstance(
             self.model, torch.nn.DataParallel) else self.model.state_dict())
+        train_iter_state = self.train_iter.batch_sampler.sampler.generator.get_state() \
+            if hasattr(self.train_iter.batch_sampler.sampler, 'generator') else None
         state = {
             "steps":
             self.stats.steps,
@@ -253,9 +255,7 @@ class TrainManager:
             "amp_state":
             amp.state_dict() if self.fp16 else None,
             "train_iter_state":
-            (self.train_iter.batch_sampler.sampler.generator.get_state()),
-            "total_correct":
-            self.stats.total_correct,
+            train_iter_state,
         }
         torch.save(state, model_path.as_posix())
 
