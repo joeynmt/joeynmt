@@ -256,6 +256,8 @@ class TrainManager:
             amp.state_dict() if self.fp16 else None,
             "train_iter_state":
             train_iter_state,
+            "total_correct":
+            self.stats.total_correct,
         }
         torch.save(state, model_path.as_posix())
 
