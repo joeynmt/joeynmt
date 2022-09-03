@@ -121,12 +121,8 @@ class BaseDataset(Dataset):
     def collate_fn(
         self,
         batch: List[Tuple],
-        src_process: Callable,
-        trg_process: Callable,
         pad_index: int = PAD_ID,
         device: torch.device = CPU_DEVICE,
-        has_trg: bool = True,
-        is_train: bool = True,
     ) -> Batch:
         """
         Custom collate function.
@@ -143,26 +139,26 @@ class BaseDataset(Dataset):
         :return: joeynmt batch object
         """
 
-        def _is_valid(s, t):
+        def _is_valid(s, t, has_trg):
             # pylint: disable=no-else-return
             if has_trg:
                 return s is not None and t is not None
             else:
                 return s is not None
 
-        batch = [(s, t) for s, t in batch if _is_valid(s, t)]
+        batch = [(s, t) for s, t in batch if _is_valid(s, t, self.has_trg)]
         src_list, trg_list = zip(*batch)
         assert len(batch) == len(src_list), (len(batch), len(src_list))
         assert all(s is not None for s in src_list), src_list
-        src, src_length = src_process(src_list)
+        src, src_length = self.sequence_encoder[self.src_lang](src_list)
 
-        if has_trg:
+        if self.has_trg:
             assert all(t is not None for t in trg_list), trg_list
-            assert trg_process is not None
-            trg, trg_length = trg_process(trg_list)
+            trg, trg_length = self.sequence_encoder[self.trg_lang](trg_list)
         else:
             assert all(t is None for t in trg_list)
             trg, trg_length = None, None
+
         return Batch(
             src=torch.tensor(src).long(),
             src_length=torch.tensor(src_length).long(),
@@ -170,8 +166,8 @@ class BaseDataset(Dataset):
             trg_length=torch.tensor(trg_length).long() if trg_length else None,
             device=device,
             pad_index=pad_index,
-            has_trg=has_trg,
-            is_train=is_train,
+            has_trg=self.has_trg,
+            is_train=self.split == "train",
         )
 
     def make_iter(
@@ -228,15 +224,7 @@ class BaseDataset(Dataset):
         return DataLoader(
             self,
             batch_sampler=batch_sampler,
-            collate_fn=partial(
-                self.collate_fn,
-                src_process=self.sequence_encoder[self.src_lang],
-                trg_process=self.sequence_encoder[self.trg_lang],
-                pad_index=pad_index,
-                device=device,
-                has_trg=self.has_trg,
-                is_train=self.split == "train",
-            ),
+            collate_fn=partial(self.collate_fn, pad_index=pad_index, device=device),
             num_workers=num_workers,
         )
 
