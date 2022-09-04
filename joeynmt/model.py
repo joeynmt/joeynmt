@@ -20,6 +20,7 @@ from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
 
 logger = logging.getLogger(__name__)
+DEVICE_TYPE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Model(nn.Module):
@@ -73,6 +74,7 @@ class Model(nn.Module):
         self._loss_function = XentLoss(pad_index=self.pad_index,
                                        smoothing=label_smoothing)
 
+    @torch.autocast(device_type=DEVICE_TYPE)
     def forward(self,
                 return_type: str = None,
                 **kwargs) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
@@ -93,7 +95,7 @@ class Model(nn.Module):
             assert self.loss_function is not None
             assert "trg" in kwargs and "trg_mask" in kwargs  # need trg to compute loss
 
-            out, _, _, _ = self._encode_decode(**kwargs)
+            out, _, att_probs, _ = self._encode_decode(**kwargs)
 
             # compute log probs
             log_probs = F.log_softmax(out, dim=-1)
@@ -111,7 +113,7 @@ class Model(nn.Module):
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
-            return_tuple = (batch_loss, log_probs, None, n_correct)
+            return_tuple = (batch_loss, log_probs, att_probs, n_correct)
 
         elif return_type == "encode":
             kwargs["pad"] = True  # TODO: only if multi-gpu

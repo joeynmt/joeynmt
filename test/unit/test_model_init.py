@@ -1,5 +1,6 @@
+import unittest
+
 import copy
-from test.unit.test_helpers import TensorTestCase
 
 import torch
 from torch import nn
@@ -8,7 +9,7 @@ from joeynmt.model import build_model
 from joeynmt.vocabulary import Vocabulary
 
 
-class TestModelInit(TensorTestCase):
+class TestModelInit(unittest.TestCase):
 
     def setUp(self):
         self.seed = 42
@@ -53,8 +54,10 @@ class TestModelInit(TensorTestCase):
         def check_layer_norm(m: nn.Module):
             for _, child in m.named_children():
                 if isinstance(child, nn.LayerNorm):
-                    self.assertTensorEqual(child.weight, torch.ones([self.hidden_size]))
-                    self.assertTensorEqual(child.bias, torch.zeros([self.hidden_size]))
+                    torch.testing.assert_close(child.weight,
+                                               torch.ones([self.hidden_size]))
+                    torch.testing.assert_close(child.bias,
+                                               torch.zeros([self.hidden_size]))
                 else:
                     check_layer_norm(child)
 
@@ -79,15 +82,21 @@ class TestModelInit(TensorTestCase):
         for layer in model.decoder.layers:
             self.assertEqual(layer.alpha, 2.0597671439071177)
 
-        self.assertTensorAlmostEqual(
+        torch.testing.assert_close(
             model.encoder.layers[0].src_src_att.q_layer.weight[:5, 0].data,
             torch.Tensor([-0.2093, -0.1066, -0.1455, -0.1146, 0.0760]),
+            rtol=1e-4,
+            atol=1e-4,
         )
-        self.assertTensorAlmostEqual(
+        torch.testing.assert_close(
             model.decoder.layers[0].src_trg_att.q_layer.weight[:5, 0].data,
             torch.Tensor([0.0072, -0.0241, 0.2873, -0.0417, -0.2752]),
+            rtol=1e-4,
+            atol=1e-4,
         )
-        self.assertTensorAlmostEqual(
+        torch.testing.assert_close(
             model.decoder.layers[0].trg_trg_att.q_layer.weight[:5, 0].data,
             torch.Tensor([-0.2140, 0.0942, 0.0203, 0.0417, 0.2482]),
+            rtol=1e-4,
+            atol=1e-4,
         )

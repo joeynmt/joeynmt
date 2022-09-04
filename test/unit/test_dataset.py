@@ -36,8 +36,8 @@ class TestPlaintextDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "random_train_subset": 100,
-            "random_dev_subset": 100,
+            "sample_train_subset": 100,
+            "sample_dev_subset": 100,
             "dataset_type": "plain",
         }
 
@@ -214,8 +214,8 @@ class TestTsvDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "random_train_subset": 100,
-            "random_dev_subset": 100,
+            "sample_train_subset": 100,
+            "sample_dev_subset": 100,
             "dataset_type": "tsv",
         }
 

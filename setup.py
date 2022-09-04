@@ -6,14 +6,14 @@ with open("requirements.txt", encoding="utf-8") as req_fp:
 
 setup(
     name='joeynmt',
-    version='2.0.0',
+    version='2.1.0',
     description='Minimalist NMT for educational purposes',
     author='Jasmijn Bastings and Julia Kreutzer',
     url='https://github.com/joeynmt/joeynmt',
     license='Apache License',
     install_requires=install_requires,
     packages=find_packages(exclude=[]),
-    python_requires='>=3.9',
+    python_requires='>=3.7',
     project_urls={
         'Documentation': 'http://joeynmt.readthedocs.io/en/latest/',
         'Source': 'https://github.com/joeynmt/joeynmt',

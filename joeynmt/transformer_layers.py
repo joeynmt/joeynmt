@@ -182,7 +182,7 @@ class PositionalEncoding(nn.Module):
             (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size)))
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
-        pe = pe.unsqueeze(0)  # shape: (1, size, max_len)
+        pe = pe.unsqueeze(0)  # shape: (1, max_len, size)
         super().__init__()
         self.register_buffer("pe", pe)
         self.dim = size

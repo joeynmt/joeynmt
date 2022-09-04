@@ -34,10 +34,10 @@ data:
         level: "bpe"
         voc_limit: 32000
         voc_min_freq: 1
-        voc_file: "data/subwords/jparacrawl_ja.vocab"
+        voc_file: "subwords/jparacrawl_ja.vocab"
         tokenizer_type: "sentencepiece"
         tokenizer_cfg:
-            model_file: "data/subwords/jparacrawl_ja.model"
+            model_file: "subwords/jparacrawl_ja.model"
             model_type: "unigram"
             character_coverage: 0.995
             nbest_size: 10
@@ -89,10 +89,10 @@ training:
     keep_best_ckpts: 3
 
 model:
-    initializer: "xavier_normal"
+    initializer: "xavier_uniform"
     bias_initializer: "zeros"
     init_gain: 1.0
-    embed_initializer: "xavier_normal"
+    embed_initializer: "xavier_uniform"
     embed_init_gain: 1.0
     tied_embeddings: False
     tied_softmax: False
@@ -108,7 +108,7 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -121,4 +121,4 @@ model:
         hidden_size: 512
         ff_size: 2048
         dropout: 0.1
-        layer_norm: "post"
+        layer_norm: "pre"

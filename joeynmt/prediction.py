@@ -233,7 +233,8 @@ def predict(
         data.tokenizer[data.trg_lang].post_process(s, generate_unk=generate_unk)
         for s in decoded_valid
     ]
-    valid_ref = data.trg  # not length-filtered, not duplicated for n_best > 1
+    # references are not length-filtered, not duplicated for n_best > 1
+    valid_ref = [data.tokenizer[data.trg_lang].post_process(s) for s in data.trg]
 
     # if references are given, evaluate 1best generation against them
     if data.has_trg:
@@ -356,7 +357,7 @@ def test(
                 "Scores of given references can be computed with greedy decoding only."
                 "Please set `beam_size: 1` in the config.")
             model.loss_function = (  # need to instantiate loss func to compute scores
-                cfg["training"].get("loss_type", "crossentropy"),
+                cfg["training"].get("loss", "crossentropy"),
                 cfg["training"].get("label_smoothing", 0.1),
             )
 
@@ -390,7 +391,7 @@ def test(
             _, _, hypotheses, hypotheses_raw, seq_scores, att_scores, = predict(
                 model=model,
                 data=data_set,
-                compute_loss=save_scores,
+                compute_loss=return_prob == "ref",
                 device=device,
                 n_gpu=n_gpu,
                 num_workers=num_workers,
@@ -518,7 +519,11 @@ def translate(
     return_prob = test_cfg.get("return_prob", "none")
     if not sys.stdin.isatty():  # pylint: disable=too-many-nested-blocks
         # input stream given
-        for line in sys.stdin.readlines():
+        for i, line in enumerate(sys.stdin.readlines()):
+            if not line.strip():
+                # skip empty lines and print warning
+                logger.warning("The sentence in line %d is empty. Skip to load.", i)
+                continue
             test_data.set_item(line.rstrip())
         all_hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
         assert len(all_hypotheses) == len(test_data) * n_best

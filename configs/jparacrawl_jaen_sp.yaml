@@ -89,10 +89,10 @@ training:
     keep_best_ckpts: 3
 
 model:
-    initializer: "xavier"
+    initializer: "xavier_uniform"
     bias_initializer: "zeros"
     init_gain: 1.0
-    embed_initializer: "xavier"
+    embed_initializer: "xavier_uniform"
     embed_init_gain: 1.0
     tied_embeddings: False
     tied_softmax: False

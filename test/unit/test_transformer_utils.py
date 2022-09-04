@@ -1,11 +1,11 @@
-from test.unit.test_helpers import TensorTestCase
+import unittest
 
 import torch
 
 from joeynmt.transformer_layers import MultiHeadedAttention, PositionalEncoding
 
 
-class TestTransformerUtils(TensorTestCase):
+class TestTransformerUtils(unittest.TestCase):
 
     def setUp(self):
         seed = 42
@@ -20,7 +20,10 @@ class TestTransformerUtils(TensorTestCase):
         pe = PositionalEncoding(emb_size)
         output = pe(x)
         self.assertEqual(pe.pe.size(2), hidden_size)
-        self.assertTensorAlmostEqual(output, pe.pe[:, :x.size(1)])
+        for i in range(batch_size):
+            # yapf: disable
+            torch.testing.assert_close(
+                output[i].unsqueeze(0), pe.pe[:, :max_time], rtol=1e-4, atol=1e-4)
 
     def test_src_src_attention(self):
         num_heads = 2
