@@ -118,8 +118,115 @@ class BaseDataset(Dataset):
         """get detokenized preprocessed data in trg language."""
         return self.get_list(self.trg_lang, tokenized=False) if self.has_trg else []
 
-    def make_iter(self, **kwargs):
-        return make_data_iter(dataset=self, **kwargs)
+    def collate_fn(
+        self,
+        batch: List[Tuple],
+        pad_index: int = PAD_ID,
+        device: torch.device = CPU_DEVICE,
+    ) -> Batch:
+        """
+        Custom collate function.
+        See https://pytorch.org/docs/stable/data.html#dataloader-collate-fn for details.
+        Please override the batch class here. (not in TrainManager)
+
+        :param batch:
+        :param src_process:
+        :param trg_process:
+        :param pad_index:
+        :param device:
+        :param has_trg:
+        :param is_train:
+        :return: joeynmt batch object
+        """
+
+        def _is_valid(s, t, has_trg):
+            # pylint: disable=no-else-return
+            if has_trg:
+                return s is not None and t is not None
+            else:
+                return s is not None
+
+        batch = [(s, t) for s, t in batch if _is_valid(s, t, self.has_trg)]
+        src_list, trg_list = zip(*batch)
+        assert len(batch) == len(src_list), (len(batch), len(src_list))
+        assert all(s is not None for s in src_list), src_list
+        src, src_length = self.sequence_encoder[self.src_lang](src_list)
+
+        if self.has_trg:
+            assert all(t is not None for t in trg_list), trg_list
+            trg, trg_length = self.sequence_encoder[self.trg_lang](trg_list)
+        else:
+            assert all(t is None for t in trg_list)
+            trg, trg_length = None, None
+
+        return Batch(
+            src=torch.tensor(src).long(),
+            src_length=torch.tensor(src_length).long(),
+            trg=torch.tensor(trg).long() if trg else None,
+            trg_length=torch.tensor(trg_length).long() if trg_length else None,
+            device=device,
+            pad_index=pad_index,
+            has_trg=self.has_trg,
+            is_train=self.split == "train",
+        )
+
+    def make_iter(
+        self,
+        batch_size: int,
+        batch_type: str = "sentence",
+        seed: int = 42,
+        shuffle: bool = False,
+        num_workers: int = 0,
+        pad_index: int = PAD_ID,
+        device: torch.device = CPU_DEVICE,
+    ) -> DataLoader:
+        """
+        Returns a torch DataLoader for a torch Dataset. (no bucketing)
+
+        :param batch_size: size of the batches the iterator prepares
+        :param batch_type: measure batch size by sentence count or by token count
+        :param seed: random seed for shuffling
+        :param shuffle: whether to shuffle the data before each epoch
+            (for testing, no effect even if set to True)
+        :param num_workers: number of cpus for multiprocessing
+        :param pad_index:
+        :param device:
+        :return: torch DataLoader
+        """
+        # sampler
+        sampler: Sampler[int]  # (type annotation)
+        if shuffle and self.split == "train":
+            generator = torch.Generator()
+            generator.manual_seed(seed)
+            sampler = RandomSampler(self, generator=generator)
+        else:
+            sampler = SequentialSampler(self)
+
+        # batch generator
+        if batch_type == "sentence":
+            batch_sampler = SentenceBatchSampler(sampler,
+                                                 batch_size=batch_size,
+                                                 drop_last=False)
+        elif batch_type == "token":
+            batch_sampler = TokenBatchSampler(sampler,
+                                              batch_size=batch_size,
+                                              drop_last=False)
+        else:
+            raise ConfigurationError(f"{batch_type}: Unknown batch type")
+
+        assert self.sequence_encoder[self.src_lang] is not None
+        if self.has_trg:
+            assert self.sequence_encoder[self.trg_lang] is not None
+        else:
+            self.sequence_encoder[self.trg_lang] = None
+
+        # data iterator
+        return DataLoader(
+            self,
+            batch_sampler=batch_sampler,
+            collate_fn=partial(self.collate_fn, pad_index=pad_index, device=device),
+            num_workers=num_workers,
+        )
 
     def __len__(self) -> int:
         raise NotImplementedError
@@ -626,130 +733,6 @@ def build_dataset(
     else:
         ConfigurationError(f"{dataset_type}: Unknown dataset type.")
     return dataset
-
-
-def collate_fn(
-    batch: List[Tuple],
-    src_process: Callable,
-    trg_process: Callable,
-    pad_index: int = PAD_ID,
-    device: torch.device = CPU_DEVICE,
-    has_trg: bool = True,
-    is_train: bool = True,
-) -> Batch:
-    """
-    Custom collate function.
-    See https://pytorch.org/docs/stable/data.html#dataloader-collate-fn for details.
-    Note: you might need another collate_fn() if you switch to a different batch class.
-    Please override the batch class here. (not in TrainManager)
-
-    :param batch:
-    :param src_process:
-    :param trg_process:
-    :param pad_index:
-    :param device:
-    :param has_trg:
-    :param is_train:
-    :return: joeynmt batch object
-    """
-
-    def _is_valid(s, t):
-        # pylint: disable=no-else-return
-        if has_trg:
-            return s is not None and t is not None
-        else:
-            return s is not None
-
-    batch = [(s, t) for s, t in batch if _is_valid(s, t)]
-    src_list, trg_list = zip(*batch)
-    assert len(batch) == len(src_list), (len(batch), len(src_list))
-    assert all(s is not None for s in src_list), src_list
-    src, src_length = src_process(src_list)
-
-    if has_trg:
-        assert all(t is not None for t in trg_list), trg_list
-        assert trg_process is not None
-        trg, trg_length = trg_process(trg_list)
-    else:
-        assert all(t is None for t in trg_list)
-        trg, trg_length = None, None
-    return Batch(
-        src=torch.tensor(src).long(),
-        src_length=torch.tensor(src_length).long(),
-        trg=torch.tensor(trg).long() if trg else None,
-        trg_length=torch.tensor(trg_length).long() if trg_length else None,
-        device=device,
-        pad_index=pad_index,
-        has_trg=has_trg,
-        is_train=is_train,
-    )
-
-
-def make_data_iter(
-    dataset: Dataset,
-    batch_size: int,
-    batch_type: str = "sentence",
-    seed: int = 42,
-    shuffle: bool = False,
-    num_workers: int = 0,
-    pad_index: int = PAD_ID,
-    device: torch.device = CPU_DEVICE,
-) -> DataLoader:
-    """
-    Returns a torch DataLoader for a torch Dataset. (no bucketing)
-
-    :param dataset: torch dataset containing src and optionally trg
-    :param batch_size: size of the batches the iterator prepares
-    :param batch_type: measure batch size by sentence count or by token count
-    :param seed: random seed for shuffling
-    :param shuffle: whether to shuffle the data before each epoch
-        (for testing, no effect even if set to True)
-    :param num_workers: number of cpus for multiprocessing
-    :param pad_index:
-    :param device:
-    :return: torch DataLoader
-    """
-    assert isinstance(dataset, Dataset), dataset
-    # sampler
-    sampler: Sampler[int]  # (type annotation)
-    if shuffle and dataset.split == "train":
-        generator = torch.Generator()
-        generator.manual_seed(seed)
-        sampler = RandomSampler(dataset, generator=generator)
-    else:
-        sampler = SequentialSampler(dataset)
-
-    # batch generator
-    if batch_type == "sentence":
-        batch_sampler = SentenceBatchSampler(sampler,
-                                             batch_size=batch_size,
-                                             drop_last=False)
-    elif batch_type == "token":
-        batch_sampler = TokenBatchSampler(sampler,
-                                          batch_size=batch_size,
-                                          drop_last=False)
-
-    assert dataset.sequence_encoder[dataset.src_lang] is not None
-    if dataset.has_trg:
-        assert dataset.sequence_encoder[dataset.trg_lang] is not None
-    else:
-        dataset.sequence_encoder[dataset.trg_lang] = None
-
-    # data iterator
-    return DataLoader(
-        dataset,
-        batch_sampler=batch_sampler,
-        collate_fn=partial(
-            collate_fn,
-            src_process=dataset.sequence_encoder[dataset.src_lang],
-            trg_process=dataset.sequence_encoder[dataset.trg_lang],
-            pad_index=pad_index,
-            device=device,
-            has_trg=dataset.has_trg,
-            is_train=dataset.split == "train",
-        ),
-        num_workers=num_workers,
-    )
 
 
 class SentenceBatchSampler(BatchSampler):
