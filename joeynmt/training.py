@@ -12,6 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple
 
+import packaging
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -786,14 +787,14 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
         Path(cfg["training"]["model_dir"]),
         overwrite=cfg["training"].get("overwrite", False),
     )
-    joeynmt_version = make_logger(model_dir, mode="train")
+    joeynmt_version = packaging.version.parse(make_logger(model_dir, mode="train"))
     if "joeynmt_version" in cfg:
-        config_version = str(cfg["joeynmt_version"])
+        config_version = packaging.version.parse(cfg["joeynmt_version"])
         # check if the major version number matches
         # pylint: disable=use-maxsplit-arg
-        assert joeynmt_version.split(".")[0] == config_version.split(".")[0], (
-            f"You are using JoeyNMT version {joeynmt_version}, "
-            f'but {config_version} is expected in the given config.')
+        assert joeynmt_version.major == config_version.major, (
+            f"You are using JoeyNMT version {str(joeynmt_version)}, "
+            f'but {str(config_version)} is expected in the given config.')
     # TODO: save version number in model checkpoints
 
     # write all entries of config to the log
