@@ -9,6 +9,7 @@ import time
 from functools import partial
 from itertools import zip_longest
 from pathlib import Path
+from tqdm import tqdm
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -16,7 +17,7 @@ import torch
 from torch.utils.data import Dataset
 
 from joeynmt.data import load_data
-from joeynmt.datasets import build_dataset
+from joeynmt.datasets import StreamDataset, build_dataset
 from joeynmt.helpers import (
     expand_reverse_index,
     load_checkpoint,
@@ -131,62 +132,67 @@ def predict(
     total_ntokens = 0
     total_n_correct = 0
     output, ref_scores, hyp_scores, attention_scores = None, None, None, None
+    disable_tqdm = isinstance(data, StreamDataset)
 
     gen_start_time = time.time()
-    for batch in valid_iter:
-        total_nseqs += batch.nseqs  # number of sentences in the current batch
+    with tqdm(total=len(data), disable=disable_tqdm, desc="Predicting...") as pbar:
+        for batch in valid_iter:
+            total_nseqs += batch.nseqs  # number of sentences in the current batch
 
-        # sort batch now by src length and keep track of order
-        reverse_index = batch.sort_by_src_length()
-        sort_reverse_index = expand_reverse_index(reverse_index, n_best)
+            # sort batch now by src length and keep track of order
+            reverse_index = batch.sort_by_src_length()
+            sort_reverse_index = expand_reverse_index(reverse_index, n_best)
 
-        # run as during training to get validation loss (e.g. xent)
-        if compute_loss and batch.has_trg:
-            assert model.loss_function is not None
+            # run as during training to get validation loss (e.g. xent)
+            if compute_loss and batch.has_trg:
+                assert model.loss_function is not None
 
-            # don't track gradients during validation
-            with torch.no_grad():
-                batch_loss, log_probs, _, n_correct = model(return_type="loss",
-                                                            **vars(batch))
-                # sum over multiple gpus
-                batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
-                n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
-                if return_prob == "ref":
-                    ref_scores = batch.score(log_probs)
-                    output = batch.trg
+                # don't track gradients during validation
+                with torch.no_grad():
+                    batch_loss, log_probs, _, n_correct = model(return_type="loss",
+                                                                **vars(batch))
+                    # sum over multiple gpus
+                    batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
+                    n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
+                    if return_prob == "ref":
+                        ref_scores = batch.score(log_probs)
+                        output = batch.trg
 
-            total_loss += batch_loss.item()  # cast Tensor to float
-            total_n_correct += n_correct.item()  # cast Tensor to int
-            total_ntokens += batch.ntokens
+                total_loss += batch_loss.item()  # cast Tensor to float
+                total_n_correct += n_correct.item()  # cast Tensor to int
+                total_ntokens += batch.ntokens
 
-        # if return_prob == "ref", then no search needed.
-        # (just look up the prob of the ground truth.)
-        if return_prob != "ref":
-            # run search as during inference to produce translations
-            output, hyp_scores, attention_scores = search(
-                model=model,
-                batch=batch,
-                beam_size=beam_size,
-                beam_alpha=beam_alpha,
-                max_output_length=max_output_length,
-                n_best=n_best,
-                return_attention=return_attention,
-                return_prob=return_prob,
-                generate_unk=generate_unk,
-                repetition_penalty=repetition_penalty,
-                no_repeat_ngram_size=no_repeat_ngram_size,
-            )
+            # if return_prob == "ref", then no search needed.
+            # (just look up the prob of the ground truth.)
+            if return_prob != "ref":
+                # run search as during inference to produce translations
+                output, hyp_scores, attention_scores = search(
+                    model=model,
+                    batch=batch,
+                    beam_size=beam_size,
+                    beam_alpha=beam_alpha,
+                    max_output_length=max_output_length,
+                    n_best=n_best,
+                    return_attention=return_attention,
+                    return_prob=return_prob,
+                    generate_unk=generate_unk,
+                    repetition_penalty=repetition_penalty,
+                    no_repeat_ngram_size=no_repeat_ngram_size,
+                )
 
-        # sort outputs back to original order
-        all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
-        valid_attention_scores.extend(attention_scores[sort_reverse_index]
-                                      if attention_scores is not None else [])
-        valid_sequence_scores.extend(
-            ref_scores[sort_reverse_index] \
-            if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
-            else hyp_scores[sort_reverse_index] \
-            if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
-            else [])
+            # sort outputs back to original order
+            all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
+            valid_attention_scores.extend(attention_scores[sort_reverse_index]
+                                          if attention_scores is not None else [])
+            valid_sequence_scores.extend(
+                ref_scores[sort_reverse_index] \
+                if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
+                else hyp_scores[sort_reverse_index] \
+                if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
+                else [])
+
+            pbar.update(batch.nseqs)
+
     gen_duration = time.time() - gen_start_time
 
     assert total_nseqs == len(data), (total_nseqs, len(data))
