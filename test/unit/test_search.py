@@ -1,7 +1,6 @@
 import unittest
 
 import torch
-from torch.amp import autocast
 
 from joeynmt.decoders import RecurrentDecoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
@@ -33,12 +32,12 @@ class TestSearch(unittest.TestCase):
 
         self.expected_transformer_ids = torch.tensor([[0, 0, 0], [0, 5, 5]])
         self.expected_transformer_scores = torch.tensor([
-            [-0.1719, -0.5352, -0.5234], [-0.6133, -0.3301, -0.1650],
+            [-0.1828, -0.5575, -0.5696], [-0.6486, -0.3020, -0.1639],
         ])
 
         self.expected_recurrent_ids = torch.tensor([[1, 1, 0], [1, 0, 0]])
         self.expected_recurrent_scores = torch.tensor([
-            [-0.3242, -0.4707, -0.1040], [-0.5547, -0.0679, -0.0679]
+            [-0.3188, -0.4690, -0.1070], [-0.5685, -0.0671, -0.0612],
         ])
 
 
@@ -90,15 +89,15 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, attention_scores = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        output, scores, attention_scores = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
         # Transformer greedy doesn't return attention scores
         # `return_attention = False` by default
         self.assertIsNone(attention_scores)
@@ -122,18 +121,18 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            beam_output, beam_scores, attention_scores = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                n_best=n_best,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        beam_output, beam_scores, attention_scores = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            n_best=n_best,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
 
@@ -142,18 +141,18 @@ class TestSearchTransformer(TestSearch):
         torch.testing.assert_close(
             beam_output, self.expected_transformer_ids, check_dtype=False)
         torch.testing.assert_close(
-            beam_scores, torch.tensor([[-1.2422], [-1.1484]]), rtol=1e-4, atol=1e-4)
+            beam_scores, torch.tensor([[-1.3221], [-1.1592]]), rtol=1e-4, atol=1e-4)
 
         # now compare to greedy, they should be the same for beam=1
-        with autocast(device_type="cpu", enabled=False):
-            greedy_output, greedy_scores, _ = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        greedy_output, greedy_scores, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         torch.testing.assert_close(beam_output, greedy_output, check_dtype=False)
         torch.testing.assert_close(
@@ -168,18 +167,18 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, attention_scores = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                n_best=n_best,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        output, scores, attention_scores = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            n_best=n_best,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
         # Transformer beam doesn't return attention scores
         self.assertIsNone(attention_scores)
 
@@ -187,8 +186,8 @@ class TestSearchTransformer(TestSearch):
         self.assertEqual(output.shape, (batch_size * n_best, max_output_length))
 
         expected_scores = torch.tensor([
-            [-0.9375], [-1.1719], [-1.1953], [-1.6172], [-2.0469],
-            [-0.7383], [-0.9023], [-1.8281], [-2.5625], [-2.7344],
+            [-0.9916], [-1.1645], [-1.2123], [-1.6370], [-1.9956],
+            [-0.7621], [-0.8694], [-1.8208], [-2.5722], [-2.7833],
         ])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)
 
@@ -205,32 +204,32 @@ class TestSearchTransformer(TestSearch):
             batch_size=batch_size)
 
         # no repetition penalty
-        with autocast(device_type="cpu", enabled=False):
-            output, _, _ = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                generate_unk=False,
-            )
+        output, _, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            generate_unk=False,
+            fp16=False,
+        )
 
         expected_output = torch.tensor([[4, 4, 4], [4, 4, 4], [4, 5, 5]])
         torch.testing.assert_close(output, expected_output, check_dtype=False)
         self.assertEqual(torch.count_nonzero(output).item(), 9)  # no unk token
 
         # trg repetition penalty
-        with autocast(device_type="cpu", enabled=False):
-            output_trg_penalty, _, _ = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                encoder_input=None,
-                repetition_penalty=1.5,
-                generate_unk=False,
-            )
+        output_trg_penalty, _, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=None,
+            repetition_penalty=1.5,
+            generate_unk=False,
+            fp16=False,
+        )
 
         expected_output_trg_penalty = torch.tensor([[4, 4, 4], [4, 4, 4], [4, 5, 5]])
         torch.testing.assert_close(
@@ -240,18 +239,18 @@ class TestSearchTransformer(TestSearch):
         # src_len = 4 (see self._build())
         src_tokens = torch.tensor([[4, 3, 1, 1], [5, 4, 3, 1], [5, 5, 6, 3]]).long()
         src_mask = (src_tokens != 1).unsqueeze(1)
-        with autocast(device_type="cpu", enabled=False):
-            output_src_penalty, _, attention = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                encoder_input=src_tokens,
-                repetition_penalty=1.5,
-                generate_unk=False,
-                return_attention=True,
-            )
+        output_src_penalty, _, attention = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=src_tokens,
+            repetition_penalty=1.5,
+            generate_unk=False,
+            return_attention=True,
+            fp16=False,
+        )
 
         expected_output_src_penalty = torch.tensor([[4, 4, 4], [4, 4, 4], [4, 5, 5]])
         torch.testing.assert_close(
@@ -260,12 +259,12 @@ class TestSearchTransformer(TestSearch):
         # Transformer Greedy can return attention probs
         # (batch_size, trg_len, src_len) = (3, 3, 4)
         expected_attention = torch.tensor([
-            [[0.5156, 0.4824, 0.0000, 0.0000], [0.4922, 0.5078, 0.0000, 0.0000],
-             [0.4961, 0.5039, 0.0000, 0.0000]],
-            [[0.3066, 0.5312, 0.1621, 0.0000], [0.3008, 0.5469, 0.1523, 0.0000],
-             [0.2969, 0.5430, 0.1602, 0.0000]],
-            [[0.1680, 0.1113, 0.4766, 0.2451], [0.1709, 0.0850, 0.4883, 0.2559],
-             [0.1875, 0.0659, 0.4727, 0.2734]],
+            [[0.5196, 0.4804, 0.0000, 0.0000], [0.4938, 0.5062, 0.0000, 0.0000],
+             [0.5022, 0.4978, 0.0000, 0.0000]],
+            [[0.3077, 0.5314, 0.1609, 0.0000], [0.3028, 0.5456, 0.1516, 0.0000],
+             [0.2967, 0.5426, 0.1607, 0.0000]],
+            [[0.1679, 0.1129, 0.4732, 0.2460], [0.1669, 0.0946, 0.4861, 0.2523],
+             [0.1831, 0.0725, 0.4724, 0.2720]],
         ])
         torch.testing.assert_close(attention, expected_attention, rtol=1e-4, atol=1e-4)
 
@@ -279,24 +278,24 @@ class TestSearchTransformer(TestSearch):
             batch_size=batch_size)
 
         src_tokens = torch.tensor([[5, 5, 4], [5, 6, 6]]).long()
-        with autocast(device_type="cpu", enabled=False):
-            output_with_penalty, scores_with_penalty, _ = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                n_best=n_best,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                encoder_input=src_tokens,
-                repetition_penalty=1.5,
-                return_prob="hyp",
-            )
+        output_with_penalty, scores_with_penalty, _ = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            n_best=n_best,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=src_tokens,
+            repetition_penalty=1.5,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         expected_scores_with_penalty = torch.tensor([
-            [-1.3438], [-1.7344], [-1.9688], [-2.3594], [-3.5156],
-            [-1.1797], [-1.2109], [-2.4844], [-3.2812], [-3.5156],
+            [-1.4143], [-1.7453], [-1.9395], [-2.3824], [-3.4464],
+            [-1.1363], [-1.2449], [-2.4712], [-3.3064], [-3.5255],
         ])
         torch.testing.assert_close(
             scores_with_penalty, expected_scores_with_penalty, rtol=1e-4, atol=1e-4)
@@ -315,24 +314,24 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, _ = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                encoder_input=None,
-                return_prob="hyp",
-                no_repeat_ngram_size=no_repeat_ngram_size,
-            )
+        output, scores, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=None,
+            return_prob="hyp",
+            no_repeat_ngram_size=no_repeat_ngram_size,
+            fp16=False,
+        )
 
         expected_output = torch.tensor([[0, 0, 0, 0, 0, 0, 0], [0, 5, 5, 5, 0, 5, 0]])
         torch.testing.assert_close(output, expected_output, check_dtype=False)
 
         expected_scores = torch.tensor([
-            [-0.1719, -0.5352, -0.5234, -0.5234, -0.5273, -0.5430, -0.5938],
-            [-0.6133, -0.3301, -0.1650, -0.1914, -2.0781, -0.0383, -3.0938],
+            [-0.1828, -0.5575, -0.5696, -0.5475, -0.5318, -0.5640, -0.6015],
+            [-0.6486, -0.3020, -0.1639, -0.1721, -2.1473, -0.0356, -3.1596],
         ])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)
 
@@ -346,30 +345,30 @@ class TestSearchTransformer(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, _ = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                n_best=n_best,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                encoder_input=None,
-                return_prob="hyp",
-                no_repeat_ngram_size=no_repeat_ngram_size,
-            )
+        output, scores, _ = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            n_best=n_best,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            encoder_input=None,
+            return_prob="hyp",
+            no_repeat_ngram_size=no_repeat_ngram_size,
+            fp16=False,
+        )
 
         expected_output = torch.tensor([
-            [0, 0, 0, 0, 0, 5, 5], [0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 5], [0, 0, 5, 5, 5, 0, 5],
-            [0, 5, 5, 5, 0, 5, 0], [0, 0, 5, 5, 5, 0, 0]
+            [0, 0, 0, 0, 5, 5, 5], [0, 0, 0, 0, 0, 5, 5],
+            [0, 0, 0, 0, 0, 0, 0], [0, 0, 5, 5, 5, 0, 5],
+            [0, 5, 5, 5, 0, 5, 0], [0, 0, 5, 5, 5, 0, 0],
         ])
         torch.testing.assert_close(output, expected_output, check_dtype=False)
 
-        expected_scores = torch.tensor([[-1.6875], [-1.6875], [-1.8438],
-                                        [-2.4219], [-3.3125], [-4.0000]])
+        expected_scores = torch.tensor([[-1.5582], [-1.7164], [-1.7834],
+                                        [-2.4636], [-3.3369], [-4.0860]])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)
 
 
@@ -429,15 +428,15 @@ class TestSearchRecurrent(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, attention_scores = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        output, scores, attention_scores = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         self.assertEqual(output.shape, (batch_size, max_output_length))
         torch.testing.assert_close(
@@ -446,10 +445,10 @@ class TestSearchRecurrent(TestSearch):
             scores, self.expected_recurrent_scores, rtol=1e-4, atol=1e-4)
 
         expected_attention_scores = torch.tensor([
-            [[0.1709, 0.2598, 0.3281, 0.2402], [0.0757, 0.1172, 0.0359, 0.7695],
-             [0.0869, 0.0786, 0.0518, 0.7812]],
-            [[0.2422, 0.3613, 0.3125, 0.0845], [0.2129, 0.4922, 0.2451, 0.0498],
-             [0.2324, 0.3555, 0.3242, 0.0874]],
+            [[0.1721, 0.2611, 0.3236, 0.2432], [0.0765, 0.1171, 0.0370, 0.7695],
+             [0.0855, 0.0787, 0.0519, 0.7840]],
+            [[0.2405, 0.3703, 0.3079, 0.0813], [0.2084, 0.5028, 0.2404, 0.0483],
+             [0.2227, 0.3913, 0.3075, 0.0785]],
         ])
         torch.testing.assert_close(
             attention_scores, expected_attention_scores, rtol=1e-4, atol=1e-4)
@@ -463,15 +462,15 @@ class TestSearchRecurrent(TestSearch):
         src_mask, model, encoder_output, encoder_hidden = self._build(
             batch_size=batch_size)
 
-        with autocast(device_type="cpu", enabled=False):
-            greedy_output, greedy_scores, _ = greedy(
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        greedy_output, greedy_scores, _ = greedy(
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         self.assertEqual(greedy_output.shape, (batch_size, max_output_length))
         torch.testing.assert_close(
@@ -482,22 +481,22 @@ class TestSearchRecurrent(TestSearch):
         beam_size = 1
         alpha = 0.0
         n_best = 1
-        with autocast(device_type="cpu", enabled=False):
-            beam_output, beam_scores, _ = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                n_best=n_best,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        beam_output, beam_scores, _ = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            n_best=n_best,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         torch.testing.assert_close(greedy_output, beam_output, check_dtype=False)
         torch.testing.assert_close(
-            beam_scores, torch.tensor([[-0.8398], [-0.7031]]), rtol=1e-4, atol=1e-4)
+            beam_scores, torch.tensor([[-0.8947], [-0.6968]]), rtol=1e-4, atol=1e-4)
 
     def test_recurrent_beam7(self):
         batch_size = 2
@@ -508,31 +507,31 @@ class TestSearchRecurrent(TestSearch):
         beam_size = 7
         n_best = 5
         alpha = 1.0
-        with autocast(device_type="cpu", enabled=False):
-            output, scores, _ = beam_search(
-                beam_size=beam_size,
-                src_mask=src_mask,
-                max_output_length=max_output_length,
-                model=model,
-                alpha=alpha,
-                n_best=n_best,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                return_prob="hyp",
-            )
+        output, scores, _ = beam_search(
+            beam_size=beam_size,
+            src_mask=src_mask,
+            max_output_length=max_output_length,
+            model=model,
+            alpha=alpha,
+            n_best=n_best,
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            return_prob="hyp",
+            fp16=False,
+        )
 
         self.assertEqual(output.shape, (batch_size * n_best, max_output_length))
 
         # output indices
         expected_output = torch.tensor([
             [1, 1, 0], [1, 3, 1], [4, 0, 0], [1, 0, 0], [1, 1, 3],
-            [1, 0, 0], [4, 0, 0], [4, 4, 0], [1, 0, 4], [1, 4, 0],
+            [1, 0, 0], [4, 0, 0], [4, 4, 0], [1, 4, 0], [1, 0, 4],
         ])
         torch.testing.assert_close(output, expected_output, check_dtype=False)
 
         # log probabilities
         expected_scores = torch.tensor([
-            [-0.6680], [-1.4062], [-1.9062], [-2.0156], [-2.4688],
-            [-0.5117], [-0.8008], [-2.7656], [-2.7656], [-2.8438],
+            [-0.6711], [-1.4130], [-1.8920], [-2.0893], [-2.4158],
+            [-0.5226], [-0.7926], [-2.7672], [-2.7673], [-2.8261],
         ])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)

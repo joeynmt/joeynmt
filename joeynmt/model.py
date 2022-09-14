@@ -20,7 +20,6 @@ from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
 
 logger = logging.getLogger(__name__)
-DEVICE_TYPE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Model(nn.Module):
@@ -74,7 +73,6 @@ class Model(nn.Module):
         self._loss_function = XentLoss(pad_index=self.pad_index,
                                        smoothing=label_smoothing)
 
-    @torch.autocast(device_type=DEVICE_TYPE)
     def forward(self,
                 return_type: str = None,
                 **kwargs) -> Tuple[Tensor, Tensor, Tensor, Tensor]:

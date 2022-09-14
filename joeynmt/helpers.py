@@ -214,8 +214,11 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
 
     load_model: Optional[Path] = _load_path("load_model")
 
+    # fp16
+    fp16: bool = cfg.get("fp16", False)
+
     if mode == "prediction":
-        return model_dir, load_model, device, n_gpu, num_workers, normalization
+        return model_dir, load_model, device, n_gpu, num_workers, normalization, fp16
 
     # layer initialization
     load_encoder: Optional[Path] = _load_path("load_encoder")
@@ -261,9 +264,6 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
         raise ConfigurationError(
             "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
     batch_multiplier: int = cfg.get("batch_multiplier", 1)
-
-    # fp16
-    fp16: bool = cfg.get("fp16", False)
 
     # resume training process
     reset_best_ckpt = cfg.get("reset_best_ckpt", False)

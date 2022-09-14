@@ -626,6 +626,7 @@ class TrainManager:
             n_gpu=self.n_gpu,
             normalization=self.normalization,
             cfg=self.valid_cfg,
+            fp16=self.fp16,
         )
         valid_duration = time.time() - valid_start_time
 

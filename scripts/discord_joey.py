@@ -53,13 +53,13 @@ bot = discord.Bot(debug_guilds=[guild])
 translate = SlashCommandGroup("translate", "JoeyNMT translates a message.")
 
 
-def load_joeynmt_model(cfg_file):
+def prepare(cfg_file):
     print("Discord Joey: Loading a model ...")
 
     cfg = load_config(Path(cfg_file))
     # parse and validate cfg
-    model_dir, load_model, device, n_gpu, _, _ = parse_train_args(cfg["training"],
-                                                                  mode="prediction")
+    model_dir, load_model, device, n_gpu, _, _, fp16 = parse_train_args(
+        cfg["training"], mode="prediction")
 
     # read vocabs
     src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
@@ -101,7 +101,7 @@ def load_joeynmt_model(cfg_file):
     test_cfg["return_attention"] = False
 
     print(f"\t{src_lang}-{trg_lang} model loaded successfully!")
-    return test_data, model, test_cfg, device, n_gpu
+    return test_data, model, test_cfg, device, n_gpu, fp16
 
 
 def generate(src_input, lang_tag):
@@ -116,6 +116,7 @@ def generate(src_input, lang_tag):
         normalization="none",
         num_workers=0,
         cfg=bot.cfg_dict[lang_tag],
+        fp16=bot.fp16[lang_tag],
     )
     bot.data_dict[lang_tag].cache = {}  # reset cache
     return translations[0]
@@ -127,12 +128,13 @@ async def on_ready():
 
     for lang_tag, cfg_file in CFG_FILES.items():
         if lang_tag not in bot.model_dict:
-            test_data, model, test_cfg, device, n_gpu = load_joeynmt_model(cfg_file)
+            test_data, model, test_cfg, device, n_gpu, fp16 = prepare(cfg_file)
             bot.data_dict[lang_tag] = test_data
             bot.model_dict[lang_tag] = model
             bot.cfg_dict[lang_tag] = test_cfg
             bot.device[lang_tag] = device
             bot.n_gpu[lang_tag] = n_gpu
+            bot.fp16[lang_tag] = fp16
 
     print("Discord Joey: ready to go!")
     print("=" * 20)
@@ -193,5 +195,6 @@ bot.model_dict = {}
 bot.cfg_dict = {}
 bot.device = {}
 bot.n_gpu = {}
+bot.fp16 = {}
 
 bot.run(TOKEN)

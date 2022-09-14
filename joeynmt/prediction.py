@@ -9,9 +9,9 @@ import time
 from functools import partial
 from itertools import zip_longest
 from pathlib import Path
-from tqdm import tqdm
 from typing import Dict, List, Tuple
 
+from tqdm import tqdm
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -48,6 +48,7 @@ def predict(
     normalization: str = "batch",
     num_workers: int = 0,
     cfg: Dict = None,
+    fp16: bool = False,
 ) -> Tuple[Dict[str, float], List[str], List[str], List[List[str]], List[np.ndarray],
            List[np.ndarray], ]:
     """
@@ -62,6 +63,7 @@ def predict(
     :param normalization: one of {`batch`, `tokens`, `none`}
     :param num_workers: number of workers for `collate_fn()` in data iterator
     :param cfg: `testing` section in yaml config file
+    :param fp16: whether to use fp16
     :return:
         - valid_scores: (dict) current validation scores,
         - valid_ref: (list) validation references,
@@ -142,6 +144,7 @@ def predict(
             # sort batch now by src length and keep track of order
             reverse_index = batch.sort_by_src_length()
             sort_reverse_index = expand_reverse_index(reverse_index, n_best)
+            batch_size = len(sort_reverse_index)  # = batch.nseqs * n_best
 
             # run as during training to get validation loss (e.g. xent)
             if compute_loss and batch.has_trg:
@@ -178,6 +181,7 @@ def predict(
                     generate_unk=generate_unk,
                     repetition_penalty=repetition_penalty,
                     no_repeat_ngram_size=no_repeat_ngram_size,
+                    fp16=fp16,
                 )
 
             # sort outputs back to original order
@@ -186,9 +190,9 @@ def predict(
                                           if attention_scores is not None else [])
             valid_sequence_scores.extend(
                 ref_scores[sort_reverse_index] \
-                if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
+                if ref_scores is not None and ref_scores.shape[0] == batch_size
                 else hyp_scores[sort_reverse_index] \
-                if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
+                if hyp_scores is not None and hyp_scores.shape[0] == batch_size
                 else [])
 
             pbar.update(batch.nseqs)
@@ -324,8 +328,15 @@ def test(
     # pylint: disable=too-many-branches
     cfg = load_config(Path(cfg_file))
     # parse train cfg
-    model_dir, load_model, device, n_gpu, num_workers, normalization = parse_train_args(
-        cfg["training"], mode="prediction")
+    (
+        model_dir,
+        load_model,
+        device,
+        n_gpu,
+        num_workers,
+        normalization,
+        fp16,
+    ) = parse_train_args(cfg["training"], mode="prediction")
 
     if len(logger.handlers) == 0:
         _ = make_logger(model_dir, mode="test")  # version string returned
@@ -342,7 +353,6 @@ def test(
 
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
-    model.log_parameters_list()
 
     # check options
     if save_attention:
@@ -381,6 +391,7 @@ def test(
     # multi-gpu eval
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
         model = _DataParallel(model)
+    logger.info(model)
 
     # set the random seed
     set_seed(seed=cfg["training"].get("random_seed", 42))
@@ -403,6 +414,7 @@ def test(
                 num_workers=num_workers,
                 normalization=normalization,
                 cfg=cfg["testing"],
+                fp16=fp16,
             )
 
             if save_attention:
@@ -472,12 +484,13 @@ def translate(
             normalization="none",
             num_workers=num_workers,
             cfg=cfg,
+            fp16=fp16,
         )
         return hypotheses, trg_tokens, trg_scores
 
     cfg = load_config(Path(cfg_file))
     # parse and validate cfg
-    model_dir, load_model, device, n_gpu, num_workers, _ = parse_train_args(
+    model_dir, load_model, device, n_gpu, num_workers, _, fp16 = parse_train_args(
         cfg["training"], mode="prediction")
     test_cfg = cfg["testing"]
     src_cfg = cfg["data"]["src"]

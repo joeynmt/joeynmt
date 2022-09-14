@@ -96,10 +96,11 @@ def recurrent_greedy(
     prev_att_vector = None
     finished = src_mask.new_zeros((batch_size, 1)).byte()
     device = encoder_output.device
+    fp16 = kwargs.get("fp16", False)
 
     for step in range(max_output_length):
         # decode one single step
-        with torch.autocast(device_type=device.type):
+        with torch.autocast(device_type=device.type, enabled=fp16):
             with torch.no_grad():
                 out, hidden, att_probs, prev_att_vector = model(
                     return_type="decode",
@@ -174,6 +175,7 @@ def transformer_greedy(
     pad_index = model.pad_index
     batch_size, _, src_len = src_mask.size()
     device = encoder_output.device
+    fp16: bool = kwargs.get("fp16", False)
 
     # options to control generation
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
@@ -204,7 +206,7 @@ def transformer_greedy(
     finished = src_mask.new_zeros(batch_size).byte()
 
     for step in range(max_output_length):
-        with torch.autocast(device_type=device.type):
+        with torch.autocast(device_type=device.type, enabled=fp16):
             with torch.no_grad():
                 out, _, att, _ = model(
                     return_type="decode",
@@ -335,6 +337,7 @@ def beam_search(
 
     trg_vocab_size = model.decoder.output_size
     device = encoder_output.device
+    fp16: bool = kwargs.get("fp16", False)
     is_transformer = isinstance(model.decoder, TransformerDecoder)
 
     att_vectors = None  # for RNN only, not used for Transformer
@@ -421,7 +424,7 @@ def beam_search(
             decoder_input = alive_seq
 
             # decode one single step
-            with torch.autocast(device_type=device.type):
+            with torch.autocast(device_type=device.type, enabled=fp16):
                 with torch.no_grad():
                     logits, _, _, _ = model(  # logits before final softmax
                         return_type="decode",
@@ -443,7 +446,7 @@ def beam_search(
             # For Recurrent models, only feed the previous trg word prediction
             decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
 
-            with torch.autocast(device_type=device.type):
+            with torch.autocast(device_type=device.type, enabled=fp16):
                 with torch.no_grad():
                     # pylint: disable=unused-variable
                     logits, hidden, att_scores, att_vectors = model(
@@ -697,7 +700,8 @@ def search(
         - stacked_attention_scores: attention scores for batch
     """
     device = batch.src.device
-    with torch.autocast(device_type=device.type):
+    fp16: bool = kwargs.get("fp16", False)
+    with torch.autocast(device_type=device.type, enabled=fp16):
         with torch.no_grad():
             encoder_output, encoder_hidden, _, _ = model(return_type="encode",
                                                          **vars(batch))
