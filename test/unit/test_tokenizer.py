@@ -8,6 +8,7 @@ from joeynmt.tokenizers import (
     BasicTokenizer,
     SentencePieceTokenizer,
     SubwordNMTTokenizer,
+    FastBPETokenizer,
 )
 
 
@@ -200,3 +201,47 @@ class TestTokenizer(unittest.TestCase):
             tokenizer.dropout = 0.8
             dropout = tokenizer(detokenized, is_train=True)
             self.assertEqual(dropout, expected[lang]['dropout'])
+
+    def testFastBPETokenizer(self):
+        try:
+            cfg = self.data_cfg.copy()
+            for side in ["src", "trg"]:
+                cfg[side]["max_length"] = 30
+                cfg[side]["level"] = "bpe"
+                cfg[side]["tokenizer_type"] = "fastbpe"
+                cfg[side]["tokenizer_cfg"] = {"codes": "test/data/toy/bpe200.codes"}
+                cfg[side]["voc_file"] = "test/data/toy/bpe200.txt"
+
+            # 191st example from the training set
+            expected = {
+                "de": {
+                    "tokenized": ['D@@', 'an@@', 'k@@', 'e.'],
+                    "dropout": ['D@@', 'a@@', 'n@@', 'k@@', 'e@@', '.'],
+                    "detokenized": "Danke.",
+                },
+                "en": {
+                    "tokenized": ['Th@@', 'an@@', 'k', 'y@@', 'ou@@', '.'],
+                    "dropout": ['T@@', 'ha@@', 'n@@', 'k', 'y@@', 'o@@', 'u@@', '.'],
+                    "detokenized": "Thank you.",
+                }
+            }
+
+            _, _, train_data, _, _ = load_data(cfg, datasets=["train"])
+
+            train_src, train_trg = train_data[191]
+            for tokenized, lang in [(train_src, train_data.src_lang),
+                                    (train_trg, train_data.trg_lang)]:
+                # check tokenizer
+                tokenizer = train_data.tokenizer[lang]
+                self.assertIs(type(tokenizer), FastBPETokenizer)
+                self.assertEqual(tokenizer.level, "bpe")
+
+                # check tokenized sequence
+                self.assertEqual(tokenized, expected[lang]['tokenized'])
+
+                # check detokenized sequence
+                detokenized = tokenizer.post_process(tokenized)
+                self.assertEqual(detokenized, expected[lang]['detokenized'])
+
+        except (ImportError, RuntimeError) as e:
+            raise unittest.SkipTest(f"{e} Skip.")

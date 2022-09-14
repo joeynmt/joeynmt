@@ -1,6 +1,18 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
-[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
+[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+## What's new
+- 4th September 2022: upgraded to JoeyNMT v2.1.0
+
+- 17th Augst 2022: [Joey S2T Hands-on Tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)  
+  [＠IT](https://atmarkit.itmedia.co.jp) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳 第三回](https://atmarkit.itmedia.co.jp/ait/articles/2208/17/news002.html) の記事が公開されました。
+
+- 21st July 2022: [Joey NMT v2.0 Hands-on Tutorial](notebooks/tokenizer_tutorial_ja.ipynb) (in Japanese)  
+  [＠IT](https://atmarkit.itmedia.co.jp) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳 第二回](https://atmarkit.itmedia.co.jp/ait/articles/2207/21/news006.html) の記事が公開されました。
+
+- 29th June 2022: [Joey NMT v2.0 Hands-on Tutorial](notebooks/fine_tuning_tutorial_enja.ipynb) (in Japanese)  
+  [＠IT](https://atmarkit.itmedia.co.jp) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳 第一回](https://atmarkit.itmedia.co.jp/ait/articles/2206/29/news008.html) の記事が公開されました。
 
 
 ## Goal and Purpose
@@ -44,7 +56,7 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested Joey NMT 2.0 with
+We tested Joey NMT v2.1 with
 - python 3.10
 - torch 1.12.1
 - cuda 11.6
@@ -70,7 +82,7 @@ $ pip install joeynmt
 ### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
+  $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -88,9 +100,10 @@ $ pip install joeynmt
 - upgrade to python 3.10, torch 1.12
 - replace Automated Mixed Precision from NVIDA's amp to Pytorch's amp package
 - replace [discord.py](https://github.com/Rapptz/discord.py) with [pycord](https://github.com/Pycord-Development/pycord) in the Discord Bot demo
-- Data Iterator refactoring
+- data iterator refactoring
 - add wmt14 ende / deen benchmark trained on v2 from scratch
-- bugfixes
+- add tokenizer tutorial
+- minor bugfixes
 
 <details><summary>previous releases</summary>
 
@@ -133,8 +146,9 @@ We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly f
 For details, follow the tutorials in [notebooks](notebooks) dir.
 #### v2.x
 - [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
-- [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
-- [joeyS2T ASR tutorial](https://github.com/may-/joeynmt/blob/joeyS2T/notebooks/joeyS2T_ASR_tutorial.ipynb) 
+- [fine tuning tutorial](notebooks/fine_tuning_tutorial_enja.ipynb)
+- [tokenizer tutorial](notebooks/tokenizer_tutorial_en.ipynb)
+- [joeyS2T ASR tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)
 
 #### v1.x
 - [demo notebook](notebooks/joey_v1_demo.ipynb)
@@ -348,7 +362,7 @@ Here we'll collect projects and repositories that are based on Joey NMT, so you 
 inspiration and examples on how to modify and extend the code.
 
 ### Joey NMT v2.x
-- :ear: **JoeyS2T**. Joey NMT is extended for Speech-to-Text tasks! [Code](https://github.com/may-/joeynmt/tree/joeyS2T)
+- :ear: **JoeyS2T**. Joey NMT is extended for Speech-to-Text tasks! [Code](https://github.com/may-/joeys2t)
 - :right_anger_bubble: **Discord Joey**. This script demonstrates how to deploy Joey NMT models as a Chatbot on Discord. [Code](scripts/discord_joey.py)
 
 ### Joey NMT v1.x

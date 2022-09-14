@@ -48,4 +48,4 @@ jobs:
       # Run unittest
       - name: Test
         run: |
-          python -m pytest
+          python -m unittest
