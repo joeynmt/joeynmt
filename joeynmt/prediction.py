@@ -11,12 +11,13 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from tqdm import tqdm
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 from joeynmt.data import load_data
-from joeynmt.datasets import build_dataset
+from joeynmt.datasets import StreamDataset, build_dataset
 from joeynmt.helpers import (
     expand_reverse_index,
     load_checkpoint,
@@ -47,6 +48,7 @@ def predict(
     normalization: str = "batch",
     num_workers: int = 0,
     cfg: Dict = None,
+    fp16: bool = False,
 ) -> Tuple[Dict[str, float], List[str], List[str], List[List[str]], List[np.ndarray],
            List[np.ndarray], ]:
     """
@@ -61,6 +63,7 @@ def predict(
     :param normalization: one of {`batch`, `tokens`, `none`}
     :param num_workers: number of workers for `collate_fn()` in data iterator
     :param cfg: `testing` section in yaml config file
+    :param fp16: whether to use fp16
     :return:
         - valid_scores: (dict) current validation scores,
         - valid_ref: (list) validation references,
@@ -131,62 +134,69 @@ def predict(
     total_ntokens = 0
     total_n_correct = 0
     output, ref_scores, hyp_scores, attention_scores = None, None, None, None
+    disable_tqdm = isinstance(data, StreamDataset)
 
     gen_start_time = time.time()
-    for batch in valid_iter:
-        total_nseqs += batch.nseqs  # number of sentences in the current batch
+    with tqdm(total=len(data), disable=disable_tqdm, desc="Predicting...") as pbar:
+        for batch in valid_iter:
+            total_nseqs += batch.nseqs  # number of sentences in the current batch
 
-        # sort batch now by src length and keep track of order
-        reverse_index = batch.sort_by_src_length()
-        sort_reverse_index = expand_reverse_index(reverse_index, n_best)
+            # sort batch now by src length and keep track of order
+            reverse_index = batch.sort_by_src_length()
+            sort_reverse_index = expand_reverse_index(reverse_index, n_best)
+            batch_size = len(sort_reverse_index)  # = batch.nseqs * n_best
 
-        # run as during training to get validation loss (e.g. xent)
-        if compute_loss and batch.has_trg:
-            assert model.loss_function is not None
+            # run as during training to get validation loss (e.g. xent)
+            if compute_loss and batch.has_trg:
+                assert model.loss_function is not None
 
-            # don't track gradients during validation
-            with torch.no_grad():
-                batch_loss, log_probs, _, n_correct = model(return_type="loss",
-                                                            **vars(batch))
-                # sum over multiple gpus
-                batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
-                n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
-                if return_prob == "ref":
-                    ref_scores = batch.score(log_probs)
-                    output = batch.trg
+                # don't track gradients during validation
+                with torch.no_grad():
+                    batch_loss, log_probs, _, n_correct = model(return_type="loss",
+                                                                **vars(batch))
+                    # sum over multiple gpus
+                    batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
+                    n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
+                    if return_prob == "ref":
+                        ref_scores = batch.score(log_probs)
+                        output = batch.trg
 
-            total_loss += batch_loss.item()  # cast Tensor to float
-            total_n_correct += n_correct.item()  # cast Tensor to int
-            total_ntokens += batch.ntokens
+                total_loss += batch_loss.item()  # cast Tensor to float
+                total_n_correct += n_correct.item()  # cast Tensor to int
+                total_ntokens += batch.ntokens
 
-        # if return_prob == "ref", then no search needed.
-        # (just look up the prob of the ground truth.)
-        if return_prob != "ref":
-            # run search as during inference to produce translations
-            output, hyp_scores, attention_scores = search(
-                model=model,
-                batch=batch,
-                beam_size=beam_size,
-                beam_alpha=beam_alpha,
-                max_output_length=max_output_length,
-                n_best=n_best,
-                return_attention=return_attention,
-                return_prob=return_prob,
-                generate_unk=generate_unk,
-                repetition_penalty=repetition_penalty,
-                no_repeat_ngram_size=no_repeat_ngram_size,
-            )
+            # if return_prob == "ref", then no search needed.
+            # (just look up the prob of the ground truth.)
+            if return_prob != "ref":
+                # run search as during inference to produce translations
+                output, hyp_scores, attention_scores = search(
+                    model=model,
+                    batch=batch,
+                    beam_size=beam_size,
+                    beam_alpha=beam_alpha,
+                    max_output_length=max_output_length,
+                    n_best=n_best,
+                    return_attention=return_attention,
+                    return_prob=return_prob,
+                    generate_unk=generate_unk,
+                    repetition_penalty=repetition_penalty,
+                    no_repeat_ngram_size=no_repeat_ngram_size,
+                    fp16=fp16,
+                )
 
-        # sort outputs back to original order
-        all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
-        valid_attention_scores.extend(attention_scores[sort_reverse_index]
-                                      if attention_scores is not None else [])
-        valid_sequence_scores.extend(
-            ref_scores[sort_reverse_index] \
-            if ref_scores is not None and ref_scores.shape[0] == len(sort_reverse_index)
-            else hyp_scores[sort_reverse_index] \
-            if hyp_scores is not None and hyp_scores.shape[0] == len(sort_reverse_index)
-            else [])
+            # sort outputs back to original order
+            all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
+            valid_attention_scores.extend(attention_scores[sort_reverse_index]
+                                          if attention_scores is not None else [])
+            valid_sequence_scores.extend(
+                ref_scores[sort_reverse_index] \
+                if ref_scores is not None and ref_scores.shape[0] == batch_size
+                else hyp_scores[sort_reverse_index] \
+                if hyp_scores is not None and hyp_scores.shape[0] == batch_size
+                else [])
+
+            pbar.update(batch.nseqs)
+
     gen_duration = time.time() - gen_start_time
 
     assert total_nseqs == len(data), (total_nseqs, len(data))
@@ -233,7 +243,8 @@ def predict(
         data.tokenizer[data.trg_lang].post_process(s, generate_unk=generate_unk)
         for s in decoded_valid
     ]
-    valid_ref = data.trg  # not length-filtered, not duplicated for n_best > 1
+    # references are not length-filtered, not duplicated for n_best > 1
+    valid_ref = [data.tokenizer[data.trg_lang].post_process(s) for s in data.trg]
 
     # if references are given, evaluate 1best generation against them
     if data.has_trg:
@@ -317,8 +328,15 @@ def test(
     # pylint: disable=too-many-branches
     cfg = load_config(Path(cfg_file))
     # parse train cfg
-    model_dir, load_model, device, n_gpu, num_workers, normalization = parse_train_args(
-        cfg["training"], mode="prediction")
+    (
+        model_dir,
+        load_model,
+        device,
+        n_gpu,
+        num_workers,
+        normalization,
+        fp16,
+    ) = parse_train_args(cfg["training"], mode="prediction")
 
     if len(logger.handlers) == 0:
         _ = make_logger(model_dir, mode="test")  # version string returned
@@ -335,7 +353,6 @@ def test(
 
     # build model and load parameters into it
     model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
-    model.log_parameters_list()
 
     # check options
     if save_attention:
@@ -356,7 +373,7 @@ def test(
                 "Scores of given references can be computed with greedy decoding only."
                 "Please set `beam_size: 1` in the config.")
             model.loss_function = (  # need to instantiate loss func to compute scores
-                cfg["training"].get("loss_type", "crossentropy"),
+                cfg["training"].get("loss", "crossentropy"),
                 cfg["training"].get("label_smoothing", 0.1),
             )
 
@@ -374,6 +391,7 @@ def test(
     # multi-gpu eval
     if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
         model = _DataParallel(model)
+    logger.info(model)
 
     # set the random seed
     set_seed(seed=cfg["training"].get("random_seed", 42))
@@ -390,12 +408,13 @@ def test(
             _, _, hypotheses, hypotheses_raw, seq_scores, att_scores, = predict(
                 model=model,
                 data=data_set,
-                compute_loss=save_scores,
+                compute_loss=return_prob == "ref",
                 device=device,
                 n_gpu=n_gpu,
                 num_workers=num_workers,
                 normalization=normalization,
                 cfg=cfg["testing"],
+                fp16=fp16,
             )
 
             if save_attention:
@@ -465,12 +484,13 @@ def translate(
             normalization="none",
             num_workers=num_workers,
             cfg=cfg,
+            fp16=fp16,
         )
         return hypotheses, trg_tokens, trg_scores
 
     cfg = load_config(Path(cfg_file))
     # parse and validate cfg
-    model_dir, load_model, device, n_gpu, num_workers, _ = parse_train_args(
+    model_dir, load_model, device, n_gpu, num_workers, _, fp16 = parse_train_args(
         cfg["training"], mode="prediction")
     test_cfg = cfg["testing"]
     src_cfg = cfg["data"]["src"]
@@ -518,7 +538,11 @@ def translate(
     return_prob = test_cfg.get("return_prob", "none")
     if not sys.stdin.isatty():  # pylint: disable=too-many-nested-blocks
         # input stream given
-        for line in sys.stdin.readlines():
+        for i, line in enumerate(sys.stdin.readlines()):
+            if not line.strip():
+                # skip empty lines and print warning
+                logger.warning("The sentence in line %d is empty. Skip to load.", i)
+                continue
             test_data.set_item(line.rstrip())
         all_hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
         assert len(all_hypotheses) == len(test_data) * n_best

@@ -14,7 +14,7 @@ import shutil
 import sys
 import unicodedata
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pkg_resources
@@ -25,10 +25,6 @@ from torch.multiprocessing import cpu_count
 from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.plotting import plot_heatmap
-
-if TYPE_CHECKING:
-    from joeynmt.dataset import BaseDataset
-    from joeynmt.vocabulary import Vocabulary  # to avoid circular import
 
 np.set_printoptions(linewidth=sys.maxsize)  # format for printing numpy array
 
@@ -77,7 +73,7 @@ def make_logger(log_dir: Path = None, mode: str = "train") -> str:
             if log_dir.is_dir():
                 log_file = log_dir / f"{mode}.log"
 
-                fh = logging.FileHandler(log_file.as_posix())
+                fh = logging.FileHandler(log_file.as_posix(), encoding="utf-8")
                 fh.setLevel(level=logging.DEBUG)
                 logger.addHandler(fh)
                 fh.setFormatter(formatter)
@@ -144,41 +140,6 @@ def set_seed(seed: int) -> None:
     if torch.cuda.is_available() and torch.cuda.device_count() > 0:
         torch.backends.cudnn.deterministic = True
         torch.cuda.manual_seed_all(seed)
-
-
-def log_data_info(
-    src_vocab: Vocabulary,
-    trg_vocab: Vocabulary,
-    train_data: Optional[BaseDataset],
-    valid_data: Optional[BaseDataset],
-    test_data: Optional[BaseDataset],
-) -> None:
-    """
-    Log statistics of data and vocabulary.
-
-    :param src_vocab:
-    :param trg_vocab:
-    :param train_data:
-    :param valid_data:
-    :param test_data:
-    """
-    logger = logging.getLogger(__name__)
-    logger.info("Train dataset: %s", train_data)
-    logger.info("Valid dataset: %s", valid_data)
-    logger.info(" Test dataset: %s", test_data)
-
-    if train_data:
-        src = "\n\t[SRC] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False))
-        trg = "\n\t[TRG] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False))
-        logger.info("First training example:%s%s", src, trg)
-
-    logger.info("First 10 Src tokens: %s", src_vocab.log_vocab(10))
-    logger.info("First 10 Trg tokens: %s", trg_vocab.log_vocab(10))
-
-    logger.info("Number of unique Src tokens (vocab_size): %d", len(src_vocab))
-    logger.info("Number of unique Trg tokens (vocab_size): %d", len(trg_vocab))
 
 
 def load_config(path: Union[Path, str] = "configs/default.yaml") -> Dict:
@@ -253,8 +214,11 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
 
     load_model: Optional[Path] = _load_path("load_model")
 
+    # fp16
+    fp16: bool = cfg.get("fp16", False)
+
     if mode == "prediction":
-        return model_dir, load_model, device, n_gpu, num_workers, normalization
+        return model_dir, load_model, device, n_gpu, num_workers, normalization, fp16
 
     # layer initialization
     load_encoder: Optional[Path] = _load_path("load_encoder")
@@ -300,9 +264,6 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
         raise ConfigurationError(
             "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
     batch_multiplier: int = cfg.get("batch_multiplier", 1)
-
-    # fp16
-    fp16: bool = cfg.get("fp16", False)
 
     # resume training process
     reset_best_ckpt = cfg.get("reset_best_ckpt", False)

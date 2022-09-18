@@ -6,23 +6,18 @@ import logging
 from functools import partial
 from typing import Optional, Tuple
 
-import torch
-from torch.utils.data import Dataset
-
-from joeynmt.datasets import build_dataset
-from joeynmt.helpers import log_data_info
+from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import Vocabulary, build_vocab
 
 logger = logging.getLogger(__name__)
-CPU_DEVICE = torch.device("cpu")
 
 
 def load_data(
     data_cfg: dict,
     datasets: list = None
-) -> Tuple[Vocabulary, Vocabulary, Optional[Dataset], Optional[Dataset],
-           Optional[Dataset], ]:
+) -> Tuple[Vocabulary, Vocabulary, Optional[BaseDataset], Optional[BaseDataset],
+           Optional[BaseDataset]]:
     """
     Load train, dev and optionally test data as specified in configuration.
     Vocabularies are created from the training set with a limit of `voc_limit` tokens
@@ -139,5 +134,23 @@ def load_data(
             **dataset_cfg,
         )
     logger.info("Data loaded.")
-    log_data_info(src_vocab, trg_vocab, train_data, dev_data, test_data)
+
+    # Log statistics of data and vocabulary
+    logger.info("Train dataset: %s", train_data)
+    logger.info("Valid dataset: %s", dev_data)
+    logger.info(" Test dataset: %s", test_data)
+
+    if train_data:
+        src = "\n\t[SRC] " + " ".join(
+            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False))
+        trg = "\n\t[TRG] " + " ".join(
+            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False))
+        logger.info("First training example:%s%s", src, trg)
+
+    logger.info("First 10 Src tokens: %s", src_vocab.log_vocab(10))
+    logger.info("First 10 Trg tokens: %s", trg_vocab.log_vocab(10))
+
+    logger.info("Number of unique Src tokens (vocab_size): %d", len(src_vocab))
+    logger.info("Number of unique Trg tokens (vocab_size): %d", len(trg_vocab))
+
     return src_vocab, trg_vocab, train_data, dev_data, test_data

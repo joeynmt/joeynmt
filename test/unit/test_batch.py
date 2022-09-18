@@ -1,4 +1,4 @@
-from test.unit.test_helpers import TensorTestCase
+import unittest
 
 import torch
 from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
@@ -8,7 +8,7 @@ from joeynmt.data import load_data
 from joeynmt.datasets import TokenBatchSampler
 
 
-class TestBatch(TensorTestCase):
+class TestBatch(unittest.TestCase):
 
     def setUp(self):
         # minimal data config
@@ -82,10 +82,10 @@ class TestBatch(TensorTestCase):
         for b in train_iter:
             self.assertTrue(isinstance(b, Batch))
             if total_samples == 0:
-                self.assertTensorEqual(b.src, expected_src0)
-                self.assertTensorEqual(b.src_length, expected_src0_len)
-                self.assertTensorEqual(b.trg, expected_trg0)
-                self.assertTensorEqual(b.trg_length, expected_trg0_len)
+                torch.testing.assert_close(b.src, expected_src0)
+                torch.testing.assert_close(b.src_length, expected_src0_len)
+                torch.testing.assert_close(b.trg, expected_trg0)
+                torch.testing.assert_close(b.trg_length, expected_trg0_len)
             total_samples += b.nseqs
             self.assertLessEqual(b.nseqs, batch_size)
         self.assertEqual(total_samples, 27)
@@ -128,10 +128,10 @@ class TestBatch(TensorTestCase):
         for b in train_iter:
             self.assertTrue(isinstance(b, Batch))
             if total_tokens == 0:
-                self.assertTensorEqual(b.src, expected_src0)
-                self.assertTensorEqual(b.src_length, expected_src0_len)
-                self.assertTensorEqual(b.trg, expected_trg0)
-                self.assertTensorEqual(b.trg_length, expected_trg0_len)
+                torch.testing.assert_close(b.src, expected_src0)
+                torch.testing.assert_close(b.src_length, expected_src0_len)
+                torch.testing.assert_close(b.trg, expected_trg0)
+                torch.testing.assert_close(b.trg_length, expected_trg0_len)
             total_tokens += b.ntokens
         self.assertEqual(total_tokens, 387)
 
@@ -154,37 +154,26 @@ class TestBatch(TensorTestCase):
         self.assertTrue(isinstance(dev_iter.batch_sampler.sampler,
                                    SequentialSampler))  # shuffle=False
 
-        expected_src0 = torch.LongTensor([[
-            32, 11, 4, 22, 4, 11, 14, 8, 19, 4, 22, 4, 21, 11, 8, 4, 8, 19, 14, 14, 4,
-            20, 7, 19, 13, 11, 16, 25, 7, 6, 17, 4, 8, 5, 7, 6, 4, 38, 3
-        ],
-                                          [
-                                              7, 16, 13, 4, 23, 9, 5, 15, 5, 4, 18, 7,
-                                              16, 13, 4, 22, 4, 12, 11, 8, 8, 4, 7, 16,
-                                              13, 4, 12, 11, 4, 20, 7, 6, 4, 24, 3, 1,
-                                              1, 1, 1
-                                          ],
-                                          [
-                                              32, 11, 4, 22, 4, 17, 15, 10, 5, 6, 4, 10,
-                                              11, 17, 4, 24, 3, 1, 1, 1, 1, 1, 1, 1, 1,
-                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                                          ]])
+        # yapf: disable
+        expected_src0 = torch.LongTensor([
+            [32, 11, 4, 22, 4, 11, 14, 8, 19, 4, 22, 4, 21, 11, 8, 4, 8, 19, 14,
+             14, 4, 20, 7, 19, 13, 11, 16, 25, 7, 6, 17, 4, 8, 5, 7, 6, 4, 38, 3],
+            [7, 16, 13, 4, 23, 9, 5, 15, 5, 4, 18, 7, 16, 13, 4, 22, 4, 12, 11,
+             8, 8, 4, 7, 16, 13, 4, 12, 11, 4, 20, 7, 6, 4, 24, 3, 1, 1, 1, 1],
+            [32, 11, 4, 22, 4, 17, 15, 10, 5, 6, 4, 10, 11, 17, 4, 24, 3, 1,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ])
         expected_src0_len = torch.LongTensor([39, 35, 17])
-        expected_trg0 = torch.LongTensor([[
-            18, 5, 11, 4, 26, 4, 11, 8, 4, 26, 4, 19, 13, 7, 6, 4, 9, 11, 4, 25, 9, 8,
-            13, 7, 17, 28, 9, 10, 21, 4, 34, 3
-        ],
-                                          [
-                                              9, 0, 20, 4, 13, 7, 22, 22, 18, 4, 6, 8,
-                                              4, 25, 5, 4, 13, 5, 12, 5, 4, 24, 3, 1, 1,
-                                              1, 1, 1, 1, 1, 1, 1
-                                          ],
-                                          [
-                                              18, 5, 11, 4, 26, 4, 13, 5, 14, 14, 8, 4,
-                                              24, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                                              1, 1, 1, 1, 1, 1
-                                          ]])
+        expected_trg0 = torch.LongTensor([
+            [18, 5, 11, 4, 26, 4, 11, 8, 4, 26, 4, 19, 13, 7, 6, 4,
+             9, 11, 4, 25, 9, 8, 13, 7, 17, 28, 9, 10, 21, 4, 34, 3],
+            [9, 0, 20, 4, 13, 7, 22, 22, 18, 4, 6, 8, 4, 25, 5, 4,
+             13, 5, 12, 5, 4, 24, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [18, 5, 11, 4, 26, 4, 13, 5, 14, 14, 8, 4, 24, 3, 1,
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ])
         expected_trg0_len = torch.LongTensor([32, 23, 14])
+        # yapf: enable
 
         total_samples = 0
         for b in dev_iter:
@@ -194,13 +183,13 @@ class TestBatch(TensorTestCase):
             before_sort = b.src_length
             b.sort_by_src_length()
             after_sort = b.src_length
-            self.assertTensorEqual(
+            torch.testing.assert_close(
                 torch.sort(before_sort, descending=True)[0], after_sort)
             if total_samples == 0:
-                self.assertTensorEqual(b.src, expected_src0)
-                self.assertTensorEqual(b.src_length, expected_src0_len)
-                self.assertTensorEqual(b.trg, expected_trg0)
-                self.assertTensorEqual(b.trg_length, expected_trg0_len)
+                torch.testing.assert_close(b.src, expected_src0)
+                torch.testing.assert_close(b.src_length, expected_src0_len)
+                torch.testing.assert_close(b.trg, expected_trg0)
+                torch.testing.assert_close(b.trg_length, expected_trg0_len)
             total_samples += b.nseqs
             self.assertLessEqual(b.nseqs, batch_size)
         self.assertEqual(total_samples, len(self.dev_data))

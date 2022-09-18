@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import torch
+
 from torch.utils.data import (
     BatchSampler,
     DataLoader,
@@ -130,12 +131,8 @@ class BaseDataset(Dataset):
         Please override the batch class here. (not in TrainManager)
 
         :param batch:
-        :param src_process:
-        :param trg_process:
         :param pad_index:
         :param device:
-        :param has_trg:
-        :param is_train:
         :return: joeynmt batch object
         """
 
@@ -222,7 +219,7 @@ class BaseDataset(Dataset):
 
         # data iterator
         return DataLoader(
-            self,
+            dataset=self,
             batch_sampler=batch_sampler,
             collate_fn=partial(self.collate_fn, pad_index=pad_index, device=device),
             num_workers=num_workers,
@@ -451,6 +448,7 @@ class StreamDataset(BaseDataset):
     """
     StreamDataset which interacts with stream inputs.
     - called by `translate()` func in `prediction.py`.
+    - src side only, no trg expected.
     """
 
     def __init__(
@@ -481,11 +479,14 @@ class StreamDataset(BaseDataset):
 
     def set_item(self, line: str) -> None:
         """
-        takes source sentence string (i.e. `this is a test.`)
-            - tokenizer specified in config will be applied in this func.
+        Set source text to the cache.
 
         :param line: (str)
         """
+        assert isinstance(line, str) and line.strip() != "", \
+            "The input sentence is empty! Please make sure " \
+            "that you are feeding a valid input."
+
         idx = len(self.cache)
         line = self.tokenizer[self.src_lang].pre_process(line)
         self.cache[idx] = (line, None)

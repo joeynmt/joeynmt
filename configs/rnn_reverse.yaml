@@ -56,7 +56,7 @@ training:
     keep_best_ckpts: 2
 
 model:
-    initializer: "xavier"
+    initializer: "xavier_uniform"
     embed_initializer: "normal"
     embed_init_weight: 0.1
     bias_initializer: "zeros"

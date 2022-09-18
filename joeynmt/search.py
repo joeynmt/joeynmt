@@ -24,7 +24,7 @@ def greedy(
     encoder_output: Tensor,
     encoder_hidden: Tensor,
     **kwargs,
-) -> Tuple[np.array, np.array, np.ndarray]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Greedy decoding. Select the token word highest probability at each time step.
     This function is a wrapper that calls recurrent_greedy for recurrent decoders and
@@ -65,7 +65,7 @@ def recurrent_greedy(
     encoder_output: Tensor,
     encoder_hidden: Tensor,
     **kwargs,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Greedy decoding: in each step, choose the word that gets highest score.
     Version for recurrent decoder.
@@ -95,21 +95,24 @@ def recurrent_greedy(
     hidden = None
     prev_att_vector = None
     finished = src_mask.new_zeros((batch_size, 1)).byte()
+    device = encoder_output.device
+    fp16 = kwargs.get("fp16", False)
 
     for step in range(max_output_length):
         # decode one single step
-        with torch.no_grad():
-            out, hidden, att_probs, prev_att_vector = model(
-                return_type="decode",
-                trg_input=prev_y,
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                src_mask=src_mask,
-                unroll_steps=1,
-                decoder_hidden=hidden,
-                att_vector=prev_att_vector,
-            )
-            # out: batch x time=1 x vocab (logits)
+        with torch.autocast(device_type=device.type, enabled=fp16):
+            with torch.no_grad():
+                out, hidden, att_probs, prev_att_vector = model(
+                    return_type="decode",
+                    trg_input=prev_y,
+                    encoder_output=encoder_output,
+                    encoder_hidden=encoder_hidden,
+                    src_mask=src_mask,
+                    unroll_steps=1,
+                    decoder_hidden=hidden,
+                    att_vector=prev_att_vector,
+                )
+                # out: batch x time=1 x vocab (logits)
 
         if return_prob:
             out = F.log_softmax(out, dim=-1)
@@ -123,11 +126,11 @@ def recurrent_greedy(
 
         # greedy decoding: choose arg max over vocabulary in each step
         prob, next_word = torch.max(out, dim=-1)  # batch x time=1
-        output.append(next_word.squeeze(1).detach().cpu().numpy())
+        output.append(next_word.squeeze(1).detach().cpu())
         if return_prob:
-            scores.append(prob.squeeze(1).detach().cpu().numpy())
+            scores.append(prob.squeeze(1).detach().cpu())
         prev_y = next_word
-        attention_scores.append(att_probs.squeeze(1).detach().cpu().numpy())
+        attention_scores.append(att_probs.squeeze(1).detach().cpu())
         # shape: (batch_size, max_src_length)
 
         # check if previous symbol was <eos>
@@ -137,9 +140,9 @@ def recurrent_greedy(
         if (finished >= 1).sum() == batch_size:
             break
 
-    stacked_output = np.stack(output, axis=1)  # batch, time
-    stacked_scores = np.stack(scores, axis=1) if return_prob else None
-    stacked_attention_scores = np.stack(attention_scores, axis=1)
+    stacked_output = torch.stack(output, dim=1).long()  # batch, time
+    stacked_scores = torch.stack(scores, dim=1).float() if return_prob else None
+    stacked_attention_scores = torch.stack(attention_scores, dim=1).float()
     return stacked_output, stacked_scores, stacked_attention_scores
 
 
@@ -150,7 +153,7 @@ def transformer_greedy(
     encoder_output: Tensor,
     encoder_hidden: Tensor,
     **kwargs,
-) -> Tuple[np.ndarray, np.ndarray, None]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Special greedy function for transformer, since it works differently.
     The transformer remembers all previous states and attends to them.
@@ -171,6 +174,8 @@ def transformer_greedy(
     unk_index = model.unk_index
     pad_index = model.pad_index
     batch_size, _, src_len = src_mask.size()
+    device = encoder_output.device
+    fp16: bool = kwargs.get("fp16", False)
 
     # options to control generation
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
@@ -201,67 +206,69 @@ def transformer_greedy(
     finished = src_mask.new_zeros(batch_size).byte()
 
     for step in range(max_output_length):
-        with torch.no_grad():
-            out, _, att, _ = model(
-                return_type="decode",
-                trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
-                encoder_output=encoder_output,
-                encoder_hidden=None,
-                src_mask=src_mask,
-                unroll_steps=None,
-                decoder_hidden=None,
-                trg_mask=trg_mask,
-                return_attention=return_attention,
-            )
-            out = out[:, -1]  # logits
-            if not generate_unk:
-                out[:, unk_index] = float("-inf")
+        with torch.autocast(device_type=device.type, enabled=fp16):
+            with torch.no_grad():
+                out, _, att, _ = model(
+                    return_type="decode",
+                    trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
+                    encoder_output=encoder_output,
+                    encoder_hidden=None,
+                    src_mask=src_mask,
+                    unroll_steps=None,
+                    decoder_hidden=None,
+                    trg_mask=trg_mask,
+                    return_attention=return_attention,
+                )
 
-            # don't generate EOS until we reached min_output_length
-            if step < min_output_length:
-                out[:, eos_index] = float("-inf")
+        out = out[:, -1]  # logits
+        if not generate_unk:
+            out[:, unk_index] = float("-inf")
 
-            if compute_softmax:
-                out = F.log_softmax(out, dim=-1)
+        # don't generate EOS until we reached min_output_length
+        if step < min_output_length:
+            out[:, eos_index] = float("-inf")
 
-                # ngram blocker
-                if no_repeat_ngram_size > 1:
-                    out = block_repeat_ngrams(
-                        ys,
-                        out,
-                        no_repeat_ngram_size,
-                        step,
-                        src_tokens=encoder_input,
-                        exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-                    )
+        if compute_softmax:
+            out = F.log_softmax(out, dim=-1)
 
-                # repetition_penalty
-                if repetition_penalty > 1.0:
+            # ngram blocker
+            if no_repeat_ngram_size > 1:
+                out = block_repeat_ngrams(
+                    ys,
+                    out,
+                    no_repeat_ngram_size,
+                    step,
+                    src_tokens=encoder_input,
+                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                )
+
+            # repetition_penalty
+            if repetition_penalty > 1.0:
+                out = penalize_repetition(
+                    ys,
+                    out,
+                    repetition_penalty,
+                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                )
+                if encoder_input is not None:
                     out = penalize_repetition(
-                        ys,
+                        encoder_input,
                         out,
                         repetition_penalty,
                         exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
                     )
-                    if encoder_input is not None:
-                        out = penalize_repetition(
-                            encoder_input,
-                            out,
-                            repetition_penalty,
-                            exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-                        )
 
-            # take the most likely token
-            prob, next_word = torch.max(out, dim=1)
-            next_word = next_word.data
-            ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
-            if return_prob:
-                prob = prob.data
-                yv = torch.cat([yv, prob.unsqueeze(-1)], dim=1)
-            if return_attention:
-                assert att is not None
-                att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
-                yt = torch.cat([yt, att], dim=1)  # (batch_size, trg_len, src_len)
+        # take the most likely token
+        prob, next_word = torch.max(out, dim=1)
+        next_word = next_word.data
+        ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
+        if return_prob:
+            prob = prob.data
+            yv = torch.cat([yv, prob.unsqueeze(-1)], dim=1)
+        if return_attention:
+            assert att is not None
+            att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
+            yt = torch.cat([yt, att], dim=1)  # (batch_size, trg_len, src_len)
 
         # check if previous symbol was <eos>
         is_eos = torch.eq(next_word, eos_index)
@@ -271,9 +278,10 @@ def transformer_greedy(
             break
 
     # remove BOS-symbol
-    output = ys[:, 1:].detach().cpu().numpy()
-    scores = yv[:, 1:].detach().cpu().numpy() if return_prob else None
-    attention = yt[:, 1:, :].detach().cpu().numpy() if return_attention else None
+    output = ys[:, 1:].detach().cpu().long()
+    scores = yv[:, 1:].detach().cpu().float() if return_prob else None
+    attention = yt[:, 1:, :].detach().cpu().float() if return_attention else None
+    assert output.shape[0] == batch_size, (output.shape, batch_size)
     return output, scores, attention
 
 
@@ -287,7 +295,7 @@ def beam_search(
     alpha: float,
     n_best: int = 1,
     **kwargs,
-) -> Tuple[np.ndarray, np.ndarray, None]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Beam search with size k. In each decoding step, find the k most likely partial
     hypotheses. Inspired by OpenNMT-py, adapted for Transformer.
@@ -329,6 +337,7 @@ def beam_search(
 
     trg_vocab_size = model.decoder.output_size
     device = encoder_output.device
+    fp16: bool = kwargs.get("fp16", False)
     is_transformer = isinstance(model.decoder, TransformerDecoder)
 
     att_vectors = None  # for RNN only, not used for Transformer
@@ -415,18 +424,19 @@ def beam_search(
             decoder_input = alive_seq
 
             # decode one single step
-            with torch.no_grad():
-                logits, _, _, _ = model(  # logits before final softmax
-                    return_type="decode",
-                    encoder_output=encoder_output,
-                    encoder_hidden=None,  # only for initializing decoder_hidden
-                    src_mask=src_mask,
-                    trg_input=decoder_input,  # trg_embed = embed(decoder_input)
-                    decoder_hidden=None,  # don't need to keep it for transformer
-                    att_vector=None,  # don't need to keep it for transformer
-                    unroll_steps=1,
-                    trg_mask=trg_mask,  # subsequent mask for Transformer only
-                )
+            with torch.autocast(device_type=device.type, enabled=fp16):
+                with torch.no_grad():
+                    logits, _, _, _ = model(  # logits before final softmax
+                        return_type="decode",
+                        encoder_output=encoder_output,
+                        encoder_hidden=None,  # only for initializing decoder_hidden
+                        src_mask=src_mask,
+                        trg_input=decoder_input,  # trg_embed = embed(decoder_input)
+                        decoder_hidden=None,  # don't need to keep it for transformer
+                        att_vector=None,  # don't need to keep it for transformer
+                        unroll_steps=1,
+                        trg_mask=trg_mask,  # subsequent mask for Transformer only
+                    )
 
             # For the Transformer we made predictions for all time steps up to this
             # point, so we only want to know about the last time step.
@@ -436,19 +446,20 @@ def beam_search(
             # For Recurrent models, only feed the previous trg word prediction
             decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
 
-            with torch.no_grad():
-                # pylint: disable=unused-variable
-                logits, hidden, att_scores, att_vectors = model(
-                    return_type="decode",
-                    encoder_output=encoder_output,
-                    encoder_hidden=None,  # only for initializing decoder_hidden
-                    src_mask=src_mask,
-                    trg_input=decoder_input,  # trg_embed = embed(decoder_input)
-                    decoder_hidden=hidden,
-                    att_vector=att_vectors,
-                    unroll_steps=1,
-                    trg_mask=None,  # subsequent mask for Transformer only
-                )
+            with torch.autocast(device_type=device.type, enabled=fp16):
+                with torch.no_grad():
+                    # pylint: disable=unused-variable
+                    logits, hidden, att_scores, att_vectors = model(
+                        return_type="decode",
+                        encoder_output=encoder_output,
+                        encoder_hidden=None,  # only for initializing decoder_hidden
+                        src_mask=src_mask,
+                        trg_input=decoder_input,  # trg_embed = embed(decoder_input)
+                        decoder_hidden=hidden,
+                        att_vector=att_vectors,
+                        unroll_steps=1,
+                        trg_mask=None,  # subsequent mask for Transformer only
+                    )
 
         # compute log probability distribution over trg vocab
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
@@ -645,7 +656,7 @@ def beam_search(
 
     def pad_and_stack_hyps(hyps: List[np.ndarray]):
         max_len = max([hyp.shape[0] for hyp in hyps])
-        filled = np.ones((len(hyps), max_len), dtype=int) * pad_index
+        filled = torch.ones((len(hyps), max_len), dtype=torch.int64) * pad_index
         for j, h in enumerate(hyps):
             for k, i in enumerate(h):
                 filled[j, k] = i
@@ -653,12 +664,12 @@ def beam_search(
 
     # from results to stacked outputs
     # `final_outputs`: shape (batch_size * n_best, hyp_len)
-    predictions_list = [u.cpu().numpy() for r in results["predictions"] for u in r]
+    predictions_list = [u.cpu().float() for r in results["predictions"] for u in r]
     final_outputs = pad_and_stack_hyps(predictions_list)
 
     # sequence-wise log probabilities (summed up over the sequence)
     # `scores`: shape (batch_size * n_best, 1)
-    scores = np.array([[u.item()] for r in results["scores"] for u in r]) \
+    scores = torch.tensor([[u.item()] for r in results["scores"] for u in r]) \
         if return_prob else None
 
     assert final_outputs.shape[0] == batch_size * n_best
@@ -688,9 +699,12 @@ def search(
         - stacked_scores: log probabilities for batch,
         - stacked_attention_scores: attention scores for batch
     """
-    with torch.no_grad():
-        encoder_output, encoder_hidden, _, _ = model(return_type="encode",
-                                                     **vars(batch))
+    device = batch.src.device
+    fp16: bool = kwargs.get("fp16", False)
+    with torch.autocast(device_type=device.type, enabled=fp16):
+        with torch.no_grad():
+            encoder_output, encoder_hidden, _, _ = model(return_type="encode",
+                                                         **vars(batch))
 
     # if maximum output length is not globally specified, adapt to src len
     if max_output_length < 0:
@@ -725,7 +739,17 @@ def search(
             **kwargs,
         )
 
-    return stacked_output, stacked_scores, stacked_attention_scores
+    # cast to numpy nd.array
+    def _to_numpy(t: Tensor):
+        if torch.is_tensor(t):
+            return t.detach().cpu().numpy()
+        return t  # if t is None
+
+    return (
+        _to_numpy(stacked_output),
+        _to_numpy(stacked_scores),
+        _to_numpy(stacked_attention_scores),
+    )
 
 
 def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int,

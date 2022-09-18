@@ -7,12 +7,12 @@ import heapq
 import logging
 import math
 import shutil
-import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple
 
+import packaging
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -36,15 +36,6 @@ from joeynmt.helpers import (
 )
 from joeynmt.model import Model, _DataParallel, build_model
 from joeynmt.prediction import predict, test
-
-# for fp16 training
-try:
-    from apex import amp
-
-    amp.register_half_function(torch, "einsum")
-except ImportError as no_apex:  # noqa: F841
-    # error handling in TrainManager object construction
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +112,14 @@ class TrainManager:
         self.optimizer = build_optimizer(config=cfg["training"],
                                          parameters=self.model.parameters())
 
+        # fp16
+        self.fp16: bool = fp16  # True or False for scaler
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.fp16)
+        if self.fp16:
+            self.dtype = torch.float16 if self.device.type == "cuda" else torch.bfloat16
+        else:
+            self.dtype = torch.get_default_dtype()
+
         # save/delete checkpoints
         self.num_ckpts = keep_best_ckpts
         self.ckpt_queue: List[Tuple[float, Path]] = []  # heap queue
@@ -170,21 +169,6 @@ class TrainManager:
             total_correct=0,
         )
 
-        # fp16
-        self.fp16 = fp16
-        if self.fp16:
-            if "apex" not in sys.modules:
-                # pylint: disable=used-before-assignment
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex "
-                    "to use fp16 training.") from no_apex  # noqa: F821
-
-            self.model, self.optimizer = amp.initialize(self.model,
-                                                        self.optimizer,
-                                                        opt_level="O1")
-            # opt level: one of {"O0", "O1", "O2", "O3"}
-            # see https://nvidia.github.io/apex/amp.html#opt-levels
-
         # load model parameters
         if load_model is not None:
             self.init_from_checkpoint(
@@ -201,7 +185,7 @@ class TrainManager:
             if load_path is not None:
                 self.init_layers(path=load_path, layer=layer_name)
 
-        # gpu training (should be after apex fp16 initialization)
+        # gpu training
         if self.n_gpu > 1:
             self.model = _DataParallel(self.model)
 
@@ -237,27 +221,19 @@ class TrainManager:
             self.model, torch.nn.DataParallel) else self.model.state_dict())
         train_iter_state = self.train_iter.batch_sampler.sampler.generator.get_state() \
             if hasattr(self.train_iter.batch_sampler.sampler, 'generator') else None
+        # yapf: disable
         state = {
-            "steps":
-            self.stats.steps,
-            "total_tokens":
-            self.stats.total_tokens,
-            "best_ckpt_score":
-            self.stats.best_ckpt_score,
-            "best_ckpt_iteration":
-            self.stats.best_ckpt_iter,
-            "model_state":
-            model_state_dict,
-            "optimizer_state":
-            self.optimizer.state_dict(),
-            "scheduler_state":
-            (self.scheduler.state_dict() if self.scheduler is not None else None),
-            "amp_state":
-            amp.state_dict() if self.fp16 else None,
-            "train_iter_state":
-            train_iter_state,
-            "total_correct":
-            self.stats.total_correct,
+            "steps": self.stats.steps,
+            "total_tokens": self.stats.total_tokens,
+            "best_ckpt_score": self.stats.best_ckpt_score,
+            "best_ckpt_iteration": self.stats.best_ckpt_iter,
+            "model_state": model_state_dict,
+            "optimizer_state": self.optimizer.state_dict(),
+            "scaler_state": self.scaler.state_dict(),
+            "scheduler_state": (self.scheduler.state_dict()
+                                if self.scheduler is not None else None),
+            "train_iter_state": train_iter_state,
+            "total_correct": self.stats.total_correct,
         }
         torch.save(state, model_path.as_posix())
 
@@ -333,6 +309,8 @@ class TrainManager:
 
         if not reset_optimizer:
             self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
+            if "scaler_state" in model_checkpoint:
+                self.scaler.load_state_dict(model_checkpoint["scaler_state"])
         else:
             logger.info("Reset optimizer.")
 
@@ -363,10 +341,6 @@ class TrainManager:
         # move to gpu
         if self.device.type == "cuda":
             self.model.to(self.device)
-
-        # fp16
-        if self.fp16 and model_checkpoint.get("amp_state", None) is not None:
-            amp.load_state_dict(model_checkpoint["amp_state"])
 
     def init_layers(self, path: Path, layer: str) -> None:
         """
@@ -490,14 +464,11 @@ class TrainManager:
                     if (i + 1) % self.batch_multiplier == 0:
                         # clip gradients (in-place)
                         if self.clip_grad_fun is not None:
-                            if self.fp16:
-                                self.clip_grad_fun(
-                                    parameters=amp.master_params(self.optimizer))
-                            else:
-                                self.clip_grad_fun(parameters=self.model.parameters())
+                            self.clip_grad_fun(parameters=self.model.parameters())
 
                         # make gradient step
-                        self.optimizer.step()
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
 
                         # decay lr
                         if self.scheduler_step_at == "step":
@@ -599,8 +570,12 @@ class TrainManager:
         # reactivate training
         self.model.train()
 
-        # get loss (run as during training with teacher forcing)
-        batch_loss, _, _, correct_tokens = self.model(return_type="loss", **vars(batch))
+        with torch.autocast(device_type=self.device.type,
+                            dtype=self.dtype,
+                            enabled=self.fp16):
+            # get loss (run as during training with teacher forcing)
+            batch_loss, _, _, correct_tokens = self.model(return_type="loss",
+                                                          **vars(batch))
 
         # normalize batch loss
         norm_batch_loss = batch.normalize(
@@ -614,11 +589,7 @@ class TrainManager:
         sum_correct_tokens = batch.normalize(correct_tokens, "sum", self.n_gpu)
 
         # accumulate gradients
-        if self.fp16:
-            with amp.scale_loss(norm_batch_loss, self.optimizer) as scaled_loss:
-                scaled_loss.backward()
-        else:
-            norm_batch_loss.backward()
+        self.scaler.scale(norm_batch_loss).backward()
 
         # increment token counter
         self.stats.total_tokens += batch.ntokens
@@ -655,6 +626,7 @@ class TrainManager:
             n_gpu=self.n_gpu,
             normalization=self.normalization,
             cfg=self.valid_cfg,
+            fp16=self.fp16,
         )
         valid_duration = time.time() - valid_start_time
 
@@ -758,7 +730,8 @@ class TrainManager:
             logger.debug("\tTokenized hypothesis: %s", hypotheses_raw[p])
 
             # detokenized text
-            logger.info("\tSource:     %s", data.src[p])
+            detokenized_src = data.tokenizer[data.src_lang].post_process(data.src[p])
+            logger.info("\tSource:     %s", detokenized_src)
             logger.info("\tReference:  %s", references[p])
             logger.info("\tHypothesis: %s", hypotheses[p])
 
@@ -815,11 +788,14 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
         Path(cfg["training"]["model_dir"]),
         overwrite=cfg["training"].get("overwrite", False),
     )
-    joeynmt_version = make_logger(model_dir, mode="train")
+    joeynmt_version = packaging.version.parse(make_logger(model_dir, mode="train"))
     if "joeynmt_version" in cfg:
-        assert str(joeynmt_version) == str(cfg["joeynmt_version"]), (
-            f"You are using JoeyNMT version {joeynmt_version}, "
-            f'but {cfg["joeynmt_version"]} is expected in the given config.')
+        config_version = packaging.version.parse(cfg["joeynmt_version"])
+        # check if the major version number matches
+        # pylint: disable=use-maxsplit-arg
+        assert joeynmt_version.major == config_version.major, (
+            f"You are using JoeyNMT version {str(joeynmt_version)}, "
+            f'but {str(config_version)} is expected in the given config.')
     # TODO: save version number in model checkpoints
 
     # write all entries of config to the log

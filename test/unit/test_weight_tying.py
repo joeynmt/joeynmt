@@ -1,5 +1,6 @@
+import unittest
+
 import copy
-from test.unit.test_helpers import TensorTestCase
 
 import torch
 
@@ -7,7 +8,7 @@ from joeynmt.model import build_model
 from joeynmt.vocabulary import Vocabulary
 
 
-class TestWeightTying(TensorTestCase):
+class TestWeightTying(unittest.TestCase):
 
     def setUp(self):
         self.seed = 42
@@ -51,7 +52,8 @@ class TestWeightTying(TensorTestCase):
 
         self.assertEqual(src_vocab, trg_vocab)
         self.assertEqual(model.src_embed, model.trg_embed)
-        self.assertTensorEqual(model.src_embed.lut.weight, model.trg_embed.lut.weight)
+        torch.testing.assert_close(model.src_embed.lut.weight,
+                                   model.trg_embed.lut.weight)
         self.assertEqual(model.src_embed.lut.weight.shape,
                          model.trg_embed.lut.weight.shape)
 
@@ -73,8 +75,8 @@ class TestWeightTying(TensorTestCase):
             model.decoder.output_layer.weight.shape,
         )
 
-        self.assertTensorEqual(model.trg_embed.lut.weight,
-                               model.decoder.output_layer.weight)
+        torch.testing.assert_close(model.trg_embed.lut.weight,
+                                   model.decoder.output_layer.weight)
 
     def test_tied_src_trg_softmax(self):
 
@@ -95,8 +97,8 @@ class TestWeightTying(TensorTestCase):
         trg_weight = model.trg_embed.lut.weight
         output_weight = model.decoder.output_layer.weight
 
-        self.assertTensorEqual(src_weight, trg_weight)
-        self.assertTensorEqual(src_weight, output_weight)
+        torch.testing.assert_close(src_weight, trg_weight)
+        torch.testing.assert_close(src_weight, output_weight)
         self.assertEqual(src_weight.shape, trg_weight.shape)
         self.assertEqual(trg_weight.shape, output_weight.shape)
 

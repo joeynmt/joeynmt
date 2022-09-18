@@ -1,10 +1,9 @@
 import unittest
-from test.unit.test_helpers import TensorTestCase
 
 from joeynmt.metrics import bleu, chrf, token_accuracy
 
 
-class TestMetrics(TensorTestCase):
+class TestMetrics(unittest.TestCase):
 
     def test_chrf_without_whitespace(self):
         hyp1 = ["t est"]

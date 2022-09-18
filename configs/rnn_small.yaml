@@ -110,11 +110,11 @@ training:                           # specify training details here
     keep_best_ckpts: 3              # keep this many of the best checkpoints, if -1: all of them, default: 5
 
 model:                              # specify your model architecture here
-    initializer: "xavier"           # initializer for all trainable weights (xavier, xavier_normal, zeros, normal, uniform)
+    initializer: "xavier_uniform"   # initializer for all trainable weights (xavier_uniform, xavier_normal, zeros, normal, uniform)
     init_weight: 0.01               # weight to initialize; for uniform, will use [-weight, weight]
     init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
-    bias_initializer: "zeros"       # initializer for bias terms (xavier, zeros, normal, uniform)
-    embed_initializer: "normal"     # initializer for embeddings (xavier, zeros, normal, uniform)
+    bias_initializer: "zeros"       # initializer for bias terms (xavier_uniform, xavier_normal, zeros, normal, uniform)
+    embed_initializer: "normal"     # initializer for embeddings (xavier_uniform, xavier_normal, zeros, normal, uniform)
     embed_init_weight: 0.1          # weight to initialize; for uniform, will use [-weight, weight]
     embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
     init_rnn_orthogonal: False      # use orthogonal initialization for recurrent weights (default: False)

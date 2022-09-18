@@ -1,11 +1,11 @@
-from test.unit.test_helpers import TensorTestCase
+import unittest
 
 import torch
 
 from joeynmt.encoders import TransformerEncoder, TransformerEncoderLayer
 
 
-class TestTransformerEncoder(TensorTestCase):
+class TestTransformerEncoder(unittest.TestCase):
 
     def setUp(self):
         self.emb_size = 12
@@ -98,7 +98,7 @@ class TestTransformerEncoder(TensorTestCase):
                  -4.9189e-01, 2.4027e-02
              ]]
         ])
-        self.assertTensorAlmostEqual(output, output_target)
+        torch.testing.assert_close(output, output_target)
 
         for layer in encoder.layers:
             self.assertTrue(isinstance(layer, TransformerEncoderLayer))

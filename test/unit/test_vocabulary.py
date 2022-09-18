@@ -54,65 +54,19 @@ class TestVocabulary(unittest.TestCase):
             len(self.char_vocab) - len(self.char_vocab.specials),
             len(self.char_list),
         )
+        # yapf: disable
         expected_char_itos = [
-            " ",
-            ",",
-            ".",
-            "D",
-            "G",
-            "K",
-            "M",
-            "O",
-            "R",
-            "T",
-            "W",
-            "a",
-            "b",
-            "c",
-            "d",
-            "e",
-            "f",
-            "g",
-            "h",
-            "i",
-            "k",
-            "l",
-            "m",
-            "n",
-            "o",
-            "r",
-            "s",
-            "t",
-            "u",
-            "v",
-            "w",
-            "ẞ",
-            "–",
+            " ", ",", ".", "D", "G", "K", "M", "O", "R", "T", "W",
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "l",
+            "m", "n", "o", "r", "s", "t", "u", "v", "w", "ẞ", "–",
         ]
 
         # pylint: disable=protected-access
         self.assertEqual(self.char_vocab._itos, self.specials + expected_char_itos)
         expected_word_itos = [
-            "Die",
-            "GROẞ",
-            "Geschichte",
-            "Kinokassenrekorde",
-            "Meer",
-            "Titanic",
-            "Wahrheit",
-            "alle",
-            "aufregendste",
-            "bricht",
-            "dass",
-            "die",
-            "gerade",
-            "ist,",
-            "ist.",
-            "nicht",
-            "obwohl",
-            "sie",
-            "vom",
-            "–",
+            "Die", "GROẞ", "Geschichte", "Kinokassenrekorde", "Meer", "Titanic",
+            "Wahrheit", "alle", "aufregendste", "bricht", "dass", "die", "gerade",
+            "ist,", "ist.", "nicht", "obwohl", "sie", "vom", "–",
         ]
         self.assertEqual(self.word_vocab._itos, self.specials + expected_word_itos)
         # pylint: enable=protected-access
@@ -151,30 +105,10 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(len(trg_vocab), self.voc_limit + len(self.specials))
 
         expected_src_itos = [
-            "die",
-            "und",
-            "der",
-            "ist",
-            "in",
-            "das",
-            "wir",
-            "zu",
-            "Sie",
-            "es",
-            "von",
+            "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von",
         ]
         expected_trg_itos = [
-            "the",
-            "of",
-            "to",
-            "and",
-            "a",
-            "that",
-            "in",
-            "is",
-            "you",
-            "we",
-            "And",
+            "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And",
         ]
         # pylint: disable=protected-access
         self.assertEqual(src_vocab._itos[:15], self.specials + expected_src_itos)
@@ -192,10 +126,8 @@ class TestVocabulary(unittest.TestCase):
         tokenized = [s.split() for s in self.sents]
         ids, length = self.word_vocab.sentences_to_ids(tokenized, bos=True, eos=True)
         expected_ids = [
-            [
-                2, 4, 10, 17, 14, 15, 9, 23, 20, 21, 11, 7, 13, 23, 19, 16, 15, 12, 6,
-                22, 8, 18, 3
-            ],
+            [2, 4, 10, 17, 14, 15, 9, 23, 20, 21, 11, 7, 13, 23, 19, 16, 15, 12, 6,
+             22, 8, 18, 3],
             [2, 5, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ]
         expected_length = [23, 3]

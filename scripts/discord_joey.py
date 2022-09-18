@@ -2,21 +2,30 @@
 """
 JoeyNMT Discord Bot
 
-You need to modify the constants at the beginning of the file
-to add your bot's access token and the pointers to your configuration files.
-Go https://discord.com/developers/applications -> Bot -> Token
+You need to modify the constants `TOKEN`, `guild` and `CFG_FILES` at the beginning of
+the script to add your bot's access token and the pointers to your joeynmt config files.
+
+To get your access token, go
+https://discord.com/developers/applications -> Bot -> Token
 
 cf.)
-Install discord.py: https://discordpy.readthedocs.io/en/stable/intro.html#installing
-A Minimal Bot: https://discordpy.readthedocs.io/en/stable/quickstart.html
-Getting started: https://discord.com/developers/docs/getting-started
+- Install py-cord:
+    https://guide.pycord.dev/installation
+    :Warning: Apparently, there are some problems with the latest verison.
+              Please use py-cord v2.0.1, instead.
+    ```
+    $ pip install --upgrade git+https://github.com/Pycord-Development/pycord@v2.0.1
+    ```
+- Creating Your First Bot:
+    https://guide.pycord.dev/getting-started/creating-your-first-bot
+- Slash Commands:
+    https://guide.pycord.dev/interactions/application-commands/slash-commands
 """
 from functools import partial
 from pathlib import Path
-import re
 
 import discord
-import torch
+from discord import SlashCommandGroup, option
 
 from joeynmt.datasets import build_dataset
 from joeynmt.helpers import (
@@ -29,28 +38,28 @@ from joeynmt.model import build_model
 from joeynmt.prediction import predict
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import build_vocab
-# joeynmt v2.0.0
 
-client = discord.Client()
+TOKEN = "your-bot-token-here"  # replace with your bot token
+guild = 123456789  # replace with your guild ID
 
-# access token
-TOKEN = 'your-access-token-here'
-
+# path to config files
 CFG_FILES = {
-    'en-ja': './models/jparacrawl_enja/config.yaml',
-    'ja-en': './models/jparacrawl_jaen/config.yaml'
+    'ende': './wmt14_ende/config.yaml',
+    'deen': './wmt14_deen/config.yaml',
 }
-DEVICE = torch.device("cuda")  # DEVICE = torch.device("cpu")
-N_GPU = 1  # N_GPU = 0
+
+# pycord bot client
+bot = discord.Bot(debug_guilds=[guild])
+translate = SlashCommandGroup("translate", "JoeyNMT translates a message.")
 
 
-def load_joeynmt_model(cfg_file):
+def prepare(cfg_file):
+    print("Discord Joey: Loading a model ...")
+
     cfg = load_config(Path(cfg_file))
     # parse and validate cfg
-    model_dir, load_model, device, n_gpu, _, _ = parse_train_args(cfg["training"],
-                                                                  mode="prediction")
-    assert device.type == DEVICE.type
-    assert n_gpu == N_GPU
+    model_dir, load_model, device, n_gpu, _, _, fp16 = parse_train_args(
+        cfg["training"], mode="prediction")
 
     # read vocabs
     src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
@@ -91,83 +100,101 @@ def load_joeynmt_model(cfg_file):
     test_cfg["return_prob"] = "none"
     test_cfg["return_attention"] = False
 
-    print(f"Joey NMT: {src_lang}-{trg_lang} model loaded successfully.")
-    return test_data, model, test_cfg
+    print(f"\t{src_lang}-{trg_lang} model loaded successfully!")
+    return test_data, model, test_cfg, device, n_gpu, fp16
 
 
-def get_language_tag(src_input):
-    lang_tag = src_input[:7].strip('/')
-    assert lang_tag in CFG_FILES
-
-    src_input = src_input[7:]
-    src_input = src_input.strip()
-
-    # remove emojis
-    emoji_pattern = re.compile(r"\:[a-zA-Z]+\:")
-    src_input = re.sub(emoji_pattern, "", src_input)
-    src_input = src_input.strip()
-    assert src_input is not None and len(src_input) > 0
-
-    print(f"/{lang_tag}/", src_input)  # print console log
-    return lang_tag, src_input
-
-
-def translate(src_input, model, test_data, cfg):
-    test_data.cache = {}  # reset cache
-    test_data.set_item(src_input)
+def generate(src_input, lang_tag):
+    bot.data_dict[lang_tag].cache = {}  # reset cache
+    bot.data_dict[lang_tag].set_item(src_input)
     _, _, translations, _, _, _ = predict(
-        model=model,
-        data=test_data,
+        model=bot.model_dict[lang_tag],
+        data=bot.data_dict[lang_tag],
         compute_loss=False,
-        device=DEVICE,
-        n_gpu=N_GPU,
+        device=bot.device[lang_tag],
+        n_gpu=bot.n_gpu[lang_tag],
         normalization="none",
         num_workers=0,
-        cfg=cfg,
+        cfg=bot.cfg_dict[lang_tag],
+        fp16=bot.fp16[lang_tag],
     )
-    test_data.cache = {}  # reset cache
+    bot.data_dict[lang_tag].cache = {}  # reset cache
     return translations[0]
 
 
-@client.event
+@bot.event
 async def on_ready():
-    print('Logged in.')
+    print(f"Discord Joey: {bot.user} logged in.")
 
-    global data_dict, model_dict, cfg_dict  # pylint: disable=global-variable-undefined
-    data_dict = {}
-    model_dict = {}
-    cfg_dict = {}
     for lang_tag, cfg_file in CFG_FILES.items():
-        test_data, model, test_cfg = load_joeynmt_model(cfg_file)
-        data_dict[lang_tag] = test_data
-        model_dict[lang_tag] = model
-        cfg_dict[lang_tag] = test_cfg
+        if lang_tag not in bot.model_dict:
+            test_data, model, test_cfg, device, n_gpu, fp16 = prepare(cfg_file)
+            bot.data_dict[lang_tag] = test_data
+            bot.model_dict[lang_tag] = model
+            bot.cfg_dict[lang_tag] = test_cfg
+            bot.device[lang_tag] = device
+            bot.n_gpu[lang_tag] = n_gpu
+            bot.fp16[lang_tag] = fp16
 
-    print('=' * 20)  # ready to go!
-
-
-@client.event
-async def on_message(message):
-    # ignore, if a bot throws a message
-    if message.author.bot:
-        return
-
-    # get source input
-    src_input = message.content.strip()
-    lang_tag, src_input = get_language_tag(src_input)
-
-    if lang_tag in CFG_FILES:
-        # get translation
-        translation = translate(
-            src_input,
-            model_dict[lang_tag],
-            data_dict[lang_tag],
-            cfg_dict[lang_tag],
-        )
-        print(f'JoeyNMT: {translation}\n')  # print console log
-
-        # return translation
-        await message.channel.send(translation)
+    print("Discord Joey: ready to go!")
+    print("=" * 20)
 
 
-client.run(TOKEN)
+@translate.command(description="Translates a message from English to German.")
+@option(
+    "message",
+    description="Enter a message to tranlsrate.",
+    required=True,
+    default="Hello!",
+)
+async def ende(ctx, message: str):
+    assert 'ende' in bot.model_dict
+
+    print(f"{ctx.author}: {message}")
+    try:
+        translation = generate(message.strip(), 'ende')
+    except Exception as e:  # pylint: disable=broad-except
+        translation = e
+    print(f"{bot.user}: {translation}")
+    print("=" * 20)
+
+    # Note: `ctx.respond()` will cause an error for non-ascii string.
+    # a workaound for now: Use `ctx.send()` instead.
+    await ctx.send(f"{ctx.author}: {message}\n{bot.user}: {translation}")
+
+
+@translate.command(description="Translates a message from German to English.")
+@option(
+    "message",
+    description="Enter a message to tranlsrate.",
+    required=True,
+    default="Hallo!",
+)
+async def deen(ctx, message: str):
+    assert 'deen' in bot.model_dict
+
+    print(f"{ctx.author}: {message}")
+    try:
+        translation = generate(message.strip(), 'deen')
+    except Exception as e:  # pylint: disable=broad-except
+        translation = e
+    print(f"{bot.user}: {translation}")
+    print("=" * 20)
+
+    # Note: `ctx.respond()` will cause an error for non-ascii string.
+    # a work-around fo now: Use `ctx.send()` instead.
+    await ctx.send(f"{ctx.author}: {message}\n{bot.user}: {translation}")
+
+
+# manually add the slash command group created above
+bot.add_application_command(translate)
+
+# global variables
+bot.data_dict = {}
+bot.model_dict = {}
+bot.cfg_dict = {}
+bot.device = {}
+bot.n_gpu = {}
+bot.fp16 = {}
+
+bot.run(TOKEN)

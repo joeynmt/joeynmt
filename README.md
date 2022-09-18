@@ -45,33 +45,27 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
 We tested Joey NMT 2.0 with
-- python 3.9
-- torch 1.11.0
-- cuda 11.5
+- python 3.10
+- torch 1.12.1
+- cuda 11.6
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.11.0 with CUDA v11.3 as follows:
+> For example, you can install PyTorch 1.12.1 with CUDA v11.6 as follows:
 > ```
-> $ pip install --upgrade torch==1.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+> $ pip install --upgrade torch==1.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
 
 You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
-### A. Via pip
-for latest stable version:
+### A. Via pip (the latest stable version)
 ```bash
 $ pip install joeynmt
 ```
 
-> :warning: **Warning**
-> You'll need a particular python version when working on Google Colab. Please specify the branch name in such a case.
-> ```
-> pip install git+https://github.com/joeynmt/joeynmt.git@py3.7
-> ```
 
 ### B. From source (for local development)
 1. Clone this repository:
@@ -81,7 +75,7 @@ $ pip install joeynmt
   ```
 2. Install Joey NMT and it's requirements:
   ```bash
-  $ pip install . -e
+  $ pip install -e .
   ```
 3. Run the unit tests:
   ```bash
@@ -89,14 +83,17 @@ $ pip install joeynmt
   ```
 
 
-**[Optional]** For fp16 training, install NVIDIA's [apex](https://github.com/NVIDIA/apex) library:
-```bash
-$ git clone https://github.com/NVIDIA/apex
-$ cd apex
-$ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./
-```
-
 ## Change logs
+### v2.1
+- upgrade to python 3.10, torch 1.12
+- replace Automated Mixed Precision from NVIDA's amp to Pytorch's amp package
+- replace [discord.py](https://github.com/Rapptz/discord.py) with [pycord](https://github.com/Pycord-Development/pycord) in the Discord Bot demo
+- Data Iterator refactoring
+- add wmt14 ende / deen benchmark trained on v2 from scratch
+- bugfixes
+
+<details><summary>previous releases</summary>
+
 ### v2.0 *Breaking change!*
 - upgrade to python 3.9, torch 1.11
 - `torchtext.legacy` dependencies are completely replaced by `torch.utils.data`
@@ -113,8 +110,6 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 > :warning: **Warning**
 > The models trained with Joey NMT v1.x can be decoded with Joey NMT v2.0.
 > But there is no guarantee that you can reproduce the same score as before.
-
-<details><summary>previous releases</summary>
 
 ### v1.4
 - upgrade to sacrebleu 2.0, python 3.7, torch 1.8
@@ -136,12 +131,13 @@ $ pip install -v --disable-pip-version-check --no-cache-dir --global-option="--c
 We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
-#### v2.0
-- [quick-start-with-joeynmt2](notebooks/quick-start-with-joeynmt2.ipynb)
+#### v2.x
+- [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
+- [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
 - [joeyS2T ASR tutorial](https://github.com/may-/joeynmt/blob/joeyS2T/notebooks/joeyS2T_ASR_tutorial.ipynb) 
 
 #### v1.x
-- [demo notebook](notebooks/joey_demo.ipynb)
+- [demo notebook](notebooks/joey_v1_demo.ipynb)
 - [starter notebook](https://github.com/masakhane-io/masakhane-mt/blob/master/starter_notebook-custom-data.ipynb) Masakhane - Machine Translation for African Languages in [masakhane-io](https://github.com/masakhane-io/masakhane-mt)
 - [joeynmt toy models](https://github.com/bricksdont/joeynmt-toy-models) Collection of Joey NMT scripts by [@bricksdont](https://github.com/bricksdont)
 
@@ -208,7 +204,7 @@ You can specify i.e. [sacrebleu](https://github.com/mjpost/sacrebleu) options in
 > :bulb: **Tip**
 > `scripts/average_checkpoints.py` will generate averaged checkpoints for you.
 > ```
-> $ python scripts/average_checkpoints.py configs/small.yaml --joint
+> $ python scripts/average_checkpoints.py --inputs model_dir/*00.ckpt --output model_dir/avg.ckpt
 > ```
 
 If you want to output the log-probabilities of the hypotheses or references, you can
@@ -249,8 +245,22 @@ This mode accepts inputs from stdin and generate translations.
 
 ## Benchmarks & pretrained models
 
+### wmt14 ende / deen
+
+We trained the models with JoeyNMT v2.1.0 from scratch.  
+cf) [wmt14 deen leaderboard](https://paperswithcode.com/sota/machine-translation-on-wmt2014-german-english) in paperswithcode
+
+Direction | Architecture | tok | dev | test | #params | download
+--------- | :----------: | :-- | --: | ---: | ------: | :-------
+en->de | Transformer | sentencepiece | 24.36 | 24.38 | 60.5M | [wmt14_ende.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/wmt14_ende.tar.gz) (766M)
+de->en | Transformer | sentencepiece | 30.60 | 30.51 | 60.5M | [wmt14_deen.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/wmt14_deen.tar.gz) (766M)
+
+sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:13a|smooth:exp|version:2.2.0`
+
+---
+
 > :warning: **Warning**
-> These models are trained with JoeynNMT v1.x, and decoded with Joey NMT v2.0. 
+> The following models are trained with JoeynNMT v1.x, and decoded with Joey NMT v2.0. 
 > See `config_v1.yaml` and `config_v2.yaml` in the linked zip, respectively.
 > Joey NMT v1.x benchmarks are archived [here](docs/benchmarks_v1.md).
 
@@ -389,4 +399,3 @@ If you use Joey NMT in a publication or thesis, please cite the following [paper
 
 ## Naming
 Joeys are [infant marsupials](https://en.wikipedia.org/wiki/Marsupial#Early_development). :koala:
-

@@ -24,7 +24,7 @@ from joeynmt.constants import (
     UNK_TOKEN,
 )
 from joeynmt.datasets import BaseDataset, build_dataset
-from joeynmt.helpers import flatten, load_config, write_list_to_file
+from joeynmt.helpers import ConfigurationError, flatten, load_config, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
 
@@ -259,6 +259,9 @@ def run(
                 min_freq=min_freq,
                 **tokenizer_cfg,
             )
+        else:
+            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type.")
+            # TODO: suppoert fastBPE training! https://github.com/glample/fastBPE
     print("### Done.")
 
 

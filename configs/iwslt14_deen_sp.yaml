@@ -82,14 +82,15 @@ training:
     overwrite: False
     shuffle: True
     use_cuda: True
+    fp16: True
     print_valid_sents: [0, 1, 2, 3]
     keep_best_ckpts: 5
 
 model:
-    initializer: "xavier"
+    initializer: "xavier_uniform"
     bias_initializer: "zeros"
     init_gain: 1.0
-    embed_initializer: "xavier"
+    embed_initializer: "xavier_uniform"
     embed_init_gain: 1.0
     tied_embeddings: True
     tied_softmax: True
