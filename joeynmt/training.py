@@ -12,7 +12,6 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import List, Tuple
 
-import packaging
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -22,6 +21,7 @@ from joeynmt.batch import Batch
 from joeynmt.builders import build_gradient_clipper, build_optimizer, build_scheduler
 from joeynmt.data import load_data
 from joeynmt.helpers import (
+    check_version,
     delete_ckpt,
     load_checkpoint,
     load_config,
@@ -788,15 +788,10 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
         Path(cfg["training"]["model_dir"]),
         overwrite=cfg["training"].get("overwrite", False),
     )
-    joeynmt_version = packaging.version.parse(make_logger(model_dir, mode="train"))
-    if "joeynmt_version" in cfg:
-        config_version = packaging.version.parse(cfg["joeynmt_version"])
-        # check if the major version number matches
-        # pylint: disable=use-maxsplit-arg
-        assert joeynmt_version.major == config_version.major, (
-            f"You are using JoeyNMT version {str(joeynmt_version)}, "
-            f'but {str(config_version)} is expected in the given config.')
+    pkg_version = make_logger(model_dir, mode="train")
     # TODO: save version number in model checkpoints
+    if "joeynmt_version" in cfg:
+        check_version(pkg_version, cfg["joeynmt_version"])
 
     # write all entries of config to the log
     log_cfg(cfg)
@@ -848,7 +843,7 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
             datasets=datasets_to_test,
         )
     else:
-        logger.info("Skipping test after training")
+        logger.info("Skipping test after training.")
 
 
 if __name__ == "__main__":

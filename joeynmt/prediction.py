@@ -19,6 +19,7 @@ from torch.utils.data import Dataset
 from joeynmt.data import load_data
 from joeynmt.datasets import StreamDataset, build_dataset
 from joeynmt.helpers import (
+    check_version,
     expand_reverse_index,
     load_checkpoint,
     load_config,
@@ -339,7 +340,9 @@ def test(
     ) = parse_train_args(cfg["training"], mode="prediction")
 
     if len(logger.handlers) == 0:
-        _ = make_logger(model_dir, mode="test")  # version string returned
+        pkg_version = make_logger(model_dir, mode="test")  # version string returned
+        if "joeynmt_version" in cfg:
+            check_version(pkg_version, cfg["joeynmt_version"])
 
     # load the data
     if datasets is None:
@@ -378,7 +381,8 @@ def test(
             )
 
     # when checkpoint is not specified, take latest (best) from model dir
-    ckpt = resolve_ckpt_path(ckpt, load_model, model_dir)
+    load_model = load_model if ckpt is None else Path(ckpt)
+    ckpt = resolve_ckpt_path(load_model, model_dir)
 
     # load model checkpoint
     model_checkpoint = load_checkpoint(ckpt, device=device)
@@ -496,11 +500,13 @@ def translate(
     src_cfg = cfg["data"]["src"]
     trg_cfg = cfg["data"]["trg"]
 
-    _ = make_logger(model_dir, mode="translate")
-    # version string returned
+    pkg_version = make_logger(model_dir, mode="translate")  # version string returned
+    if "joeynmt_version" in cfg:
+        check_version(pkg_version, cfg["joeynmt_version"])
 
     # when checkpoint is not specified, take latest (best) from model dir
-    ckpt = resolve_ckpt_path(ckpt, load_model, model_dir)
+    load_model = load_model if ckpt is None else Path(ckpt)
+    ckpt = resolve_ckpt_path(load_model, model_dir)
 
     # read vocabs
     src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
