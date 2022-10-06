@@ -7,6 +7,7 @@ Usage:
 
 from pathlib import Path
 import importlib
+import logging
 import tarfile
 
 import torch.hub
@@ -24,15 +25,27 @@ if len(missing_deps) > 0:
     raise RuntimeError("Missing dependencies: {}".format(", ".join(missing_deps)))
 
 
-# only do joeynmt imports after checking for dependencies
+# only do joeynmt imports after checking dependencies
 from joeynmt.hub_interface import _from_pretrained, TranslatorHubInterface
 
 ROOT_URL = "https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2"
 
+import logging
+logger = logging.getLogger(__name__)
 
-def _download_and_extract(model_name_or_path: str, ext: str = ".tar.gz") -> Path:
+
+def _download_and_extract(
+    model_name_or_path: str,
+    ext: str = ".tar.gz",
+    **kwargs
+) -> Path:
     hub_dir = Path(torch.hub.get_dir())
     download_dir = hub_dir / model_name_or_path
+    force_reload = kwargs.get('force_reload', False)
+    if (not force_reload) and download_dir.is_dir():
+        logger.info('Model cache found in %s. Skip redownload.', download_dir)
+        return download_dir
+
     torch.hub.download_url_to_file(f"{ROOT_URL}/{model_name_or_path}{ext}",
                                    download_dir.with_suffix(ext))
     # extract
@@ -51,7 +64,7 @@ def _load_from_remote(
     cfg_file: str = "config.yaml",
     **kwargs
 ) -> TranslatorHubInterface:
-    download_dir = _download_and_extract(model_name_or_path)
+    download_dir = _download_and_extract(model_name_or_path, **kwargs)
     config, test_data, model = _from_pretrained(
         model_name_or_path=download_dir,
         ckpt_file=ckpt_file,
