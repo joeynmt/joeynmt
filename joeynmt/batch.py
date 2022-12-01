@@ -85,6 +85,7 @@ class Batch:
         if self.has_trg:
             self.trg_input = self.trg_input.to(device)
             self.trg = self.trg.to(device)
+            self.trg_length = self.trg_length.to(device)
             self.trg_mask = self.trg_mask.to(device)
 
     def normalize(
