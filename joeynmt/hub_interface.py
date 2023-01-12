@@ -3,9 +3,7 @@ from functools import partial
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Union
 
-import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import nn
 
 import numpy as np
 
@@ -22,8 +20,6 @@ from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import build_vocab
 
 logger = logging.getLogger(__name__)
-
-
 
 Scores = NamedTuple(
     "Scores",
@@ -55,7 +51,8 @@ def _from_pretrained(
 ):
     """Prepare model and data placeholder"""
     # model dir
-    model_dir = Path(model_name_or_path) if isinstance(model_name_or_path, str) else model_name_or_path
+    model_dir = Path(model_name_or_path) if isinstance(model_name_or_path,
+                                                       str) else model_name_or_path
     assert model_dir.is_dir(), model_dir
 
     # cfg file
@@ -72,7 +69,8 @@ def _from_pretrained(
             for tok_model in ["codes", "model_file"]:
                 if tok_model in cfg["data"][side]["tokenizer_cfg"]:
                     cfg["data"][side]["tokenizer_cfg"][tok_model] = _check_file_path(
-                        cfg["data"][side]["tokenizer_cfg"][tok_model], model_dir).as_posix()
+                        cfg["data"][side]["tokenizer_cfg"][tok_model],
+                        model_dir).as_posix()
 
     if "load_model" in cfg["training"]:
         cfg["training"]["load_model"] = _check_file_path(cfg["training"]["load_model"],
@@ -142,8 +140,9 @@ class TranslatorHubInterface(nn.Module):
         if self.device.type == "cuda":
             self.model.to(self.device)
         self.model.eval()
-        
-    def score(self,
+
+    def score(
+        self,
         src: Union[str, List[str]],
         trg: Optional[Union[str, List[str]]] = None,
         **kwargs,
@@ -152,12 +151,15 @@ class TranslatorHubInterface(nn.Module):
         if isinstance(src, str):
             src = [src]
             return_str = True
-        assert len(src) <= 64, "for big dataset, please use `test` function instead of `score`!"
+        assert len(
+            src
+        ) <= 64, "for big dataset, please use `test` function instead of `score`!"
         return_prob = "ref" if trg else "hyp"
         kwargs["return_prob"] = return_prob
 
-        _, translations, tokens, token_probs, attention_probs = self._generate(src, **kwargs)
-        
+        _, translations, tokens, token_probs, attention_probs = self._generate(
+            src, **kwargs)
+
         if return_str:
             return Scores(
                 translations=translations[0],
@@ -171,16 +173,17 @@ class TranslatorHubInterface(nn.Module):
             token_probs=token_probs,
             attention_probs=attention_probs,
         )
-        
-    def translate(self, src: Union[str, List[str]],
-                  **kwargs) -> Union[str, List[str]]:
+
+    def translate(self, src: Union[str, List[str]], **kwargs) -> Union[str, List[str]]:
         return_str = False
         if isinstance(src, str):
             src = [src]
             return_str = True
-        assert len(src) <= 64, "for big dataset, please use `test` function instead of `translate`!"
+        assert len(
+            src
+        ) <= 64, "for big dataset, please use `test` function instead of `translate`!"
         kwargs["return_prob"] = "none"
-        
+
         _, translations, _, _, _ = self._generate(src, **kwargs)
 
         if return_str:

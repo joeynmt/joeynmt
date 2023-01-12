@@ -7,14 +7,11 @@ the script to add your bot's access token and the joeynmt model names.
 
 To get your access token, go
 https://discord.com/developers/applications -> Bot -> Token
-
 cf.)
 - Install py-cord:
     https://guide.pycord.dev/installation
-    :Warning: Apparently, there are some problems with the latest verison.
-              Please use py-cord v2.0.1, instead.
     ```
-    $ pip install --upgrade git+https://github.com/Pycord-Development/pycord@v2.0.1
+    $ pip install py-cord>=2.3.2
     ```
 - Creating Your First Bot:
     https://guide.pycord.dev/getting-started/creating-your-first-bot
@@ -45,7 +42,7 @@ async def on_ready():
     for lang_tag, model_name in models.items():
         if lang_tag not in bot.models:
             print("Discord Joey: Loading a model ...")
-            bot.models[lang_tag] = torch.hub.load('may-/joeynmt:torch12', model_name)
+            bot.models[lang_tag] = torch.hub.load('joeynmt/joeynmt', model_name)
             print(f"\t{model_name} model loaded successfully!")
 
     print("Discord Joey: ready to go!")
