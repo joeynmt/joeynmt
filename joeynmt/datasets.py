@@ -480,7 +480,8 @@ class StreamDataset(BaseDataset):
         """
         Set input text to the cache.
 
-        :param line: (str)
+        :param src_line: (str)
+        :param trg_line: (str)
         """
         assert isinstance(src_line, str) and src_line.strip() != "", \
             "The input sentence is empty! Please make sure " \
@@ -489,9 +490,8 @@ class StreamDataset(BaseDataset):
         idx = len(self.cache)
         src_line = self.tokenizer[self.src_lang].pre_process(src_line)
 
-        trg_line = None
         if self.has_trg:
-            trg_line = self.tokenizer[self.trg_lang].pre_process(src_line)
+            trg_line = self.tokenizer[self.trg_lang].pre_process(trg_line)
         self.cache[idx] = (src_line, trg_line)
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
