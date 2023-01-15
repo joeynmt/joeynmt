@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import packaging
+import packaging.version
 import pkg_resources
 import torch
 import yaml
