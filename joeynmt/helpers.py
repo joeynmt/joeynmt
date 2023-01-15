@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import packaging
 import pkg_resources
 import torch
 import yaml
@@ -86,6 +87,22 @@ def make_logger(log_dir: Path = None, mode: str = "train") -> str:
         logger.info("Hello! This is Joey-NMT (version %s).", version)
 
     return version
+
+
+def check_version(pkg_version: str, cfg_version: str) -> None:
+    """
+    Check joeynmt version
+
+    :param pkg_version: package version number
+    :param cfg_version: version number specified in config
+    """
+    joeynmt_version = packaging.version.parse(pkg_version)
+    config_version = packaging.version.parse(cfg_version)
+    # check if the major version number matches
+    # pylint: disable=use-maxsplit-arg
+    assert joeynmt_version.major == config_version.major, (
+        f"You are using JoeyNMT version {str(joeynmt_version)}, "
+        f'but {str(config_version)} is expected in the given config.')
 
 
 def log_cfg(cfg: Dict, prefix: str = "cfg") -> None:
@@ -209,7 +226,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
         load_path = cfg.get(path, None)
         if load_path is not None:
             load_path = Path(load_path)
-            assert load_path.is_file()
+            assert load_path.is_file(), load_path
         return load_path
 
     load_model: Optional[Path] = _load_path("load_model")
@@ -470,29 +487,26 @@ def load_checkpoint(path: Path, device: torch.device) -> Dict:
     """
     logger = logging.getLogger(__name__)
     assert path.is_file(), f"Checkpoint {path} not found."
-    checkpoint = torch.load(path.as_posix(), map_location=device)
+    checkpoint = torch.load(path, map_location=device)
     logger.info("Load model from %s.", path.resolve())
     return checkpoint
 
 
-def resolve_ckpt_path(ckpt: str, load_model: str, model_dir: Path) -> Path:
+def resolve_ckpt_path(load_model: Path, model_dir: Path) -> Path:
     """
     Resolve checkpoint path
 
-    :param ckpt: str passed from stdin args (--ckpt)
-    :param load_model: config entry (cfg['training']['load_model'])
+    :param load_model: config entry (cfg['training']['load_model']) or CLI arg (--ckpt)
     :param model_dir: Path(cfg['training']['model_dir'])
     :return: resolved checkpoint path
     """
-    if ckpt is None:
-        if load_model is None:
-            if (model_dir / "best.ckpt").is_file():
-                ckpt = model_dir / "best.ckpt"
-            else:
-                ckpt = get_latest_checkpoint(model_dir)
+    if load_model is None:
+        if (model_dir / "best.ckpt").is_file():
+            load_model = model_dir / "best.ckpt"
         else:
-            ckpt = Path(load_model)
-    return Path(ckpt)
+            load_model = get_latest_checkpoint(model_dir)
+    assert load_model.is_file(), load_model
+    return load_model
 
 
 # from onmt
@@ -516,10 +530,13 @@ def tile(x: Tensor, count: int, dim=0) -> Tensor:
     out_size = list(x.size())
     out_size[0] *= count
     batch = x.size(0)
-    x = (x.view(batch,
-                -1).transpose(0, 1).repeat(count,
-                                           1).transpose(0,
-                                                        1).contiguous().view(*out_size))
+    # yapf: disable
+    x = (x.view(batch, -1)
+         .transpose(0, 1)
+         .repeat(count, 1)
+         .transpose(0, 1)
+         .contiguous()
+         .view(*out_size))
     if dim != 0:
         x = x.permute(perm).contiguous()
     return x

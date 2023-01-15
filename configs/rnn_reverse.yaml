@@ -52,6 +52,7 @@ training:
     overwrite: True
     shuffle: True
     use_cuda: False
+    fp16: True
     print_valid_sents: [0, 3, 6]
     keep_best_ckpts: 2
 

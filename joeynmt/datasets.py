@@ -448,7 +448,6 @@ class StreamDataset(BaseDataset):
     """
     StreamDataset which interacts with stream inputs.
     - called by `translate()` func in `prediction.py`.
-    - src side only, no trg expected.
     """
 
     def __init__(
@@ -477,26 +476,37 @@ class StreamDataset(BaseDataset):
         # place holder
         self.cache = {}
 
-    def set_item(self, line: str) -> None:
+    def set_item(self, src_line: str, trg_line: str = None) -> None:
         """
-        Set source text to the cache.
+        Set input text to the cache.
 
-        :param line: (str)
+        :param src_line: (str)
+        :param trg_line: (str)
         """
-        assert isinstance(line, str) and line.strip() != "", \
+        assert isinstance(src_line, str) and src_line.strip() != "", \
             "The input sentence is empty! Please make sure " \
             "that you are feeding a valid input."
 
         idx = len(self.cache)
-        line = self.tokenizer[self.src_lang].pre_process(line)
-        self.cache[idx] = (line, None)
+        src_line = self.tokenizer[self.src_lang].pre_process(src_line)
+
+        if self.has_trg:
+            trg_line = self.tokenizer[self.trg_lang].pre_process(trg_line)
+        self.cache[idx] = (src_line, trg_line)
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # pylint: disable=unused-argument
         assert idx in self.cache, (idx, self.cache)
-        assert lang == self.src_lang, (lang, self.src_lang)
-        line, _ = self.cache[idx]
-        item = self.tokenizer[lang](line, is_train=False)
+        assert lang in [self.src_lang, self.trg_lang]
+        if lang == self.trg_lang:
+            assert self.has_trg
+
+        line = {}
+        src_line, trg_line = self.cache[idx]
+        line[self.src_lang] = src_line
+        line[self.trg_lang] = trg_line
+
+        item = self.tokenizer[lang](line[lang], is_train=False)
         return item
 
     def __len__(self) -> int:

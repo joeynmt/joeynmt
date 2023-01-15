@@ -2,7 +2,6 @@
 [![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-
 ## Goal and Purpose
 :koala: Joey NMT framework is developed for educational purposes.
 It aims to be a **clean** and **minimalistic** code base to help novices 
@@ -44,17 +43,17 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested Joey NMT 2.0 with
+We tested Joey NMT v2.2 with
 - python 3.10
-- torch 1.12.1
+- torch 1.13.1
 - cuda 11.6
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.12.1 with CUDA v11.6 as follows:
+> For example, you can install PyTorch 1.13.1 with CUDA v11.6 as follows:
 > ```
-> $ pip install --upgrade torch==1.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
+> $ pip install --upgrade torch==1.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
@@ -84,15 +83,22 @@ $ pip install joeynmt
 
 
 ## Change logs
+### v2.2
+- compatibility with torch 1.13 tested
+- torchhub introduced
+- bugfixes, minor refactoring
+
+<details><summary>previous releases</summary>
+
 ### v2.1
 - upgrade to python 3.10, torch 1.12
 - replace Automated Mixed Precision from NVIDA's amp to Pytorch's amp package
 - replace [discord.py](https://github.com/Rapptz/discord.py) with [pycord](https://github.com/Pycord-Development/pycord) in the Discord Bot demo
-- Data Iterator refactoring
+- data iterator refactoring
 - add wmt14 ende / deen benchmark trained on v2 from scratch
-- bugfixes
+- add tokenizer tutorial
+- minor bugfixes
 
-<details><summary>previous releases</summary>
 
 ### v2.0 *Breaking change!*
 - upgrade to python 3.9, torch 1.11
@@ -133,8 +139,9 @@ We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly f
 For details, follow the tutorials in [notebooks](notebooks) dir.
 #### v2.x
 - [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
+- [fine tuning tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/fine_tuning_tutorial_enja.ipynb)
 - [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
-- [joeyS2T ASR tutorial](https://github.com/may-/joeynmt/blob/joeyS2T/notebooks/joeyS2T_ASR_tutorial.ipynb) 
+- [joeyS2T ASR tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)
 
 #### v1.x
 - [demo notebook](notebooks/joey_v1_demo.ipynb)
@@ -348,7 +355,7 @@ Here we'll collect projects and repositories that are based on Joey NMT, so you 
 inspiration and examples on how to modify and extend the code.
 
 ### Joey NMT v2.x
-- :ear: **JoeyS2T**. Joey NMT is extended for Speech-to-Text tasks! [Code](https://github.com/may-/joeynmt/tree/joeyS2T)
+- :ear: **JoeyS2T**. Joey NMT is extended for Speech-to-Text tasks! [Code](https://github.com/may-/joeys2t)
 - :right_anger_bubble: **Discord Joey**. This script demonstrates how to deploy Joey NMT models as a Chatbot on Discord. [Code](scripts/discord_joey.py)
 
 ### Joey NMT v1.x
