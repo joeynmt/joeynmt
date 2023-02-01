@@ -213,7 +213,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         self.spm.SetVocabulary(itos)
 
     def copy_cfg_file(self, model_dir: Path) -> None:
-        """Copy confg file to model_dir"""
+        """Copy config file to model_dir"""
         if (model_dir / self.model_file.name).is_file():
             logger.warning(
                 "%s already exists. Stop copying.",
@@ -300,7 +300,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         self.bpe.vocab = vocab
 
     def copy_cfg_file(self, model_dir: Path) -> None:
-        """Copy confg file to model_dir"""
+        """Copy config file to model_dir"""
         shutil.copy2(self.codes, (model_dir / self.codes.name).as_posix())
 
     def __repr__(self):
