@@ -316,7 +316,7 @@ class PlaintextDataset(BaseDataset):
             return line
         except Exception as e:
             print(idx, self._initial_len)
-            raise Exception from e
+            raise ValueError from e
 
     def get_list(self,
                  lang: str,
@@ -742,7 +742,7 @@ def build_dataset(
             **kwargs,
         )
     else:
-        ConfigurationError(f"{dataset_type}: Unknown dataset type.")
+        raise ConfigurationError(f"{dataset_type}: Unknown dataset type.")
     return dataset
 
 
