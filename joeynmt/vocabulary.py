@@ -238,7 +238,7 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
         counter = Counter(flatten(sents))
         unique_tokens = sort_and_cut(counter, max_size, min_freq)
     else:
-        raise Exception("Please provide a vocab file path or dataset.")
+        raise ValueError("Please provide a vocab file path or dataset.")
 
     vocab = Vocabulary(unique_tokens)
     assert len(vocab) <= max_size + len(vocab.specials), (len(vocab), max_size)
