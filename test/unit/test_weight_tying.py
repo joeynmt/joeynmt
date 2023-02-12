@@ -1,6 +1,5 @@
-import unittest
-
 import copy
+import unittest
 
 import torch
 

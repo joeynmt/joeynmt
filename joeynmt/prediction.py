@@ -11,10 +11,10 @@ from itertools import zip_longest
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from tqdm import tqdm
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 from joeynmt.data import load_data
 from joeynmt.datasets import StreamDataset, build_dataset

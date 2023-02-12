@@ -2,6 +2,7 @@
 """
 Tokenizer module
 """
+import argparse
 import logging
 import shutil
 from pathlib import Path
@@ -49,6 +50,7 @@ class BasicTokenizer:
                 from sacremoses import (  # pylint: disable=import-outside-toplevel
                     MosesDetokenizer, MosesPunctNormalizer, MosesTokenizer,
                 )
+
                 # sacremoses package has to be installed.
                 # https://github.com/alvations/sacremoses
             except ImportError as e:
@@ -244,13 +246,18 @@ class SubwordNMTTokenizer(BasicTokenizer):
         super().__init__(level, lowercase, normalize, max_length, min_length, **kwargs)
         assert self.level == "bpe"
 
-        self.codes: Path = Path(kwargs["codes"])
-        assert self.codes.is_file(), f"codes file {self.codes} not found."
+        codes_file = Path(kwargs["codes"])
+        assert codes_file.is_file(), f"codes file {codes_file} not found."
 
         self.separator: str = kwargs.get("separator", "@@")
+        self.dropout: float = kwargs.get("dropout", 0.0)
+
         bpe_parser = apply_bpe.create_parser()
+        for action in bpe_parser._actions:  # workaround to ensure utf8 encoding
+            if action.dest == "codes":
+                action.type = argparse.FileType('r', encoding='utf8')
         bpe_args = bpe_parser.parse_args(
-            ["--codes", kwargs["codes"], "--separator", self.separator])
+            ["--codes", codes_file.as_posix(), "--separator", self.separator])
         self.bpe = apply_bpe.BPE(
             bpe_args.codes,
             bpe_args.merges,
@@ -258,7 +265,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
             None,
             bpe_args.glossaries,
         )
-        self.dropout: float = kwargs.get("dropout", 0.0)
+        self.codes: Path = bpe_args.codes
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""
