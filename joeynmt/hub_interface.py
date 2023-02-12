@@ -3,18 +3,17 @@ from functools import partial
 from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Union
 
+import numpy as np
 from torch import nn
 
-import numpy as np
-
-from joeynmt.datasets import build_dataset, BaseDataset, StreamDataset
+from joeynmt.datasets import BaseDataset, StreamDataset, build_dataset
 from joeynmt.helpers import (
     load_checkpoint,
     load_config,
     parse_train_args,
     resolve_ckpt_path,
 )
-from joeynmt.model import build_model, Model
+from joeynmt.model import Model, build_model
 from joeynmt.prediction import predict
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import build_vocab

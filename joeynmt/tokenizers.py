@@ -50,6 +50,7 @@ class BasicTokenizer:
                 from sacremoses import (  # pylint: disable=import-outside-toplevel
                     MosesDetokenizer, MosesPunctNormalizer, MosesTokenizer,
                 )
+
                 # sacremoses package has to be installed.
                 # https://github.com/alvations/sacremoses
             except ImportError as e:
@@ -252,7 +253,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         self.dropout: float = kwargs.get("dropout", 0.0)
 
         bpe_parser = apply_bpe.create_parser()
-        for action in bpe_parser._actions: # workaround to ensure utf8 encoding
+        for action in bpe_parser._actions:  # workaround to ensure utf8 encoding
             if action.dest == "codes":
                 action.type = argparse.FileType('r', encoding='utf8')
         bpe_args = bpe_parser.parse_args(

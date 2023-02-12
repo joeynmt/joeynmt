@@ -151,10 +151,10 @@ class TestTokenizer(unittest.TestCase):
 
             # we cannot set a random seed for sampling.
             # cf) https://github.com/google/sentencepiece/issues/609
-            #tokenizer.nbest_size = -1
-            #tokenizer.alpha = 0.8
-            #dropout = tokenizer(detokenized, is_train=True)
-            #self.assertEqual(dropout, expected[lang]['dropout'])
+            # tokenizer.nbest_size = -1
+            # tokenizer.alpha = 0.8
+            # dropout = tokenizer(detokenized, is_train=True)
+            # self.assertEqual(dropout, expected[lang]['dropout'])
 
     def testSubwordNMTTokenizer(self):
         cfg = self.data_cfg.copy()
