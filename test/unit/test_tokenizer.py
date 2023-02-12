@@ -1,8 +1,6 @@
 import random
 import unittest
 
-import sentencepiece as spm
-
 from joeynmt.data import load_data
 from joeynmt.tokenizers import (
     BasicTokenizer,
@@ -39,7 +37,6 @@ class TestTokenizer(unittest.TestCase):
         # set seed
         seed = 42
         random.seed(seed)
-        spm.set_random_generator_seed(seed)
 
     def testBasicTokenizer(self):
         # first valid example from the training set after filtering
@@ -152,10 +149,12 @@ class TestTokenizer(unittest.TestCase):
             detokenized = tokenizer.post_process(tokenized)
             self.assertEqual(detokenized, expected[lang]['detokenized'])
 
-            tokenizer.nbest_size = -1
-            tokenizer.alpha = 0.8
-            dropout = tokenizer(detokenized, is_train=True)
-            self.assertEqual(dropout, expected[lang]['dropout'])
+            # we cannot set a random seed for sampling.
+            # cf) https://github.com/google/sentencepiece/issues/609
+            #tokenizer.nbest_size = -1
+            #tokenizer.alpha = 0.8
+            #dropout = tokenizer(detokenized, is_train=True)
+            #self.assertEqual(dropout, expected[lang]['dropout'])
 
     def testSubwordNMTTokenizer(self):
         cfg = self.data_cfg.copy()
