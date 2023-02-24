@@ -46,7 +46,7 @@ class BaseDataset(Dataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        split: int = "train",
+        split: str = "train",
         has_trg: bool = True,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
