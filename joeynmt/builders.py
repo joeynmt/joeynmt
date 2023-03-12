@@ -21,6 +21,24 @@ from joeynmt.helpers import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
+def build_activation(activation: str = "relu") -> Callable:
+    """
+    Returns the activation function
+    """
+    # pylint: disable=no-else-return
+    if activation == "relu":
+        return nn.ReLU
+    elif activation == "gelu":
+        return nn.GELU
+    elif activation == "tanh":
+        return torch.tanh
+    elif activation == "swish":
+        return nn.SiLU
+    else:
+        raise ConfigurationError("Invalid activation function. Valid options: "
+                                 "'relu', 'gelu', 'tanh', 'swish'.")
+
+
 def build_gradient_clipper(config: dict) -> Optional[Callable]:
     """
     Define the function for gradient clipping as specified in configuration.

@@ -8,6 +8,8 @@ from typing import Optional
 import torch
 from torch import Tensor, nn
 
+from joeynmt.builders import build_activation
+
 
 class MultiHeadedAttention(nn.Module):
     """
@@ -71,7 +73,8 @@ class MultiHeadedAttention(nn.Module):
         v = self.v_layer(v)
         q = self.q_layer(q)
 
-        # reshape q, k, v for our computation to [batch_size, num_heads, ..]
+        # reshape q, k, v for our computation to
+        # [batch_size, num_heads, seq_len, head_dim]
         k = k.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
         v = v.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
         q = q.view(batch_size, -1, self.num_heads, self.head_size).transpose(1, 2)
@@ -120,6 +123,7 @@ class PositionwiseFeedForward(nn.Module):
         dropout: float = 0.1,
         alpha: float = 1.0,
         layer_norm: str = "post",
+        activation: str = "relu",
     ) -> None:
         """
         Initializes position-wise feed-forward layer.
@@ -128,13 +132,16 @@ class PositionwiseFeedForward(nn.Module):
         :param dropout: dropout probability
         :param alpha: weight factor for residual connection
         :param layer_norm: either "pre" or "post"
+        :param activation: activation function
         """
         super().__init__()
+
+        activation_fnc = build_activation(activation=activation)
 
         self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
         self.pwff_layer = nn.Sequential(
             nn.Linear(input_size, ff_size),
-            nn.ReLU(),
+            activation_fnc(),
             nn.Dropout(dropout),
             nn.Linear(ff_size, input_size),
             nn.Dropout(dropout),
@@ -213,6 +220,7 @@ class TransformerEncoderLayer(nn.Module):
         dropout: float = 0.1,
         alpha: float = 1.0,
         layer_norm: str = "post",
+        activation: str = "relu",
     ) -> None:
         """
         A single Transformer encoder layer.
@@ -226,6 +234,7 @@ class TransformerEncoderLayer(nn.Module):
         :param dropout: dropout to apply to input
         :param alpha: weight factor for residual connection
         :param layer_norm: either "pre" or "post"
+        :param activation: activation function
         """
         super().__init__()
 
@@ -238,6 +247,7 @@ class TransformerEncoderLayer(nn.Module):
             dropout=dropout,
             alpha=alpha,
             layer_norm=layer_norm,
+            activation=activation,
         )
 
         self.dropout = nn.Dropout(dropout)
@@ -287,6 +297,7 @@ class TransformerDecoderLayer(nn.Module):
         dropout: float = 0.1,
         alpha: float = 1.0,
         layer_norm: str = "post",
+        activation: str = "relu",
     ) -> None:
         """
         Represents a single Transformer decoder layer.
@@ -301,6 +312,7 @@ class TransformerDecoderLayer(nn.Module):
         :param dropout: dropout to apply to input
         :param alpha: weight factor for residual connection
         :param layer_norm: either "pre" or "post"
+        :param activation: activation function
         """
         super().__init__()
         self.size = size
@@ -314,6 +326,7 @@ class TransformerDecoderLayer(nn.Module):
             dropout=dropout,
             alpha=alpha,
             layer_norm=layer_norm,
+            activation=activation,
         )
 
         self.x_layer_norm = nn.LayerNorm(size, eps=1e-6)
@@ -332,6 +345,7 @@ class TransformerDecoderLayer(nn.Module):
         src_mask: Tensor,
         trg_mask: Tensor,
         return_attention: bool = False,
+        **kwargs,
     ) -> Tensor:
         """
         Forward pass of a single Transformer decoder layer.
@@ -353,6 +367,7 @@ class TransformerDecoderLayer(nn.Module):
             - output tensor
             - attention weights
         """
+        # pylint: disable=unused-argument
         # 1. target-target self-attention
         residual = x
         if self._layer_norm_position == "pre":
