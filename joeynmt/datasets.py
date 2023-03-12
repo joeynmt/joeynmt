@@ -314,7 +314,7 @@ class PlaintextDataset(BaseDataset):
             line = self.data[lang][idx]
             return line
         except Exception as e:
-            print(idx, self._initial_len)
+            logger.error(idx, self._initial_len, e)
             raise ValueError from e
 
     def get_list(self,
@@ -522,6 +522,7 @@ class BaseHuggingfaceDataset(BaseDataset):
     Wrapper for Huggingface's dataset object
     cf.) https://huggingface.co/docs/datasets
     """
+    COLUMN_NAME = "sentence"  # dummy column name. should be overriden.
 
     def __init__(
         self,
@@ -551,10 +552,19 @@ class BaseHuggingfaceDataset(BaseDataset):
     def load_data(self, path: str, **kwargs) -> Any:
         # pylint: disable=import-outside-toplevel
         try:
-            from datasets import config, load_dataset, load_from_disk
-            if Path(path, config.DATASET_STATE_JSON_FILENAME).exists():
-                return load_from_disk(path)
-            return load_dataset(path, **kwargs)
+            from datasets import Dataset as Dataset_hf
+            from datasets import DatasetDict, config, load_dataset, load_from_disk
+            if Path(path, config.DATASET_STATE_JSON_FILENAME).exists() \
+                    or Path(path, config.DATASETDICT_JSON_FILENAME).exists():
+                hf_dataset = load_from_disk(path)
+                if isinstance(hf_dataset, DatasetDict):
+                    assert kwargs["split"] in hf_dataset
+                    hf_dataset = hf_dataset[kwargs["split"]]
+            else:
+                hf_dataset = load_dataset(path, **kwargs)
+            assert isinstance(hf_dataset, Dataset_hf)
+            assert self.COLUMN_NAME in hf_dataset.features
+            return hf_dataset
 
         except ImportError as e:
             logger.error(e)
@@ -572,7 +582,7 @@ class BaseHuggingfaceDataset(BaseDataset):
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # lookup
-        line = self.dataset[idx]
+        line = self.dataset[idx][self.COLUMN_NAME]
         assert lang in line, (line, lang)
 
         # tokenize
@@ -582,11 +592,13 @@ class BaseHuggingfaceDataset(BaseDataset):
 
     def get_list(self, lang: str, tokenized: bool = False) -> List[str]:
         if tokenized:
-            return self.dataset.map(
-                lambda item: {f"tok_{lang}": self.tokenizer[lang](item[lang])},
-                desc=f"Tokenizing {lang}...",
-            )[f"tok_{lang}"]
-        return self.dataset[lang]
+
+            def _tok(item):
+                item[f'tok_{lang}'] = self.tokenizer[lang](item[self.COLUMN_NAME][lang])
+                return item
+
+            return self.dataset.map(_tok, desc=f"Tokenizing {lang}...")[f'tok_{lang}']
+        return self.dataset.flatten()[f'{self.COLUMN_NAME}.{lang}']
 
     def __len__(self) -> int:
         return self.dataset.num_rows
@@ -601,62 +613,52 @@ class BaseHuggingfaceDataset(BaseDataset):
         return ret
 
 
-class HuggingfaceDataset(BaseHuggingfaceDataset):
+class HuggingfaceTranslationDataset(BaseHuggingfaceDataset):
     """
     Wrapper for Huggingface's `datasets.features.Translation` class
     cf.) https://github.com/huggingface/datasets/blob/master/src/datasets/features/translation.py
     """  # noqa
+    COLUMN_NAME = "translation"
 
     def load_data(self, path: str, **kwargs) -> Any:
         dataset = super().load_data(path=path, **kwargs)
-
-        # rename columns
-        if "translation" in dataset.features:
-            # check language pair
-            lang_pair = dataset.features["translation"].languages
-            assert self.src_lang in lang_pair, (self.src_lang, lang_pair)
-
-            # rename columns
-            columns = {f"translation.{self.src_lang}": self.src_lang}
+        # pylint: disable=import-outside-toplevel
+        try:
+            from datasets.features import Translation as Translation_hf
+            assert isinstance(dataset.features[self.COLUMN_NAME], Translation_hf), \
+                f"Data type mismatch. Please cast `{self.COLUMN_NAME}` column to " \
+                "datasets.features.Translation class."
+            assert self.src_lang in dataset.features[self.COLUMN_NAME].languages
             if self.has_trg:
-                assert self.trg_lang in lang_pair, (self.trg_lang, lang_pair)
-                columns[f"translation.{self.trg_lang}"] = self.trg_lang
+                assert self.trg_lang in dataset.features[self.COLUMN_NAME].languages
 
-            # flatten
-            dataset = dataset.flatten()
+        except ImportError as e:
+            logger.error(e)
+            raise ImportError from e
 
-        elif f"{self.src_lang}_sentence" in dataset.features:
-            # rename columns
-            columns = {f"{self.src_lang}_sentence": self.src_lang}
-            if self.has_trg:
-                assert f"{self.trg_lang}_sentence" in dataset.features
-                columns[f"{self.trg_lang}_sentence"] = self.trg_lang
-
-        else:
-            pass
-            # TODO: support other field names
-        dataset = dataset.rename_columns(columns)
-
-        # preprocess (lowercase, pretokenize, etc.)
+        # preprocess (lowercase, pretokenize, etc.) + validity check
         def _pre_process(item):
             sl = self.src_lang
-            tl = self.trg_lang
-            ret = {sl: self.tokenizer[sl].pre_process(item[sl])}
+            item[self.COLUMN_NAME][sl] = self.tokenizer[sl].pre_process(
+                item[self.COLUMN_NAME][sl])
             if self.has_trg:
-                ret[tl] = self.tokenizer[tl].pre_process(item[tl])
-            return ret
+                tl = self.trg_lang
+                item[self.COLUMN_NAME][tl] = self.tokenizer[tl].pre_process(
+                    item[self.COLUMN_NAME][tl])
+            return item
 
         def _drop_nan(item):
-            sl = self.src_lang
-            tl = self.trg_lang
-            is_src_valid = item[sl] is not None and len(item[sl]) > 0
+            src_item = item[self.COLUMN_NAME][self.src_lang]
+            is_src_valid = src_item is not None and len(src_item) > 0
             if self.has_trg:
-                is_trg_valid = item[tl] is not None and len(item[tl]) > 0
+                trg_item = item[self.COLUMN_NAME][self.trg_lang]
+                is_trg_valid = trg_item is not None and len(trg_item) > 0
                 return is_src_valid and is_trg_valid
             return is_src_valid
 
         dataset = dataset.filter(_drop_nan, desc="Dropping NaN...")
-        return dataset.map(_pre_process, desc="Preprocessing...")
+        dataset = dataset.map(_pre_process, desc="Preprocessing...")
+        return dataset
 
 
 def build_dataset(
@@ -730,7 +732,7 @@ def build_dataset(
         # "split" should be specified in kwargs
         if "split" not in kwargs:
             kwargs["split"] = "validation" if split == "dev" else split
-        dataset = HuggingfaceDataset(
+        dataset = HuggingfaceTranslationDataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
