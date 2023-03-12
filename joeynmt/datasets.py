@@ -213,8 +213,8 @@ class BaseDataset(Dataset):
         assert self.sequence_encoder[self.src_lang] is not None
         if self.has_trg:
             assert self.sequence_encoder[self.trg_lang] is not None
-        else:
-            self.sequence_encoder[self.trg_lang] = None
+        # else:
+        #    self.sequence_encoder[self.trg_lang] = None
 
         # data iterator
         return DataLoader(

@@ -19,3 +19,4 @@ flake8
 pytest
 datasets
 packaging
+plotly
