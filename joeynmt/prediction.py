@@ -115,6 +115,10 @@ def predict(
     output, ref_scores, hyp_scores, attention_scores = None, None, None, None
     disable_tqdm = isinstance(data, StreamDataset)
 
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16 if device.type == "cuda" else torch.bfloat16
+
     gen_start_time = time.time()
     with tqdm(total=len(data), disable=disable_tqdm, desc="Predicting...") as pbar:
         for batch in valid_iter:
@@ -130,7 +134,7 @@ def predict(
                 assert model.loss_function is not None
 
                 # don't track gradients during validation
-                with torch.autocast(device_type=device.type, enabled=fp16):
+                with torch.autocast(**autocast):
                     with torch.no_grad():
                         batch_loss, log_probs, attn, n_correct = model(
                             return_type="loss",

@@ -91,11 +91,12 @@ class TrainManager:
 
         # fp16
         self.fp16: bool = fp16  # True or False for scaler
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.fp16)
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.fp16) \
+            if self.device.type == "cuda" else None
+        self.autocast = {"device_type": self.device.type, "enabled": self.fp16}
         if self.fp16:
-            self.dtype = torch.float16 if self.device.type == "cuda" else torch.bfloat16
-        else:
-            self.dtype = torch.get_default_dtype()
+            self.autocast["dtype"] = torch.float16 \
+                if self.device.type == "cuda" else torch.bfloat16
 
         # save/delete checkpoints
         self.ckpt_queue: List[Tuple[float, Path]] = []  # heap queue
@@ -154,7 +155,8 @@ class TrainManager:
             "best_ckpt_iteration": self.stats.best_ckpt_iter,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
-            "scaler_state": self.scaler.state_dict(),
+            "scaler_state": (self.scaler.state_dict()
+                             if self.scaler is not None else None),
             "scheduler_state": (self.scheduler.state_dict()
                                 if self.scheduler is not None else None),
             "train_iter_state": train_iter_state,
@@ -234,7 +236,7 @@ class TrainManager:
 
         if not reset_optimizer:
             self.optimizer.load_state_dict(model_checkpoint["optimizer_state"])
-            if "scaler_state" in model_checkpoint:
+            if "scaler_state" in model_checkpoint and self.scaler is not None:
                 self.scaler.load_state_dict(model_checkpoint["scaler_state"])
         else:
             logger.info("Reset optimizer.")
@@ -389,8 +391,11 @@ class TrainManager:
                             self.clip_grad_fun(parameters=self.model.parameters())
 
                         # make gradient step
-                        self.scaler.step(self.optimizer)
-                        self.scaler.update()
+                        if self.scaler is None:
+                            self.optimizer.step()
+                        else:
+                            self.scaler.step(self.optimizer)
+                            self.scaler.update()
 
                         # decay lr
                         if self.scheduler_step_at == "step":
@@ -492,9 +497,7 @@ class TrainManager:
         # reactivate training
         self.model.train()
 
-        with torch.autocast(device_type=self.device.type,
-                            dtype=self.dtype,
-                            enabled=self.fp16):
+        with torch.autocast(**self.autocast):
             # get loss (run as during training with teacher forcing)
             batch_loss, _, _, correct_tokens = self.model(return_type="loss",
                                                           **vars(batch))
@@ -511,7 +514,10 @@ class TrainManager:
         sum_correct_tokens = batch.normalize(correct_tokens, "sum", self.n_gpu)
 
         # accumulate gradients
-        self.scaler.scale(norm_batch_loss).backward()
+        if self.scaler is None:
+            norm_batch_loss.backward()
+        else:
+            self.scaler.scale(norm_batch_loss).backward()
 
         # increment token counter
         self.stats.total_tokens += batch.ntokens

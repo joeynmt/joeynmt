@@ -97,10 +97,13 @@ def recurrent_greedy(
     finished = src_mask.new_zeros((batch_size, 1)).byte()
     device = encoder_output.device
     fp16 = kwargs.get("fp16", False)
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16 if device.type == "cpu" else torch.bfloat16
 
     for step in range(max_output_length):
         # decode one single step
-        with torch.autocast(device_type=device.type, enabled=fp16):
+        with torch.autocast(**autocast):
             with torch.no_grad():
                 out, hidden, att_probs, prev_att_vector = model(
                     return_type="decode",
@@ -118,6 +121,9 @@ def recurrent_greedy(
 
         if return_prob:
             out = F.log_softmax(out, dim=-1)
+
+        # don't generate BOS
+        out[:, :, bos_index] = float("-inf")
 
         if not generate_unk:
             out[:, :, unk_index] = float("-inf")
@@ -178,6 +184,9 @@ def transformer_greedy(
     batch_size, _, src_len = src_mask.size()
     device = encoder_output.device
     fp16: bool = kwargs.get("fp16", False)
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16 if device.type == "cpu" else torch.bfloat16
 
     # options to control generation
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
@@ -208,7 +217,7 @@ def transformer_greedy(
     finished = src_mask.new_zeros(batch_size).byte()
 
     for step in range(max_output_length):
-        with torch.autocast(device_type=device.type, enabled=fp16):
+        with torch.autocast(**autocast):
             with torch.no_grad():
                 out, _, att, _ = model(
                     return_type="decode",
@@ -223,6 +232,8 @@ def transformer_greedy(
                 )
 
         out = out[:, -1]  # logits
+
+        # don't generate BOS
         out[:, bos_index] = float("-inf")
 
         if not generate_unk:
@@ -344,6 +355,9 @@ def beam_search(
     trg_vocab_size = model.decoder.output_size
     device = encoder_output.device
     fp16: bool = kwargs.get("fp16", False)
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16 if device.type == "cpu" else torch.bfloat16
     is_transformer = isinstance(model.decoder, TransformerDecoder)
 
     att_vectors = None  # for RNN only, not used for Transformer
@@ -430,7 +444,7 @@ def beam_search(
             decoder_input = alive_seq
 
             # decode one single step
-            with torch.autocast(device_type=device.type, enabled=fp16):
+            with torch.autocast(**autocast):
                 with torch.no_grad():
                     logits, _, _, _ = model(  # logits before final softmax
                         return_type="decode",
@@ -452,7 +466,7 @@ def beam_search(
             # For Recurrent models, only feed the previous trg word prediction
             decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
 
-            with torch.autocast(device_type=device.type, enabled=fp16):
+            with torch.autocast(**autocast):
                 with torch.no_grad():
                     # pylint: disable=unused-variable
                     logits, hidden, att_scores, att_vectors = model(
@@ -470,6 +484,8 @@ def beam_search(
         # compute log probability distribution over trg vocab
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
         log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
+
+        # don't generate BOS
         log_probs[:, bos_index] = float("-inf")
 
         if not generate_unk:
@@ -709,7 +725,10 @@ def search(
     """
     device = batch.src.device
     fp16: bool = kwargs.get("fp16", False)
-    with torch.autocast(device_type=device.type, enabled=fp16):
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16 if device.type == "cpu" else torch.bfloat16
+    with torch.autocast(**autocast):
         with torch.no_grad():
             encoder_output, encoder_hidden, _, _ = model(return_type="encode",
                                                          **vars(batch))
