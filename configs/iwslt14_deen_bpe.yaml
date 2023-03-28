@@ -95,6 +95,7 @@ model:
         ff_size: 1024
         dropout: 0.3
         layer_norm: "pre"
+        activation: "relu"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -108,3 +109,4 @@ model:
         ff_size: 1024
         dropout: 0.3
         layer_norm: "pre"
+        activation: "relu"

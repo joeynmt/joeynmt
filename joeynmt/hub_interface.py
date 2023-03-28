@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Dict, List, NamedTuple, Optional, Union
 
 import numpy as np
+import plotly.express as px
 from torch import nn
 
-from joeynmt.datasets import BaseDataset, StreamDataset, build_dataset
+from joeynmt.constants import EOS_TOKEN
+from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import (
     load_checkpoint,
     load_config,
@@ -20,13 +22,14 @@ from joeynmt.vocabulary import build_vocab
 
 logger = logging.getLogger(__name__)
 
-Scores = NamedTuple(
-    "Scores",
+PredictionOutput = NamedTuple(
+    "PredictionOutput",
     [
-        ("translations", List[str]),
+        ("translation", List[str]),
         ("tokens", Optional[List[List[str]]]),
-        ("token_probs", Optional[List[np.ndarray]]),
-        ("attention_probs", Optional[List[np.ndarray]]),
+        ("token_probs", Optional[List[List[float]]]),
+        ("sequence_probs", Optional[List[float]]),
+        ("attention_probs", Optional[List[List[float]]]),
     ],
 )
 
@@ -78,8 +81,8 @@ def _from_pretrained(
         cfg["training"]["model_dir"] = model_dir.as_posix()
 
     # parse and validate cfg
-    _, load_model_path, device, n_gpu, _, _, fp16 = parse_train_args(cfg["training"],
-                                                                     mode="prediction")
+    (_, load_model_path, device, n_gpu, num_workers, normalization,
+     fp16) = parse_train_args(cfg["training"], mode="prediction")
 
     # read vocabs
     src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
@@ -118,6 +121,8 @@ def _from_pretrained(
         "n_gpu": n_gpu,
         "fp16": fp16,
         "cfg": cfg,
+        "num_workers": num_workers,
+        "normalization": normalization,
     }
     return config, test_data, model
 
@@ -134,6 +139,8 @@ class TranslatorHubInterface(nn.Module):
         self.device = config["device"]
         self.n_gpu = config["n_gpu"]
         self.fp16 = config["fp16"]
+        self.num_workers = config["num_workers"]
+        self.normalization = config["normalization"]
         self.dataset = dataset
         self.model = model
         if self.device.type == "cuda":
@@ -142,83 +149,122 @@ class TranslatorHubInterface(nn.Module):
 
     def score(
         self,
-        src: Union[str, List[str]],
-        trg: Optional[Union[str, List[str]]] = None,
+        src: List[str],
+        trg: Optional[List[str]] = None,
         **kwargs,
-    ) -> Union[str, List[str]]:
-        return_str = False
-        if isinstance(src, str):
-            src = [src]
-            return_str = True
-        assert len(
-            src
-        ) <= 64, "for big dataset, please use `test` function instead of `score`!"
-        return_prob = "ref" if trg else "hyp"
-        kwargs["return_prob"] = return_prob
+    ) -> List[PredictionOutput]:
+        assert isinstance(src, list), "Please provide a list of sentences!"
+        kwargs["return_prob"] = "hyp" if trg is None else "ref"
+        kwargs["return_attention"] = True
 
-        _, translations, tokens, token_probs, attention_probs = self._generate(
-            src, **kwargs)
-
-        if return_str:
-            return Scores(
-                translations=translations[0],
-                tokens=tokens[0],
-                token_probs=token_probs[0],
-                attention_probs=attention_probs[0],
+        if trg is not None and self.model.loss_function is None:
+            self.model.loss_function = (
+                # need to instantiate loss func to compute ref scores
+                self.cfg["training"].get("loss", "crossentropy"),
+                self.cfg["training"].get("label_smoothing", 0.1),
             )
-        return Scores(
-            translations=translations,
-            tokens=tokens,
-            token_probs=token_probs,
-            attention_probs=attention_probs,
-        )
 
-    def translate(self, src: Union[str, List[str]], **kwargs) -> Union[str, List[str]]:
-        return_str = False
-        if isinstance(src, str):
-            src = [src]
-            return_str = True
-        assert len(
-            src
-        ) <= 64, "for big dataset, please use `test` function instead of `translate`!"
+        translations, tokens, probs, attn, test_cfg = self._generate(src, trg, **kwargs)
+
+        beam_size = test_cfg.get("beam_size", 1)
+        n_best = test_cfg.get("n_best", 1)
+
+        out = []
+        for i in range(len(src)):
+            offset = i * n_best
+            p_range = probs[offset:offset + n_best]
+            pred = PredictionOutput(
+                translation=trg[i] if trg else translations[offset:offset + n_best],
+                tokens=tokens[offset:offset + n_best],
+                token_probs=[p.tolist() for p in p_range] if beam_size == 1 else None,
+                sequence_probs=[p[0] for p in p_range] if beam_size > 1 else None,
+                attention_probs=attn[offset:offset + n_best] if attn else None,
+            )
+            out.append(pred)
+        return out
+
+    def translate(self, src: List[str], **kwargs) -> List[str]:
+        assert isinstance(src, list), "Please provide a list of sentences!"
         kwargs["return_prob"] = "none"
 
-        _, translations, _, _, _ = self._generate(src, **kwargs)
+        translations, _, _, _, _ = self._generate(src, **kwargs)
 
-        if return_str:
-            return translations[0]
         return translations
 
-    def _generate(self, src: List[str], **kwargs) -> List[str]:
+    def _generate(
+        self,
+        src: List[str],
+        trg: Optional[List[str]] = None,
+        **kwargs,
+    ) -> List[str]:
 
         # overwrite config
-        test_cfg = self.cfg['testing']
+        test_cfg = self.cfg['testing'].copy()
         test_cfg.update(kwargs)
 
-        if isinstance(self.dataset, StreamDataset):
+        assert self.dataset.__class__.__name__ == "StreamDataset", self.dataset
+        test_cfg["batch_type"] = "sentence"
+        test_cfg["batch_size"] = len(src)
 
-            test_cfg["batch_type"] = "sentence"
-            test_cfg["batch_size"] = len(src)
-            self.dataset.cache = {}  # reset cache
+        self.dataset.cache = {}  # reset cache
+        if trg is not None:
+            assert len(src) == len(trg), "src and trg must have the same length!"
+            self.dataset.has_trg = True
+            test_cfg["n_best"] = 1
+            test_cfg["beam_size"] = 1
+            test_cfg["return_prob"] = "ref"
+            for src_sent, trg_sent in zip(src, trg):
+                self.dataset.set_item(src_sent, trg_sent)
+        else:
+            self.dataset.has_trg = False
             for sentence in src:
                 self.dataset.set_item(sentence)
 
         assert len(self.dataset) > 0
 
-        scores, _, translations, tokens, sequence_probs, attention_probs = predict(
+        _, _, translations, tokens, probs, attention_probs = predict(
             model=self.model,
             data=self.dataset,
-            compute_loss=False,
+            compute_loss=trg is not None,
             device=self.device,
             n_gpu=self.n_gpu,
-            normalization="none",
-            num_workers=0,
+            normalization=self.normalization,
+            num_workers=self.num_workers,
             cfg=test_cfg,
             fp16=self.fp16,
         )
-        assert len(src) * test_cfg.get("n_best", 1) == len(translations)
+        if translations:
+            assert len(src) * test_cfg.get("n_best", 1) == len(translations)
 
-        if isinstance(self.dataset, StreamDataset):
-            self.dataset.cache = {}  # reset cache
+        self.dataset.cache = {}  # reset cache
 
-        return scores, translations, tokens, sequence_probs, attention_probs
+        return translations, tokens, probs, attention_probs, test_cfg
+
+    def plot_attention(self, src: str, trg: str, attention_scores: np.ndarray) -> None:
+        # preprocess and tokenize sentences
+        self.dataset.cache = {}  # reset cache
+        self.dataset.has_trg = True
+        self.dataset.set_item(src, trg)
+        src_tokens = self.dataset.get_item(idx=0,
+                                           lang=self.dataset.src_lang,
+                                           is_train=False)
+        trg_tokens = self.dataset.get_item(idx=0,
+                                           lang=self.dataset.trg_lang,
+                                           is_train=False)
+        self.dataset.cache = {}  # reset cache
+
+        assert len(src_tokens) + 1 == attention_scores.shape[1]
+        assert len(trg_tokens) + 1 == attention_scores.shape[0]
+
+        # plot attention scores
+        fig = px.imshow(
+            attention_scores,
+            labels={
+                "x": "Src",
+                "y": "Trg",
+            },
+            x=src_tokens + [EOS_TOKEN],
+            y=trg_tokens + [EOS_TOKEN],
+        )
+        fig.update_xaxes(side="top", tickangle=270)
+        fig.show()

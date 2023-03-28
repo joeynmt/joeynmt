@@ -77,7 +77,7 @@ def _load_from_remote(
 def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 deen transformer
-    See
+    See https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
     """
     return _load_from_remote(
         model_name_or_path="transformer_iwslt14_deen_bpe",
@@ -90,7 +90,7 @@ def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
 def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 deen RNN
-    See
+    See https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
     """
     return _load_from_remote(
         model_name_or_path="rnn_iwslt14_deen_bpe",
@@ -103,7 +103,7 @@ def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 deen
-    See
+    See https://aclanthology.org/W14-3302
     """
     return _load_from_remote(
         model_name_or_path="wmt14_deen",
@@ -116,10 +116,36 @@ def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_ende(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 ende
-    See
+    See https://aclanthology.org/W14-3302
     """
     return _load_from_remote(
         model_name_or_path="wmt14_ende",
+        ckpt_file="avg5.ckpt",
+        cfg_file="config.yaml",
+        **kwargs
+    )
+
+
+def jparacrawl_jaen(*args, **kwargs) -> TranslatorHubInterface:
+    """
+    JParaCrawl jaen
+    See https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+    """
+    return _load_from_remote(
+        model_name_or_path="jparacrawl_jaen",
+        ckpt_file="avg5.ckpt",
+        cfg_file="config.yaml",
+        **kwargs
+    )
+
+
+def jparacrawl_enja(*args, **kwargs) -> TranslatorHubInterface:
+    """
+    JParaCrawl enja
+    See https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+    """
+    return _load_from_remote(
+        model_name_or_path="jparacrawl_enja",
         ckpt_file="avg5.ckpt",
         cfg_file="config.yaml",
         **kwargs

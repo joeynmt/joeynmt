@@ -86,3 +86,4 @@ model:
         input_feeding: True
         init_hidden: "zero"
         attention: "luong"
+        activation: "tanh"

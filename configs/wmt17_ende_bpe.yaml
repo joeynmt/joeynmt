@@ -16,6 +16,7 @@ data:
         lowercase: False
         normalize: True
         level: "bpe"
+        voc_limit: 32000
         voc_min_freq: 1
         voc_file: "subwords/wmt17_bpe.vocab"
         tokenizer_type: "subword-nmt"
@@ -109,6 +110,7 @@ model:
         ff_size: 2048
         dropout: 0.1
         layer_norm: "pre"
+        activation: "relu"
     decoder:
         type: "transformer"
         num_layers: 6
@@ -122,3 +124,4 @@ model:
         ff_size: 2048
         dropout: 0.1
         layer_norm: "pre"
+        activation: "relu"

@@ -132,6 +132,7 @@ model:                              # specify your model architecture here
         dropout: 0.1                # apply dropout to the outputs to the transformer, default: 0.0
         freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
         layer_norm: "pre"           # where to apply layer norm. either "pre" or "post". default "post"
+        activation: "relu"          # activation function. choices: "relu", "gelu", "tanh", "swish". default: "relu"
     decoder:
         type: "transformer"         # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
         num_layers: 3               # number of layers
@@ -146,3 +147,4 @@ model:                              # specify your model architecture here
         dropout: 0.1                # apply dropout to the outputs to the transformer, default: 0.0
         freeze: False               # if True, decoder parameters are not updated during training (does not include embedding parameters, but attention)
         layer_norm: "pre"           # where to apply layer norm. either "pre" or "post". default "post"
+        activation: "relu"          # activation function. choices: "relu", "gelu", "tanh", "swish". default: "relu"

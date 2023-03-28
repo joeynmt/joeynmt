@@ -8,6 +8,7 @@ import torch
 from torch import Tensor, nn
 
 from joeynmt.attention import BahdanauAttention, LuongAttention
+from joeynmt.builders import build_activation
 from joeynmt.encoders import Encoder
 from joeynmt.helpers import ConfigurationError, freeze_params, subsequent_mask
 from joeynmt.transformer_layers import PositionalEncoding, TransformerDecoderLayer
@@ -140,6 +141,9 @@ class RecurrentDecoder(Decoder):
                         f"last encoder state, their sizes have to match "
                         f"(encoder: {encoder.output_size} "
                         f"vs. decoder: {self.hidden_size})")
+
+        self.activation = build_activation(kwargs.get("activation", "tanh"))
+
         if freeze:
             freeze_params(self)
 
@@ -284,7 +288,7 @@ class RecurrentDecoder(Decoder):
         # batch x 1 x 2*enc_size+hidden_size
         att_vector_input = self.hidden_dropout(att_vector_input)
 
-        att_vector = torch.tanh(self.att_vector_layer(att_vector_input))
+        att_vector = self.activation(self.att_vector_layer(att_vector_input))
 
         # output: batch x 1 x hidden_size
         return att_vector, hidden, att_probs
@@ -456,8 +460,9 @@ class RecurrentDecoder(Decoder):
         # for multiple layers: is the same for all layers
         if self.init_hidden_option == "bridge" and encoder_final is not None:
             # num_layers x batch_size x hidden_size
-            hidden = (torch.tanh(self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
-                self.num_layers, 1, 1))
+            hidden = (self.activation(
+                self.bridge_layer(encoder_final)).unsqueeze(0).repeat(
+                    self.num_layers, 1, 1))
         elif self.init_hidden_option == "last" and encoder_final is not None:
             # special case: encoder is bidirectional: use only forward state
             if encoder_final.shape[1] == 2 * self.hidden_size:  # bidirectional
@@ -521,6 +526,7 @@ class TransformerDecoder(Decoder):
                 dropout=dropout,
                 alpha=kwargs.get("alpha", 1.0),
                 layer_norm=kwargs.get("layer_norm", "post"),
+                activation=kwargs.get("activation", "relu"),
             ) for _ in range(num_layers)
         ])
 
@@ -589,4 +595,5 @@ class TransformerDecoder(Decoder):
         return (f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
                 f"num_heads={self.layers[0].trg_trg_att.num_heads}, "
                 f"alpha={self.layers[0].alpha}, "
-                f'layer_norm="{self.layers[0]._layer_norm_position}")')
+                f'layer_norm="{self.layers[0]._layer_norm_position}", '
+                f"activation={self.layers[0].feed_forward.pwff_layer[1]})")
