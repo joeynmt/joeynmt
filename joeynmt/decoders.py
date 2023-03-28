@@ -9,8 +9,9 @@ from torch import Tensor, nn
 
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.builders import build_activation
+from joeynmt.config import ConfigurationError
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import ConfigurationError, freeze_params, subsequent_mask
+from joeynmt.helpers import freeze_params, subsequent_mask
 from joeynmt.transformer_layers import PositionalEncoding, TransformerDecoderLayer
 
 

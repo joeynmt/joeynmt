@@ -1,24 +1,16 @@
 import logging
-from functools import partial
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Union
+from typing import List, NamedTuple, Optional, Union
 
 import numpy as np
 import plotly.express as px
 from torch import nn
 
+from joeynmt.config import BaseConfig, TestConfig, load_config, parse_global_args
 from joeynmt.constants import EOS_TOKEN
-from joeynmt.datasets import BaseDataset, build_dataset
-from joeynmt.helpers import (
-    load_checkpoint,
-    load_config,
-    parse_train_args,
-    resolve_ckpt_path,
-)
-from joeynmt.model import Model, build_model
-from joeynmt.prediction import predict
-from joeynmt.tokenizers import build_tokenizer
-from joeynmt.vocabulary import build_vocab
+from joeynmt.datasets import BaseDataset, StreamDataset
+from joeynmt.model import Model
+from joeynmt.prediction import predict, prepare
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +39,6 @@ def _check_file_path(path: Union[str, Path], model_dir: Path) -> Path:
 
 def _from_pretrained(
     model_name_or_path: Union[str, Path],
-    ckpt_file: Union[str, Path] = None,
     cfg_file: Union[str, Path] = "config.yaml",
     **kwargs,
 ):
@@ -80,51 +71,13 @@ def _from_pretrained(
     if not Path(cfg["training"]["model_dir"]).is_dir():
         cfg["training"]["model_dir"] = model_dir.as_posix()
 
-    # parse and validate cfg
-    (_, load_model_path, device, n_gpu, num_workers, normalization,
-     fp16) = parse_train_args(cfg["training"], mode="prediction")
+    # parse args
+    args = parse_global_args(cfg)
 
-    # read vocabs
-    src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
+    # load the data
+    model, _, _, test_data = prepare(args, mode="translate")
 
-    # build model
-    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
-
-    # load model state from disk
-    logger.info("Preparing a joeynmt model...")
-    ckpt_file = _check_file_path(ckpt_file, model_dir)
-    load_model_path = load_model_path if ckpt_file is None else ckpt_file
-    ckpt = resolve_ckpt_path(load_model_path, model_dir)
-    model_checkpoint = load_checkpoint(ckpt, device=device)
-    model.load_state_dict(model_checkpoint["model_state"])
-
-    # create stream dataset
-    src_lang = cfg["data"]["src"]["lang"]
-    trg_lang = cfg["data"]["trg"]["lang"]
-    tokenizer = build_tokenizer(cfg["data"])
-    sequence_encoder = {
-        src_lang: partial(src_vocab.sentences_to_ids, bos=False, eos=True),
-        trg_lang: partial(trg_vocab.sentences_to_ids, bos=True, eos=True),
-    }
-    test_data = build_dataset(
-        dataset_type="stream",
-        path=None,
-        src_lang=src_lang,
-        trg_lang=trg_lang,
-        split="test",
-        tokenizer=tokenizer,
-        sequence_encoder=sequence_encoder,
-    )
-
-    config = {
-        "device": device,
-        "n_gpu": n_gpu,
-        "fp16": fp16,
-        "cfg": cfg,
-        "num_workers": num_workers,
-        "normalization": normalization,
-    }
-    return config, test_data, model
+    return model, test_data, args
 
 
 class TranslatorHubInterface(nn.Module):
@@ -133,14 +86,14 @@ class TranslatorHubInterface(nn.Module):
     encoder-decoder model.
     """
 
-    def __init__(self, config: Dict, dataset: BaseDataset, model: Model):
+    def __init__(self, model: Model, dataset: BaseDataset, args: BaseConfig):
         super().__init__()
-        self.cfg = config["cfg"]
-        self.device = config["device"]
-        self.n_gpu = config["n_gpu"]
-        self.fp16 = config["fp16"]
-        self.num_workers = config["num_workers"]
-        self.normalization = config["normalization"]
+        self.args = args
+        self.device = args.device
+        self.n_gpu = args.n_gpu
+        self.fp16 = args.fp16
+        self.num_workers = args.num_workers
+        self.normalization = args.train.num_workers
         self.dataset = dataset
         self.model = model
         if self.device.type == "cuda":
@@ -156,13 +109,6 @@ class TranslatorHubInterface(nn.Module):
         assert isinstance(src, list), "Please provide a list of sentences!"
         kwargs["return_prob"] = "hyp" if trg is None else "ref"
         kwargs["return_attention"] = True
-
-        if trg is not None and self.model.loss_function is None:
-            self.model.loss_function = (
-                # need to instantiate loss func to compute ref scores
-                self.cfg["training"].get("loss", "crossentropy"),
-                self.cfg["training"].get("label_smoothing", 0.1),
-            )
 
         translations, tokens, probs, attn, test_cfg = self._generate(src, trg, **kwargs)
 
@@ -199,10 +145,10 @@ class TranslatorHubInterface(nn.Module):
     ) -> List[str]:
 
         # overwrite config
-        test_cfg = self.cfg['testing'].copy()
+        test_cfg = self.cfg['testing']
         test_cfg.update(kwargs)
 
-        assert self.dataset.__class__.__name__ == "StreamDataset", self.dataset
+        assert isinstance(self.dataset, StreamDataset), self.dataset
         test_cfg["batch_type"] = "sentence"
         test_cfg["batch_size"] = len(src)
 
@@ -230,7 +176,7 @@ class TranslatorHubInterface(nn.Module):
             n_gpu=self.n_gpu,
             normalization=self.normalization,
             num_workers=self.num_workers,
-            cfg=test_cfg,
+            args=TestConfig(**test_cfg),
             fp16=self.fp16,
         )
         if translations:

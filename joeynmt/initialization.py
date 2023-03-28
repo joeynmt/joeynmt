@@ -10,7 +10,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
-from joeynmt.helpers import ConfigurationError
+from joeynmt.config import ConfigurationError
 
 logger = logging.getLogger(__name__)
 

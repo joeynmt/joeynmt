@@ -82,7 +82,7 @@ def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     return _load_from_remote(
         model_name_or_path="transformer_iwslt14_deen_bpe",
         ckpt_file="best.ckpt",
-        cfg_file="config_v2.yaml",
+        cfg_file="config_v2.3.yaml",
         **kwargs
     )
 
@@ -95,7 +95,7 @@ def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     return _load_from_remote(
         model_name_or_path="rnn_iwslt14_deen_bpe",
         ckpt_file="best.ckpt",
-        cfg_file="config_v2.yaml",
+        cfg_file="config_v2.3.yaml",
         **kwargs
     )
 

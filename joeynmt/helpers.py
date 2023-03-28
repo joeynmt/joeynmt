@@ -14,15 +14,13 @@ import shutil
 import sys
 import unicodedata
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import packaging.version
 import pkg_resources
 import torch
-import yaml
 from torch import Tensor, nn
-from torch.multiprocessing import cpu_count
 from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.plotting import plot_heatmap
@@ -30,17 +28,12 @@ from joeynmt.plotting import plot_heatmap
 np.set_printoptions(linewidth=sys.maxsize)  # format for printing numpy array
 
 
-class ConfigurationError(Exception):
-    """Custom exception for misspecifications of configuration"""
-
-
-def make_model_dir(model_dir: Path, overwrite: bool = False) -> Path:
+def make_model_dir(model_dir: Path, overwrite: bool = False):
     """
     Create a new directory for the model.
 
     :param model_dir: path to model directory
     :param overwrite: whether to overwrite an existing directory
-    :return: path to model directory
     """
     model_dir = model_dir.absolute()
     if model_dir.is_dir():
@@ -50,7 +43,6 @@ def make_model_dir(model_dir: Path, overwrite: bool = False) -> Path:
         # delete previous directory to start with empty dir again
         shutil.rmtree(model_dir)
     model_dir.mkdir(parents=True)  # create model_dir recursively
-    return model_dir
 
 
 def make_logger(log_dir: Path = None, mode: str = "train") -> str:
@@ -105,23 +97,6 @@ def check_version(pkg_version: str, cfg_version: str) -> None:
         f'but {str(config_version)} is expected in the given config.')
 
 
-def log_cfg(cfg: Dict, prefix: str = "cfg") -> None:
-    """
-    Write configuration to log.
-
-    :param cfg: configuration to log
-    :param prefix: prefix for logging
-    """
-    logger = logging.getLogger(__name__)
-    for k, v in cfg.items():
-        if isinstance(v, dict):
-            p = ".".join([prefix, k])
-            log_cfg(v, prefix=p)
-        else:
-            p = ".".join([prefix, k])
-            logger.info("%34s : %s", p, v)
-
-
 def clones(module: nn.Module, n: int) -> nn.ModuleList:
     """
     Produce N identical layers. Transformer helper function.
@@ -159,20 +134,6 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
-def load_config(path: Union[Path, str] = "configs/default.yaml") -> Dict:
-    """
-    Loads and parses a YAML configuration file.
-
-    :param path: path to YAML configuration file
-    :return: configuration dictionary
-    """
-    if isinstance(path, str):
-        path = Path(path)
-    with path.open("r", encoding="utf-8") as ymlfile:
-        cfg = yaml.safe_load(ymlfile)
-    return cfg
-
-
 def write_list_to_file(output_path: Path, array: List[Any]) -> None:
     """
     Write list of str to file in `output_path`.
@@ -200,208 +161,22 @@ def read_list_from_file(input_path: Path) -> List[str]:
     ]
 
 
-def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
-    """Parse and validate train args specified in config file"""
-    logger = logging.getLogger(__name__)
+def save_hypothese(output_path: Path, hypotheses: List[str], n_best: str = 1) -> None:
+    """
+    Save list hypothese to file.
 
-    model_dir: Path = Path(cfg["model_dir"])
-    assert model_dir.is_dir(), f"{model_dir} not found."
-
-    use_cuda: bool = cfg["use_cuda"] and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-    n_gpu: int = torch.cuda.device_count() if use_cuda else 0
-    num_workers: int = cfg.get("num_workers", 0)
-    if num_workers > 0:
-        num_workers = min(cpu_count(), num_workers)
-
-    # normalization
-    normalization: str = cfg.get("normalization", "batch")
-    if normalization not in ["batch", "tokens", "none"]:
-        raise ConfigurationError(
-            "Invalid `normalization` option. Valid options: {`batch`, `token`, `none`}."
-        )
-
-    # model initialization
-    def _load_path(path):
-        load_path = cfg.get(path, None)
-        if load_path is not None:
-            load_path = Path(load_path)
-            assert load_path.is_file(), load_path
-        return load_path
-
-    load_model: Optional[Path] = _load_path("load_model")
-
-    # fp16
-    fp16: bool = cfg.get("fp16", False)
-
-    if mode == "prediction":
-        return model_dir, load_model, device, n_gpu, num_workers, normalization, fp16
-
-    # layer initialization
-    load_encoder: Optional[Path] = _load_path("load_encoder")
-    load_decoder: Optional[Path] = _load_path("load_decoder")
-
-    # objective
-    loss_type: str = cfg.get("loss", "crossentropy")
-    label_smoothing: float = cfg.get("label_smoothing", 0.0)
-    if loss_type not in ["crossentropy"]:
-        raise ConfigurationError("Invalid `loss` type. Valid option: {`crossentropy`}.")
-
-    # minimum learning rate for early stopping
-    learning_rate_min: float = cfg.get("learning_rate_min", 1.0e-8)
-
-    # save/delete checkpoints
-    keep_best_ckpts: int = int(cfg.get("keep_best_ckpts", 5))
-    _keep_last_ckpts: Optional[int] = cfg.get("keep_last_ckpts", None)
-    if _keep_last_ckpts is not None:  # backward compatibility
-        keep_best_ckpts = _keep_last_ckpts
-        logger.warning("`keep_last_ckpts` option is outdated. "
-                       "Please use `keep_best_ckpts`, instead.")
-
-    # logging, validation
-    logging_freq: int = cfg.get("logging_freq", 100)
-    validation_freq: int = cfg.get("validation_freq", 1000)
-    log_valid_sents: List[int] = cfg.get("print_valid_sents", [0, 1, 2])
-
-    # early stopping
-    early_stopping_metric: str = cfg.get("early_stopping_metric", "ppl").lower()
-    if early_stopping_metric not in ["acc", "loss", "ppl", "bleu", "chrf"]:
-        raise ConfigurationError(
-            "Invalid setting for `early_stopping_metric`. "
-            "Valid options: {`acc`, `loss`, `ppl`, `bleu`, `chrf`}.")
-
-    # data & batch handling
-    seed: int = cfg.get("random_seed", 42)
-    shuffle: bool = cfg.get("shuffle", True)
-    epochs: int = cfg["epochs"]
-    max_updates: float = cfg.get("updates", np.inf)
-    batch_size: int = cfg["batch_size"]
-    batch_type: str = cfg.get("batch_type", "sentence")
-    if batch_type not in ["sentence", "token"]:
-        raise ConfigurationError(
-            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
-    batch_multiplier: int = cfg.get("batch_multiplier", 1)
-
-    # resume training process
-    reset_best_ckpt = cfg.get("reset_best_ckpt", False)
-    reset_scheduler = cfg.get("reset_scheduler", False)
-    reset_optimizer = cfg.get("reset_optimizer", False)
-    reset_iter_state = cfg.get("reset_iter_state", False)
-
-    return (
-        model_dir,
-        load_model,
-        load_encoder,
-        load_decoder,
-        loss_type,
-        label_smoothing,
-        normalization,
-        learning_rate_min,
-        keep_best_ckpts,
-        logging_freq,
-        validation_freq,
-        log_valid_sents,
-        early_stopping_metric,
-        seed,
-        shuffle,
-        epochs,
-        max_updates,
-        batch_size,
-        batch_type,
-        batch_multiplier,
-        device,
-        n_gpu,
-        num_workers,
-        fp16,
-        reset_best_ckpt,
-        reset_scheduler,
-        reset_optimizer,
-        reset_iter_state,
-    )
-
-
-def parse_test_args(cfg: Dict) -> Tuple:
-    """Parse test args"""
-    logger = logging.getLogger(__name__)
-
-    # batch options
-    batch_size: int = cfg.get("batch_size", 64)
-    batch_type: str = cfg.get("batch_type", "sentences")
-    if batch_type not in ["sentence", "token"]:
-        raise ConfigurationError(
-            "Invalid `batch_type` option. Valid options: {`sentence`, `token`}.")
-    if batch_size > 1000 and batch_type == "sentence":
-        logger.warning(
-            "WARNING: Are you sure you meant to work on huge batches like this? "
-            "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to `batch_type: 'token'`.")
-
-    # limit on generation length
-    max_output_length: int = cfg.get("max_output_length", -1)
-    min_output_length: int = cfg.get("min_output_length", 1)
-
-    # eval metrics
-    if "eval_metrics" in cfg:
-        eval_metrics = [s.strip().lower() for s in cfg["eval_metrics"]]
-    elif "eval_metric" in cfg:
-        eval_metrics = [cfg["eval_metric"].strip().lower()]
-        logger.warning(
-            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead.")
+    :param output_path: output file path
+    :param hypotheses: hypothese to write
+    :param n_best: n_best size
+    """
+    if n_best > 1:
+        for n in range(n_best):
+            write_list_to_file(
+                output_path.parent / f"{output_path.stem}-{n}.{output_path.suffix}",
+                [hypotheses[i] for i in range(n, len(hypotheses), n_best)],
+            )
     else:
-        eval_metrics = []
-    for eval_metric in eval_metrics:
-        if eval_metric not in ["bleu", "chrf", "token_accuracy", "sequence_accuracy"]:
-            raise ConfigurationError(
-                "Invalid setting for `eval_metrics`. "
-                "Valid options: 'bleu', 'chrf', 'token_accuracy', 'sequence_accuracy'.")
-
-    # sacrebleu cfg
-    sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
-    if "sacrebleu" in cfg:
-        sacrebleu_cfg: Dict = cfg["sacrebleu"]
-        logger.warning(
-            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead.")
-
-    # beam search options
-    n_best: int = cfg.get("n_best", 1)
-    beam_size: int = cfg.get("beam_size", 1)
-    beam_alpha: float = cfg.get("beam_alpha", -1)
-    if "alpha" in cfg:
-        beam_alpha = cfg["alpha"]
-        logger.warning("`alpha` option is obsolete. Please use `beam_alpha`, instead.")
-    assert beam_size > 0, "Beam size must be > 0."
-    assert n_best > 0, "N-best size must be > 0."
-    assert n_best <= beam_size, "`n_best` must be smaller than or equal to `beam_size`."
-
-    # control options
-    return_attention: bool = cfg.get("return_attention", False)
-    return_prob: str = cfg.get("return_prob", "none")
-    if return_prob not in ["hyp", "ref", "none"]:
-        raise ConfigurationError(
-            "Invalid `return_prob` option. Valid options: {`hyp`, `ref`, `none`}.")
-    generate_unk: bool = cfg.get("generate_unk", True)
-    repetition_penalty: float = cfg.get("repetition_penalty", -1)
-    if 0 < repetition_penalty < 1:
-        raise ConfigurationError(
-            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)")
-    no_repeat_ngram_size: int = cfg.get("no_repeat_ngram_size", -1)
-
-    return (
-        batch_size,
-        batch_type,
-        max_output_length,
-        min_output_length,
-        eval_metrics,
-        sacrebleu_cfg,
-        beam_size,
-        beam_alpha,
-        n_best,
-        return_attention,
-        return_prob,
-        generate_unk,
-        repetition_penalty,
-        no_repeat_ngram_size,
-    )
+        write_list_to_file(output_path, hypotheses)
 
 
 def store_attention_plots(

@@ -12,7 +12,7 @@ from torch import Tensor
 from joeynmt.batch import Batch
 from joeynmt.decoders import RecurrentDecoder, TransformerDecoder
 from joeynmt.helpers import tile
-from joeynmt.model import Model
+from joeynmt.model import Model, _DataParallel
 
 __all__ = ["greedy", "beam_search", "search"]
 
@@ -114,6 +114,8 @@ def recurrent_greedy(
                 )
                 # out: batch x time=1 x vocab (logits)
 
+        out[:, :, bos_index] = float("-inf")
+
         if return_prob:
             out = F.log_softmax(out, dim=-1)
 
@@ -200,7 +202,7 @@ def transformer_greedy(
 
     # a subsequent mask is intersected with this in decoder forward pass
     trg_mask = src_mask.new_ones([1, 1, 1])
-    if isinstance(model, torch.nn.DataParallel):
+    if isinstance(model, _DataParallel):
         trg_mask = torch.stack([src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
     finished = src_mask.new_zeros(batch_size).byte()
@@ -221,6 +223,8 @@ def transformer_greedy(
                 )
 
         out = out[:, -1]  # logits
+        out[:, bos_index] = float("-inf")
+
         if not generate_unk:
             out[:, unk_index] = float("-inf")
 
@@ -281,7 +285,7 @@ def transformer_greedy(
     output = ys[:, 1:].detach().cpu().long()
     scores = yv[:, 1:].detach().cpu().float() if return_prob else None
     attention = yt[:, 1:, :].detach().cpu().float() if return_attention else None
-    assert output.shape[0] == batch_size, (output.shape, batch_size)
+    assert output.size(0) == batch_size, (output.shape, batch_size)
     return output, scores, attention
 
 
@@ -315,7 +319,9 @@ def beam_search(
     """
     # pylint: disable=too-many-statements,too-many-branches
     assert beam_size > 0, "Beam size must be >0."
-    assert n_best <= beam_size, f"Can only return {beam_size} best hypotheses."
+    assert n_best <= beam_size, (
+        f"Can only return {beam_size} best hypotheses."
+        "`n_best` must be smaller than or equal to `beam_size`.")
 
     # Take the best 2 x {beam_size} predictions so as to avoid duplicates in generation.
     # yet, only return {n_best} hypotheses.
@@ -376,7 +382,7 @@ def beam_search(
     # Transformer only: create target mask
     if is_transformer:
         trg_mask = src_mask.new_ones([1, 1, 1])
-        if isinstance(model, torch.nn.DataParallel):
+        if isinstance(model, _DataParallel):
             trg_mask = torch.stack(
                 [src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
@@ -464,6 +470,8 @@ def beam_search(
         # compute log probability distribution over trg vocab
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
         log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
+        log_probs[:, bos_index] = float("-inf")
+
         if not generate_unk:
             log_probs[:, unk_index] = float("-inf")
 

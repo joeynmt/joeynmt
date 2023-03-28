@@ -19,8 +19,9 @@ from torch.utils.data import (
 )
 
 from joeynmt.batch import Batch
+from joeynmt.config import ConfigurationError
 from joeynmt.constants import PAD_ID
-from joeynmt.helpers import ConfigurationError, read_list_from_file
+from joeynmt.helpers import read_list_from_file
 from joeynmt.tokenizers import BasicTokenizer
 
 logger = logging.getLogger(__name__)

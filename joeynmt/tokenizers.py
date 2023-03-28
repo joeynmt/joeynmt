@@ -11,8 +11,9 @@ from typing import Dict, List, Union
 import sentencepiece as sp
 from subword_nmt import apply_bpe
 
+from joeynmt.config import ConfigurationError
 from joeynmt.constants import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
-from joeynmt.helpers import ConfigurationError, remove_extra_spaces, unicode_normalize
+from joeynmt.helpers import remove_extra_spaces, unicode_normalize
 
 logger = logging.getLogger(__name__)
 
@@ -360,18 +361,20 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
                 **tokenizer_cfg,
             )
         else:
-            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type.")
+            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type. "
+                                     "Valid options: {'sentencepiece', 'subword-nmt'}.")
     else:
-        raise ConfigurationError(f"{cfg['level']}: Unknown tokenization level.")
+        raise ConfigurationError(f"{cfg['level']}: Unknown tokenization level. "
+                                 "Valid options: {'word', 'bpe', 'char'}.")
     return tokenizer
 
 
-def build_tokenizer(data_cfg: Dict) -> Dict[str, BasicTokenizer]:
-    src_lang = data_cfg["src"]["lang"]
-    trg_lang = data_cfg["trg"]["lang"]
+def build_tokenizer(cfg: Dict) -> Dict[str, BasicTokenizer]:
+    src_lang = cfg["src"]["lang"]
+    trg_lang = cfg["trg"]["lang"]
     tokenizer = {
-        src_lang: _build_tokenizer(data_cfg["src"]),
-        trg_lang: _build_tokenizer(data_cfg["trg"]),
+        src_lang: _build_tokenizer(cfg["src"]),
+        trg_lang: _build_tokenizer(cfg["trg"]),
     }
     logger.info("%s tokenizer: %s", src_lang, tokenizer[src_lang])
     logger.info("%s tokenizer: %s", trg_lang, tokenizer[trg_lang])

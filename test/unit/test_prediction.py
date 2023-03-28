@@ -2,6 +2,7 @@ import unittest
 
 import torch
 
+from joeynmt.config import parse_test_args
 from joeynmt.data import load_data
 from joeynmt.helpers import expand_reverse_index
 from joeynmt.model import build_model
@@ -33,7 +34,7 @@ class TestPrediction(unittest.TestCase):
     def setUp(self):
         seed = 42
         torch.manual_seed(seed)
-        self.cfg = {
+        cfg = {
             "data": {
                 "train": "test/data/toy/train",  # needed for vocab
                 "test": "test/data/toy/test",
@@ -90,19 +91,17 @@ class TestPrediction(unittest.TestCase):
                 },
             },
         }
+        self.args = parse_test_args(cfg["testing"])
 
         # load data
         src_vocab, trg_vocab, _, _, self.test_data = load_data(
-            self.cfg["data"], datasets=["train", "test"])
+            cfg["data"], datasets=["train", "test"])
 
         # build model
-        self.model = build_model(self.cfg["model"],
-                                 src_vocab=src_vocab,
-                                 trg_vocab=trg_vocab)
+        self.model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
 
-    def _translate(self, n_best):
-        cfg = self.cfg["testing"].copy()
-        cfg["n_best"] = n_best
+    def _translate(self, n_best: int):
+        self.args = self.args._replace(n_best=n_best)
         _, _, hypotheses, _, _, _ = predict(
             self.model,
             data=self.test_data,
@@ -111,7 +110,7 @@ class TestPrediction(unittest.TestCase):
             n_gpu=0,
             num_workers=0,
             normalization="none",
-            cfg=cfg,
+            args=self.args,
         )
         return hypotheses
 
@@ -136,5 +135,6 @@ class TestPrediction(unittest.TestCase):
         n_best = 10
         with self.assertRaises(AssertionError) as e:
             self._translate(n_best)
-        self.assertEqual("`n_best` must be smaller than or equal to `beam_size`.",
-                         str(e.exception))
+        self.assertEqual(
+            f"Can only return {self.args.beam_size} best hypotheses."
+            "`n_best` must be smaller than or equal to `beam_size`.", str(e.exception))

@@ -1,32 +1,29 @@
 # coding: utf-8
 """
-This modules holds methods for generating predictions from a model.
+This module holds methods for generating predictions from a model.
 """
 import logging
 import math
 import sys
 import time
-from functools import partial
 from itertools import zip_longest
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from torch.nn import DataParallel as DP
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from joeynmt.config import BaseConfig, TestConfig, parse_global_args
 from joeynmt.data import load_data
-from joeynmt.datasets import StreamDataset, build_dataset
+from joeynmt.datasets import StreamDataset
 from joeynmt.helpers import (
-    check_version,
     expand_reverse_index,
     load_checkpoint,
-    load_config,
-    make_logger,
-    parse_test_args,
-    parse_train_args,
     resolve_ckpt_path,
+    save_hypothese,
     set_seed,
     store_attention_plots,
     write_list_to_file,
@@ -34,8 +31,6 @@ from joeynmt.helpers import (
 from joeynmt.metrics import bleu, chrf, sequence_accuracy, token_accuracy
 from joeynmt.model import Model, _DataParallel, build_model
 from joeynmt.search import search
-from joeynmt.tokenizers import build_tokenizer
-from joeynmt.vocabulary import build_vocab
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +43,10 @@ def predict(
     compute_loss: bool = False,
     normalization: str = "batch",
     num_workers: int = 0,
-    cfg: Dict = None,
+    args: TestConfig = None,
     fp16: bool = False,
 ) -> Tuple[Dict[str, float], List[str], List[str], List[List[str]], List[np.ndarray],
-           List[np.ndarray], ]:
+           List[np.ndarray]]:
     """
     Generates translations for the given data.
     If `compute_loss` is True and references are given, also computes the loss.
@@ -63,7 +58,7 @@ def predict(
     :param compute_loss: whether to computes a scalar loss for given inputs and targets
     :param normalization: one of {`batch`, `tokens`, `none`}
     :param num_workers: number of workers for `collate_fn()` in data iterator
-    :param cfg: `testing` section in yaml config file
+    :param args: configuration args
     :param fp16: whether to use fp16
     :return:
         - valid_scores: (dict) current validation scores,
@@ -74,48 +69,31 @@ def predict(
         - valid_attention_scores: (list) attention scores for validation hypotheses
     """
     # pylint: disable=too-many-branches,too-many-statements
-    # parse test cfg
-    (
-        eval_batch_size,
-        eval_batch_type,
-        max_output_length,
-        min_output_length,
-        eval_metrics,
-        sacrebleu_cfg,
-        beam_size,
-        beam_alpha,
-        n_best,
-        return_attention,
-        return_prob,
-        generate_unk,
-        repetition_penalty,
-        no_repeat_ngram_size,
-    ) = parse_test_args(cfg)
 
-    if return_prob == "ref":  # no decoding needed
+    if args.return_prob == "ref":  # no decoding needed
         decoding_description = ""
     else:
         decoding_description = (  # write the decoding strategy in the log
-            " (Greedy decoding with " if beam_size < 2 else
-            f" (Beam search with beam_size={beam_size}, beam_alpha={beam_alpha}, "
-            f"n_best={n_best}, ")
+            " (Greedy decoding with " if args.beam_size < 2 else
+            f" (Beam search with beam_size={args.beam_size}, "
+            f"beam_alpha={args.beam_alpha}, n_best={args.n_best}, ")
         decoding_description += (
-            f"min_output_length={min_output_length}, "
-            f"max_output_length={max_output_length}, "
-            f"return_prob='{return_prob}', generate_unk={generate_unk}, "
-            f"repetition_penalty={repetition_penalty}, "
-            f"no_repeat_ngram_size={no_repeat_ngram_size})")
+            f"min_output_length={args.min_output_length}, "
+            f"max_output_length={args.max_output_length}, "
+            f"return_prob='{args.return_prob}', generate_unk={args.generate_unk}, "
+            f"repetition_penalty={args.repetition_penalty}, "
+            f"no_repeat_ngram_size={args.no_repeat_ngram_size})")
     logger.info("Predicting %d example(s)...%s", len(data), decoding_description)
 
-    assert eval_batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
+    assert args.batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
     # **CAUTION:** a batch will be expanded to batch.nseqs * beam_size, and it might
     # cause an out-of-memory error.
     # if batch_size > beam_size:
     #     batch_size //= beam_size
 
     valid_iter = data.make_iter(
-        batch_size=eval_batch_size,
-        batch_type=eval_batch_type,
+        batch_size=args.batch_size,
+        batch_type=args.batch_type,
         shuffle=False,
         num_workers=num_workers,
         pad_index=model.pad_index,
@@ -144,8 +122,8 @@ def predict(
 
             # sort batch now by src length and keep track of order
             reverse_index = batch.sort_by_src_length()
-            sort_reverse_index = expand_reverse_index(reverse_index, n_best)
-            batch_size = len(sort_reverse_index)  # = batch.nseqs * n_best
+            sort_reverse_index = expand_reverse_index(reverse_index, args.n_best)
+            batch_size = len(sort_reverse_index)  # = batch.nseqs * args.n_best
 
             # run as during training to get validation loss (e.g. xent)
             if compute_loss and batch.has_trg:
@@ -156,13 +134,13 @@ def predict(
                     with torch.no_grad():
                         batch_loss, log_probs, attn, n_correct = model(
                             return_type="loss",
-                            return_attention=return_attention,
+                            return_attention=args.return_attention,
                             **vars(batch))
 
                 # sum over multiple gpus
                 batch_loss = batch.normalize(batch_loss, "sum", n_gpu=n_gpu)
                 n_correct = batch.normalize(n_correct, "sum", n_gpu=n_gpu)
-                if return_prob == "ref":
+                if args.return_prob == "ref":
                     ref_scores = batch.score(log_probs)
                     attention_scores = attn.detach().cpu().float().numpy()
                     output = batch.trg
@@ -173,20 +151,20 @@ def predict(
 
             # if return_prob == "ref", then no search needed.
             # (just look up the prob of the ground truth.)
-            if return_prob != "ref":
+            if args.return_prob != "ref":
                 # run search as during inference to produce translations
                 output, hyp_scores, attention_scores = search(
                     model=model,
                     batch=batch,
-                    beam_size=beam_size,
-                    beam_alpha=beam_alpha,
-                    max_output_length=max_output_length,
-                    n_best=n_best,
-                    return_attention=return_attention,
-                    return_prob=return_prob,
-                    generate_unk=generate_unk,
-                    repetition_penalty=repetition_penalty,
-                    no_repeat_ngram_size=no_repeat_ngram_size,
+                    beam_size=args.beam_size,
+                    beam_alpha=args.beam_alpha,
+                    max_output_length=args.max_output_length,
+                    n_best=args.n_best,
+                    return_attention=args.return_attention,
+                    return_prob=args.return_prob,
+                    generate_unk=args.generate_unk,
+                    repetition_penalty=args.repetition_penalty,
+                    no_repeat_ngram_size=args.no_repeat_ngram_size,
                     fp16=fp16,
                 )
 
@@ -206,7 +184,7 @@ def predict(
     gen_duration = time.time() - gen_start_time
 
     assert total_nseqs == len(data), (total_nseqs, len(data))
-    assert len(all_outputs) == len(data) * n_best, (len(all_outputs), len(data), n_best)
+    assert len(all_outputs) == len(data) * args.n_best, (len(all_outputs), len(data))
 
     if compute_loss:
         if normalization == "batch":
@@ -233,7 +211,7 @@ def predict(
     # TODO: `valid_sequence_scores` should have the same seq length as `decoded_valid`
     #     -> needed to be cut-off at eos synchronously
 
-    if return_prob == "ref":  # no evaluation needed
+    if args.return_prob == "ref":  # no evaluation needed
         logger.info(
             "Evaluation result (scoring) %s, duration: %.4f[sec]",
             ", ".join([
@@ -253,7 +231,7 @@ def predict(
 
     # retrieve detokenized hypotheses and references
     valid_hyp = [
-        data.tokenizer[data.trg_lang].post_process(s, generate_unk=generate_unk)
+        data.tokenizer[data.trg_lang].post_process(s, generate_unk=args.generate_unk)
         for s in decoded_valid
     ]
     # references are not length-filtered, not duplicated for n_best > 1
@@ -261,29 +239,30 @@ def predict(
 
     # if references are given, evaluate 1best generation against them
     if data.has_trg:
-        valid_hyp_1best = (valid_hyp if n_best == 1 else
-                           [valid_hyp[i] for i in range(0, len(valid_hyp), n_best)])
+        valid_hyp_1best = (valid_hyp if args.n_best == 1 else [
+            valid_hyp[i] for i in range(0, len(valid_hyp), args.n_best)
+        ])
         assert len(valid_hyp_1best) == len(valid_ref), (valid_hyp_1best, valid_ref)
 
         eval_start_time = time.time()
 
         # evaluate with metrics on full dataset
-        for eval_metric in eval_metrics:
+        for eval_metric in args.eval_metrics:
             if eval_metric == "bleu":
                 valid_scores[eval_metric] = bleu(
                     valid_hyp_1best,
                     valid_ref,  # detokenized ref
-                    **sacrebleu_cfg,
+                    **args.sacrebleu_cfg,
                 )
             elif eval_metric == "chrf":
                 valid_scores[eval_metric] = chrf(
                     valid_hyp_1best,
                     valid_ref,  # detokenized ref
-                    **sacrebleu_cfg,
+                    **args.sacrebleu_cfg,
                 )
             elif eval_metric == "token_accuracy":
-                decoded_valid_1best = (decoded_valid if n_best == 1 else [
-                    decoded_valid[i] for i in range(0, len(decoded_valid), n_best)
+                decoded_valid_1best = (decoded_valid if args.n_best == 1 else [
+                    decoded_valid[i] for i in range(0, len(decoded_valid), args.n_best)
                 ])
                 valid_scores[eval_metric] = token_accuracy(
                     decoded_valid_1best,
@@ -296,12 +275,12 @@ def predict(
         eval_duration = time.time() - eval_start_time
         score_str = ", ".join([
             f"{eval_metric}: {valid_scores[eval_metric]:6.2f}"
-            for eval_metric in eval_metrics + ["loss", "ppl", "acc"]
+            for eval_metric in args.eval_metrics + ["loss", "ppl", "acc"]
             if not math.isnan(valid_scores[eval_metric])
         ])
         logger.info(
             "Evaluation result (%s) %s, generation: %.4f[sec], evaluation: %.4f[sec]",
-            "beam search" if beam_size > 1 else "greedy",
+            "beam search" if args.beam_size > 1 else "greedy",
             score_str,
             gen_duration,
             eval_duration,
@@ -319,11 +298,74 @@ def predict(
     )
 
 
+def prepare(args: BaseConfig, mode: str) -> Tuple[Model, Dataset, Dataset, Dataset]:
+    """
+    Helper function for model and data loading.
+
+    :param args: config args
+    :param mode: execution mode
+    """
+    # load the data
+    if mode == "train":
+        datasets = ["train", "dev", "test"]
+    if mode == "test":
+        datasets = ["dev", "test"]
+    if mode == "translate":
+        datasets = ["stream"]
+
+    if mode != "train":
+        if "voc_file" not in args.data["src"] or not args.data["src"]["voc_file"]:
+            args.data["src"]["voc_file"] = (args.model_dir / "src_vocab.txt").as_posix()
+        if "voc_file" not in args.data["trg"] or not args.data["trg"]["voc_file"]:
+            args.data["trg"]["voc_file"] = (args.model_dir / "trg_vocab.txt").as_posix()
+
+    src_vocab, trg_vocab, train_data, dev_data, test_data = load_data(cfg=args.data,
+                                                                      datasets=datasets)
+
+    if mode == "train":
+        # store the vocabs and tokenizers
+        src_vocab.to_file(args.model_dir / "src_vocab.txt")
+        if hasattr(train_data.tokenizer[train_data.src_lang], "copy_cfg_file"):
+            train_data.tokenizer[train_data.src_lang].copy_cfg_file(args.model_dir)
+        trg_vocab.to_file(args.model_dir / "trg_vocab.txt")
+        if hasattr(train_data.tokenizer[train_data.trg_lang], "copy_cfg_file"):
+            train_data.tokenizer[train_data.trg_lang].copy_cfg_file(args.model_dir)
+
+    # build an encoder-decoder model
+    model = build_model(args.model, src_vocab=src_vocab, trg_vocab=trg_vocab)
+    model.log_parameters_list()
+    # need to instantiate loss func after `build_model()`
+    model.loss_function = (args.train.loss, args.train.label_smoothing)
+    logger.info(model)
+
+    if mode != "train":
+        # when checkpoint is not specified, take latest (best) from model dir
+        ckpt = resolve_ckpt_path(args.test.load_model, args.model_dir)
+
+        # load model checkpoint
+        logger.info("Loading model from %s", ckpt)
+        model_checkpoint = load_checkpoint(ckpt, device=args.device)
+
+        # restore model and optimizer parameters
+        model.load_state_dict(model_checkpoint["model_state"])
+
+    # CPU / GPU
+    if args.device.type == "cuda":
+        model.to(args.device)
+
+    if args.n_gpu > 1:  # multi gpu training
+        model = _DataParallel(DP(model))
+
+    # set the random seed
+    set_seed(seed=args.seed)
+
+    return model, train_data, dev_data, test_data
+
+
 def test(
-    cfg_file,
-    ckpt: str,
+    cfg: Dict,
     output_path: str = None,
-    datasets: dict = None,
+    prepared: Dict = None,
     save_attention: bool = False,
     save_scores: bool = False,
 ) -> None:
@@ -331,43 +373,24 @@ def test(
     Main test function. Handles loading a model from checkpoint, generating
     translations, storing them, and plotting attention.
 
-    :param cfg_file: path to configuration file
-    :param ckpt: path to checkpoint to load
+    :param cfg: configuration dict
     :param output_path: path to output
-    :param datasets: datasets to predict
+    :param prepared: model and datasets passed from training
     :param save_attention: whether to save attention visualizations
     :param save_scores: whether to save scores
     """
-    # pylint: disable=too-many-branches
-    cfg = load_config(Path(cfg_file))
-    # parse train cfg
-    (
-        model_dir,
-        load_model,
-        device,
-        n_gpu,
-        num_workers,
-        normalization,
-        fp16,
-    ) = parse_train_args(cfg["training"], mode="prediction")
 
-    if len(logger.handlers) == 0:
-        pkg_version = make_logger(model_dir, mode="test")  # version string returned
-        if "joeynmt_version" in cfg:
-            check_version(pkg_version, cfg["joeynmt_version"])
+    # parse args
+    args = parse_global_args(cfg, mode="test")
 
     # load the data
-    if datasets is None:
-        src_vocab, trg_vocab, _, dev_data, test_data = load_data(
-            data_cfg=cfg["data"], datasets=["dev", "test"])
+    if prepared is None:
+        model, _, dev_data, test_data = prepare(args, mode="test")
         data_to_predict = {"dev": dev_data, "test": test_data}
-    else:  # avoid to load data again
-        data_to_predict = {"dev": datasets["dev"], "test": datasets["test"]}
-        src_vocab = datasets["src_vocab"]
-        trg_vocab = datasets["trg_vocab"]
 
-    # build model and load parameters into it
-    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    else:  # avoid to load model and data again
+        model = prepared["model"]
+        data_to_predict = {"dev": prepared["dev"], "test": prepared["test"]}
 
     # check options
     if save_attention:
@@ -375,68 +398,43 @@ def test(
             assert cfg["testing"].get("beam_size", 1) == 1, (
                 "Attention plots can be saved with greedy decoding only. Please set "
                 "`beam_size: 1` in the config.")
-        cfg["testing"]["return_attention"] = True
-    return_prob = cfg["testing"].get("return_prob", "none")
+        args = args._replace(test=args.test._replace(return_attention=True))
     if save_scores:
         assert output_path, "Please specify --output_path for saving scores."
-        if return_prob == "none":
+        if args.test.return_prob == "none":
             logger.warning("Please specify prob type: {`ref` or `hyp`} in the config. "
                            "Scores will not be saved.")
             save_scores = False
-        elif return_prob == "ref":
+        elif args.test.return_prob == "ref":
             assert cfg["testing"].get("beam_size", 1) == 1, (
-                "Scores of given references can be computed with greedy decoding only."
+                "Scores of given references can be computed with greedy decoding only. "
                 "Please set `beam_size: 1` in the config.")
-            model.loss_function = (  # need to instantiate loss func to compute scores
-                cfg["training"].get("loss", "crossentropy"),
-                cfg["training"].get("label_smoothing", 0.1),
-            )
 
-    # when checkpoint is not specified, take latest (best) from model dir
-    load_model = load_model if ckpt is None else Path(ckpt)
-    ckpt = resolve_ckpt_path(load_model, model_dir)
-
-    # load model checkpoint
-    model_checkpoint = load_checkpoint(ckpt, device=device)
-
-    # restore model and optimizer parameters
-    model.load_state_dict(model_checkpoint["model_state"])
-    if device.type == "cuda":
-        model.to(device)
-
-    # multi-gpu eval
-    if n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
-        model = _DataParallel(model)
-    logger.info(model)
-
-    # set the random seed
-    set_seed(seed=cfg["training"].get("random_seed", 42))
-
+    # pediction loop over datasets
     for data_set_name, data_set in data_to_predict.items():
         if data_set is not None:
             data_set.reset_random_subset()  # no subsampling in evaluation
 
             logger.info(
                 "%s on %s set...",
-                "Scoring" if return_prob == "ref" else "Decoding",
+                "Scoring" if args.test.return_prob == "ref" else "Decoding",
                 data_set_name,
             )
             _, _, hypotheses, hypotheses_raw, seq_scores, att_scores, = predict(
                 model=model,
                 data=data_set,
-                compute_loss=return_prob == "ref",
-                device=device,
-                n_gpu=n_gpu,
-                num_workers=num_workers,
-                normalization=normalization,
-                cfg=cfg["testing"],
-                fp16=fp16,
+                compute_loss=args.test.return_prob == "ref",
+                device=args.device,
+                n_gpu=args.n_gpu,
+                num_workers=args.num_workers,
+                normalization=args.train.normalization,
+                args=args.test,
+                fp16=args.fp16,
             )
 
             if save_attention:
                 if att_scores:
-                    attention_file_name = f"{data_set_name}.{ckpt.stem}.att"
-                    attention_file_path = (model_dir / attention_file_name).as_posix()
+                    attention_file_name = f"{output_path}.{data_set_name}.att"
                     logger.info("Saving attention plots. This might take a while..")
                     store_attention_plots(
                         attentions=att_scores,
@@ -444,9 +442,9 @@ def test(
                         sources=data_set.get_list(lang=data_set.src_lang,
                                                   tokenized=True),
                         indices=range(len(hypotheses)),
-                        output_prefix=attention_file_path,
+                        output_prefix=attention_file_name,
                     )
-                    logger.info("Attention plots saved to: %s", attention_file_path)
+                    logger.info("Attention plots saved to: %s", attention_file_name)
                 else:
                     logger.warning(
                         "Attention scores could not be saved. Note that attention "
@@ -468,13 +466,12 @@ def test(
                 if hypotheses is not None:
                     # save translations
                     output_path_set = Path(f"{output_path}.{data_set_name}")
-                    write_list_to_file(output_path_set, hypotheses)
+                    save_hypothese(output_path_set, hypotheses, args.test.n_best)
                     logger.info("Translations saved to: %s.", output_path_set)
 
 
 def translate(
-    cfg_file: str,
-    ckpt: str = None,
+    cfg: Dict,
     output_path: str = None,
 ) -> None:
     """
@@ -483,77 +480,30 @@ def translate(
     input to translate interactively. Translations and scores are printed to stdout.
     Note: The input sentences don't have to be pre-tokenized.
 
-    :param cfg_file: path to configuration file
-    :param ckpt: path to checkpoint to load
+    :param cfg: configuration dict
     :param output_path: path to output file
     """
 
-    # pylint: disable=too-many-branches
-    def _translate_data(test_data, cfg):
+    # parse args
+    args = parse_global_args(cfg)
+    model, _, _, test_data = prepare(args, mode="translate")
+    assert isinstance(test_data, StreamDataset)
+
+    def _translate_data(test_data, args):
         """Translates given dataset, using parameters from outer scope."""
         _, _, hypotheses, trg_tokens, trg_scores, _ = predict(
             model=model,
             data=test_data,
             compute_loss=False,
-            device=device,
-            n_gpu=n_gpu,
+            device=args.device,
+            n_gpu=args.n_gpu,
             normalization="none",
-            num_workers=num_workers,
-            cfg=cfg,
-            fp16=fp16,
+            num_workers=args.num_workers,
+            args=args.test,
+            fp16=args.fp16,
         )
         return hypotheses, trg_tokens, trg_scores
 
-    cfg = load_config(Path(cfg_file))
-    # parse and validate cfg
-    model_dir, load_model, device, n_gpu, num_workers, _, fp16 = parse_train_args(
-        cfg["training"], mode="prediction")
-    test_cfg = cfg["testing"]
-    src_cfg = cfg["data"]["src"]
-    trg_cfg = cfg["data"]["trg"]
-
-    pkg_version = make_logger(model_dir, mode="translate")  # version string returned
-    if "joeynmt_version" in cfg:
-        check_version(pkg_version, cfg["joeynmt_version"])
-
-    # when checkpoint is not specified, take latest (best) from model dir
-    load_model = load_model if ckpt is None else Path(ckpt)
-    ckpt = resolve_ckpt_path(load_model, model_dir)
-
-    # read vocabs
-    src_vocab, trg_vocab = build_vocab(cfg["data"], model_dir=model_dir)
-
-    # build model and load parameters into it
-    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
-
-    # load model state from disk
-    model_checkpoint = load_checkpoint(ckpt, device=device)
-    model.load_state_dict(model_checkpoint["model_state"])
-
-    if device.type == "cuda":
-        model.to(device)
-
-    tokenizer = build_tokenizer(cfg["data"])
-    sequence_encoder = {
-        src_cfg["lang"]: partial(src_vocab.sentences_to_ids, bos=False, eos=True),
-        trg_cfg["lang"]: None,
-    }
-    test_data = build_dataset(
-        dataset_type="stream",
-        path=None,
-        src_lang=src_cfg["lang"],
-        trg_lang=trg_cfg["lang"],
-        split="test",
-        tokenizer=tokenizer,
-        sequence_encoder=sequence_encoder,
-    )
-
-    # set the random seed
-    set_seed(seed=cfg["training"].get("random_seed", 42))
-
-    n_best = test_cfg.get("n_best", 1)
-    beam_size = test_cfg.get("beam_size", 1)
-    return_prob = test_cfg.get("return_prob", "none")
     if not sys.stdin.isatty():  # pylint: disable=too-many-nested-blocks
         # input stream given
         for i, line in enumerate(sys.stdin.readlines()):
@@ -562,25 +512,13 @@ def translate(
                 logger.warning("The sentence in line %d is empty. Skip to load.", i)
                 continue
             test_data.set_item(line.rstrip())
-        all_hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
-        assert len(all_hypotheses) == len(test_data) * n_best
+        all_hypotheses, tokens, scores = _translate_data(test_data, args)
+        assert len(all_hypotheses) == len(test_data) * args.test.n_best
 
         if output_path is not None:
             # write to outputfile if given
             out_file = Path(output_path).expanduser()
-
-            if n_best > 1:
-                for n in range(n_best):
-                    write_list_to_file(
-                        out_file.parent / f"{out_file.stem}-{n}.{out_file.suffix}",
-                        [
-                            all_hypotheses[i]
-                            for i in range(n, len(all_hypotheses), n_best)
-                        ],
-                    )
-            else:
-                write_list_to_file(out_file, all_hypotheses)
-
+            save_hypothese(out_file, all_hypotheses, args.n_best)
             logger.info("Translations saved to: %s.", out_file)
 
         else:
@@ -589,9 +527,10 @@ def translate(
                 print(hyp)
 
     else:
+        # CAUTION: this will raise an error if n_gpus > 1
+        args = args._replace(
+            test=args.test._replace(batch_size=1, batch_type="sentence"))
         # enter interactive mode
-        test_cfg["batch_size"] = 1  # CAUTION: this will raise an error if n_gpus > 1
-        test_cfg["batch_type"] = "sentence"
         np.set_printoptions(linewidth=sys.maxsize)  # for printing scores in stdout
         while True:
             try:
@@ -601,15 +540,15 @@ def translate(
 
                 # every line has to be made into dataset
                 test_data.set_item(src_input.rstrip())
-                hypotheses, tokens, scores = _translate_data(test_data, test_cfg)
+                hypotheses, tokens, scores = _translate_data(test_data, args)
 
                 print("JoeyNMT:")
                 for i, (hyp, token,
                         score) in enumerate(zip_longest(hypotheses, tokens, scores)):
                     assert hyp is not None, (i, hyp, token, score)
                     print(f"#{i + 1}: {hyp}")
-                    if return_prob in ["hyp"]:
-                        if beam_size > 1:  # beam search: sequence-level scores
+                    if args.test.return_prob in ["hyp"]:
+                        if args.test.beam_size > 1:  # beam search: seq-level scores
                             print(f"\ttokens: {token}\n\tsequence score: {score[0]}")
                         else:  # greedy: token-level scores
                             assert len(token) == len(score), (token, score)

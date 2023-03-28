@@ -32,12 +32,12 @@ class TestSearch(unittest.TestCase):
 
         self.expected_transformer_ids = torch.tensor([[0, 0, 0], [0, 5, 5]])
         self.expected_transformer_scores = torch.tensor([
-            [-0.1828, -0.5575, -0.5696], [-0.6486, -0.3020, -0.1639],
+            [-0.1825, -0.5574, -0.5695], [-0.6465, -0.3005, -0.1618],
         ])
 
         self.expected_recurrent_ids = torch.tensor([[1, 1, 0], [1, 0, 0]])
         self.expected_recurrent_scores = torch.tensor([
-            [-0.3188, -0.4690, -0.1070], [-0.5685, -0.0671, -0.0612],
+            [-0.3178, -0.4528, -0.1068], [-0.5680, -0.0671, -0.0612],
         ])
 
 
@@ -153,7 +153,6 @@ class TestSearchTransformer(TestSearch):
             return_prob="hyp",
             fp16=False,
         )
-
         torch.testing.assert_close(beam_output, greedy_output, check_dtype=False)
         torch.testing.assert_close(
             greedy_scores, self.expected_transformer_scores, rtol=1e-4, atol=1e-4)
@@ -330,8 +329,8 @@ class TestSearchTransformer(TestSearch):
         torch.testing.assert_close(output, expected_output, check_dtype=False)
 
         expected_scores = torch.tensor([
-            [-0.1828, -0.5575, -0.5696, -0.5475, -0.5318, -0.5640, -0.6015],
-            [-0.6486, -0.3020, -0.1639, -0.1721, -2.1473, -0.0356, -3.1596],
+            [-0.1825, -0.5574, -0.5695, -0.5473, -0.5315, -0.5637, -0.6012],
+            [-0.6465, -0.3005, -0.1618, -0.1710, -2.1467, -0.0350, -3.1589],
         ])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)
 

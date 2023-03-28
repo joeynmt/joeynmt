@@ -2,15 +2,13 @@
 """
 Training module
 """
-import argparse
 import heapq
 import logging
 import math
-import shutil
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from torch import Tensor
@@ -19,23 +17,22 @@ from torch.utils.tensorboard import SummaryWriter
 
 from joeynmt.batch import Batch
 from joeynmt.builders import build_gradient_clipper, build_optimizer, build_scheduler
-from joeynmt.data import load_data
+from joeynmt.config import (
+    TestConfig,
+    TrainConfig,
+    log_config,
+    parse_global_args,
+    set_validation_args,
+)
 from joeynmt.helpers import (
-    check_version,
     delete_ckpt,
     load_checkpoint,
-    load_config,
-    log_cfg,
-    make_logger,
-    make_model_dir,
-    parse_train_args,
-    set_seed,
     store_attention_plots,
     symlink_update,
     write_list_to_file,
 )
-from joeynmt.model import Model, _DataParallel, build_model
-from joeynmt.prediction import predict, test
+from joeynmt.model import Model
+from joeynmt.prediction import predict, prepare, test
 
 logger = logging.getLogger(__name__)
 
@@ -48,68 +45,48 @@ class TrainManager:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, model: Model, cfg: dict) -> None:
+    def __init__(self,
+                 model: Model,
+                 model_dir: Path,
+                 device: torch.device,
+                 n_gpu: int = 0,
+                 num_workers: int = 0,
+                 fp16: bool = False,
+                 seed: int = 42,
+                 train_args: TrainConfig = None,
+                 dev_args: TestConfig = None) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
-        Note: no need to pass batch_class here. see make_data_iter()
 
         :param model: torch module defining the model
-        :param cfg: dictionary containing the training configurations
+        :param model_dir: directory to save ckpts
+        :param device: torch device
+        :param n_gpu: number of gpus. 0 if cpu.
+        :param num_workers: number of multiprocess workers.
+        :param fp16: half-precision
+        :param seed: random seed
+        :param train_args: config args for training
+        :param dev_args: config args for validation
         """
-        (  # pylint: disable=unbalanced-tuple-unpacking
-            model_dir,
-            load_model,
-            load_encoder,
-            load_decoder,
-            loss_type,
-            label_smoothing,
-            normalization,
-            learning_rate_min,
-            keep_best_ckpts,
-            logging_freq,
-            validation_freq,
-            log_valid_sents,
-            early_stopping_metric,
-            seed,
-            shuffle,
-            epochs,
-            max_updates,
-            batch_size,
-            batch_type,
-            batch_multiplier,
-            device,
-            n_gpu,
-            num_workers,
-            fp16,
-            reset_best_ckpt,
-            reset_scheduler,
-            reset_optimizer,
-            reset_iter_state,
-        ) = parse_train_args(cfg["training"])
+        self.args = train_args  # config for training
+        self.dev_cfg = dev_args  # config for geedy decoding
+        self.seed = seed
 
         # logging and storing
         self.model_dir = model_dir
         self.tb_writer = SummaryWriter(log_dir=(model_dir / "tensorboard").as_posix())
-        self.logging_freq = logging_freq
-        self.validation_freq = validation_freq
-        self.log_valid_sents = log_valid_sents
 
         # model
         self.model = model
-        self.model.log_parameters_list()
-        self.model.loss_function = (loss_type, label_smoothing)
-        logger.info(self.model)
 
         # CPU / GPU
         self.device = device
         self.n_gpu = n_gpu
         self.num_workers = num_workers
-        if self.device.type == "cuda":
-            self.model.to(self.device)
 
         # optimization
-        self.clip_grad_fun = build_gradient_clipper(config=cfg["training"])
-        self.optimizer = build_optimizer(config=cfg["training"],
+        self.clip_grad_fun = build_gradient_clipper(cfg=self.args._asdict())
+        self.optimizer = build_optimizer(cfg=self.args._asdict(),
                                          parameters=self.model.parameters())
 
         # fp16
@@ -121,87 +98,37 @@ class TrainManager:
             self.dtype = torch.get_default_dtype()
 
         # save/delete checkpoints
-        self.num_ckpts = keep_best_ckpts
         self.ckpt_queue: List[Tuple[float, Path]] = []  # heap queue
-
-        # early_stopping
-        self.early_stopping_metric = early_stopping_metric
-        # early_stopping_metric decides on how to find the early stopping point: ckpts
-        # are written when there's a new high/low score for this metric. If we schedule
-        # after loss/ppl, we want to minimize the score, else we want to maximize it.
-        if self.early_stopping_metric in ["ppl", "loss"]:  # lower is better
-            self.minimize_metric = True
-        elif self.early_stopping_metric in ["acc", "bleu", "chrf"]:  # higher is better
-            self.minimize_metric = False
 
         # learning rate scheduling
         self.scheduler, self.scheduler_step_at = build_scheduler(
-            config=cfg["training"],
-            scheduler_mode="min" if self.minimize_metric else "max",
+            cfg=self.args._asdict(),
+            scheduler_mode="min" if self.args.minimize_metric else "max",
             optimizer=self.optimizer,
-            hidden_size=cfg["model"]["encoder"]["hidden_size"],
+            hidden_size=self.model.encoder._output_size,
         )
-
-        # data & batch handling
-        self.seed = seed
-        self.shuffle = shuffle
-        self.epochs = epochs
-        self.max_updates = max_updates
-        self.max_updates = max_updates
-        self.batch_size = batch_size
-        self.batch_type = batch_type
-        self.learning_rate_min = learning_rate_min
-        self.batch_multiplier = batch_multiplier
-        self.normalization = normalization
 
         # Placeholder so that we can use the train_iter in other functions.
         self.train_iter, self.train_iter_state = None, None
 
         # initialize training statistics
-        self.stats = self.TrainStatistics(
-            steps=0,
-            is_min_lr=False,
-            is_max_update=False,
-            total_tokens=0,
-            best_ckpt_iter=0,
-            best_ckpt_score=float("inf") if self.minimize_metric else float("-inf"),
-            minimize_metric=self.minimize_metric,
-            total_correct=0,
-        )
+        self.stats = self.TrainStatistics(minimize_metric=self.args.minimize_metric)
 
         # load model parameters
-        if load_model is not None:
+        if self.args.load_model is not None:
             self.init_from_checkpoint(
-                load_model,
-                reset_best_ckpt=reset_best_ckpt,
-                reset_scheduler=reset_scheduler,
-                reset_optimizer=reset_optimizer,
-                reset_iter_state=reset_iter_state,
+                self.args.load_model,
+                reset_best_ckpt=self.args.reset_best_ckpt,
+                reset_scheduler=self.args.reset_scheduler,
+                reset_optimizer=self.args.reset_optimizer,
+                reset_iter_state=self.args.reset_iter_state,
             )
         for layer_name, load_path in [
-            ("encoder", load_encoder),
-            ("decoder", load_decoder),
+            ("encoder", self.args.load_encoder),
+            ("decoder", self.args.load_decoder),
         ]:
             if load_path is not None:
                 self.init_layers(path=load_path, layer=layer_name)
-
-        # gpu training
-        if self.n_gpu > 1:
-            self.model = _DataParallel(self.model)
-
-        # config for generation
-        self.valid_cfg = cfg["testing"].copy()
-        self.valid_cfg["beam_size"] = 1  # greedy decoding during train loop
-        # in greedy decoding, we use the same batch_size as the one in training
-        self.valid_cfg["batch_size"] = self.batch_size
-        self.valid_cfg["batch_type"] = self.batch_type
-        # no further exploration during training
-        self.valid_cfg["n_best"] = 1
-        # self.valid_cfg["return_attention"] = False  # don't override this param
-        self.valid_cfg["return_prob"] = "none"
-        self.valid_cfg["generate_unk"] = True
-        self.valid_cfg["repetition_penalty"] = -1  # turn off
-        self.valid_cfg["no_repeat_ngram_size"] = -1  # turn off
 
     def _save_checkpoint(self, new_best: bool, score: float) -> None:
         """
@@ -217,8 +144,6 @@ class TrainManager:
             float('nan'), the queue won't be updated.
         """
         model_path = Path(self.model_dir) / f"{self.stats.steps}.ckpt"
-        model_state_dict = (self.model.module.state_dict() if isinstance(
-            self.model, torch.nn.DataParallel) else self.model.state_dict())
         train_iter_state = self.train_iter.batch_sampler.sampler.generator.get_state() \
             if hasattr(self.train_iter.batch_sampler.sampler, 'generator') else None
         # yapf: disable
@@ -227,7 +152,7 @@ class TrainManager:
             "total_tokens": self.stats.total_tokens,
             "best_ckpt_score": self.stats.best_ckpt_score,
             "best_ckpt_iteration": self.stats.best_ckpt_iter,
-            "model_state": model_state_dict,
+            "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
             "scaler_state": self.scaler.state_dict(),
             "scheduler_state": (self.scheduler.state_dict()
@@ -250,11 +175,11 @@ class TrainManager:
 
         # push to and pop from the heap queue
         to_delete = None
-        if not math.isnan(score) and self.num_ckpts > 0:
-            if len(self.ckpt_queue) < self.num_ckpts:  # no pop, push only
+        if not math.isnan(score) and self.args.keep_best_ckpts > 0:
+            if len(self.ckpt_queue) < self.args.keep_best_ckpts:  # no pop, push only
                 heapq.heappush(self.ckpt_queue, (score, model_path))
             else:  # push + pop the worst one in the queue
-                if self.minimize_metric:
+                if self.args.minimize_metric:
                     # pylint: disable=protected-access
                     heapq._heapify_max(self.ckpt_queue)
                     to_delete = heapq._heappop_max(self.ckpt_queue)
@@ -268,7 +193,7 @@ class TrainManager:
                 if to_delete[1].stem != best_path.resolve().stem:
                     delete_ckpt(to_delete[1])  # don't delete the best ckpt
 
-            assert len(self.ckpt_queue) <= self.num_ckpts
+            assert len(self.ckpt_queue) <= self.args.keep_best_ckpts
 
             # remove old symlink target if not in queue after push/pop
             if prev_path is not None and prev_path.stem not in [
@@ -338,10 +263,6 @@ class TrainManager:
             # reset counters if explicitly 'train_iter_state: True' in config
             logger.info("Reset data iterator (random seed: {%d}).", self.seed)
 
-        # move to gpu
-        if self.device.type == "cuda":
-            self.model.to(self.device)
-
     def init_layers(self, path: Path, layer: str) -> None:
         """
         Initialize encoder decoder layers from a given checkpoint file.
@@ -367,10 +288,10 @@ class TrainManager:
         """
         # pylint: disable=too-many-branches,too-many-statements
         self.train_iter = train_data.make_iter(
-            batch_size=self.batch_size,
-            batch_type=self.batch_type,
+            batch_size=self.args.batch_size,
+            batch_type=self.args.batch_type,
             seed=self.seed,
-            shuffle=self.shuffle,
+            shuffle=self.args.shuffle,
             num_workers=self.num_workers,
             device=self.device,
             pad_index=self.model.pad_index,
@@ -412,16 +333,17 @@ class TrainManager:
             "\tgradient accumulation: %d\n"
             "\tbatch size per device: %d\n"
             "\teffective batch size (w. parallel & accumulation): %d",
-            self.device.type,  # next(self.model.parameters()).device
+            self.device.type,
             self.n_gpu,
             self.fp16,
-            self.batch_multiplier,
-            self.batch_size // self.n_gpu if self.n_gpu > 1 else self.batch_size,
-            self.batch_size * self.batch_multiplier,
+            self.args.batch_multiplier,
+            self.args.batch_size // self.n_gpu \
+                if self.n_gpu > 1 else self.args.batch_size,  # noqa:E131
+            self.args.batch_size * self.args.batch_multiplier,
         )
 
         try:
-            for epoch_no in range(self.epochs):
+            for epoch_no in range(self.args.epochs):
                 logger.info("EPOCH %d", epoch_no + 1)
 
                 if self.scheduler_step_at == "epoch":
@@ -461,7 +383,7 @@ class TrainManager:
                     total_batch_loss += norm_batch_loss
 
                     # update!
-                    if (i + 1) % self.batch_multiplier == 0:
+                    if (i + 1) % self.args.batch_multiplier == 0:
                         # clip gradients (in-place)
                         if self.clip_grad_fun is not None:
                             self.clip_grad_fun(parameters=self.model.parameters())
@@ -479,11 +401,11 @@ class TrainManager:
 
                         # increment step counter
                         self.stats.steps += 1
-                        if self.stats.steps >= self.max_updates:
+                        if self.stats.steps >= self.args.max_updates:
                             self.stats.is_max_update = True
 
                         # log learning progress
-                        if self.stats.steps % self.logging_freq == 0:
+                        if self.stats.steps % self.args.logging_freq == 0:
                             elapsed = time.time() - start - total_valid_duration
                             elapsed_tok = self.stats.total_tokens - start_tokens
                             elapsed_correct = self.stats.total_correct - start_correct
@@ -517,13 +439,13 @@ class TrainManager:
                         total_batch_loss = 0  # reset batch loss
 
                         # validate on the entire dev set
-                        if self.stats.steps % self.validation_freq == 0:
+                        if self.stats.steps % self.args.validation_freq == 0:
                             valid_duration = self._validate(valid_data)
                             total_valid_duration += valid_duration
 
                         # check current_lr
                         current_lr = self.optimizer.param_groups[0]["lr"]
-                        if current_lr < self.learning_rate_min:
+                        if current_lr < self.args.learning_rate_min:
                             self.stats.is_min_lr = True
 
                         self.tb_writer.add_scalar("train/learning_rate", current_lr,
@@ -533,9 +455,9 @@ class TrainManager:
                         break
 
                 if self.stats.is_min_lr or self.stats.is_max_update:
-                    log_str = (f"minimum lr {self.learning_rate_min}"
+                    log_str = (f"minimum lr {self.args.learning_rate_min}"
                                if self.stats.is_min_lr else
-                               f"maximum num. of updates {self.max_updates}")
+                               f"maximum num. of updates {self.args.max_updates}")
                     logger.info("Training ended since %s was reached.", log_str)
                     break
 
@@ -551,7 +473,7 @@ class TrainManager:
                 "at step %8d: %6.2f %s.",
                 self.stats.best_ckpt_iter,
                 self.stats.best_ckpt_score,
-                self.early_stopping_metric,
+                self.args.early_stopping_metric,
             )
         except KeyboardInterrupt:
             self._save_checkpoint(False, float("nan"))
@@ -580,9 +502,9 @@ class TrainManager:
         # normalize batch loss
         norm_batch_loss = batch.normalize(
             batch_loss,
-            normalization=self.normalization,
+            normalization=self.args.normalization,
             n_gpu=self.n_gpu,
-            n_accumulation=self.batch_multiplier,
+            n_accumulation=self.args.batch_multiplier,
         )
 
         # sum over multiple gpus
@@ -624,8 +546,8 @@ class TrainManager:
             compute_loss=True,
             device=self.device,
             n_gpu=self.n_gpu,
-            normalization=self.normalization,
-            cfg=self.valid_cfg,
+            normalization=self.args.normalization,
+            args=self.dev_cfg,
             fp16=self.fp16,
         )
         valid_duration = time.time() - valid_start_time
@@ -636,7 +558,7 @@ class TrainManager:
                 self.tb_writer.add_scalar(f"valid/{eval_metric}", score,
                                           self.stats.steps)
 
-        ckpt_score = valid_scores[self.early_stopping_metric]
+        ckpt_score = valid_scores[self.args.early_stopping_metric]
 
         if self.scheduler_step_at == "validation":
             self.scheduler.step(metrics=ckpt_score)
@@ -648,13 +570,13 @@ class TrainManager:
             self.stats.best_ckpt_iter = self.stats.steps
             logger.info(
                 "Hooray! New best validation result [%s]!",
-                self.early_stopping_metric,
+                self.args.early_stopping_metric,
             )
 
         # save checkpoints
         is_better = (self.stats.is_better(ckpt_score, self.ckpt_queue)
                      if len(self.ckpt_queue) > 0 else True)
-        if self.num_ckpts < 0 or is_better:
+        if self.args.keep_best_ckpts < 0 or is_better:
             self._save_checkpoint(new_best, ckpt_score)
 
         # append to validation report
@@ -677,7 +599,7 @@ class TrainManager:
                 attentions=valid_attention_scores,
                 targets=valid_hypotheses_raw,
                 sources=valid_data.get_list(lang=valid_data.src_lang, tokenized=True),
-                indices=self.log_valid_sents,
+                indices=self.args.print_valid_sents,
                 output_prefix=(self.model_dir / f"att.{self.stats.steps}").as_posix(),
                 tb_writer=self.tb_writer,
                 steps=self.stats.steps,
@@ -710,14 +632,14 @@ class TrainManager:
         data: Dataset,
     ) -> None:
         """
-        Log the first `self.log_valid_sents` sentences from given examples.
+        Log the `print_valid_sents` sentences from given examples.
 
         :param hypotheses: decoded hypotheses (list of strings)
         :param references: decoded references (list of strings)
         :param hypotheses_raw: raw hypotheses (list of list of tokens)
         :param data: Dataset
         """
-        for p in self.log_valid_sents:
+        for p in self.args.print_valid_sents:
             if p >= len(hypotheses):
                 continue
             logger.info("Example #%d", p)
@@ -744,18 +666,28 @@ class TrainManager:
             is_max_update: bool = False,
             total_tokens: int = 0,
             best_ckpt_iter: int = 0,
-            best_ckpt_score: float = float("inf"),
             minimize_metric: bool = True,
             total_correct: int = 0,
         ) -> None:
-            self.steps = steps  # global update step counter
-            self.is_min_lr = is_min_lr  # stop by reaching learning rate minimum
-            self.is_max_update = is_max_update  # stop by reaching max num of updates
-            self.total_tokens = total_tokens  # number of total tokens seen so far
-            self.best_ckpt_iter = best_ckpt_iter  # store iteration point of best ckpt
-            self.best_ckpt_score = best_ckpt_score  # initial values for best scores
-            self.minimize_metric = minimize_metric  # minimize or maximize score
-            self.total_correct = total_correct  # number of correct tokens seen so far
+            """
+            Train Statistics
+
+            :param steps: global update step counter
+            :param is_min_lr: stop by reaching learning rate minimum
+            :param is_max_update: stop by reaching max num of updates
+            :param total_tokens: number of total tokens seen so far
+            :param best_ckpt_iter: store iteration point of best ckpt
+            :param minimize_metric: minimize or maximize score
+            :param total_correct: number of correct tokens seen so far
+            """
+            self.steps = steps
+            self.is_min_lr = is_min_lr
+            self.is_max_update = is_max_update
+            self.total_tokens = total_tokens
+            self.best_ckpt_iter = best_ckpt_iter
+            self.minimize_metric = minimize_metric
+            self.best_ckpt_score = float('inf') if minimize_metric else float('-inf')
+            self.total_correct = total_correct
 
         def is_best(self, score):
             if self.minimize_metric:
@@ -773,52 +705,36 @@ class TrainManager:
             return is_better
 
 
-def train(cfg_file: str, skip_test: bool = False) -> None:
+def train(cfg: Dict, skip_test: bool = False) -> None:
     """
     Main training function. After training, also test on test data if given.
 
-    :param cfg_file: path to configuration yaml file
+    :param cfg: configuration dict
     :param skip_test: whether a test should be run or not after training
     """
-    # read config file
-    cfg = load_config(Path(cfg_file))
-
-    # make logger
-    model_dir = make_model_dir(
-        Path(cfg["training"]["model_dir"]),
-        overwrite=cfg["training"].get("overwrite", False),
-    )
-    pkg_version = make_logger(model_dir, mode="train")
-    # TODO: save version number in model checkpoints
-    if "joeynmt_version" in cfg:
-        check_version(pkg_version, cfg["joeynmt_version"])
 
     # write all entries of config to the log
-    log_cfg(cfg)
+    log_config(cfg)
 
-    # store copy of original training config in model dir
-    shutil.copy2(cfg_file, (model_dir / "config.yaml").as_posix())
+    # parse args
+    args = parse_global_args(cfg, mode="train")
 
-    # set the random seed
-    set_seed(seed=cfg["training"].get("random_seed", 42))
-
-    # load the data
-    src_vocab, trg_vocab, train_data, dev_data, test_data = load_data(
-        data_cfg=cfg["data"])
-
-    # store the vocabs and tokenizers
-    src_vocab.to_file(model_dir / "src_vocab.txt")
-    if hasattr(train_data.tokenizer[train_data.src_lang], "copy_cfg_file"):
-        train_data.tokenizer[train_data.src_lang].copy_cfg_file(model_dir)
-    trg_vocab.to_file(model_dir / "trg_vocab.txt")
-    if hasattr(train_data.tokenizer[train_data.trg_lang], "copy_cfg_file"):
-        train_data.tokenizer[train_data.trg_lang].copy_cfg_file(model_dir)
-
-    # build an encoder-decoder model
-    model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+    # prepare model and datasets
+    model, train_data, dev_data, test_data = prepare(args, mode="train")
+    dev_args = set_validation_args(args.test,
+                                   args.train.batch_size,
+                                   args.train.batch_type)
 
     # for training management, e.g. early stopping and model selection
-    trainer = TrainManager(model=model, cfg=cfg)
+    trainer = TrainManager(model=model,
+                           model_dir=args.model_dir,
+                           device=args.device,
+                           n_gpu=args.n_gpu,
+                           num_workers=args.num_workers,
+                           fp16=args.fp16,
+                           seed=args.seed,
+                           train_args=args.train,
+                           dev_args=dev_args)
 
     # train the model
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)
@@ -827,32 +743,16 @@ def train(cfg_file: str, skip_test: bool = False) -> None:
         # predict with the best model on validation and test
         # (if test data is available)
 
-        ckpt = model_dir / f"{trainer.stats.best_ckpt_iter}.ckpt"
-        output_path = model_dir / f"{trainer.stats.best_ckpt_iter:08d}.hyps"
+        # load model checkpoint
+        ckpt = args.model_dir / "best.ckpt"
+        model_checkpoint = load_checkpoint(ckpt, device=args.device)
+        model.load_state_dict(model_checkpoint["model_state"])
 
-        datasets_to_test = {
-            "dev": dev_data,
-            "test": test_data,
-            "src_vocab": src_vocab,
-            "trg_vocab": trg_vocab,
-        }
+        prepared = {"dev": dev_data, "test": test_data, "model": model}
         test(
-            cfg_file,
-            ckpt=ckpt.as_posix(),
-            output_path=output_path.as_posix(),
-            datasets=datasets_to_test,
+            cfg,
+            output_path=(args.model_dir / "best.hyps").as_posix(),
+            prepared=prepared,
         )
     else:
         logger.info("Skipping test after training.")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Joey-NMT")
-    parser.add_argument(
-        "config",
-        default="configs/default.yaml",
-        type=str,
-        help="Training configuration file (yaml).",
-    )
-    args = parser.parse_args()
-    train(cfg_file=args.config)

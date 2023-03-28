@@ -1,5 +1,9 @@
 name: "toy_experiment"              # name of experiment
-joeynmt_version: "2.0.0"            # joeynmt version
+joeynmt_version: "2.3.0"            # joeynmt version
+model_dir: "toy_transformer"        # directory where models and validation results are stored, required
+use_cuda: False                     # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+fp16: True                          # whether to use 16-bit half-precision training instead of 32-bit training.
+random_seed: 42                     # set this seed to make training deterministic
 
 data:
     train: "test/data/toy/train"    # training data path (If dataset_type="huggingface", `path` argument in huggingface's datasets.load_data() func)
@@ -55,6 +59,7 @@ data:
             pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
 
 testing:                            # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
+    load_model: "toy_model/60.ckpt" # if given, load a pre-trained model from this checkpoint
     n_best: 1                       # n_best size, must be smaller than or equal to beam_size
     beam_size: 5                    # size of the beam for beam search
     beam_alpha: 1.0                 # length penalty for beam search
@@ -78,7 +83,6 @@ training:                           # specify training details here
     reset_scheduler: False          # if True, overwrite scheduler in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     reset_optimizer: False          # if True, overwrite optimizer in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     reset_iter_state: False         # if True, overwrite iterator state in loaded checkpoint with parameters specified in this config. Use for resumed training.
-    random_seed: 42                 # set this seed to make training deterministic
     optimizer: "adam"               # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
     adam_betas: [0.9, 0.999]        # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
     learning_rate: 0.005            # initial learning rate, default: 3.0e-4
@@ -102,12 +106,8 @@ training:                           # specify training details here
     validation_freq: 10             # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "toy_transformer"    # directory where models and validation results are stored, required
-    overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
-    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
-    fp16: True                      # whether to use 16-bit half-precision training (through NVIDIA apex) instead of 32-bit training.
-    print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
+    overwrite: False                    # overwrite existing model directory, default: False. Do not set to True unless for debugging!    print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_best_ckpts: 3              # keep this many of the best checkpoints, if -1: all of them, default: 5
 
 model:                              # specify your model architecture here

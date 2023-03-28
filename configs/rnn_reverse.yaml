@@ -1,5 +1,9 @@
 name: "reverse_experiment"
-joeynmt_version: "2.0.0"
+joeynmt_version: "2.3.0"
+model_dir: "reverse_model"
+use_cuda: False
+fp16: True
+random_seed: 42
 
 data:
     # generate data with scripts/generate_reverse_task.py
@@ -33,7 +37,6 @@ testing:
         tokenize: "13a"
 
 training:
-    random_seed: 42
     optimizer: "adam"
     learning_rate: 0.001
     learning_rate_min: 0.0002
@@ -48,11 +51,8 @@ training:
     epochs: 1
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "reverse_model"
     overwrite: True
     shuffle: True
-    use_cuda: False
-    fp16: True
     print_valid_sents: [0, 3, 6]
     keep_best_ckpts: 2
 

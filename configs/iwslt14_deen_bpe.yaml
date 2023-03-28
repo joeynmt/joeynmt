@@ -1,5 +1,9 @@
 name: "transformer_iwslt14_deen_bpe"
-joeynmt_version: "2.0.0"
+joeynmt_version: "2.3.0"
+model_dir: "models/transformer_iwslt14_deen_bpe"
+shuffle: True
+use_cuda: True
+random_seed: 42
 
 data:
     train: "test/data/iwslt14/train"
@@ -49,7 +53,6 @@ testing:
 
 training:
     #load_model: "models/transformer_iwslt14_deen_bpe/best.ckpt"
-    random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
     adam_betas: [0.9, 0.999]
@@ -67,10 +70,7 @@ training:
     epochs: 100
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "models/transformer_iwslt14_deen_bpe"
     overwrite: False
-    shuffle: True
-    use_cuda: True
     print_valid_sents: [0, 1, 2, 3, 4]
     keep_best_ckpts: 5
 

@@ -1,5 +1,9 @@
 name: "iwslt14_deen_sp"
-joeynmt_version: "2.0.0"
+joeynmt_version: "2.3.0"
+model_dir: "models/iwslt14_deen_sp"
+use_cuda: True
+fp16: True
+random_seed: 42
 
 data:
     # CAUTION: the data splits and preprocessing here are different from the data splits created by scripts/get_iwslt14_sp.sh
@@ -60,7 +64,6 @@ training:
     #reset_scheduler: True
     #reset_optimizer: True
     #reset_iter_state: True
-    random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
     adam_betas: [0.9, 0.999]
@@ -78,11 +81,8 @@ training:
     epochs: 100
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "models/iwslt14_deen_sp"
     overwrite: False
     shuffle: True
-    use_cuda: True
-    fp16: True
     print_valid_sents: [0, 1, 2, 3]
     keep_best_ckpts: 5
 

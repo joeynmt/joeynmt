@@ -4,17 +4,17 @@ Module to represents whole models
 """
 import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from joeynmt.config import ConfigurationError
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
-from joeynmt.helpers import ConfigurationError
 from joeynmt.initialization import initialize_model
 from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
@@ -246,17 +246,40 @@ class Model(nn.Module):
         assert trainable_params
 
 
-class _DataParallel(nn.DataParallel):
+class _DataParallel(nn.Module):
     """DataParallel wrapper to pass through the model attributes"""
 
+    def __init__(self, module: nn.Module):
+        super().__init__()
+        assert hasattr(module, "module")
+        self.module = module
+
     def __getattr__(self, name):
+        """Forward missing attributes to twice-wrapped module."""
         try:
+            # defer to nn.Module's logic
             return super().__getattr__(name)
         except AttributeError:
-            return getattr(self.module, name)
+            try:
+                # forward to the once-wrapped module
+                return getattr(self.module, name)
+            except AttributeError:
+                # forward to the twice-wrapped module
+                return getattr(self.module.module, name)
+
+    def state_dict(self, *args, **kwargs):
+        """Forward to the twice-wrapped module."""
+        return self.module.module.state_dict(*args, **kwargs)
+
+    def load_state_dict(self, *args, **kwargs):
+        """Forward to the twice-wrapped module."""
+        return self.module.module.load_state_dict(*args, **kwargs)
+
+    def forward(self, *args, **kwargs):
+        return self.module(*args, **kwargs)
 
 
-def build_model(cfg: dict = None,
+def build_model(cfg: Dict = None,
                 src_vocab: Vocabulary = None,
                 trg_vocab: Vocabulary = None) -> Model:
     """
