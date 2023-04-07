@@ -6,7 +6,7 @@ import logging
 import random
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch.utils.data import (
@@ -20,7 +20,7 @@ from torch.utils.data import (
 
 from joeynmt.batch import Batch
 from joeynmt.config import ConfigurationError
-from joeynmt.constants import PAD_ID
+from joeynmt.constants import EOS_ID, PAD_ID, SEP_TOKEN
 from joeynmt.helpers import read_list_from_file
 from joeynmt.tokenizers import BasicTokenizer
 
@@ -37,6 +37,7 @@ class BaseDataset(Dataset):
     :param src_lang: source language code, i.e. `en`
     :param trg_lang: target language code, i.e. `de`
     :param has_trg: bool indicator if trg exists
+    :param has_prompt: bool indicator if prompt exists
     :param split: bool indicator for train set or not
     :param tokenizer: tokenizer objects
     :param sequence_encoder: encoding functions
@@ -49,6 +50,7 @@ class BaseDataset(Dataset):
         trg_lang: str,
         split: str = "train",
         has_trg: bool = True,
+        has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
@@ -65,6 +67,7 @@ class BaseDataset(Dataset):
         self.tokenizer = _place_holder if tokenizer is None else tokenizer
         self.sequence_encoder = (_place_holder
                                  if sequence_encoder is None else sequence_encoder)
+        self.has_prompt = _place_holder if has_prompt is None else has_prompt
 
         # for ransom subsampling
         self.random_subset = random_subset
@@ -97,7 +100,7 @@ class BaseDataset(Dataset):
         """lookup one item pair of given index."""
         src, trg = None, None
         src = self.get_item(idx=idx, lang=self.src_lang)
-        if self.has_trg:
+        if self.has_trg or self.has_prompt[self.trg_lang]:
             trg = self.get_item(idx=idx, lang=self.trg_lang)
             if trg is None:
                 src = None
@@ -122,6 +125,7 @@ class BaseDataset(Dataset):
     def collate_fn(
         self,
         batch: List[Tuple],
+        eos_index: int = EOS_ID,
         pad_index: int = PAD_ID,
         device: torch.device = CPU_DEVICE,
     ) -> Batch:
@@ -131,39 +135,43 @@ class BaseDataset(Dataset):
         Please override the batch class here. (not in TrainManager)
 
         :param batch:
+        :param eos_index:
         :param pad_index:
         :param device:
         :return: joeynmt batch object
         """
 
-        def _is_valid(s, t, has_trg):
+        def _is_valid(s, t):
             # pylint: disable=no-else-return
-            if has_trg:
+            if self.has_trg or self.has_prompt[self.trg_lang]:
                 return s is not None and t is not None
             else:
                 return s is not None
 
-        batch = [(s, t) for s, t in batch if _is_valid(s, t, self.has_trg)]
+        batch = [(s, t) for s, t in batch if _is_valid(s, t)]
         src_list, trg_list = zip(*batch)
         assert len(batch) == len(src_list), (len(batch), len(src_list))
         assert all(s is not None for s in src_list), src_list
-        src, src_length = self.sequence_encoder[self.src_lang](src_list)
+        src, src_length, src_prompt_mask = self.sequence_encoder[self.src_lang](
+            src_list, bos=False, eos=True)
 
-        if self.has_trg:
+        if self.has_trg or self.has_prompt[self.trg_lang]:
             assert all(t is not None for t in trg_list), trg_list
-            trg, trg_length = self.sequence_encoder[self.trg_lang](trg_list)
+            trg, trg_length, trg_prompt_mask = self.sequence_encoder[self.trg_lang](
+                trg_list, bos=True, eos=self.has_trg)  # no EOS if not self.has_trg
         else:
             assert all(t is None for t in trg_list)
-            trg, trg_length = None, None
+            trg, trg_length, trg_prompt_mask = None, None, None
 
         return Batch(
             src=torch.tensor(src).long(),
             src_length=torch.tensor(src_length).long(),
+            src_prompt_mask=torch.tensor(src_prompt_mask).long() if self.has_prompt[self.src_lang] else None,
             trg=torch.tensor(trg).long() if trg else None,
-            trg_length=torch.tensor(trg_length).long() if trg_length else None,
+            trg_prompt_mask=torch.tensor(trg_prompt_mask).long() if self.has_prompt[self.trg_lang] else None,
             device=device,
+            eos_index=eos_index,
             pad_index=pad_index,
-            has_trg=self.has_trg,
             is_train=self.split == "train",
         )
 
@@ -174,6 +182,7 @@ class BaseDataset(Dataset):
         seed: int = 42,
         shuffle: bool = False,
         num_workers: int = 0,
+        eos_index: int = EOS_ID,
         pad_index: int = PAD_ID,
         device: torch.device = CPU_DEVICE,
     ) -> DataLoader:
@@ -186,6 +195,7 @@ class BaseDataset(Dataset):
         :param shuffle: whether to shuffle the data before each epoch
             (for testing, no effect even if set to True)
         :param num_workers: number of cpus for multiprocessing
+        :param eos_index:
         :param pad_index:
         :param device:
         :return: torch DataLoader
@@ -221,7 +231,7 @@ class BaseDataset(Dataset):
         return DataLoader(
             dataset=self,
             batch_sampler=batch_sampler,
-            collate_fn=partial(self.collate_fn, pad_index=pad_index, device=device),
+            collate_fn=partial(self.collate_fn, eos_index=eos_index, pad_index=pad_index, device=device),
             num_workers=num_workers,
         )
 
@@ -231,7 +241,9 @@ class BaseDataset(Dataset):
     def __repr__(self) -> str:
         return (f"{self.__class__.__name__}(split={self.split}, len={self.__len__()}, "
                 f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-                f"has_trg={self.has_trg}, random_subset={self.random_subset})")
+                f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+                f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+                f"has_trg_prompt={self.has_prompt[self.trg_lang]})")
 
 
 class PlaintextDataset(BaseDataset):
@@ -247,6 +259,7 @@ class PlaintextDataset(BaseDataset):
         trg_lang: str,
         split: int = "train",
         has_trg: bool = True,
+        has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
@@ -258,6 +271,7 @@ class PlaintextDataset(BaseDataset):
             trg_lang=trg_lang,
             split=split,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -354,6 +368,7 @@ class TsvDataset(BaseDataset):
         trg_lang: str,
         split: int = "train",
         has_trg: bool = True,
+        has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
@@ -365,6 +380,7 @@ class TsvDataset(BaseDataset):
             trg_lang=trg_lang,
             split=split,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -405,6 +421,14 @@ class TsvDataset(BaseDataset):
             if self.has_trg:
                 df[self.trg_lang] = df[self.trg_lang].apply(
                     self.tokenizer[self.trg_lang].pre_process)
+            if f"{self.src_lang}_prompt" in df.columns:
+                self.has_prompt[self.src_lang] = True
+                df[f"{self.src_lang}_prompt"] = df[f"{self.src_lang}_prompt"].apply(
+                    self.tokenizer[self.src_lang].pre_process, allow_empty=True)
+            if f"{self.trg_lang}_prompt" in df.columns:
+                self.has_prompt[self.trg_lang] = True
+                df[f"{self.trg_lang}_prompt"] = df[f"{self.trg_lang}_prompt"].apply(
+                    self.tokenizer[self.trg_lang].pre_process, allow_empty=True)
             return df
 
         except ImportError as e:
@@ -429,9 +453,12 @@ class TsvDataset(BaseDataset):
         self._initial_df = None
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
-        line = self.df.iloc[idx][lang]
+        line = self.df.iloc[idx]
         is_train = self.split == "train" if is_train is None else is_train
-        item = self.tokenizer[lang](line, is_train=is_train)
+        item = self.tokenizer[lang](line[lang], is_train=is_train)
+        if self.has_prompt[lang] and line[f"{lang}_prompt"]:
+            prompt = self.tokenizer[lang](line[f"{lang}_prompt"], is_train=is_train)
+            item = prompt + [SEP_TOKEN] + item  # prepend prompt
         return item
 
     def get_list(self,
@@ -457,6 +484,7 @@ class StreamDataset(BaseDataset):
         trg_lang: str,
         split: int = "test",
         has_trg: bool = False,
+        has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
@@ -469,6 +497,7 @@ class StreamDataset(BaseDataset):
             trg_lang=trg_lang,
             split=split,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -476,12 +505,17 @@ class StreamDataset(BaseDataset):
         # place holder
         self.cache = {}
 
-    def set_item(self, src_line: str, trg_line: str = None) -> None:
+    def set_item(self, src_line: str,
+                 trg_line: Optional[str] = None,
+                 src_prompt: Optional[str] = None,
+                 trg_prompt: Optional[str] = None) -> None:
         """
         Set input text to the cache.
 
-        :param src_line: (str)
-        :param trg_line: (str)
+        :param src_line: (non-empty) str
+        :param trg_line: Optional[str]
+        :param src_prompt: Optional[str]
+        :param trg_prompt: Optional[str]
         """
         assert isinstance(src_line, str) and src_line.strip() != "", \
             "The input sentence is empty! Please make sure " \
@@ -492,21 +526,36 @@ class StreamDataset(BaseDataset):
 
         if self.has_trg:
             trg_line = self.tokenizer[self.trg_lang].pre_process(trg_line)
-        self.cache[idx] = (src_line, trg_line)
+
+        if src_prompt:
+            self.has_prompt[self.src_lang] = True
+            src_prompt = self.tokenizer[self.src_lang].pre_process(src_prompt, allow_empty=True)
+
+        if trg_prompt:
+            self.has_prompt[self.trg_lang] = True
+            trg_prompt = self.tokenizer[self.trg_lang].pre_process(trg_prompt, allow_empty=True)
+
+        self.cache[idx] = (src_line, trg_line, src_prompt, trg_prompt)
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         # pylint: disable=unused-argument
         assert idx in self.cache, (idx, self.cache)
         assert lang in [self.src_lang, self.trg_lang]
-        if lang == self.trg_lang:
-            assert self.has_trg
 
         line = {}
-        src_line, trg_line = self.cache[idx]
+        src_line, trg_line, src_prompt, trg_prompt = self.cache[idx]
         line[self.src_lang] = src_line
         line[self.trg_lang] = trg_line
+        line[f"{self.src_lang}_prompt"] = src_prompt
+        line[f"{self.trg_lang}_prompt"] = trg_prompt
 
-        item = self.tokenizer[lang](line[lang], is_train=False)
+        item = self.tokenizer[lang](line[lang], is_train=False) if line[lang] else []
+        if self.has_prompt[lang] and line[f"{lang}_prompt"]:
+            prompt = self.tokenizer[lang](line[f"{lang}_prompt"], is_train=False)
+            item = prompt + [SEP_TOKEN] + item
+            max_length = self.tokenizer[lang].max_length
+            if 0 < max_length < len(item):
+                item = item[-max_length:]  # truncate prompt
         return item
 
     def __len__(self) -> int:
@@ -515,7 +564,9 @@ class StreamDataset(BaseDataset):
     def __repr__(self) -> str:
         return (f"{self.__class__.__name__}(split={self.split}, len={len(self.cache)}, "
                 f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-                f"has_trg={self.has_trg}, random_subset={self.random_subset})")
+                f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+                f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+                f"has_trg_prompt={self.has_prompt[self.trg_lang]})")
 
 
 class BaseHuggingfaceDataset(BaseDataset):
@@ -607,7 +658,9 @@ class BaseHuggingfaceDataset(BaseDataset):
     def __repr__(self) -> str:
         ret = (f"{self.__class__.__name__}(len={self.__len__()}, "
                f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-               f"has_trg={self.has_trg}, random_subset={self.random_subset}")
+               f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+               f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+               f"has_trg_prompt={self.has_prompt[self.trg_lang]}")
         for k, v in self._kwargs.items():
             ret += f", {k}={v}"
         ret += ")"
@@ -640,12 +693,18 @@ class HuggingfaceTranslationDataset(BaseHuggingfaceDataset):
         # preprocess (lowercase, pretokenize, etc.) + validity check
         def _pre_process(item):
             sl = self.src_lang
+            tl = self.trg_lang
             item[self.COLUMN_NAME][sl] = self.tokenizer[sl].pre_process(
                 item[self.COLUMN_NAME][sl])
             if self.has_trg:
-                tl = self.trg_lang
                 item[self.COLUMN_NAME][tl] = self.tokenizer[tl].pre_process(
                     item[self.COLUMN_NAME][tl])
+            if self.has_prompt[sl]:
+                item[f"{sl}_prompt"] = self.tokenizer[sl].pre_process(
+                    item[f"{sl}_prompt"], allow_empty=True)
+            if self.has_prompt[tl]:
+                item[f"{tl}_prompt"] = self.tokenizer[tl].pre_process(
+                    item[f"{tl}_prompt"], allow_empty=True)
             return item
 
         def _drop_nan(item):

@@ -3,7 +3,6 @@
 Data module
 """
 import logging
-from functools import partial
 from typing import Dict, Optional, Tuple
 
 from joeynmt.datasets import BaseDataset, build_dataset
@@ -22,7 +21,7 @@ def load_data(cfg: Dict, datasets: list = None) \
     and a minimum token frequency of `voc_min_freq` (specified in the configuration
     dictionary).
 
-    The training data is filtered to include sentences up to `max_sent_length` on source
+    The training data is filtered to include sentences up to `max_length` on source
     and target side.
 
     If you set `random_{train|dev}_subset`, a random selection of this size is used
@@ -89,8 +88,8 @@ def load_data(cfg: Dict, datasets: list = None) \
 
     # encoding func
     sequence_encoder = {
-        src_lang: partial(src_vocab.sentences_to_ids, bos=False, eos=True),
-        trg_lang: partial(trg_vocab.sentences_to_ids, bos=True, eos=True),
+        src_lang: src_vocab.sentences_to_ids,
+        trg_lang: trg_vocab.sentences_to_ids,
     }
     if train_data is not None:
         train_data.sequence_encoder = sequence_encoder

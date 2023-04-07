@@ -15,6 +15,7 @@ from joeynmt.config import ConfigurationError
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
+from joeynmt.helpers import adjust_mask_size
 from joeynmt.initialization import initialize_model
 from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
@@ -59,7 +60,9 @@ class Model(nn.Module):
         self.pad_index = self.trg_vocab.pad_index
         self.bos_index = self.trg_vocab.bos_index
         self.eos_index = self.trg_vocab.eos_index
+        self.sep_index = self.trg_vocab.sep_index
         self.unk_index = self.trg_vocab.unk_index
+        self.lang_tags = [self.trg_vocab.lookup(t) for t in self.trg_vocab.lang_tags]
         self._loss_function = None  # set by the TrainManager
 
     @property
@@ -178,6 +181,9 @@ class Model(nn.Module):
             - hidden_concat
             - src_mask
         """
+        if _kwargs.get("src_prompt_mask", None) is not None and isinstance(self.encoder, TransformerEncoder):
+            assert src.size(1) == _kwargs["src_prompt_mask"].size(1)
+            _kwargs["src_prompt_mask"] = self.src_embed(_kwargs["src_prompt_mask"])
         return self.encoder(self.src_embed(src), src_length, src_mask, **_kwargs)
 
     def _decode(
@@ -209,6 +215,11 @@ class Model(nn.Module):
             - att_prob
             - att_vector
         """
+
+        if _kwargs.get("trg_prompt_mask", None) is not None:
+            batch_size, seq_len = trg_input.size()
+            trg_prompt_mask = adjust_mask_size(_kwargs["trg_prompt_mask"], batch_size, seq_len)
+            _kwargs["trg_prompt_mask"] = self.trg_embed(trg_prompt_mask)
         return self.decoder(
             trg_embed=self.trg_embed(trg_input),
             encoder_output=encoder_output,

@@ -328,6 +328,18 @@ def freeze_params(module: nn.Module) -> None:
         p.requires_grad = False
 
 
+def adjust_mask_size(mask: Tensor, batch_size: int, hyp_len: int) -> Tensor:
+    if mask.size(1) < hyp_len:
+        _mask = mask.new_zeros((batch_size, hyp_len))
+        _mask[:, :mask.size(1)] = mask
+    elif mask.size(1) > hyp_len:
+        _mask = mask[:, :hyp_len]
+    else:
+        _mask = mask
+    assert _mask.size(1) == hyp_len, (_mask.size(), batch_size, hyp_len)
+    return _mask
+
+
 def delete_ckpt(to_delete: Path) -> None:
     """
     Delete checkpoint

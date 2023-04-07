@@ -213,7 +213,7 @@ def predict(
     decoded_valid = model.trg_vocab.arrays_to_sentences(arrays=all_outputs,
                                                         cut_at_eos=True)
     # TODO: `valid_sequence_scores` should have the same seq length as `decoded_valid`
-    #     -> needed to be cut-off at eos synchronously
+    #     -> needed to be cut-off at eos/sep synchronously
 
     if args.return_prob == "ref":  # no evaluation needed
         logger.info(

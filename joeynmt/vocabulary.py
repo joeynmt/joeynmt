@@ -13,10 +13,16 @@ import numpy as np
 from joeynmt.constants import (
     BOS_ID,
     BOS_TOKEN,
+    DE_ID,
+    DE_TOKEN,
+    EN_ID,
+    EN_TOKEN,
     EOS_ID,
     EOS_TOKEN,
     PAD_ID,
     PAD_TOKEN,
+    SEP_ID,
+    SEP_TOKEN,
     UNK_ID,
     UNK_TOKEN,
 )
@@ -39,14 +45,15 @@ class Vocabulary:
         # warning: stoi grows with unknown tokens, don't use for saving or size
 
         # special symbols
-        self.specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
+        self.specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, SEP_TOKEN]
+        self.lang_tags = [DE_TOKEN, EN_TOKEN]
 
         # don't allow to access _stoi and _itos outside of this class
         self._stoi: Dict[str, int] = {}  # string to index
         self._itos: List[str] = []  # index to string
 
         # construct
-        self.add_tokens(tokens=self.specials + tokens)
+        self.add_tokens(tokens=self.specials + self.lang_tags + tokens)
         assert len(self._stoi) == len(self._itos)
 
         # assign after stoi is built
@@ -54,10 +61,12 @@ class Vocabulary:
         self.bos_index = self.lookup(BOS_TOKEN)
         self.eos_index = self.lookup(EOS_TOKEN)
         self.unk_index = self.lookup(UNK_TOKEN)
+        self.sep_index = self.lookup(SEP_TOKEN)
         assert self.pad_index == PAD_ID
         assert self.bos_index == BOS_ID
         assert self.eos_index == EOS_ID
         assert self.unk_index == UNK_ID
+        assert self.sep_index == SEP_ID
         assert self._itos[UNK_ID] == UNK_TOKEN
 
     def add_tokens(self, tokens: List[str]) -> None:
@@ -153,22 +162,25 @@ class Vocabulary:
     def sentences_to_ids(self,
                          sentences: List[List[str]],
                          bos: bool = True,
-                         eos: bool = True) -> Tuple[List[List[int]], List[int]]:
+                         eos: bool = True) -> Tuple[List[List[int]], List[int], List[int]]:
         """
         Encode sentences to indices and pad sequences to the maximum length of the
         sentences given
 
         :param sentences: list of tokenized sentences
+        :param bos: whether to add <bos>
+        :param eos: whether to add <eos>
         :return:
             - padded ids
             - original lengths before padding
+            - prompt_mask
         """
         max_len = max([len(sent) for sent in sentences])
         if bos:
             max_len += 1
         if eos:
             max_len += 1
-        padded, lengths = [], []
+        padded, lengths, prompt_mask = [], [], []
         for sent in sentences:
             encoded = [self.lookup(s) for s in sent]
             if bos:
@@ -178,7 +190,13 @@ class Vocabulary:
             offset = max(0, max_len - len(encoded))
             padded.append(encoded + [self.pad_index] * offset)
             lengths.append(len(encoded))
-        return padded, lengths
+
+            try:
+                sep_pos = encoded.index(self.sep_index) + 1
+                prompt_mask.append([1] * sep_pos + [0] * (max_len - sep_pos))
+            except ValueError as e:
+                prompt_mask.append([0] * max_len)
+        return padded, lengths, prompt_mask
 
     def log_vocab(self, k: int) -> str:
         """first k vocab entities"""
@@ -241,7 +259,8 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
         raise ValueError("Please provide a vocab file path or dataset.")
 
     vocab = Vocabulary(unique_tokens)
-    assert len(vocab) <= max_size + len(vocab.specials), (len(vocab), max_size)
+    assert len(vocab) <= max_size + len(vocab.specials + vocab.lang_tags), \
+        (len(vocab), max_size)
 
     # check for all except for UNK token whether they are OOVs
     for s in vocab.specials[1:]:

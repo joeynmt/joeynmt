@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from joeynmt.constants import PAD_ID
+from joeynmt.constants import EOS_ID, PAD_ID
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +26,12 @@ class Batch:
         self,
         src: Tensor,
         src_length: Tensor,
+        src_prompt_mask: Optional[Tensor],
         trg: Optional[Tensor],
-        trg_length: Optional[Tensor],
+        trg_prompt_mask: Optional[Tensor],
         device: torch.device,
+        eos_index: int = EOS_ID,
         pad_index: int = PAD_ID,
-        has_trg: bool = True,
         is_train: bool = True,
     ):
         """
@@ -38,37 +39,46 @@ class Batch:
         length, masks, number of non-padded tokens in trg. Furthermore, it can be
         sorted by src length.
 
-        :param src:
-        :param src_length:
-        :param trg:
-        :param trg_length:
+        :param src: shape (batch_size, max_src_len)
+        :param src_length: shape (batch_size,)
+        :param src_prompt_mask: shape (batch_size, max_src_len)
+        :param trg: shape (batch_size, max_trg_len)
+        :param trg_prompt_mask: shape (batch_size, max_trg_len)
         :param device:
+        :param eos_index:
         :param pad_index: *must be the same for both src and trg
         :param is_train: *can be used for online data augmentation, subsampling etc.
         """
         self.src: Tensor = src
         self.src_length: Tensor = src_length
         self.src_mask: Tensor = (self.src != pad_index).unsqueeze(1)
+        self.src_prompt_mask: Optional[Tensor] = None  # equivalent to `token_type_ids`
         self.trg_input: Optional[Tensor] = None
         self.trg: Optional[Tensor] = None
         self.trg_mask: Optional[Tensor] = None
-        self.trg_length: Optional[Tensor] = None
+        self.trg_prompt_mask: Optional[Tensor] = None
 
         self.nseqs: int = self.src.size(0)
         self.ntokens: Optional[int] = None
-        self.has_trg: bool = has_trg
+        self.has_trg: bool = trg is not None
         self.is_train: bool = is_train
 
+        if src_prompt_mask is not None:
+            self.src_prompt_mask = src_prompt_mask
+
         if self.has_trg:
-            assert trg is not None and trg_length is not None
-            # trg_input is used for teacher forcing, last one is cut off
-            self.trg_input: Tensor = trg[:, :-1]  # shape (batch_size, seq_length)
-            self.trg_length: Tensor = trg_length - 1
+            has_eos = torch.any(trg == eos_index).item()
+            # trg_input is used for teacher forcing, last one (EOS) is cut off
+            self.trg_input: Tensor = trg[:, :-1] if has_eos else trg
             # trg is used for loss computation, shifted by one since BOS
-            self.trg: Tensor = trg[:, 1:]  # shape (batch_size, seq_length)
+            self.trg: Tensor = trg[:, 1:]  # trg: shape (batch_size, max_trg_len)
             # we exclude the padded areas (and blank areas) from the loss computation
+            # trg_mask: shape (batch_size, 1, max_trg_len); passed to attention layers
             self.trg_mask: Tensor = (self.trg != pad_index).unsqueeze(1)
-            self.ntokens: int = (self.trg != pad_index).data.sum().item()
+            self.ntokens: int = self.trg_mask.sum().item()
+
+            if trg_prompt_mask is not None:
+                self.trg_prompt_mask = trg_prompt_mask
 
         if device.type == "cuda":
             self._make_cuda(device)
@@ -82,11 +92,16 @@ class Batch:
         self.src_length = self.src_length.to(device)
         self.src_mask = self.src_mask.to(device)
 
+        if self.src_prompt_mask is not None:
+            self.src_prompt_mask = self.src_prompt_mask.to(device)
+
         if self.has_trg:
             self.trg_input = self.trg_input.to(device)
             self.trg = self.trg.to(device)
-            self.trg_length = self.trg_length.to(device)
             self.trg_mask = self.trg_mask.to(device)
+
+            if self.trg_prompt_mask is not None:
+                self.trg_prompt_mask = self.trg_prompt_mask.to(device)
 
     def normalize(
         self,
@@ -137,24 +152,20 @@ class Batch:
         for new_pos, old_pos in enumerate(perm_index.cpu().numpy()):
             rev_index[old_pos] = new_pos
 
-        sorted_src_length = self.src_length[perm_index]
-        sorted_src = self.src[perm_index]
-        sorted_src_mask = self.src_mask[perm_index]
-        if self.has_trg:
-            sorted_trg_input = self.trg_input[perm_index]
-            sorted_trg_length = self.trg_length[perm_index]
-            sorted_trg_mask = self.trg_mask[perm_index]
-            sorted_trg = self.trg[perm_index]
+        self.src = self.src[perm_index]
+        self.src_length = self.src_length[perm_index]
+        self.src_mask = self.src_mask[perm_index]
 
-        self.src = sorted_src
-        self.src_length = sorted_src_length
-        self.src_mask = sorted_src_mask
+        if self.src_prompt_mask is not None:
+            self.src_prompt_mask = self.src_prompt_mask[perm_index]
 
         if self.has_trg:
-            self.trg_input = sorted_trg_input
-            self.trg_mask = sorted_trg_mask
-            self.trg_length = sorted_trg_length
-            self.trg = sorted_trg
+            self.trg_input = self.trg_input[perm_index]
+            self.trg_mask = self.trg_mask[perm_index]
+            self.trg = self.trg[perm_index]
+
+            if self.trg_prompt_mask is not None:
+                self.trg_prompt_mask = self.trg_prompt_mask[perm_index]
 
         assert max(rev_index) < len(rev_index), rev_index
         return rev_index

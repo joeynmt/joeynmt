@@ -82,6 +82,7 @@ def recurrent_greedy(
     """
     bos_index = model.bos_index
     eos_index = model.eos_index
+    sep_index = model.sep_index
     unk_index = model.unk_index
     batch_size = src_mask.size(0)
     min_output_length: int = kwargs.get("min_output_length", 1)
@@ -102,6 +103,7 @@ def recurrent_greedy(
         autocast["dtype"] = torch.float16 if device.type == "cpu" else torch.bfloat16
 
     for step in range(max_output_length):
+
         # decode one single step
         with torch.autocast(**autocast):
             with torch.no_grad():
@@ -117,13 +119,12 @@ def recurrent_greedy(
                 )
                 # out: batch x time=1 x vocab (logits)
 
-        out[:, :, bos_index] = float("-inf")
-
         if return_prob:
             out = F.log_softmax(out, dim=-1)
 
         # don't generate BOS
         out[:, :, bos_index] = float("-inf")
+        out[:, :, sep_index] = float("-inf")
 
         if not generate_unk:
             out[:, :, unk_index] = float("-inf")
@@ -179,6 +180,7 @@ def transformer_greedy(
     # pylint: disable=unused-argument
     bos_index = model.bos_index
     eos_index = model.eos_index
+    sep_index = model.sep_index
     unk_index = model.unk_index
     pad_index = model.pad_index
     batch_size, _, src_len = src_mask.size()
@@ -196,8 +198,11 @@ def transformer_greedy(
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
     no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
     encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
+    decoder_prompt: Tensor = kwargs.get("decoder_prompt", None)  # for forced decoding
+    trg_prompt_mask: Tensor = kwargs.get("trg_prompt_mask", None)  # for forced decoding
     compute_softmax: bool = (return_prob or repetition_penalty > 0
                              or no_repeat_ngram_size > 0 or encoder_input is not None)
+    exclude_tokens = [unk_index, pad_index, bos_index, eos_index, sep_index] + model.lang_tags
 
     # start with BOS-symbol for each sentence in the batch
     ys = encoder_output.new_full((batch_size, 1), bos_index, dtype=torch.long)
@@ -214,81 +219,99 @@ def transformer_greedy(
     if isinstance(model, _DataParallel):
         trg_mask = torch.stack([src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
-    finished = src_mask.new_zeros(batch_size).byte()
+    finished = src_mask.new_zeros((batch_size, 1)).byte()
 
     for step in range(max_output_length):
-        with torch.autocast(**autocast):
-            with torch.no_grad():
-                out, _, att, _ = model(
-                    return_type="decode",
-                    trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
-                    encoder_output=encoder_output,
-                    encoder_hidden=None,
-                    src_mask=src_mask,
-                    unroll_steps=None,
-                    decoder_hidden=None,
-                    trg_mask=trg_mask,
-                    return_attention=return_attention,
-                )
-
-        out = out[:, -1]  # logits
-
-        # don't generate BOS
-        out[:, bos_index] = float("-inf")
-
-        if not generate_unk:
-            out[:, unk_index] = float("-inf")
-
-        # don't generate EOS until we reached min_output_length
-        if step < min_output_length:
-            out[:, eos_index] = float("-inf")
-
-        if compute_softmax:
-            out = F.log_softmax(out, dim=-1)
-
-            # ngram blocker
-            if no_repeat_ngram_size > 1:
-                out = block_repeat_ngrams(
-                    ys,
-                    out,
-                    no_repeat_ngram_size,
-                    step,
-                    src_tokens=encoder_input,
-                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-                )
-
-            # repetition_penalty
-            if repetition_penalty > 1.0:
-                out = penalize_repetition(
-                    ys,
-                    out,
-                    repetition_penalty,
-                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-                )
-                if encoder_input is not None:
-                    out = penalize_repetition(
-                        encoder_input,
-                        out,
-                        repetition_penalty,
-                        exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+        # `forced_word` shape: (batch_size, 1)
+        forced_word = decoder_prompt[:, step+1].unsqueeze(1) \
+            if decoder_prompt is not None and decoder_prompt.size(1) > step+1 else \
+            ys.new_full((batch_size, 1), pad_index, dtype=torch.long)
+        forced_prob = yv.new_zeros((batch_size, 1)) if return_prob else None
+        forced_att = yt.new_zeros((batch_size, 1, src_len)) if return_attention else None
+        if torch.any(forced_word == pad_index).item():
+            with torch.autocast(**autocast):
+                with torch.no_grad():
+                    out, _, att, _ = model(
+                        return_type="decode",
+                        trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
+                        encoder_output=encoder_output,
+                        encoder_hidden=None,
+                        src_mask=src_mask,
+                        unroll_steps=None,
+                        decoder_hidden=None,
+                        trg_mask=trg_mask,
+                        return_attention=return_attention,
+                        trg_prompt_mask=trg_prompt_mask,
                     )
 
-        # take the most likely token
-        prob, next_word = torch.max(out, dim=1)
-        next_word = next_word.data
-        ys = torch.cat([ys, next_word.unsqueeze(-1)], dim=1)
-        if return_prob:
-            prob = prob.data
-            yv = torch.cat([yv, prob.unsqueeze(-1)], dim=1)
-        if return_attention:
-            assert att is not None
-            att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
-            yt = torch.cat([yt, att], dim=1)  # (batch_size, trg_len, src_len)
+            out = out[:, -1]  # logits
 
-        # check if previous symbol was <eos>
+            # don't generate BOS, SEP, language tags
+            for forbidden_index in [bos_index, sep_index] + model.lang_tags:
+                out[:, forbidden_index] = float("-inf")
+
+            if not generate_unk:
+                out[:, unk_index] = float("-inf")
+
+            # don't generate EOS until we reached min_output_length
+            if step < min_output_length:
+                out[:, eos_index] = float("-inf")
+
+            if compute_softmax:
+                out = F.log_softmax(out, dim=-1)
+
+                # ngram blocker
+                if no_repeat_ngram_size > 1:
+                    out = block_repeat_ngrams(
+                        ys,
+                        out,
+                        no_repeat_ngram_size,
+                        step,
+                        src_tokens=encoder_input,
+                        exclude_tokens=exclude_tokens,
+                    )
+
+                # repetition_penalty
+                if repetition_penalty > 1.0:
+                    out = penalize_repetition(
+                        ys,
+                        out,
+                        repetition_penalty,
+                        exclude_tokens=exclude_tokens,
+                    )
+                    if encoder_input is not None:
+                        out = penalize_repetition(
+                            encoder_input,
+                            out,
+                            repetition_penalty,
+                            exclude_tokens=exclude_tokens,
+                        )
+
+            # take the most likely token
+            prob, next_word = torch.max(out, dim=1)
+            next_word = next_word.data.unsqueeze(-1)
+            next_word = torch.where(forced_word == pad_index, next_word, forced_word)
+            if return_prob:
+                prob = prob.data.unsqueeze(-1)
+                prob = torch.where(forced_word == pad_index, prob, forced_prob)
+            if return_attention:
+                assert att is not None
+                att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
+                att = torch.where(forced_word.expand(-1, src_len).unsqueeze(1) == pad_index, att, forced_att)
+                # `att` shape: (batch_size, 1, src_len)
+        else:
+            next_word = forced_word
+            prob = forced_prob if return_prob else None
+            att = forced_att if return_attention else None
+        ys = torch.cat([ys, next_word], dim=1)
+        yv = torch.cat([yv, prob], dim=1) if return_prob else None
+        yt = torch.cat([yt, att], dim=1) if return_attention else None
+        # `yt` shape: (batch_size, trg_len, src_len)
+
+        # check if we reached EOS
         is_eos = torch.eq(next_word, eos_index)
         finished += is_eos
-        # stop predicting if <eos> reached for all elements in batch
+        # stop predicting if we reached EOS for all elements in batch
         if (finished >= 1).sum() == batch_size:
             break
 
@@ -334,15 +357,12 @@ def beam_search(
         f"Can only return {beam_size} best hypotheses."
         "`n_best` must be smaller than or equal to `beam_size`.")
 
-    # Take the best 2 x {beam_size} predictions so as to avoid duplicates in generation.
-    # yet, only return {n_best} hypotheses.
-    # beam_size = 2 * beam_size
-
     # init
     bos_index = model.bos_index
     eos_index = model.eos_index
     pad_index = model.pad_index
     unk_index = model.unk_index
+    sep_index = model.sep_index
     batch_size = src_mask.size(0)
 
     generate_unk: bool = kwargs.get("generate_unk", True)  # whether to generate UNK
@@ -351,9 +371,13 @@ def beam_search(
     repetition_penalty: float = kwargs.get("repetition_penalty", -1)
     no_repeat_ngram_size: int = kwargs.get("no_repeat_ngram_size", -1)
     encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
+    decoder_prompt: Tensor = kwargs.get("decoder_prompt", None)  # for forced decoding
+    trg_prompt_mask: Tensor = kwargs.get("trg_prompt_mask", None)  # for forced decoding
+    exclude_tokens = [unk_index, pad_index, bos_index, eos_index, sep_index] + model.lang_tags
 
     trg_vocab_size = model.decoder.output_size
     device = encoder_output.device
+    dtype = encoder_output.dtype
     fp16: bool = kwargs.get("fp16", False)
     autocast = {"device_type": device.type, "enabled": fp16}
     if fp16:
@@ -382,8 +406,10 @@ def beam_search(
 
     # `encoder_output` shape: (batch_size * beam_size, src_len, enc_hidden_size)
     encoder_output = tile(encoder_output.contiguous(), beam_size, dim=0)
+
     # `src_mask` shape: (batch_size * beam_size, 1, src_len)
     src_mask = tile(src_mask, beam_size, dim=0)
+
     # `encoder_input` shape: (batch_size * beam_size, src_len)
     if encoder_input is not None:  # used in src-side repetition blocker
         encoder_input = tile(encoder_input.contiguous(), beam_size,
@@ -393,6 +419,17 @@ def beam_search(
             batch_size * beam_size,
         )
 
+    # `decoder_prompt` shape: (batch_size * beam_size, trg_prompt_len)
+    if decoder_prompt is not None:  # used in forced decoding
+        decoder_prompt = tile(decoder_prompt.contiguous(), beam_size,
+                             dim=0).view(batch_size * beam_size, -1)
+        assert decoder_prompt.size(0) == batch_size * beam_size
+    if trg_prompt_mask is not None:
+        trg_prompt_mask = tile(trg_prompt_mask.contiguous(), beam_size,
+                               dim=0).view(batch_size * beam_size, -1)
+        assert trg_prompt_mask.size(0) == batch_size * beam_size
+        assert decoder_prompt.size(1) == trg_prompt_mask.size(1)
+
     # Transformer only: create target mask
     if is_transformer:
         trg_mask = src_mask.new_ones([1, 1, 1])
@@ -401,9 +438,11 @@ def beam_search(
                 [src_mask.new_ones([1, 1]) for _ in model.device_ids])
 
     # numbering elements in the batch
+    # batch_offset = [0, 1, 2, 3, 4] when batch_size = 5
     batch_offset = torch.arange(batch_size, dtype=torch.long, device=device)
 
     # numbering elements in the extended batch, i.e. k copies of each batch element
+    # beam_offset = [0, 2, 4, 6, 8] when batch_size = 5, beam_size = 2
     beam_offset = torch.arange(0,
                                batch_size * beam_size,
                                step=beam_size,
@@ -439,87 +478,111 @@ def beam_search(
                              device=device)
 
     for step in range(max_output_length):
-        if is_transformer:
-            # For Transformer, we feed the complete predicted sentence so far.
-            decoder_input = alive_seq
+        # `forced_token_ids` shape: (remaining_batch_size * beam_size,)
+        alive_seq_size = alive_seq.size(0)  # current batch size
+        forced_token_ids = decoder_prompt[:, step + 1] \
+            if decoder_prompt is not None and decoder_prompt.size(1) > step + 1 else \
+            torch.full((alive_seq_size,), pad_index, dtype=torch.long, device=device)
+        padding_mask = trg_prompt_mask[:, step + 1].bool() \
+            if trg_prompt_mask is not None and trg_prompt_mask.size(1) > step + 1 else \
+            torch.zeros((alive_seq_size,), dtype=torch.bool, device=device)
+        _log_probs_idx = torch.arange(alive_seq_size, dtype=torch.long, device=device)
+        _log_probs_val = torch.zeros(alive_seq_size, dtype=dtype, device=device)
+        if torch.any(~padding_mask).item():
+            if is_transformer:
+                # For Transformer, we feed the complete predicted sentence so far.
+                decoder_input = alive_seq
 
-            # decode one single step
-            with torch.autocast(**autocast):
-                with torch.no_grad():
-                    logits, _, _, _ = model(  # logits before final softmax
-                        return_type="decode",
-                        encoder_output=encoder_output,
-                        encoder_hidden=None,  # only for initializing decoder_hidden
-                        src_mask=src_mask,
-                        trg_input=decoder_input,  # trg_embed = embed(decoder_input)
-                        decoder_hidden=None,  # don't need to keep it for transformer
-                        att_vector=None,  # don't need to keep it for transformer
-                        unroll_steps=1,
-                        trg_mask=trg_mask,  # subsequent mask for Transformer only
-                    )
+                # decode one single step
+                with torch.autocast(**autocast):
+                    with torch.no_grad():
+                        logits, _, _, _ = model(  # logits before final softmax
+                            return_type="decode",
+                            encoder_output=encoder_output,
+                            encoder_hidden=None,  # only for initializing decoder_hidden
+                            src_mask=src_mask,
+                            trg_input=decoder_input,  # trg_embed = embed(decoder_input)
+                            decoder_hidden=None,  # don't need to keep it for transformer
+                            att_vector=None,  # don't need to keep it for transformer
+                            unroll_steps=1,
+                            trg_mask=trg_mask,  # subsequent mask for Transformer only
+                            trg_prompt_mask=trg_prompt_mask,
+                        )
 
-            # For the Transformer we made predictions for all time steps up to this
-            # point, so we only want to know about the last time step.
-            logits = logits[:, -1]
-            hidden = None
-        else:
-            # For Recurrent models, only feed the previous trg word prediction
-            decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
+                # For the Transformer we made predictions for all time steps up to this
+                # point, so we only want to know about the last time step.
+                logits = logits[:, -1]
+                hidden = None
+            else:
+                # For Recurrent models, only feed the previous trg word prediction
+                decoder_input = alive_seq[:, -1].view(-1, 1)  # only the last word
 
-            with torch.autocast(**autocast):
-                with torch.no_grad():
-                    # pylint: disable=unused-variable
-                    logits, hidden, att_scores, att_vectors = model(
-                        return_type="decode",
-                        encoder_output=encoder_output,
-                        encoder_hidden=None,  # only for initializing decoder_hidden
-                        src_mask=src_mask,
-                        trg_input=decoder_input,  # trg_embed = embed(decoder_input)
-                        decoder_hidden=hidden,
-                        att_vector=att_vectors,
-                        unroll_steps=1,
-                        trg_mask=None,  # subsequent mask for Transformer only
-                    )
+                with torch.autocast(**autocast):
+                    with torch.no_grad():
+                        # pylint: disable=unused-variable
+                        logits, hidden, att_scores, att_vectors = model(
+                            return_type="decode",
+                            encoder_output=encoder_output,
+                            encoder_hidden=None,  # only for initializing decoder_hidden
+                            src_mask=src_mask,
+                            trg_input=decoder_input,  # trg_embed = embed(decoder_input)
+                            decoder_hidden=hidden,
+                            att_vector=att_vectors,
+                            unroll_steps=1,
+                            trg_mask=None,  # subsequent mask for Transformer only
+                        )
 
-        # compute log probability distribution over trg vocab
-        # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
-        log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
+            # compute log probability distribution over trg vocab
+            # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
+            log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
 
-        # don't generate BOS
-        log_probs[:, bos_index] = float("-inf")
+            # don't generate BOS
+            log_probs[:, bos_index] = float("-inf")
 
-        if not generate_unk:
-            log_probs[:, unk_index] = float("-inf")
+            if not generate_unk:
+                log_probs[:, unk_index] = float("-inf")
 
-        # don't generate EOS until we reached min_output_length
-        if step < min_output_length:
-            log_probs[:, eos_index] = float("-inf")
+            # don't generate EOS until we reached min_output_length
+            if step < min_output_length:
+                log_probs[:, eos_index] = float("-inf")
 
-        # block repetitions
-        if no_repeat_ngram_size > 0:
-            log_probs = block_repeat_ngrams(
-                alive_seq,
-                log_probs,
-                no_repeat_ngram_size,
-                step,
-                src_tokens=encoder_input,
-                exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-            )
+            # block repetitions
+            if no_repeat_ngram_size > 0:
+                log_probs = block_repeat_ngrams(
+                    alive_seq,
+                    log_probs,
+                    no_repeat_ngram_size,
+                    step,
+                    src_tokens=encoder_input,
+                    exclude_tokens=exclude_tokens,
+                )
 
-        if repetition_penalty > 1.0:
-            log_probs = penalize_repetition(
-                alive_seq,
-                log_probs,
-                repetition_penalty,
-                exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
-            )
-            if encoder_input is not None:  # src
+            if repetition_penalty > 1.0:
                 log_probs = penalize_repetition(
-                    encoder_input,
+                    alive_seq,
                     log_probs,
                     repetition_penalty,
-                    exclude_tokens=[bos_index, eos_index, unk_index, pad_index],
+                    exclude_tokens=exclude_tokens,
                 )
+                if encoder_input is not None:  # src
+                    log_probs = penalize_repetition(
+                        encoder_input,
+                        log_probs,
+                        repetition_penalty,
+                        exclude_tokens=exclude_tokens,
+                    )
+
+            forced_token_ids = forced_token_ids.masked_select(padding_mask)
+            _log_probs_idx = _log_probs_idx.masked_select(padding_mask)
+            _log_probs_val = _log_probs_val.masked_select(padding_mask)
+        else:
+            log_probs = torch.full((alive_seq_size, trg_vocab_size),
+                                   float("-inf"), dtype=dtype, device=device)  # dummy
+
+        # forced decoding; overwrite log_probs with zeros (=max value in log scale)
+        if torch.any(padding_mask).item():
+            log_probs = log_probs.index_put(indices=[_log_probs_idx, forced_token_ids],
+                                            values=_log_probs_val)
 
         # multiply probs by the beam probability (=add logprobs)
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
@@ -554,7 +617,7 @@ def beam_search(
         batch_index = topk_beam_index + beam_offset[:topk_ids.size(0)].unsqueeze(1)
         select_indices = batch_index.view(-1)
 
-        # append latest prediction
+        # append the latest prediction
         # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
         alive_seq = torch.cat(
             [alive_seq.index_select(0, select_indices),
@@ -643,10 +706,22 @@ def beam_search(
             alive_seq = predictions.index_select(0, unfinished).view(
                 -1, alive_seq.size(-1))
             if encoder_input is not None:
-                src_len = encoder_input.size(-1)
+                src_len = encoder_input.size(1)
                 encoder_input = encoder_input.view(-1, beam_size, src_len) \
                     .index_select(0, unfinished).view(-1, src_len)
-                assert encoder_input.size(0) == alive_seq.size(0)
+                assert encoder_input.size(0) == alive_seq_size
+
+            if decoder_prompt is not None:
+                trg_len = decoder_prompt.size(1)  # prompt length
+                decoder_prompt = decoder_prompt.view(-1, beam_size, trg_len) \
+                    .index_select(0, unfinished).view(-1, trg_len)
+                assert decoder_prompt.size(0) == alive_seq_size
+            if trg_prompt_mask is not None:
+                trg_len = trg_prompt_mask.size(1)  # prompt length
+                trg_prompt_mask = trg_prompt_mask.view(-1, beam_size, trg_len) \
+                    .index_select(0, unfinished).view(-1, trg_len)
+                assert trg_prompt_mask.size(0) == alive_seq_size
+                assert decoder_prompt.size(1) == trg_prompt_mask.size(1)
 
         # reorder indices, outputs and masks
         select_indices = batch_index.view(-1)
@@ -742,6 +817,11 @@ def search(
             or kwargs.get("repetition_penalty", -1) > 1):
         kwargs["encoder_input"] = batch.src
 
+    # forced prefix (prompt) decoding
+    if batch.has_trg and batch.trg_prompt_mask is not None:  # prompt
+        kwargs["decoder_prompt"] = batch.trg_input
+        kwargs["trg_prompt_mask"] = batch.trg_prompt_mask
+
     # decoding
     if beam_size < 2:  # greedy
         stacked_output, stacked_scores, stacked_attention_scores = greedy(
@@ -808,11 +888,11 @@ def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: in
     for hyp_idx in range(hyp_size):
         if len(trg_tokens[hyp_idx]) > no_repeat_ngram_size:
             # (n-1) token prefix at the time step
-            #                       0  1  2  3  4  <- step
+            #                       0  1  2  3  4  <- time step
             # if tokens[hyp_idx] = [2, 5, 5, 6, 5]    at step 4 with ngram_size = 3,
             #                                ^  ^  ^
             # then ngram_to_check = [6, 5], and set the token in the next position to
-            # -inf, if there are ngrams starts with [6, 5].
+            # -inf, if there are ngrams start with [6, 5].
             ngram_to_check = trg_tokens[hyp_idx][-offset:]
 
             for i in range(1, check_end_pos):  # ignore BOS
