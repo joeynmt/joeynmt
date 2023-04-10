@@ -213,7 +213,7 @@ class TestPrompt(unittest.TestCase):
                 "lang": "src",
                 "level": "bpe",
                 "lowercase": False,
-                "max_length": 20,
+                "max_length": 128,
                 "min_length": 5,
                 "tokenizer_type": "sentencepiece",
                 "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
@@ -223,13 +223,13 @@ class TestPrompt(unittest.TestCase):
                 "lang": "trg",
                 "level": "bpe",
                 "lowercase": False,
-                "max_length": 20,
+                "max_length": 128,
                 "min_length": 5,
                 "tokenizer_type": "sentencepiece",
                 "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
                 "voc_file": "test/data/toy/sp200.vocab",
             },
-            "sample_dev_subset": 10,
+            "sample_dev_subset": -1,
             "dataset_type": "tsv",
         }
 
@@ -259,6 +259,7 @@ class TestPrompt(unittest.TestCase):
             tokenizer = dev_data.tokenizer[side]
 
             # check tokenized sequence
+            print(tokenized)
             self.assertEqual(tokenized, expected[side])
 
             # check detokenized sequence

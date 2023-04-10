@@ -351,6 +351,10 @@ class TrainManager:
                 if self.scheduler_step_at == "epoch":
                     self.scheduler.step(epoch=epoch_no)
 
+                train_data.stats.epoch = epoch_no
+                valid_data.stats.epoch = epoch_no
+                self.train_iter.batch_sampler.set_epoch(epoch_no)
+
                 self.model.train()
 
                 # Reset statistics for each epoch.
@@ -361,19 +365,6 @@ class TrainManager:
                 self.model.zero_grad()
                 epoch_loss = 0
                 total_batch_loss = 0
-
-                # subsample train data each epoch
-                if train_data.random_subset > 0:
-                    try:
-                        train_data.reset_random_subset()
-                        train_data.sample_random_subset(seed=epoch_no)
-                        logger.info(
-                            "Sample random subset from dev set: n=%d, seed=%d",
-                            len(train_data),
-                            epoch_no,
-                        )
-                    except AssertionError as e:
-                        logger.warning(e)
 
                 batch: Batch  # yield a joeynmt Batch object
                 for i, batch in enumerate(self.train_iter):
@@ -471,6 +462,7 @@ class TrainManager:
                     epoch_no + 1,
                     epoch_loss,
                 )
+                logger.debug("Train%s", self.train_iter.batch_sampler.sampler.data_source.stats)
             else:
                 logger.info("Training ended after %3d epochs.", epoch_no + 1)
             logger.info(
@@ -526,17 +518,6 @@ class TrainManager:
         return norm_batch_loss.item()
 
     def _validate(self, valid_data: Dataset):
-        if valid_data.random_subset > 0:  # subsample validation set each valid step
-            try:
-                valid_data.reset_random_subset()
-                valid_data.sample_random_subset(seed=self.stats.steps)
-                logger.info(
-                    "Sample random subset from dev set: n=%d, seed=%d",
-                    len(valid_data),
-                    self.stats.steps,
-                )
-            except AssertionError as e:
-                logger.warning(e)
 
         valid_start_time = time.time()
         (
@@ -643,25 +624,25 @@ class TrainManager:
         :param hypotheses: decoded hypotheses (list of strings)
         :param references: decoded references (list of strings)
         :param hypotheses_raw: raw hypotheses (list of list of tokens)
-        :param data: Dataset
+        :param data: dev Dataset
         """
         for p in self.args.print_valid_sents:
             if p >= len(hypotheses):
                 continue
             logger.info("Example #%d", p)
 
-            # tokenized text
-            tokenized_src = data.get_item(idx=p, lang=data.src_lang)
-            tokenized_trg = data.get_item(idx=p, lang=data.trg_lang)
-            logger.debug("\tTokenized source:     %s", tokenized_src)
-            logger.debug("\tTokenized reference:  %s", tokenized_trg)
-            logger.debug("\tTokenized hypothesis: %s", hypotheses_raw[p])
-
             # detokenized text
             detokenized_src = data.tokenizer[data.src_lang].post_process(data.src[p])
             logger.info("\tSource:     %s", detokenized_src)
             logger.info("\tReference:  %s", references[p])
             logger.info("\tHypothesis: %s", hypotheses[p])
+
+            # tokenized text
+            tokenized_src = data.tokenizer[data.src_lang](data.src[p], is_train=False)
+            tokenized_trg = data.tokenizer[data.trg_lang](data.trg[p], is_train=False)
+            logger.debug("\tTokenized source:     %s", tokenized_src)
+            logger.debug("\tTokenized reference:  %s", tokenized_trg)
+            logger.debug("\tTokenized hypothesis: %s", hypotheses_raw[p][:-1])
 
     class TrainStatistics:
 

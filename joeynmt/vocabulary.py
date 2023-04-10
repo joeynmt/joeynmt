@@ -250,6 +250,7 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
 
     elif dataset is not None:
         # tokenize sentences
+        dataset.indices = range(len(dataset))  # no subsampling
         sents = dataset.get_list(lang=cfg["lang"], tokenized=True)
 
         # newly create unique token list (language-wise)

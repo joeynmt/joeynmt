@@ -4,6 +4,7 @@ Dataset module
 """
 import logging
 import random
+import sys
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -17,6 +18,7 @@ from torch.utils.data import (
     Sampler,
     SequentialSampler,
 )
+from torch.utils.data.distributed import DistributedSampler
 
 from joeynmt.batch import Batch
 from joeynmt.config import ConfigurationError
@@ -26,6 +28,27 @@ from joeynmt.tokenizers import BasicTokenizer
 
 logger = logging.getLogger(__name__)
 CPU_DEVICE = torch.device("cpu")
+
+
+class DataStats:
+
+    def __init__(self):
+        self.epoch = 0
+        self.num_valid = 0
+        self.num_invalid = 0
+        self.max_length = 0
+        self.min_length = sys.maxsize
+
+    def reset(self):
+        self.num_valid = 0
+        self.num_invalid = 0
+        self.max_length = 0
+        self.min_length = sys.maxsize
+
+    def __repr__(self) -> str:
+        return (f"{self.__class__.__name__}(epoch={self.epoch}, "
+                f"num_valid={self.num_valid}, num_invalid={self.num_invalid}, "
+                f"max_length={self.max_length}, min_length={self.min_length})")
 
 
 class BaseDataset(Dataset):
@@ -69,17 +92,10 @@ class BaseDataset(Dataset):
                                  if sequence_encoder is None else sequence_encoder)
         self.has_prompt = _place_holder if has_prompt is None else has_prompt
 
-        # for ransom subsampling
+        # for random subsampling
         self.random_subset = random_subset
-
-    def sample_random_subset(self, seed: int = 42) -> None:
-        # pylint: disable=unused-argument
-        assert (
-            self.split != "test" and self.__len__() > self.random_subset > 0
-        ), f"Can only subsample from train or dev set larger than {self.random_subset}."
-
-    def reset_random_subset(self):
-        raise NotImplementedError
+        self.stats = DataStats()  # (random seed) called by sampler.set_epoch()
+        self.indices = None  # range(self.__len__())
 
     def load_data(self, path: Path, **kwargs) -> Any:
         """
@@ -88,12 +104,25 @@ class BaseDataset(Dataset):
         """
         raise NotImplementedError
 
-    def get_item(self, idx: int, lang: str) -> List[str]:
+    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         """
         seek one src/trg item of given index.
             - tokenization is applied here.
             - length-filtering, bpe-dropout etc also triggered if self.split == "train"
         """
+        line, prompt = self.lookup_item(idx, lang)
+        is_train = self.split == "train" if is_train is None else is_train
+        item = self.tokenizer[lang](line, is_train=is_train)
+
+        if self.has_prompt[lang] and prompt is not None:
+            prompt = self.tokenizer[lang](prompt, is_train=False)
+            item = prompt + [SEP_TOKEN] + item
+            max_length = self.tokenizer[lang].max_length
+            if 0 < max_length < len(item):
+                item = item[-max_length:]  # truncate prompt
+        return item
+
+    def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
         raise NotImplementedError
 
     def __getitem__(self, idx: Union[int, str]) -> Tuple[List[str], List[str]]:
@@ -185,6 +214,7 @@ class BaseDataset(Dataset):
         eos_index: int = EOS_ID,
         pad_index: int = PAD_ID,
         device: torch.device = CPU_DEVICE,
+        use_ddp: bool = False,
     ) -> DataLoader:
         """
         Returns a torch DataLoader for a torch Dataset. (no bucketing)
@@ -201,25 +231,44 @@ class BaseDataset(Dataset):
         :return: torch DataLoader
         """
         # sampler
-        sampler: Sampler[int]  # (type annotation)
-        if shuffle and self.split == "train":
-            generator = torch.Generator()
-            generator.manual_seed(seed)
-            sampler = RandomSampler(self, generator=generator)
+        sampler: Sampler[int]  # will raise an integer
+        if use_ddp:
+            sampler = DistributedSampler(self,
+                                         shuffle=(shuffle and self.split == "train"),
+                                         seed=seed)
         else:
-            sampler = SequentialSampler(self)
+            if shuffle and self.split == "train":
+                generator = torch.Generator()
+                generator.manual_seed(seed)
+                sampler = RandomSampler(self, generator=generator)
+            else:
+                if 0 < self.random_subset:
+                    generator = torch.Generator()
+                    generator.manual_seed(seed)
+                    sampler = RandomSubsetSampler(self, generator=generator, seed=seed)
+                else:
+                    sampler = SequentialSampler(self)
 
         # batch generator
         if batch_type == "sentence":
             batch_sampler = SentenceBatchSampler(sampler,
                                                  batch_size=batch_size,
-                                                 drop_last=False)
+                                                 drop_last=False,
+                                                 seed=seed)
         elif batch_type == "token":
             batch_sampler = TokenBatchSampler(sampler,
                                               batch_size=batch_size,
-                                              drop_last=False)
+                                              drop_last=False,
+                                              seed=seed)
         else:
             raise ConfigurationError(f"{batch_type}: Unknown batch type")
+
+        # initialize epoch no
+        if 0 < batch_sampler.sampler.data_source.random_subset:
+            batch_sampler.set_epoch(self.stats.epoch)
+        elif hasattr(batch_sampler.sampler, 'reset'):
+            batch_sampler.sampler.data_source.reset()
+            batch_sampler.sampler.reset()
 
         assert self.sequence_encoder[self.src_lang] is not None
         if self.has_trg:
@@ -279,10 +328,7 @@ class PlaintextDataset(BaseDataset):
 
         # load data
         self.data = self.load_data(path, **kwargs)
-        self._initial_len = len(self.data[self.src_lang])
-
-        # for random subsampling
-        self.idx_map = []
+        self.indices = range(self.__len__())
 
     def load_data(self, path: str, **kwargs) -> Any:
 
@@ -307,29 +353,14 @@ class PlaintextDataset(BaseDataset):
             assert len(src_list) == len(trg_list)
         return data
 
-    def sample_random_subset(self, seed: int = 42) -> None:
-        super().sample_random_subset(seed)  # check validity
-
-        random.seed(seed)  # resample every epoch: seed += epoch_no
-        self.idx_map = list(random.sample(range(self._initial_len), self.random_subset))
-
-    def reset_random_subset(self):
-        self.idx_map = []
-
-    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
-        line = self._look_up_item(idx, lang)
-        is_train = self.split == "train" if is_train is None else is_train
-        item = self.tokenizer[lang](line, is_train=is_train)
-        return item
-
-    def _look_up_item(self, idx: int, lang: str) -> str:
+    def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
         try:
-            if len(self.idx_map) > 0:
-                idx = self.idx_map[idx]
             line = self.data[lang][idx]
-            return line
+            prompt = (self.data[f"{lang}_prompt"][idx]
+                      if f"{lang}_prompt" in self.data else None)
+            return line, prompt
         except Exception as e:
-            logger.error(idx, self._initial_len, e)
+            logger.error(idx, e)
             raise ValueError from e
 
     def get_list(self,
@@ -340,18 +371,16 @@ class PlaintextDataset(BaseDataset):
         (not length-filtered, no bpe-dropout)
         """
         item_list = []
-        for idx in range(self.__len__()):
-            item = self._look_up_item(idx, lang)
+        for idx in self.indices:
+            item, _ = self.lookup_item(idx, lang)
             if tokenized:
-                item = self.tokenizer[lang](self._look_up_item(idx, lang),
-                                            is_train=False)
+                item = self.tokenizer[lang](item, is_train=False)
             item_list.append(item)
+        assert len(self.indices) == len(item_list), (len(self.indices), len(item_list))
         return item_list
 
     def __len__(self) -> int:
-        if len(self.idx_map) > 0:
-            return len(self.idx_map)
-        return self._initial_len
+        return len(self.data[self.src_lang])
 
 
 class TsvDataset(BaseDataset):
@@ -388,9 +417,7 @@ class TsvDataset(BaseDataset):
 
         # load tsv file
         self.df = self.load_data(path, **kwargs)
-
-        # for random subsampling
-        self._initial_df = None
+        self.indices = range(self.__len__())
 
     def load_data(self, path: str, **kwargs) -> Any:
         path = Path(path)
@@ -409,7 +436,11 @@ class TsvDataset(BaseDataset):
                 escapechar="\\",
                 quoting=3,
                 na_filter=False,
+                index_col=None,
             )
+            df = df.dropna()
+            df = df.reset_index()
+
             # TODO: use `chunksize` for online data loading.
             assert self.src_lang in df.columns
             df[self.src_lang] = df[self.src_lang].apply(
@@ -435,37 +466,22 @@ class TsvDataset(BaseDataset):
             logger.error(e)
             raise ImportError from e
 
-    def sample_random_subset(self, seed: int = 42) -> None:
-        super().sample_random_subset(seed)  # check validity
-
-        if self._initial_df is None:
-            self._initial_df = self.df.copy(deep=True)
-
-        self.df = self._initial_df.sample(
-            n=self.random_subset,
-            replace=False,
-            random_state=seed,  # resample every epoch: seed += epoch_no
-        ).reset_index()
-
-    def reset_random_subset(self):
-        assert self._initial_df is not None
-        self.df = self._initial_df
-        self._initial_df = None
-
-    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
-        line = self.df.iloc[idx]
-        is_train = self.split == "train" if is_train is None else is_train
-        item = self.tokenizer[lang](line[lang], is_train=is_train)
-        if self.has_prompt[lang] and line[f"{lang}_prompt"]:
-            prompt = self.tokenizer[lang](line[f"{lang}_prompt"], is_train=is_train)
-            item = prompt + [SEP_TOKEN] + item  # prepend prompt
-        return item
+    def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
+        try:
+            row = self.df.iloc[idx]
+            line = row[lang]
+            prompt = row.get(f"{lang}_prompt", None)
+            return line, prompt
+        except Exception as e:
+            logger.error(idx, e)
+            raise ValueError from e
 
     def get_list(self,
                  lang: str,
                  tokenized: bool = False) -> Union[List[str], List[List[str]]]:
-        return (self.df[lang].apply(self.tokenizer[lang]).to_list()
-                if tokenized else self.df[lang].to_list())
+        df = self.df.iloc[self.indices]
+        return (df[lang].apply(self.tokenizer[lang]).to_list()
+                if tokenized else df[lang].to_list())
 
     def __len__(self) -> int:
         return len(self.df)
@@ -537,26 +553,21 @@ class StreamDataset(BaseDataset):
 
         self.cache[idx] = (src_line, trg_line, src_prompt, trg_prompt)
 
-    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
-        # pylint: disable=unused-argument
-        assert idx in self.cache, (idx, self.cache)
-        assert lang in [self.src_lang, self.trg_lang]
+    def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
+        try:
+            assert idx in self.cache, (idx, self.cache)
+            assert lang in [self.src_lang, self.trg_lang]
+            if lang == self.trg_lang:
+                assert self.has_trg
 
-        line = {}
-        src_line, trg_line, src_prompt, trg_prompt = self.cache[idx]
-        line[self.src_lang] = src_line
-        line[self.trg_lang] = trg_line
-        line[f"{self.src_lang}_prompt"] = src_prompt
-        line[f"{self.trg_lang}_prompt"] = trg_prompt
-
-        item = self.tokenizer[lang](line[lang], is_train=False) if line[lang] else []
-        if self.has_prompt[lang] and line[f"{lang}_prompt"]:
-            prompt = self.tokenizer[lang](line[f"{lang}_prompt"], is_train=False)
-            item = prompt + [SEP_TOKEN] + item
-            max_length = self.tokenizer[lang].max_length
-            if 0 < max_length < len(item):
-                item = item[-max_length:]  # truncate prompt
-        return item
+            src_line, trg_line, src_prompt, trg_prompt = self.cache[idx]
+            if lang == self.src_lang:
+                return src_line, src_prompt
+            elif lang == self.trg_lang:
+                return trg_line, trg_prompt
+        except Exception as e:
+            logger.error(idx, e)
+            raise ValueError from e
 
     def __len__(self) -> int:
         return len(self.cache)
@@ -601,6 +612,8 @@ class BaseHuggingfaceDataset(BaseDataset):
         self.dataset = self.load_data(path, **kwargs)
         self._kwargs = kwargs  # should contain arguments passed to `load_dataset()`
 
+        self.indices = range(self.__len__())
+
     def load_data(self, path: str, **kwargs) -> Any:
         # pylint: disable=import-outside-toplevel
         try:
@@ -622,35 +635,28 @@ class BaseHuggingfaceDataset(BaseDataset):
             logger.error(e)
             raise ImportError from e
 
-    def sample_random_subset(self, seed: int = 42) -> None:
-        super().sample_random_subset(seed)  # check validity
-
-        # resample every epoch: seed += epoch_no
-        self.dataset = self.dataset.shuffle(seed=seed).select(range(self.random_subset))
-
-    def reset_random_subset(self) -> None:
-        # reload from cache
-        self.dataset = self.load_data(self.path, **self._kwargs)
-
-    def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
-        # lookup
-        line = self.dataset[idx][self.COLUMN_NAME]
-        assert lang in line, (line, lang)
-
-        # tokenize
-        is_train = self.split == "train" if is_train is None else is_train
-        item = self.tokenizer[lang](line[lang], is_train=is_train)
-        return item
+    def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
+        try:
+            line = self.dataset[idx]
+            assert lang in line[self.COLUMN_NAME], (line, lang)
+            prompt = line[f"{lang}_prompt"] if f"{lang}_prompt" in line else None
+            return line[self.COLUMN_NAME][lang], prompt
+        except Exception as e:
+            logger.error(idx, e)
+            raise ValueError from e
 
     def get_list(self, lang: str, tokenized: bool = False) -> List[str]:
+        dataset = self.dataset.filter(lambda x, idx: idx in self.indices,
+                                      with_indices=True)
+        assert len(dataset) == len(self.indices), (len(dataset), len(self.indices))
         if tokenized:
 
             def _tok(item):
                 item[f'tok_{lang}'] = self.tokenizer[lang](item[self.COLUMN_NAME][lang])
                 return item
 
-            return self.dataset.map(_tok, desc=f"Tokenizing {lang}...")[f'tok_{lang}']
-        return self.dataset.flatten()[f'{self.COLUMN_NAME}.{lang}']
+            return dataset.map(_tok, desc=f"Tokenizing {lang}...")[f'tok_{lang}']
+        return dataset.flatten()[f'{self.COLUMN_NAME}.{lang}']
 
     def __len__(self) -> int:
         return self.dataset.num_rows
@@ -818,24 +824,79 @@ class SentenceBatchSampler(BatchSampler):
         would be less than `batch_size`
     """
 
-    def __init__(self, sampler: Sampler, batch_size: int, drop_last: bool):
+    def __init__(self, sampler: Sampler, batch_size: int, drop_last: bool, seed: int):
         super().__init__(sampler, batch_size, drop_last)
+        self.seed = seed
+
+    @property
+    def num_samples(self) -> int:
+        d = self.sampler.data_source
+        if 0 < d.random_subset:
+            assert (
+                d.split != "test" and d.random_subset < len(d)
+            ), f"Can only subsample from train or dev set larger than {d.random_subset}."
+            return d.random_subset
+        return len(d)
 
     def __iter__(self):
         batch = []
         d = self.sampler.data_source
-        for idx in self.sampler:
+        # d.indices = [] for dev dataset (RandomSubsetSampler) only
+
+        for counter, idx in enumerate(self.sampler):
+            # subsampling
+            if (isinstance(self.sampler, RandomSampler) and 0 < d.random_subset < len(d)
+                    and d.random_subset < counter):
+                break
+
             src, trg = d[idx]  # pylint: disable=unused-variable
             if src is not None:  # otherwise drop instance
                 batch.append(idx)
+
+                # data stats
+                d.stats.num_valid += 1
+                src_len = 0 if src is None else len(src)
+                trg_len = 0 if trg is None else len(trg)
+                if src_len + trg_len > d.stats.max_length:
+                    d.stats.max_length = src_len + trg_len
+                if src_len + trg_len < d.stats.min_length:
+                    d.stats.min_length = src_len + trg_len
+
                 if len(batch) >= self.batch_size:
+                    # d.indices.extend(batch)
                     yield batch
                     batch = []
+            else:
+                d.stats.num_invalid += 1
         if len(batch) > 0 and not self.drop_last:
             yield batch
 
+    def __len__(self) -> int:
+        if self.drop_last:
+            return self.num_samples // self.batch_size
+        else:
+            return (self.num_samples + self.batch_size - 1) // self.batch_size
 
-class TokenBatchSampler(BatchSampler):
+    def set_epoch(self, epoch: int) -> None:
+        self.sampler.data_source.stats.epoch = epoch
+        if hasattr(self.sampler, 'set_epoch'):
+            self.sampler.set_epoch(epoch)
+        elif hasattr(self.sampler, 'generator'):
+            self.sampler.generator.manual_seed(self.seed + epoch)
+
+        if self.num_samples < len(self.sampler.data_source):
+            logger.info("Sample random subset from %s set: n=%d, seed=%d",
+                        self.sampler.data_source.split, self.num_samples,
+                        self.seed + epoch)
+        self.sampler.data_source.stats.reset()
+
+    def reset(self) -> None:
+        if hasattr(self.sampler, 'reset'):
+            self.sampler.reset()
+        self.sampler.data_source.random_subset = -1
+
+
+class TokenBatchSampler(SentenceBatchSampler):
     """
     Wraps another sampler to yield a mini-batch of indices based on num of tokens
     (incl. padding). An instance longer than dataset.max_len or shorter than
@@ -848,28 +909,86 @@ class TokenBatchSampler(BatchSampler):
             its size would be less than `batch_size`
     """
 
-    def __init__(self, sampler: Sampler, batch_size: int, drop_last: bool):
-        super().__init__(sampler, batch_size, drop_last)
-
     def __iter__(self):
         batch = []
         max_tokens = 0
         d = self.sampler.data_source
-        for idx in self.sampler:
+
+        for counter, idx in enumerate(self.sampler):
+            # subsampling
+            if 0 < d.random_subset < len(d) and d.random_subset < counter:
+                break
             src, trg = d[idx]  # call __getitem__()
             if src is not None:  # otherwise drop instance
                 src_len = 0 if src is None else len(src)
                 trg_len = 0 if trg is None else len(trg)
-                n_tokens = 0 if src_len == 0 else max(src_len + 1, trg_len + 2)
+                n_tokens = 0 if src_len == 0 else max(src_len + 1, trg_len + 1)
                 batch.append(idx)
+
+                # data stats
+                d.stats.num_valid += 1
+                if src_len + trg_len > d.stats.max_length:
+                    d.stats.max_length = src_len + trg_len
+                if src_len + trg_len < d.stats.min_length:
+                    d.stats.min_length = src_len + trg_len
+
                 if n_tokens > max_tokens:
                     max_tokens = n_tokens
                 if max_tokens * len(batch) >= self.batch_size:
                     yield batch
                     batch = []
                     max_tokens = 0
+            else:
+                d.stats.num_invalid += 1
         if len(batch) > 0 and not self.drop_last:
             yield batch
 
     def __len__(self):
         raise NotImplementedError
+
+
+class RandomSubsetSampler(SequentialSampler):
+    """Samples subset randomly from a given data_source without replacement,
+       and yields subset elements sequentially.
+
+    :param data_source (Dataset): dataset to sample from
+    :param generator (Generator): Generator used in sampling.
+    """
+
+    def __init__(self, data_source: Dataset, generator: torch.Generator, seed: int):
+        super().__init__(data_source)
+        self.generator = generator
+        self.seed = seed
+        # self._subsample() should be called in set_epoch()
+
+    @property
+    def num_samples(self) -> int:
+        d = self.data_source
+        if 0 < d.random_subset:
+            assert (
+                d.split != "test" and d.random_subset < len(d)
+            ), f"Can only subsample from train or dev set larger than {d.random_subset}."
+            return d.random_subset
+        return len(self.data_source.indices)
+
+    def __iter__(self):
+        return iter(self.data_source.indices)
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def _subsample(self):
+        orig_len = len(self.data_source)
+        subset_len = self.data_source.random_subset
+        if 0 < subset_len < orig_len:
+            subset = torch.randperm(n=orig_len,
+                                    generator=self.generator).tolist()[:subset_len]
+            self.data_source.indices = sorted(subset)
+            assert len(subset) == self.num_samples
+
+    def reset(self):
+        self.data_source.indices = range(len(self.data_source))
+
+    def set_epoch(self, epoch: int) -> None:
+        self.generator.manual_seed(self.seed + epoch)
+        self._subsample()

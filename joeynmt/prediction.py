@@ -70,6 +70,16 @@ def predict(
     """
     # pylint: disable=too-many-branches,too-many-statements
 
+    valid_iter = data.make_iter(
+        batch_size=args.batch_size,
+        batch_type=args.batch_type,
+        shuffle=False,
+        num_workers=num_workers,
+        pad_index=model.pad_index,
+        device=device,
+    )
+    num_samples = valid_iter.batch_sampler.num_samples
+
     if args.return_prob == "ref":  # no decoding needed
         decoding_description = ""
     else:
@@ -83,22 +93,13 @@ def predict(
             f"return_prob='{args.return_prob}', generate_unk={args.generate_unk}, "
             f"repetition_penalty={args.repetition_penalty}, "
             f"no_repeat_ngram_size={args.no_repeat_ngram_size})")
-    logger.info("Predicting %d example(s)...%s", len(data), decoding_description)
+    logger.info("Predicting %d example(s)...%s", num_samples, decoding_description)
 
     assert args.batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
     # **CAUTION:** a batch will be expanded to batch.nseqs * beam_size, and it might
     # cause an out-of-memory error.
     # if batch_size > beam_size:
     #     batch_size //= beam_size
-
-    valid_iter = data.make_iter(
-        batch_size=args.batch_size,
-        batch_type=args.batch_type,
-        shuffle=False,
-        num_workers=num_workers,
-        pad_index=model.pad_index,
-        device=device,
-    )
 
     # disable dropout
     model.eval()
@@ -120,7 +121,7 @@ def predict(
         autocast["dtype"] = torch.float16 if device.type == "cuda" else torch.bfloat16
 
     gen_start_time = time.time()
-    with tqdm(total=len(data), disable=disable_tqdm, desc="Predicting...") as pbar:
+    with tqdm(total=num_samples, disable=disable_tqdm, desc="Predicting...") as pbar:
         for batch in valid_iter:
             total_nseqs += batch.nseqs  # number of sentences in the current batch
 
@@ -187,8 +188,9 @@ def predict(
 
     gen_duration = time.time() - gen_start_time
 
-    assert total_nseqs == len(data), (total_nseqs, len(data))
-    assert len(all_outputs) == len(data) * args.n_best, (len(all_outputs), len(data))
+    assert total_nseqs == num_samples, (total_nseqs, num_samples)
+    assert len(all_outputs) == num_samples * args.n_best, (len(all_outputs),
+                                                           num_samples)
 
     if compute_loss:
         if normalization == "batch":
@@ -239,7 +241,7 @@ def predict(
         for s in decoded_valid
     ]
     # references are not length-filtered, not duplicated for n_best > 1
-    valid_ref = [data.tokenizer[data.trg_lang].post_process(s) for s in data.trg]
+    valid_ref = [data.tokenizer[data.trg_lang].post_process(t) for t in data.trg]
 
     # if references are given, evaluate 1best generation against them
     if data.has_trg:
@@ -291,6 +293,7 @@ def predict(
         )
     else:
         logger.info("Generation took %.4f[sec]. (No references given)", gen_duration)
+    logger.debug("Dev%s", valid_iter.batch_sampler.sampler.data_source.stats)
 
     return (
         valid_scores,
@@ -417,7 +420,8 @@ def test(
     # pediction loop over datasets
     for data_set_name, data_set in data_to_predict.items():
         if data_set is not None:
-            data_set.reset_random_subset()  # no subsampling in evaluation
+            data_set.random_subset = -1
+            data_set.indices = range(len(data_set))  # no subsampling in evaluation
 
             logger.info(
                 "%s on %s set...",

@@ -1,11 +1,9 @@
 import unittest
 
 import torch
-from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
 
 from joeynmt.batch import Batch
 from joeynmt.data import load_data
-from joeynmt.datasets import TokenBatchSampler
 
 
 class TestBatch(unittest.TestCase):
@@ -31,15 +29,11 @@ class TestBatch(unittest.TestCase):
         }
 
         # load the data
-        (
-            self.src_vocab,
-            self.trg_vocab,
-            self.train_data,
-            self.dev_data,
-            _,
-        ) = load_data(data_cfg, datasets=["train", "dev"])
-        self.pad_index = self.trg_vocab.pad_index
-        # random seeds
+        _, trg_vocab, self.train_data, self.dev_data, _ = load_data(
+            data_cfg, datasets=["train", "dev"])
+        self.eos_index = trg_vocab.eos_index
+        self.pad_index = trg_vocab.pad_index
+        # random seed
         self.seed = 42
 
     def testBatchTrainIterator(self):
@@ -57,13 +51,6 @@ class TestBatch(unittest.TestCase):
             pad_index=self.pad_index,
             device=torch.device("cpu"),
         )
-        self.assertTrue(isinstance(train_iter, DataLoader))
-        self.assertEqual(train_iter.batch_sampler.batch_size, batch_size)
-        self.assertTrue(isinstance(train_iter.batch_sampler, BatchSampler))
-        self.assertTrue(isinstance(train_iter.batch_sampler.sampler,
-                                   RandomSampler))  # shuffle=True
-        initial_seed = train_iter.batch_sampler.sampler.generator.initial_seed()
-        self.assertEqual(initial_seed, self.seed)
 
         expected_src0 = torch.LongTensor([
             [30, 10, 8, 17, 8, 7, 30, 8, 12, 33, 9, 15, 8, 12, 18, 9, 20, 8, 9, 27, 3],
@@ -95,8 +82,6 @@ class TestBatch(unittest.TestCase):
     def testTokenBatchTrainIterator(self):
 
         batch_size = 50  # num of tokens in one batch
-        # load all sents here, filtering happends during batch construction
-        self.assertEqual(len(self.train_data), 1000)
 
         # make data iterator
         train_iter = self.train_data.make_iter(
@@ -107,13 +92,6 @@ class TestBatch(unittest.TestCase):
             pad_index=self.pad_index,
             device=torch.device("cpu"),
         )
-        self.assertTrue(isinstance(train_iter, DataLoader))
-        self.assertEqual(train_iter.batch_sampler.batch_size, batch_size)
-        self.assertTrue(isinstance(train_iter.batch_sampler, TokenBatchSampler))
-        self.assertTrue(isinstance(train_iter.batch_sampler.sampler,
-                                   RandomSampler))  # shuffle=True
-        initial_seed = train_iter.batch_sampler.sampler.generator.initial_seed()
-        self.assertEqual(initial_seed, self.seed)
 
         expected_src0 = torch.LongTensor([
             [30, 10, 8, 17, 8, 7, 30, 8, 12, 33, 9, 15, 8, 12, 18, 9, 20, 8, 9, 27, 3],
@@ -140,9 +118,7 @@ class TestBatch(unittest.TestCase):
         self.assertEqual(total_tokens, 387)
 
     def testBatchDevIterator(self):
-
         batch_size = 3
-        self.assertEqual(len(self.dev_data), 20)
 
         # make data iterator
         dev_iter = self.dev_data.make_iter(
@@ -152,19 +128,14 @@ class TestBatch(unittest.TestCase):
             pad_index=self.pad_index,
             device=torch.device("cpu"),
         )
-        self.assertTrue(isinstance(dev_iter, DataLoader))
-        self.assertEqual(dev_iter.batch_sampler.batch_size, batch_size)
-        self.assertTrue(isinstance(dev_iter.batch_sampler, BatchSampler))
-        self.assertTrue(isinstance(dev_iter.batch_sampler.sampler,
-                                   SequentialSampler))  # shuffle=False
 
         # yapf: disable
         expected_src0 = torch.LongTensor([
             [35, 14, 7, 25, 7, 14, 17, 11, 22, 7, 25, 7, 24, 14, 11, 7, 11, 22, 17, 17,
               7, 23, 10, 22, 16, 14, 19, 28, 10, 9, 20, 7, 11, 8, 10, 9, 7, 41, 3],
-             [10, 19, 16, 7, 26, 12, 8, 18, 8, 7, 21, 10, 19, 16, 7, 25, 7, 15, 14, 11,
+            [10, 19, 16, 7, 26, 12, 8, 18, 8, 7, 21, 10, 19, 16, 7, 25, 7, 15, 14, 11,
               11, 7, 10, 19, 16, 7, 15, 14, 7, 23, 10, 9, 7, 27, 3, 1, 1, 1, 1],
-             [35, 14, 7, 25, 7, 20, 18, 13, 8, 9, 7, 13, 14, 20, 7, 27, 3, 1, 1, 1, 1,
+            [35, 14, 7, 25, 7, 20, 18, 13, 8, 9, 7, 13, 14, 20, 7, 27, 3, 1, 1, 1, 1,
               1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ])
         expected_src0_len = torch.LongTensor([39, 35, 17])
@@ -278,6 +249,7 @@ class TestPrompt(unittest.TestCase):
             torch.testing.assert_close(
                 torch.sort(before_sort, descending=True)[0], after_sort)
             if total_samples == 0:
+                print(expected_src0)
                 torch.testing.assert_close(b.src, expected_src0)
                 torch.testing.assert_close(b.src_prompt_mask, expected_src_prompt_mask0)
                 torch.testing.assert_close(b.src_length, expected_src_len0)

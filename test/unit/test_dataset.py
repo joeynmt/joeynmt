@@ -2,6 +2,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import torch
+
 from joeynmt.data import load_data
 from joeynmt.datasets import PlaintextDataset, TsvDataset
 from joeynmt.helpers import read_list_from_file, write_list_to_file
@@ -36,8 +38,6 @@ class TestPlaintextDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "sample_train_subset": 100,
-            "sample_dev_subset": 100,
             "dataset_type": "plain",
         }
 
@@ -138,33 +138,6 @@ class TestPlaintextDataset(unittest.TestCase):
             self.assertTrue(all(t is not None for t in dev_src))
             self.assertTrue(all(t is not None for t in dev_trg))
 
-    def testRandomSubset(self):
-        # Load data
-        _, _, train_data, _, test_data = load_data(self.data_cfg,
-                                                   datasets=["train", "test"])
-        self.assertEqual(len(train_data), 1000)
-        self.assertEqual(train_data.random_subset, 100)
-        train_data.sample_random_subset(seed=self.seed)
-        self.assertEqual(len(train_data), 100)
-
-        train_data.reset_random_subset()
-        self.assertEqual(len(train_data), 1000)
-
-        # a random subset can be selected only when len(train_data) > n
-        train_data.random_subset = 2000
-        with self.assertRaises(AssertionError) as e:
-            train_data.sample_random_subset(seed=self.seed)
-        self.assertEqual("Can only subsample from train or dev set larger than 2000.",
-                         str(e.exception))
-
-        # a random subset should be selected for training only
-        self.assertEqual(test_data.random_subset, -1)
-        test_data.random_subset = 100
-        with self.assertRaises(AssertionError) as e:
-            test_data.sample_random_subset(seed=self.seed)
-        self.assertEqual("Can only subsample from train or dev set larger than 100.",
-                         str(e.exception))
-
 
 class TestTsvDataset(unittest.TestCase):
 
@@ -214,8 +187,6 @@ class TestTsvDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "sample_train_subset": 100,
-            "sample_dev_subset": 100,
             "dataset_type": "tsv",
         }
 
@@ -282,34 +253,4 @@ class TestTsvDataset(unittest.TestCase):
 
         except ImportError as e:
             # need pandas installed.
-            raise unittest.SkipTest(f"{e} Skip.")
-
-    def testRandomSubset(self):
-        try:
-            # load the data
-            _, _, train_data, _, test_data = load_data(self.data_cfg,
-                                                       datasets=["train", "test"])
-            self.assertEqual(len(train_data), 1000)
-            self.assertEqual(train_data.random_subset, 100)
-            train_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(len(train_data), 100)
-
-            # a random subset can be selected only when len(train_data) > n
-            train_data.random_subset = 2000
-            with self.assertRaises(AssertionError) as e:
-                train_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(
-                "Can only subsample from train or dev set larger than 2000.",
-                str(e.exception))
-
-            # a random subset should be selected for training only
-            self.assertEqual(test_data.random_subset, -1)
-            test_data.random_subset = 100
-            with self.assertRaises(AssertionError) as e:
-                test_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(
-                "Can only subsample from train or dev set larger than 100.",
-                str(e.exception))
-
-        except ImportError as e:
             raise unittest.SkipTest(f"{e} Skip.")
