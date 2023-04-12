@@ -2,13 +2,14 @@
 """
 Evaluation metrics
 """
-import logging
 from inspect import getfullargspec
-from typing import List
+from typing import Callable, List
 
 from sacrebleu.metrics import BLEU, CHRF
 
-logger = logging.getLogger(__name__)
+from joeynmt.helpers_for_ddp import get_logger
+
+logger = get_logger(__name__)
 
 
 def chrf(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float:
@@ -60,21 +61,24 @@ def bleu(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float
     return score
 
 
-def token_accuracy(hypotheses: List[List[str]], references: List[List[str]]) -> float:
+def token_accuracy(hypotheses: List[str], references: List[str],
+                   tokenizer: Callable) -> float:
     """
     Compute the accuracy of hypothesis tokens: correct tokens / all tokens
     Tokens are correct if they appear in the same position in the reference.
     We lookup the references before one-hot-encoding, that is, UNK generation in
     hypotheses is always evaluated as incorrect.
 
-    :param hypotheses: list of tokenized hypotheses (List[List[str]])
-    :param references: list of tokenized references (List[List[str]])
+    :param hypotheses: list of hypotheses (strings)
+    :param references: list of references (strings)
     :return: token accuracy (float)
     """
     correct_tokens = 0
     all_tokens = 0
     assert len(hypotheses) == len(references)
     for hyp, ref in zip(hypotheses, references):
+        hyp = tokenizer(hyp)
+        ref = tokenizer(ref)
         all_tokens += len(hyp)
         for h_i, r_i in zip(hyp, ref):
             # min(len(h), len(r)) tokens considered

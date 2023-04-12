@@ -3,7 +3,6 @@
 Tokenizer module
 """
 import argparse
-import logging
 import shutil
 from pathlib import Path
 from typing import Dict, List, Union
@@ -12,10 +11,19 @@ import sentencepiece as sp
 from subword_nmt import apply_bpe
 
 from joeynmt.config import ConfigurationError
-from joeynmt.constants import BOS_TOKEN, DE_TOKEN, EN_TOKEN, EOS_TOKEN, PAD_TOKEN, SEP_TOKEN, UNK_TOKEN
+from joeynmt.constants import (
+    BOS_TOKEN,
+    DE_TOKEN,
+    EN_TOKEN,
+    EOS_TOKEN,
+    PAD_TOKEN,
+    SEP_TOKEN,
+    UNK_TOKEN,
+)
 from joeynmt.helpers import remove_extra_spaces, unicode_normalize
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BasicTokenizer:
@@ -99,6 +107,9 @@ class BasicTokenizer:
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize single sentence"""
+        if raw_input is None:
+            return None
+
         if self.level == "word":
             sequence = raw_input.split(self.SPACE)
         elif self.level == "char":
@@ -120,19 +131,24 @@ class BasicTokenizer:
     def _remove_special(self, sequence: List[str], generate_unk: bool = False):
         specials = self.SPECIALS[1:] if generate_unk else self.SPECIALS
         specials += self.LANG_TAGS  # remove language tags, too
-        return [token for token in sequence if token not in specials]
+        valid = [token for token in sequence if token not in specials]
+        if len(valid) == 0:  # if empty, return <unk>
+            valid = [self.SPECIALS[0]]
+        return valid
 
     def post_process(self,
                      sequence: Union[List[str], str],
                      generate_unk: bool = True,
                      cut_at_sep: bool = True) -> str:
         """Detokenize"""
+
         if isinstance(sequence, list):
             if cut_at_sep:
                 try:
                     sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
-                    sequence = sequence[sep_pos:]
-                except ValueError as e:
+                    sequence = sequence[sep_pos + 1:]
+
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
                     pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
             if self.level == "word":
@@ -190,6 +206,9 @@ class SentencePieceTokenizer(BasicTokenizer):
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""
+        if raw_input is None:
+            return None
+
         if is_train and self.alpha > 0:
             tokenized = self.spm.sample_encode_as_pieces(
                 raw_input,
@@ -198,11 +217,6 @@ class SentencePieceTokenizer(BasicTokenizer):
             )
         else:
             tokenized = self.spm.encode(raw_input, out_type=str)
-
-            # workaround...
-            # TODO: need to cleanup
-            if tokenized[0] == self.SPACE_ESCAPE and tokenized[1] in self.LANG_TAGS:
-                tokenized = tokenized[1:]
 
         if is_train and self._filter_by_length(len(tokenized)):
             return None
@@ -218,7 +232,7 @@ class SentencePieceTokenizer(BasicTokenizer):
                 try:
                     sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
                     sequence = sequence[sep_pos:]
-                except ValueError as e:
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
                     pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
 
@@ -297,6 +311,9 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""
+        if raw_input is None:
+            return None
+
         dropout = self.dropout if is_train else 0.0
         tokenized = self.bpe.process_line(raw_input, dropout).strip().split()
         if is_train and self._filter_by_length(len(tokenized)):
@@ -313,7 +330,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
                 try:
                     sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
                     sequence = sequence[sep_pos:]
-                except ValueError as e:
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
                     pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
 

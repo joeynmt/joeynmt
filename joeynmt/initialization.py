@@ -2,7 +2,6 @@
 """
 Implements custom initialization
 """
-import logging
 import math
 from typing import Dict
 
@@ -11,8 +10,9 @@ from torch import Tensor, nn
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
 from joeynmt.config import ConfigurationError
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.0) -> None:

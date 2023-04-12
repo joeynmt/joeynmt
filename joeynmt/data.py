@@ -2,14 +2,14 @@
 """
 Data module
 """
-import logging
 from typing import Dict, Optional, Tuple
 
 from joeynmt.datasets import BaseDataset, build_dataset
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.tokenizers import build_tokenizer
 from joeynmt.vocabulary import Vocabulary, build_vocab
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def load_data(cfg: Dict, datasets: list = None) \

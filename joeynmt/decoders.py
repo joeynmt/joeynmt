@@ -573,7 +573,7 @@ class TransformerDecoder(Decoder):
         assert trg_mask is not None, "trg_mask required for Transformer"
 
         x = self.pe(trg_embed)  # add position encoding to word embedding
-        if kwargs.get("trg_prompt_mask", None) is not None:  # add embedded trg_prompt_mask
+        if kwargs.get("trg_prompt_mask", None) is not None:  # add trg_prompt_mask
             x = x + kwargs["trg_prompt_mask"]
         x = self.emb_dropout(x)
 

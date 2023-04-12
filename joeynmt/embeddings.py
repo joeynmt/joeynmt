@@ -3,7 +3,6 @@
 Embedding module
 """
 
-import logging
 import math
 from pathlib import Path
 from typing import Dict
@@ -12,9 +11,10 @@ import torch
 from torch import Tensor, nn
 
 from joeynmt.helpers import freeze_params
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.vocabulary import Vocabulary
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Embeddings(nn.Module):
