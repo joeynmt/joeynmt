@@ -1,3 +1,7 @@
+# coding: utf-8
+"""
+Torch Hub Interface
+"""
 import logging
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Union
@@ -9,10 +13,12 @@ from torch import nn
 from joeynmt.config import BaseConfig, TestConfig, load_config, parse_global_args
 from joeynmt.constants import EOS_TOKEN
 from joeynmt.datasets import BaseDataset, StreamDataset
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.model import Model
 from joeynmt.prediction import predict, prepare
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+logger.setLevel(level=logging.WARNING)
 
 PredictionOutput = NamedTuple(
     "PredictionOutput",
@@ -56,26 +62,26 @@ def _from_pretrained(
 
     # rewrite paths in cfg
     for side in ["src", "trg"]:
-        cfg["data"][side]["voc_file"] = _check_file_path(cfg["data"][side]["voc_file"],
-                                                         model_dir).as_posix()
-        if "tokenizer_cfg" in cfg["data"][side]:
+        data_side = cfg["data"][side]
+        data_side["voc_file"] = _check_file_path(data_side["voc_file"],
+                                                 model_dir).as_posix()
+        if "tokenizer_cfg" in data_side:
             for tok_model in ["codes", "model_file"]:
-                if tok_model in cfg["data"][side]["tokenizer_cfg"]:
-                    cfg["data"][side]["tokenizer_cfg"][tok_model] = _check_file_path(
-                        cfg["data"][side]["tokenizer_cfg"][tok_model],
-                        model_dir).as_posix()
+                if tok_model in data_side["tokenizer_cfg"]:
+                    data_side["tokenizer_cfg"][tok_model] = _check_file_path(
+                        data_side["tokenizer_cfg"][tok_model], model_dir).as_posix()
 
-    if "load_model" in cfg["training"]:
-        cfg["training"]["load_model"] = _check_file_path(cfg["training"]["load_model"],
-                                                         model_dir).as_posix()
-    if not Path(cfg["training"]["model_dir"]).is_dir():
-        cfg["training"]["model_dir"] = model_dir.as_posix()
+    if "load_model" in cfg["testing"]:
+        cfg["testing"]["load_model"] = _check_file_path(cfg["testing"]["load_model"],
+                                                        model_dir).as_posix()
+    if not Path(cfg["model_dir"]).is_dir():
+        cfg["model_dir"] = model_dir.as_posix()
 
     # parse args
-    args = parse_global_args(cfg)
+    args = parse_global_args(cfg, rank=0, mode="translate")
 
     # load the data
-    model, _, _, test_data = prepare(args, mode="translate")
+    model, _, _, test_data = prepare(args, rank=0, mode="translate")
 
     return model, test_data, args
 
@@ -89,15 +95,10 @@ class TranslatorHubInterface(nn.Module):
     def __init__(self, model: Model, dataset: BaseDataset, args: BaseConfig):
         super().__init__()
         self.args = args
-        self.device = args.device
-        self.n_gpu = args.n_gpu
-        self.fp16 = args.fp16
-        self.num_workers = args.num_workers
-        self.normalization = args.train.num_workers
         self.dataset = dataset
         self.model = model
-        if self.device.type == "cuda":
-            self.model.to(self.device)
+        if self.args.device.type == "cuda":
+            self.model.to(self.args.device)
         self.model.eval()
 
     def score(
@@ -118,12 +119,12 @@ class TranslatorHubInterface(nn.Module):
         out = []
         for i in range(len(src)):
             offset = i * n_best
-            p_range = probs[offset:offset + n_best]
             pred = PredictionOutput(
                 translation=trg[i] if trg else translations[offset:offset + n_best],
                 tokens=tokens[offset:offset + n_best],
-                token_probs=[p.tolist() for p in p_range] if beam_size == 1 else None,
-                sequence_probs=[p[0] for p in p_range] if beam_size > 1 else None,
+                token_probs=probs[offset:offset + n_best] if beam_size == 1 else None,
+                sequence_probs=[p[0] for p in probs[offset:offset + n_best]] \
+                    if beam_size > 1 else None,  # noqa: E131
                 attention_probs=attn[offset:offset + n_best] if attn else None,
             )
             out.append(pred)
@@ -141,54 +142,69 @@ class TranslatorHubInterface(nn.Module):
         self,
         src: List[str],
         trg: Optional[List[str]] = None,
+        src_prompt: Optional[List[str]] = None,
+        trg_prompt: Optional[List[str]] = None,
         **kwargs,
     ) -> List[str]:
 
         # overwrite config
-        test_cfg = self.cfg['testing']
+        test_cfg = self.args.test._asdict()
         test_cfg.update(kwargs)
 
         assert isinstance(self.dataset, StreamDataset), self.dataset
         test_cfg["batch_type"] = "sentence"
         test_cfg["batch_size"] = len(src)
 
-        self.dataset.cache = {}  # reset cache
+        if src_prompt:
+            assert len(src) == len(
+                src_prompt), "src and src_prompt must have the same length!"
+        else:
+            src_prompt = [None] * len(src)
+
+        if trg_prompt:
+            assert len(src) == len(
+                trg_prompt), "src and trg_prompt must have the same length!"
+        else:
+            trg_prompt = [None] * len(src)
+
+        self.dataset.reset_cache()  # reset cache
         if trg is not None:
             assert len(src) == len(trg), "src and trg must have the same length!"
             self.dataset.has_trg = True
             test_cfg["n_best"] = 1
             test_cfg["beam_size"] = 1
             test_cfg["return_prob"] = "ref"
-            for src_sent, trg_sent in zip(src, trg):
-                self.dataset.set_item(src_sent, trg_sent)
+            for src_sent, trg_sent, src_p, trg_p in zip(src, trg, src_prompt,
+                                                        trg_prompt):
+                self.dataset.set_item(src_sent, trg_sent, src_p, trg_p)
         else:
             self.dataset.has_trg = False
-            for sentence in src:
-                self.dataset.set_item(sentence)
+            for src_sent, src_p, trg_p in zip(src, src_prompt, trg_prompt):
+                self.dataset.set_item(src_sent, None, src_p, trg_p)
 
-        assert len(self.dataset) > 0
+        assert len(self.dataset) == len(src), (len(self.dataset), self.dataset.cache)
 
         _, _, translations, tokens, probs, attention_probs = predict(
             model=self.model,
             data=self.dataset,
             compute_loss=trg is not None,
-            device=self.device,
-            n_gpu=self.n_gpu,
-            normalization=self.normalization,
-            num_workers=self.num_workers,
+            device=self.args.device,
+            n_gpu=self.args.n_gpu,
+            normalization=self.args.train.normalization,
+            num_workers=self.args.num_workers,
             args=TestConfig(**test_cfg),
-            fp16=self.fp16,
+            autocast=self.args.autocast,
         )
         if translations:
             assert len(src) * test_cfg.get("n_best", 1) == len(translations)
 
-        self.dataset.cache = {}  # reset cache
+        self.dataset.reset_cache()  # reset cache
 
         return translations, tokens, probs, attention_probs, test_cfg
 
     def plot_attention(self, src: str, trg: str, attention_scores: np.ndarray) -> None:
         # preprocess and tokenize sentences
-        self.dataset.cache = {}  # reset cache
+        self.dataset.reset_cache()  # reset cache
         self.dataset.has_trg = True
         self.dataset.set_item(src, trg)
         src_tokens = self.dataset.get_item(idx=0,
@@ -197,7 +213,8 @@ class TranslatorHubInterface(nn.Module):
         trg_tokens = self.dataset.get_item(idx=0,
                                            lang=self.dataset.trg_lang,
                                            is_train=False)
-        self.dataset.cache = {}  # reset cache
+
+        self.dataset.reset_cache()  # reset cache
 
         assert len(src_tokens) + 1 == attention_scores.shape[1]
         assert len(trg_tokens) + 1 == attention_scores.shape[0]

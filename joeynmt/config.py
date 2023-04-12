@@ -5,7 +5,6 @@ Module for configuration
 TODO: Consider better configuration and validation
 cf. https://github.com/joeynmt/joeynmt/issues/196
 """
-import logging
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional
 
@@ -13,7 +12,9 @@ import torch
 import yaml
 from torch.multiprocessing import cpu_count
 
-logger = logging.getLogger(__name__)
+from joeynmt.helpers_for_ddp import get_logger, use_ddp
+
+logger = get_logger(__name__)
 
 
 class ConfigurationError(Exception):
@@ -90,7 +91,7 @@ BaseConfig = NamedTuple(
         ("device", torch.device),
         ("n_gpu", int),
         ("num_workers", int),
-        ("fp16", bool),
+        ("autocast", Dict),
         ("seed", int),
         ("train", TrainConfig),
         ("test", TestConfig),
@@ -146,11 +147,15 @@ def load_config(cfg_file: str = "configs/default.yaml") -> Dict:
     return cfg
 
 
-def parse_global_args(cfg: Dict = None, mode: str = "train") -> BaseConfig:
+def parse_global_args(cfg: Dict = None,
+                      rank: int = 0,
+                      mode: str = "train") -> BaseConfig:
     """
     Parse and validate global args
 
     :param cfg: config specified in yaml file
+    :param rank:
+    :param mode:
     """
 
     # gpu / cpu
@@ -158,11 +163,19 @@ def parse_global_args(cfg: Dict = None, mode: str = "train") -> BaseConfig:
     if use_cuda and (not torch.cuda.is_available()):
         logger.warning("CUDA is not available. Use cpu device.")
         use_cuda = False
-    device = torch.device("cuda" if use_cuda else "cpu")
+    if use_cuda:
+        device = torch.device("cuda", rank) if use_ddp() else torch.device("cuda")
+    else:
+        device = torch.device("cpu")
     n_gpu = torch.cuda.device_count() if use_cuda else 0
+
     num_workers = cfg.get("num_workers", 0)
     if num_workers > 0:
         num_workers = min(cpu_count(), num_workers)
+
+    if mode == "translate" and n_gpu > 1:
+        raise RuntimeError(
+            "Currently, translate mode is only available on CPU or single GPU.")
 
     # normalization
     normalization = cfg.get("normalization", "batch").lower()
@@ -174,6 +187,9 @@ def parse_global_args(cfg: Dict = None, mode: str = "train") -> BaseConfig:
         logger.warning(
             "On cpu, half-precision training may raise an error. Disable fp16.")
         fp16 = False
+    autocast = {"device_type": device.type, "enabled": fp16}
+    if fp16:
+        autocast["dtype"] = torch.float16  # TODO: torch.bfloat16 for cpu?
 
     return BaseConfig(
         name=cfg["name"],
@@ -182,7 +198,7 @@ def parse_global_args(cfg: Dict = None, mode: str = "train") -> BaseConfig:
         device=device,
         n_gpu=n_gpu,
         num_workers=num_workers,
-        fp16=fp16,
+        autocast=autocast,
         seed=cfg.get("random_seed", 42),
         train=parse_train_args(cfg["training"], mode),
         test=parse_test_args(cfg["testing"], mode),
@@ -196,6 +212,7 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     Parse and validate train args
 
     :param cfg: `training` section in config yaml
+    :param mode:
     """
 
     # normalization
@@ -231,13 +248,22 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     batch_type = cfg.get("batch_type", "sentence").lower()
     _check_options("batch_type", batch_type, ["sentence", "token"])
 
+    # logging
+    logging_freq = cfg.get("logging_freq", 100)
+    validation_freq = cfg.get("validation_freq", 1000)
+    if logging_freq > validation_freq:
+        raise ConfigurationError(
+            "`logging_freq` must be smaller than `validation_freq`.")
+    if validation_freq % logging_freq != 0:
+        raise ConfigurationError(
+            "`validation_freq` must be divisible by `logging_freq`.")
+
+    is_test = mode != "train"
+
     return TrainConfig(
-        load_model=_check_path(cfg.get("load_model", None),
-                               allow_empty=mode != "train"),
-        load_encoder=_check_path(cfg.get("load_encoder", None),
-                                 allow_empty=mode != "train"),
-        load_decoder=_check_path(cfg.get("load_decoder", None),
-                                 allow_empty=mode != "train"),
+        load_model=_check_path(cfg.get("load_model", None), allow_empty=is_test),
+        load_encoder=_check_path(cfg.get("load_encoder", None), allow_empty=is_test),
+        load_decoder=_check_path(cfg.get("load_decoder", None), allow_empty=is_test),
         normalization=normalization,
         loss=loss_type,
         label_smoothing=cfg.get("label_smoothing", 0.0),
@@ -254,8 +280,8 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
         clip_grad_norm=cfg.get("clip_grad_norm", None),
         clip_grad_val=cfg.get("clip_grad_val", None),
         keep_best_ckpts=keep_best_ckpts,
-        logging_freq=cfg.get("logging_freq", 100),
-        validation_freq=cfg.get("validation_freq", 1000),
+        logging_freq=logging_freq,
+        validation_freq=validation_freq,
         print_valid_sents=cfg.get("print_valid_sents", [0, 1, 2]),
         early_stopping_metric=early_stopping_metric,
         minimize_metric=minimize_metric,
@@ -277,6 +303,7 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
     Parse and validate test args
 
     :param cfg: `testing` section in config yaml
+    :param mode:
     """
 
     # batch options
@@ -356,20 +383,20 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
     )
 
 
-def set_validation_args(args: TestConfig, batch_size: int,
-                        batch_type: str) -> TestConfig:
+def set_validation_args(args: TestConfig) -> TestConfig:
     """
     Config for validation
 
     :param args: `testing` section in config yaml
     """
-
+    if use_ddp():
+        assert args.batch_type == "sentence", (
+            "Token-based batch sampling is not supported in distributed learning. "
+            "Please specify batch size based on the num. of sentences.")
     args = args._replace(
-        batch_size=batch_size,  # in greedy decoding, we can use the same
-        batch_type=batch_type,  # batch_size and batch_type as the one in training
         beam_size=1,  # greedy decoding during train loop
         n_best=1,  # no further exploration during training
-        # return_attention = False,  # don't override this arg
+        return_attention=False,
         return_prob="none",
         generate_unk=True,
         repetition_penalty=-1,  # turn off

@@ -1,7 +1,6 @@
 name: "reverse_experiment"
 joeynmt_version: "2.3.0"
 model_dir: "models/reverse_transformer"
-shuffle: True
 use_cuda: True
 fp16: True
 random_seed: 42
@@ -12,6 +11,8 @@ data:
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
     dataset_type: "plain"
+    sample_train_subset: 40000  # must be divisible by n_gpu if use_ddp
+    sample_dev_subset: 400    # must be divisible by n_gpu if use_ddp
     src:
         lang: "src"
         max_length: 25
@@ -26,13 +27,13 @@ data:
         voc_min_freq: 0
 
 testing:
-    load_model: "models/reverse_transformer/best.ckpt"
-    n_best: 1
-    beam_size: 1
+    #load_model: "models/reverse_transformer/best.ckpt"
+    n_best: 2
+    beam_size: 2
     beam_alpha: 1.0
     eval_metrics: ["bleu"]
     max_output_length: 30
-    batch_size: 10
+    batch_size: 12
     batch_type: "sentence"
     return_prob: "hyp"
     sacrebleu_cfg:
@@ -47,11 +48,12 @@ training:
     clip_grad_norm: 1.0
     batch_size: 12
     batch_type: "sentence"
+    batch_multiplier: 2
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.5
     early_stopping_metric: "bleu"
-    epochs: 1
+    epochs: 5
     validation_freq: 1000
     logging_freq: 100
     shuffle: True

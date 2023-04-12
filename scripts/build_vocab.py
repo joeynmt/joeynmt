@@ -14,15 +14,9 @@ import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
 from joeynmt.config import ConfigurationError, load_config
-from joeynmt.constants import (
-    BOS_ID,
-    BOS_TOKEN,
-    EOS_ID,
-    EOS_TOKEN,
-    PAD_ID,
-    PAD_TOKEN,
-    UNK_ID,
-    UNK_TOKEN,
+from joeynmt.constants import (  # pylint: disable=unused-import # noqa:F401
+    BOS_ID, BOS_TOKEN, DE_ID, DE_TOKEN, EN_ID, EN_TOKEN, EOS_ID, EOS_TOKEN, PAD_ID,
+    PAD_TOKEN, SEP_ID, SEP_TOKEN, UNK_ID, UNK_TOKEN,
 )
 from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import flatten, write_list_to_file
@@ -76,6 +70,8 @@ def train_spm(
     :param model_type: model type. Choose from unigram (default), bpe, char, or word.
         The input sentence must be pretokenized when using word type.
     """
+    LANG_TAGS = [f'<{lang}>' for lang in langs]  # TODO: import LANG_TAGS from Vocab
+
     model_file = Path(model_file)
     if model_file.is_file():
         print(f"Model file '{model_file}' will be overwritten.")
@@ -100,6 +96,8 @@ def train_spm(
             f"--bos_id={BOS_ID}",
             f"--eos_id={EOS_ID}",
             f"--pad_id={PAD_ID}",
+            f"--control_symbols={SEP_TOKEN}",
+            f"--user_defined_symbols={','.join(LANG_TAGS)}",
             "--vocabulary_output_piece_score=false",
         ]
         if len(sents) >= random_subset:  # subsample

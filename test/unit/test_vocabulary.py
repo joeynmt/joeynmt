@@ -10,7 +10,7 @@ from joeynmt.vocabulary import Vocabulary
 
 
 class TestVocabulary(unittest.TestCase):
-
+    # pylint: disable=too-many-instance-attributes
     def setUp(self):
         self.voc_limit = 1000
         self.cfg = {
@@ -63,13 +63,15 @@ class TestVocabulary(unittest.TestCase):
         ]
 
         # pylint: disable=protected-access
-        self.assertEqual(self.char_vocab._itos, self.specials + self.lang_tags + expected_char_itos)
+        self.assertEqual(self.char_vocab._itos,
+                         self.specials + self.lang_tags + expected_char_itos)
         expected_word_itos = [
             "Die", "GROẞ", "Geschichte", "Kinokassenrekorde", "Meer", "Titanic",
             "Wahrheit", "alle", "aufregendste", "bricht", "dass", "die", "gerade",
             "ist,", "ist.", "nicht", "obwohl", "sie", "vom", "–",
         ]
-        self.assertEqual(self.word_vocab._itos, self.specials + self.lang_tags + expected_word_itos)
+        self.assertEqual(self.word_vocab._itos,
+                         self.specials + self.lang_tags + expected_word_itos)
         # pylint: enable=protected-access
 
     def testVocabularyFromFile(self):
@@ -93,17 +95,21 @@ class TestVocabulary(unittest.TestCase):
         expected_bpe_itos = [
             "t@@", "s@@", "e", "e@@", "d@@", "o@@", "b@@", "g@@", "en", "m@@", "u@@"
         ]
-        self.assertEqual(bpe_vocab._itos[:18], self.specials + self.lang_tags + expected_bpe_itos)
+        self.assertEqual(bpe_vocab._itos[:18],
+                         self.specials + self.lang_tags + expected_bpe_itos)
 
         sp_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_sp))
         expected_sp_itos = ["▁", "e", "s", "t", "o", "i", "n", "en", "m", "r", "er"]
-        self.assertEqual(sp_vocab._itos[:18], self.specials + self.lang_tags + expected_sp_itos)
+        self.assertEqual(sp_vocab._itos[:18],
+                         self.specials + self.lang_tags + expected_sp_itos)
         # pylint: enable=protected-access
 
     def testVocabularyFromDataset(self):
         src_vocab, trg_vocab, _, _, _ = load_data(self.cfg, datasets=["train"])
-        self.assertEqual(len(src_vocab), self.voc_limit + len(self.specials + self.lang_tags))
-        self.assertEqual(len(trg_vocab), self.voc_limit + len(self.specials + self.lang_tags))
+        self.assertEqual(len(src_vocab),
+                         self.voc_limit + len(self.specials + self.lang_tags))
+        self.assertEqual(len(trg_vocab),
+                         self.voc_limit + len(self.specials + self.lang_tags))
 
         expected_src_itos = [
             "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von",
@@ -112,8 +118,10 @@ class TestVocabulary(unittest.TestCase):
             "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And",
         ]
         # pylint: disable=protected-access
-        self.assertEqual(src_vocab._itos[:18], self.specials + self.lang_tags + expected_src_itos)
-        self.assertEqual(trg_vocab._itos[:18], self.specials + self.lang_tags + expected_trg_itos)
+        self.assertEqual(src_vocab._itos[:18],
+                         self.specials + self.lang_tags + expected_src_itos)
+        self.assertEqual(trg_vocab._itos[:18],
+                         self.specials + self.lang_tags + expected_trg_itos)
 
     def testIsUnk(self):
         self.assertTrue(self.word_vocab.is_unk("BLA"))
@@ -125,9 +133,11 @@ class TestVocabulary(unittest.TestCase):
 
     def testEncodingDecoding(self):
         tokenized = [s.split() for s in self.sents]
-        ids, length, prompt = self.word_vocab.sentences_to_ids(tokenized, bos=True, eos=True)
+        ids, length, prompt = self.word_vocab.sentences_to_ids(tokenized,
+                                                               bos=True, eos=True)
         expected_ids = [
-            [2, 7, 13, 20, 17, 18, 12, 26, 23, 24, 14, 10, 16, 26, 22, 19, 18, 15, 9, 25, 11, 21, 3],
+            [2, 7, 13, 20, 17, 18, 12, 26, 23, 24, 14, 10, 16, 26, 22, 19, 18, 15,
+             9, 25, 11, 21, 3],
             [2, 8, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ]
         expected_prompt = [

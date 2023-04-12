@@ -2,6 +2,7 @@
 [![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+
 ## Goal and Purpose
 :koala: Joey NMT framework is developed for educational purposes.
 It aims to be a **clean** and **minimalistic** code base to help novices 
@@ -85,11 +86,15 @@ $ pip install joeynmt
 ## Change logs
 ### v2.3
 - compatibility with torch 2.0 tested
+- introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html)
+- implemented prompting, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
 - configuration refactoring
+- autocast refactoring
 - enabled activation function selection
 - bugfixes
 
 <details><summary>previous releases</summary>
+
 ### v2.2
 - compatibility with torch 1.13 tested
 - torchhub introduced

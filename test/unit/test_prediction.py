@@ -111,6 +111,10 @@ class TestPrediction(unittest.TestCase):
             num_workers=0,
             normalization="none",
             args=self.args,
+            autocast={
+                "device_type": "cpu",
+                "enabled": False
+            },
         )
         return hypotheses
 
