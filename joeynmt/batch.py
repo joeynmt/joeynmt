@@ -2,7 +2,6 @@
 """
 Implementation of a mini-batch.
 """
-import logging
 from typing import List, Optional
 
 import numpy as np
@@ -10,8 +9,10 @@ import torch
 from torch import Tensor
 
 from joeynmt.constants import EOS_ID, PAD_ID
+from joeynmt.helpers import adjust_mask_size
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Batch:
@@ -29,6 +30,7 @@ class Batch:
         src_prompt_mask: Optional[Tensor],
         trg: Optional[Tensor],
         trg_prompt_mask: Optional[Tensor],
+        indices: Tensor,
         device: torch.device,
         eos_index: int = EOS_ID,
         pad_index: int = PAD_ID,
@@ -57,9 +59,10 @@ class Batch:
         self.trg: Optional[Tensor] = None
         self.trg_mask: Optional[Tensor] = None
         self.trg_prompt_mask: Optional[Tensor] = None
+        self.indices: Tensor = indices
 
-        self.nseqs: int = self.src.size(0)
-        self.ntokens: Optional[int] = None
+        self.nseqs: int = src.size(0)
+        self.ntokens: Optional[Tensor] = None
         self.has_trg: bool = trg is not None
         self.is_train: bool = is_train
 
@@ -67,18 +70,20 @@ class Batch:
             self.src_prompt_mask = src_prompt_mask
 
         if self.has_trg:
-            has_eos = torch.any(trg == eos_index).item()
             # trg_input is used for teacher forcing, last one (EOS) is cut off
-            self.trg_input: Tensor = trg[:, :-1] if has_eos else trg
+            has_eos = torch.any(trg == eos_index).item()  # true in training
+            trg_input = torch.where(trg == eos_index, pad_index, trg)
+            self.trg_input: Tensor = trg_input[:, :-1] if has_eos else trg_input
             # trg is used for loss computation, shifted by one since BOS
-            self.trg: Tensor = trg[:, 1:]  # trg: shape (batch_size, max_trg_len)
+            self.trg: Tensor = trg[:, 1:]  # trg: shape (batch_size, trg_len)
             # we exclude the padded areas (and blank areas) from the loss computation
-            # trg_mask: shape (batch_size, 1, max_trg_len); passed to attention layers
+            # `trg_mask` shape (batch_size, 1, trg_len); passed to attention layers
             self.trg_mask: Tensor = (self.trg != pad_index).unsqueeze(1)
             self.ntokens: int = self.trg_mask.sum().item()
 
             if trg_prompt_mask is not None:
-                self.trg_prompt_mask = trg_prompt_mask
+                self.trg_prompt_mask = adjust_mask_size(trg_prompt_mask, self.nseqs,
+                                                        self.trg_input.size(1))
 
         if device.type == "cuda":
             self._make_cuda(device)
@@ -91,6 +96,7 @@ class Batch:
         self.src = self.src.to(device)
         self.src_length = self.src_length.to(device)
         self.src_mask = self.src_mask.to(device)
+        self.indices = self.indices.to(device)
 
         if self.src_prompt_mask is not None:
             self.src_prompt_mask = self.src_prompt_mask.to(device)
@@ -120,6 +126,10 @@ class Batch:
         :param n_accumulation: (int) the number of gradient accumulation
         :return: normalized tensor
         """
+        if tensor is None:
+            return None
+        assert torch.is_tensor(tensor), tensor
+
         if n_gpu > 1:
             tensor = tensor.sum()
 
@@ -155,6 +165,7 @@ class Batch:
         self.src = self.src[perm_index]
         self.src_length = self.src_length[perm_index]
         self.src_mask = self.src_mask[perm_index]
+        self.indices = self.indices[perm_index]
 
         if self.src_prompt_mask is not None:
             self.src_prompt_mask = self.src_prompt_mask[perm_index]
@@ -170,19 +181,22 @@ class Batch:
         assert max(rev_index) < len(rev_index), rev_index
         return rev_index
 
-    def score(self, log_probs: Tensor) -> np.ndarray:
+    @staticmethod
+    def score(log_probs: Tensor, trg: Tensor, pad_index: int = PAD_ID) -> np.ndarray:
         """Look up the score of the trg token (ground truth) in the batch"""
+        assert log_probs.size(0) == trg.size(0)
         scores = []
-        for i in range(self.nseqs):
+        for i in range(log_probs.size(0)):
             scores.append(
                 np.array([
-                    log_probs[i, j, ind].item() for j, ind in enumerate(self.trg[i])
-                    if ind != PAD_ID
+                    log_probs[i, j, ind].item() for j, ind in enumerate(trg[i])
+                    if ind != pad_index
                 ]))
         # Note: each element in `scores` list can have different lengths.
         return np.array(scores, dtype=object)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(nseqs={self.nseqs}, ntokens={self.ntokens}, "
-            f"has_trg={self.has_trg}, is_train={self.is_train})")
+        nseqs = self.nseqs.item() if torch.is_tensor(self.nseqs) else self.nseqs
+        ntokens = self.ntokens.item() if torch.is_tensor(self.ntokens) else self.ntokens
+        return (f"{self.__class__.__name__}(nseqs={nseqs}, ntokens={ntokens}, "
+                f"has_trg={self.has_trg}, is_train={self.is_train})")

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import copy
 import functools
-import logging
 import operator
 import random
 import re
@@ -14,7 +13,7 @@ import shutil
 import sys
 import unicodedata
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import packaging.version
@@ -23,12 +22,13 @@ import torch
 from torch import Tensor, nn
 from torch.utils.tensorboard import SummaryWriter
 
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.plotting import plot_heatmap
 
 np.set_printoptions(linewidth=sys.maxsize)  # format for printing numpy array
 
 
-def make_model_dir(model_dir: Path, overwrite: bool = False):
+def make_model_dir(model_dir: Path, overwrite: bool = False) -> None:
     """
     Create a new directory for the model.
 
@@ -45,56 +45,24 @@ def make_model_dir(model_dir: Path, overwrite: bool = False):
     model_dir.mkdir(parents=True)  # create model_dir recursively
 
 
-def make_logger(log_dir: Path = None, mode: str = "train") -> str:
-    """
-    Create a logger for logging the training/testing process.
-
-    :param log_dir: path to file where log is stored as well
-    :param mode: log file name. 'train', 'test' or 'translate'
-    :return: joeynmt version number
-    """
-    logger = logging.getLogger("")  # root logger
-    version = pkg_resources.require("joeynmt")[0].version
-
-    # add handlers only once.
-    if len(logger.handlers) == 0:
-        logger.setLevel(level=logging.DEBUG)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(name)s - %(message)s")
-
-        if log_dir is not None:
-            if log_dir.is_dir():
-                log_file = log_dir / f"{mode}.log"
-
-                fh = logging.FileHandler(log_file.as_posix(), encoding="utf-8")
-                fh.setLevel(level=logging.DEBUG)
-                logger.addHandler(fh)
-                fh.setFormatter(formatter)
-
-        sh = logging.StreamHandler()
-        sh.setLevel(logging.INFO)
-        sh.setFormatter(formatter)
-
-        logger.addHandler(sh)
-        logger.info("Hello! This is Joey-NMT (version %s).", version)
-
-    return version
-
-
-def check_version(pkg_version: str, cfg_version: str) -> None:
+def check_version(cfg_version: str = None) -> str:
     """
     Check joeynmt version
 
-    :param pkg_version: package version number
     :param cfg_version: version number specified in config
+    :return: package version number string
     """
+    pkg_version = pkg_resources.require("joeynmt")[0].version
+
     joeynmt_version = packaging.version.parse(pkg_version)
-    config_version = packaging.version.parse(cfg_version)
-    # check if the major version number matches
-    # pylint: disable=use-maxsplit-arg
-    assert joeynmt_version.major == config_version.major, (
-        f"You are using JoeyNMT version {str(joeynmt_version)}, "
-        f'but {str(config_version)} is expected in the given config.')
+    if cfg_version is not None:
+        config_version = packaging.version.parse(cfg_version)
+        # check if the major version number matches
+        # pylint: disable=use-maxsplit-arg
+        assert joeynmt_version.major == config_version.major, (
+            f"You are using JoeyNMT version {joeynmt_version}, "
+            f'but {config_version} is expected in the given config.')
+    return pkg_version
 
 
 def clones(module: nn.Module, n: int) -> nn.ModuleList:
@@ -200,6 +168,7 @@ def store_attention_plots(
     :param steps: current training steps, needed for tb_writer
     :param dpi: resolution for images
     """
+    logger = get_logger(__name__)
     for i in indices:
         if i >= len(sources):
             continue
@@ -226,9 +195,9 @@ def store_attention_plots(
                 )
                 tb_writer.add_figure(f"attention/{i}.", fig, global_step=steps)
         except Exception:  # pylint: disable=broad-except
-            print(f"Couldn't plot example {i}: "
-                  f"src len {len(src)}, trg len {len(trg)}, "
-                  f"attention scores shape {attention_scores.shape}")
+            logger.warning(f"Couldn't plot example {i}: "
+                           f"src len {len(src)}, trg len {len(trg)}, "
+                           f"attention scores shape {attention_scores.shape}")
             continue
 
 
@@ -241,8 +210,10 @@ def get_latest_checkpoint(ckpt_dir: Path) -> Optional[Path]:
     :param ckpt_dir:
     :return: latest checkpoint file
     """
+    if (ckpt_dir / "latest.ckpt").is_file():
+        return ckpt_dir / "latest.ckpt"
+
     list_of_files = ckpt_dir.glob("*.ckpt")
-    latest_checkpoint = None
     if list_of_files:
         latest_checkpoint = max(list_of_files, key=lambda f: f.stat().st_ctime)
 
@@ -252,7 +223,7 @@ def get_latest_checkpoint(ckpt_dir: Path) -> Optional[Path]:
     return latest_checkpoint
 
 
-def load_checkpoint(path: Path, device: torch.device) -> Dict:
+def load_checkpoint(path: Path, map_location: Union[torch.device, Dict]) -> Dict:
     """
     Load model from saved checkpoint.
 
@@ -260,19 +231,19 @@ def load_checkpoint(path: Path, device: torch.device) -> Dict:
     :param device: cuda device name or cpu
     :return: checkpoint (dict)
     """
-    logger = logging.getLogger(__name__)
     assert path.is_file(), f"Checkpoint {path} not found."
-    checkpoint = torch.load(path, map_location=device)
-    logger.info("Load model from %s.", path.resolve())
+    checkpoint = torch.load(path, map_location=map_location)
     return checkpoint
 
 
 def resolve_ckpt_path(load_model: Path, model_dir: Path) -> Path:
     """
-    Resolve checkpoint path
+    Get checkpoint path. if `load_model` is not specified,
+    take the best or latest checkpoint from model dir.
 
-    :param load_model: config entry (cfg['training']['load_model']) or CLI arg (--ckpt)
-    :param model_dir: Path(cfg['training']['model_dir'])
+    :param load_model: Path(cfg['training']['load_model']) or
+                       Path(cfg['testing']['load_model'])
+    :param model_dir: Path(cfg['model_dir'])
     :return: resolved checkpoint path
     """
     if load_model is None:
@@ -284,7 +255,6 @@ def resolve_ckpt_path(load_model: Path, model_dir: Path) -> Path:
     return load_model
 
 
-# from onmt
 def tile(x: Tensor, count: int, dim=0) -> Tensor:
     """
     Tiles x on dimension dim count times. From OpenNMT. Used for beam search.
@@ -329,6 +299,16 @@ def freeze_params(module: nn.Module) -> None:
 
 
 def adjust_mask_size(mask: Tensor, batch_size: int, hyp_len: int) -> Tensor:
+    """
+    Adjust mask size along dim=1. used for forced decoding (trg prompting).
+
+    :param mask: trg prompt mask in shape (batch_size, hyp_len)
+    :param batch_size:
+    :param hyp_len:
+    """
+    if mask is None:
+        return None
+
     if mask.size(1) < hyp_len:
         _mask = mask.new_zeros((batch_size, hyp_len))
         _mask[:, :mask.size(1)] = mask
@@ -346,7 +326,7 @@ def delete_ckpt(to_delete: Path) -> None:
 
     :param to_delete: checkpoint file to be deleted
     """
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
     try:
         logger.info("delete %s", to_delete.as_posix())
         to_delete.unlink()

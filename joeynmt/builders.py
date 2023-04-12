@@ -2,7 +2,6 @@
 """
 Collection of builder functions
 """
-import logging
 from functools import partial
 from typing import Callable, Dict, Generator, Optional
 
@@ -17,8 +16,9 @@ from torch.optim.lr_scheduler import (
 )
 
 from joeynmt.config import ConfigurationError
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def build_activation(activation: str = "relu") -> Callable:

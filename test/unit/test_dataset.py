@@ -2,8 +2,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import torch
-
 from joeynmt.data import load_data
 from joeynmt.datasets import PlaintextDataset, TsvDataset
 from joeynmt.helpers import read_list_from_file, write_list_to_file
@@ -97,23 +95,24 @@ class TestPlaintextDataset(unittest.TestCase):
                 self.assertEqual(len(test_data), expected_testdev_len)
 
             train_ex = [train_data[i] for i in range(len(train_data))]
-            train_ex = [(s, t) for s, t in train_ex if s is not None and t is not None]
+            train_ex = [(i, s, t) for i, s, t in train_ex
+                        if s is not None and t is not None]
             self.assertEqual(len(train_ex), after_filtering)
 
             # check the segmentation: src and trg attributes are lists
-            train_src, train_trg = train_ex[0]
-            dev_src, dev_trg = dev_data[0]
+            _, train_src, train_trg = train_ex[0]
+            _, dev_src, dev_trg = dev_data[0]
             self.assertIs(type(train_src), list)
             self.assertIs(type(train_trg), list)
             self.assertIs(type(dev_src), list)
             self.assertIs(type(dev_trg), list)
             if test_path is not None:
-                test_src, test_trg = test_data[0]
+                _, test_src, test_trg = test_data[0]
                 self.assertIs(type(test_src), list)
                 self.assertIs(test_trg, None)
 
             # check the length filtering of the training examples
-            src_len, trg_len = zip(*train_ex)
+            _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
                 all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
@@ -131,7 +130,7 @@ class TestPlaintextDataset(unittest.TestCase):
 
             # check dev: no length filtering
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
-            dev_src, dev_trg = zip(*dev_ex)
+            _, dev_src, dev_trg = zip(*dev_ex)
             self.assertEqual(len(dev_ex), expected_testdev_len)
             self.assertEqual(min([len(t) for t in dev_trg]), 4)
             self.assertEqual(max([len(t) for t in dev_trg]), 46)
@@ -233,18 +232,19 @@ class TestTsvDataset(unittest.TestCase):
                              self.min_length)
 
             train_ex = [train_data[i] for i in range(len(train_data))]
-            train_ex = [(s, t) for s, t in train_ex if s is not None and t is not None]
+            train_ex = [(i, s, t) for i, s, t in train_ex
+                        if s is not None and t is not None]
             self.assertEqual(len(train_ex), after_filtering)
 
             # check the length filtering of the training examples
-            src_len, trg_len = zip(*train_ex)
+            _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
                 all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
                 all(self.min_length <= len(t) <= self.max_length for t in trg_len))
 
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
-            dev_src, dev_trg = zip(*dev_ex)
+            _, dev_src, dev_trg = zip(*dev_ex)
             self.assertEqual(len(dev_ex), expected_dev_len)
             self.assertEqual(min([len(t) for t in dev_trg]), 4)
             self.assertEqual(max([len(t) for t in dev_trg]), 46)
