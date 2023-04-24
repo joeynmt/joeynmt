@@ -1,6 +1,16 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
-[![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
+[![build](https://github.com/may-/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/may-/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+
+## What's new
+- 18th March 2023: upgraded to JoeyNMT v2.3.0
+
+- 12th January 2023: upgraded to JoeyNMT v2.2.0
+
+- 26th December 2022:  [＠IT](https://atmarkit.itmedia.co.jp) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳](https://atmarkit.itmedia.co.jp/ait/articles/2212/26/news016.html) の記事が電子書籍化されました。
+
+- 4th September 2022: upgraded to JoeyNMT v2.1.0
 
 
 ## Goal and Purpose
@@ -70,7 +80,7 @@ $ pip install joeynmt
 ### B. From source (for local development)
 1. Clone this repository:
   ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
+  $ git clone https://github.com/may-/joeynmt.git
   $ cd joeynmt
   ```
 2. Install Joey NMT and it's requirements:
@@ -149,8 +159,8 @@ We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly f
 For details, follow the tutorials in [notebooks](notebooks) dir.
 #### v2.x
 - [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
-- [fine tuning tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/fine_tuning_tutorial_enja.ipynb)
-- [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
+- [fine tuning tutorial](notebooks/fine_tuning_tutorial_enja.ipynb)
+- [tokenizer tutorial](notebooks/tokenizer_tutorial_en.ipynb)
 - [joeyS2T ASR tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)
 
 #### v1.x
