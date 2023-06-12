@@ -43,17 +43,17 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested Joey NMT v2.2 with
+We tested Joey NMT v2.2.1 with
 - python 3.10
-- torch 1.13.1
-- cuda 11.6
+- torch 2.0.1
+- cuda 11.7
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.13.1 with CUDA v11.6 as follows:
+> For example, you can install PyTorch 2.0.1 with CUDA v11.7 as follows:
 > ```
-> $ pip install --upgrade torch==1.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
+> $ pip install --upgrade torch==2.0.1 --extra-index-url https://download.pytorch.org/whl/cu117
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
@@ -83,12 +83,19 @@ $ pip install joeynmt
 
 
 ## Change logs
+
+### v2.2.1
+- compatibility with torch 2.0 tested
+- configurable activation function [#211](https://github.com/joeynmt/joeynmt/pull/211)
+- bug fix [#207](https://github.com/joeynmt/joeynmt/pull/207)
+
+
+<details><summary>previous releases</summary>
+
 ### v2.2
 - compatibility with torch 1.13 tested
 - torchhub introduced
 - bugfixes, minor refactoring
-
-<details><summary>previous releases</summary>
 
 ### v2.1
 - upgrade to python 3.10, torch 1.12

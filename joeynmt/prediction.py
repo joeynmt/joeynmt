@@ -50,8 +50,14 @@ def predict(
     num_workers: int = 0,
     cfg: Dict = None,
     fp16: bool = False,
-) -> Tuple[Dict[str, float], List[str], List[str], List[List[str]], List[np.ndarray],
-           List[np.ndarray], ]:
+) -> Tuple[
+        Dict[str, float],
+        List[str],
+        List[str],
+        List[List[str]],
+        List[np.ndarray],
+        List[np.ndarray],
+]:
     """
     Generates translations for the given data.
     If `compute_loss` is True and references are given, also computes the loss.
