@@ -77,6 +77,7 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     Currently supported configuration settings for "optimizer":
         - "sgd" (default): see `torch.optim.SGD`
         - "adam": see `torch.optim.adam`
+        - "adamw": see `torch.optim.adamw`
         - "adagrad": see `torch.optim.adagrad`
         - "adadelta": see `torch.optim.adadelta`
         - "rmsprop": see `torch.optim.RMSprop`
@@ -103,6 +104,9 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     if optimizer_name == "adam":
         kwargs["betas"] = config.get("adam_betas", (0.9, 0.999))
         optimizer = torch.optim.Adam(parameters, **kwargs)
+    elif optimizer_name == "adamw":
+        kwargs["betas"] = config.get("adam_betas", (0.0, 0.999))
+        optimizer = torch.optim.AdamW(parameters, **kwargs)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters, **kwargs)
     elif optimizer_name == "adadelta":
@@ -114,8 +118,10 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
         kwargs["momentum"] = config.get("momentum", 0.0)
         optimizer = torch.optim.SGD(parameters, **kwargs)
     else:
-        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
-                                 "'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
+        raise ConfigurationError(
+            "Invalid optimizer. Valid options: 'adam', "
+            "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'."
+        )
 
     logger.info(
         "%s(%s)",
