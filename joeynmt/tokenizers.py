@@ -4,6 +4,7 @@ Tokenizer module
 """
 import argparse
 import logging
+import os
 import shutil
 from pathlib import Path
 from typing import Dict, List, Union
@@ -221,6 +222,11 @@ class SentencePieceTokenizer(BasicTokenizer):
                 "%s already exists. Stop copying.",
                 (model_dir / self.model_file.name).as_posix(),
             )
+
+        # Verify that the correct directory structure exists before copying
+        if not os.path.exists(os.path.dirname(model_dir / self.model_file.name)):
+            os.makedirs(os.path.dirname(model_dir / self.model_file.name))
+
         shutil.copy2(self.model_file, (model_dir / self.model_file.name).as_posix())
 
     def __repr__(self):
@@ -308,7 +314,17 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def copy_cfg_file(self, model_dir: Path) -> None:
         """Copy config file to model_dir"""
-        shutil.copy2(self.codes, (model_dir / self.codes.name).as_posix())
+        if (model_dir / self.codes.name).is_file():
+            logger.warning(
+                "%s already exists. Stop copying.",
+                (model_dir / self.codes.name).as_posix(),
+            )
+
+        # Verify that the correct directory structure exists before copying
+        if not os.path.exists(os.path.dirname(model_dir / self.codes.name)):
+            os.makedirs(os.path.dirname(model_dir / self.codes.name))
+
+        shutil.copy2(self.codes.name, (model_dir / self.codes.name).as_posix())
 
     def __repr__(self):
         return (f"{self.__class__.__name__}(level={self.level}, "
