@@ -532,13 +532,18 @@ class TrainManager:
                         self.tb_writer.add_scalar("train/learning_rate", current_lr,
                                                   self.stats.steps)
 
-                if self.stats.is_min_lr or self.stats.is_max_update or (0 < self.validation_step_patience < self.stats.validation_steps_since_last_improvement):
+                if self.stats.is_min_lr or self.stats.is_max_update or \
+                    (0 <
+                     self.validation_step_patience <
+                     self.stats.validation_steps_since_last_improvement):
                     if self.stats.is_min_lr:
                         log_str = "minimum lr {self.learning_rate_min}"
                     elif self.stats.is_max_update:
                         log_str = f"maximum num. of updates {self.max_updates}"
                     else:
-                        log_str = f"validation has not improved in {self.stats.validation_steps_since_last_improvement} runs"
+                        log_str = f"""validation has not improved in
+                                   {self.stats.validation_steps_since_last_improvement}
+                                     runs"""
                     logger.info("Training ended since %s was reached.", log_str)
                     break
 
@@ -763,7 +768,9 @@ class TrainManager:
             self.best_ckpt_score = best_ckpt_score  # initial values for best scores
             self.minimize_metric = minimize_metric  # minimize or maximize score
             self.total_correct = total_correct  # number of correct tokens seen so far
-            self.validation_steps_since_last_improvement = validation_steps_since_last_improvement # number of validation steps since early stopping metric has improved
+            # number of validation steps since early stopping metric has improved
+            self.validation_steps_since_last_improvement = \
+                validation_steps_since_last_improvement
 
         def is_best(self, score):
             if self.minimize_metric:
