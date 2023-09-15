@@ -118,10 +118,8 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
         kwargs["momentum"] = config.get("momentum", 0.0)
         optimizer = torch.optim.SGD(parameters, **kwargs)
     else:
-        raise ConfigurationError(
-            "Invalid optimizer. Valid options: 'adam', "
-            "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'."
-        )
+        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
+                                 "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
 
     logger.info(
         "%s(%s)",
