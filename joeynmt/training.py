@@ -70,6 +70,7 @@ class TrainManager:
             validation_freq,
             log_valid_sents,
             early_stopping_metric,
+            validation_step_patience,
             seed,
             shuffle,
             epochs,
@@ -133,6 +134,8 @@ class TrainManager:
             self.minimize_metric = True
         elif self.early_stopping_metric in ["acc", "bleu", "chrf"]:  # higher is better
             self.minimize_metric = False
+
+        self.validation_step_patience = validation_step_patience
 
         # learning rate scheduling
         self.scheduler, self.scheduler_step_at = build_scheduler(
@@ -529,13 +532,13 @@ class TrainManager:
                         self.tb_writer.add_scalar("train/learning_rate", current_lr,
                                                   self.stats.steps)
 
-                    if self.stats.is_min_lr or self.stats.is_max_update:
-                        break
-
-                if self.stats.is_min_lr or self.stats.is_max_update:
-                    log_str = (f"minimum lr {self.learning_rate_min}"
-                               if self.stats.is_min_lr else
-                               f"maximum num. of updates {self.max_updates}")
+                if self.stats.is_min_lr or self.stats.is_max_update or (0 < self.validation_step_patience < self.stats.validation_steps_since_last_improvement):
+                    if self.stats.is_min_lr:
+                        log_str = "minimum lr {self.learning_rate_min}"
+                    elif self.stats.is_max_update:
+                        log_str = f"maximum num. of updates {self.max_updates}"
+                    else:
+                        log_str = f"validation has not improved in {self.stats.validation_steps_since_last_improvement} runs"
                     logger.info("Training ended since %s was reached.", log_str)
                     break
 
@@ -650,6 +653,9 @@ class TrainManager:
                 "Hooray! New best validation result [%s]!",
                 self.early_stopping_metric,
             )
+            self.stats.validation_steps_since_last_improvement = 0
+        else:
+            self.stats.validation_steps_since_last_improvement += 1
 
         # save checkpoints
         is_better = (self.stats.is_better(ckpt_score, self.ckpt_queue)
@@ -747,6 +753,7 @@ class TrainManager:
             best_ckpt_score: float = float("inf"),
             minimize_metric: bool = True,
             total_correct: int = 0,
+            validation_steps_since_last_improvement: int = 0,
         ) -> None:
             self.steps = steps  # global update step counter
             self.is_min_lr = is_min_lr  # stop by reaching learning rate minimum
@@ -756,6 +763,7 @@ class TrainManager:
             self.best_ckpt_score = best_ckpt_score  # initial values for best scores
             self.minimize_metric = minimize_metric  # minimize or maximize score
             self.total_correct = total_correct  # number of correct tokens seen so far
+            self.validation_steps_since_last_improvement = validation_steps_since_last_improvement # number of validation steps since early stopping metric has improved
 
         def is_best(self, score):
             if self.minimize_metric:
