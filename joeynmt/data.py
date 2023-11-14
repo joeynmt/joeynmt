@@ -63,7 +63,7 @@ def load_data(
 
     # train data
     train_data = None
-    if "train" in datasets and train_path is not None:
+    if train_path is not None:
         train_subset = data_cfg.get("sample_train_subset", -1)
         if "random_train_subset" in data_cfg:
             logger.warning("`random_train_subset` option is obsolete. "
