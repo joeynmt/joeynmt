@@ -88,6 +88,7 @@ $ pip install joeynmt
 
 ## Change logs
 ### v2.3
+- compatibility with torch 2.0 tested
 - introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html)
 - implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
 - configuration refactoring
