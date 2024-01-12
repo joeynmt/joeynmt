@@ -307,7 +307,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
             None,
             bpe_args.glossaries,
         )
-        self.codes: Path = bpe_args.codes
+        self.codes: Path = codes_file
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""

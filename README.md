@@ -22,7 +22,10 @@ Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our
 [paper](https://arxiv.org/abs/1907.12484).
 
 ## Contributors
-Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. [Mayumi Ohta](https://www.cl.uni-heidelberg.de/statnlpgroup/members/ohta/) at Heidelberg University is continuing the legacy.
+Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://bastings.github.io/) (University of Amsterdam)
+and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research.
+[Mayumi Ohta](https://www.isi.fraunhofer.de/en/competence-center/innovations-wissensoekonomie/mitarbeiter/ohta.html)
+at Fraunhofer Institute is continuing the legacy.
 
 Welcome to our new contributors :hearts:, please don't hesitate to open a PR or an issue
 if there's something that needs improvement!
@@ -45,16 +48,16 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
 We tested Joey NMT v2.3 with
-- python 3.10
-- torch 2.0.0
-- cuda 11.7
+- python 3.11
+- torch 2.1.2
+- cuda 12.1
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 2.0.0 with CUDA v11.7 as follows:
+> For example, you can install PyTorch 2.1.2 with CUDA v12.1 as follows:
 > ```
-> $ pip install --upgrade torch==2.0.0 --index-url https://download.pytorch.org/whl/cu117
+> $ pip install --upgrade torch==2.1.2 --index-url https://download.pytorch.org/whl/cu121
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
@@ -85,9 +88,8 @@ $ pip install joeynmt
 
 ## Change logs
 ### v2.3
-- compatibility with torch 2.0 tested
 - introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html)
-- implemented prompting, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
+- implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
 - configuration refactoring
 - autocast refactoring
 - enabled activation function selection
@@ -96,7 +98,7 @@ $ pip install joeynmt
 <details><summary>previous releases</summary>
 
 ### v2.2
-- compatibility with torch 1.13 tested
+- compatibility with torch 2.0 tested
 - torchhub introduced
 - bugfixes, minor refactoring
 
@@ -297,7 +299,6 @@ sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.0.0`
 > so that you can input raw sentence. Then `MosesTokenizer` and `MosesDetokenizer` will be applied internally.
 > For test mode, we used the preprocessed texts as input and set `pretokenizer: "none"` in the config.
 
-
 ### Masakhane JW300 afen / enaf
 
 We picked the pretrained models and configs (bpe codes file etc.) from [masakhane.io](https://github.com/masakhane-io/masakhane-mt).
@@ -308,7 +309,6 @@ af->en | Transformer | subword-nmt | - | 57.70 | 46M | [transformer_jw300_afen.t
 en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_enaf.tar.gz](https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/transformer_jw300_enaf.tar.gz) (285MB)
 
 sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
-
 
 ### JParaCrawl enja / jaen
 
@@ -326,7 +326,6 @@ sacrebleu signature:
 - ja->en `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
 *Note: In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.*
-
 
 ## Coding
 In order to keep the code clean and readable, we make use of:

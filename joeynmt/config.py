@@ -259,8 +259,8 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
             "`validation_freq` must be divisible by `logging_freq`.")
 
     return TrainConfig(
-        load_model=_check_path(cfg.get("load_model", None),
-                               allow_empty=mode != "train"),
+        load_model=_check_path(cfg.get("load_model", None), allow_empty=mode
+                               != "train"),
         load_encoder=_check_path(cfg.get("load_encoder", None),
                                  allow_empty=mode != "train"),
         load_decoder=_check_path(cfg.get("load_decoder", None),
