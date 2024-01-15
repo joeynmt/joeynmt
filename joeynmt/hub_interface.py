@@ -204,8 +204,7 @@ class TranslatorHubInterface(nn.Module):
     def plot_attention(self,
                        src: str,
                        trg: str,
-                       attention_scores: np.ndarray,
-                       eos_toekn: str = "</s>") -> None:
+                       attention_scores: np.ndarray) -> None:
         # preprocess and tokenize sentences
         self.dataset.reset_cache()  # reset cache
         self.dataset.has_trg = True
@@ -229,8 +228,8 @@ class TranslatorHubInterface(nn.Module):
                 "x": "Src",
                 "y": "Trg",
             },
-            x=src_tokens + [eos_toekn],
-            y=trg_tokens + [eos_toekn],
+            x=src_tokens + [self.dataset.tokenizer[self.dataset.src_lang].eos_token],
+            y=trg_tokens + [self.dataset.tokenizer[self.dataset.trg_lang].eos_token],
         )
         fig.update_xaxes(side="top", tickangle=270)
         fig.show()

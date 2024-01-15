@@ -7,9 +7,9 @@ random_seed: 42
 
 data:
     # CAUTION: the data splits and preprocessing here are different from the data splits created by scripts/get_iwslt14_sp.sh
-    train: "iwslt14"    # cf. https://github.com/may-/datasets/blob/master/datasets/iwslt14/iwslt14.py
-    dev: "iwslt14"      # ['TED.dev2010', 'TEDX.dev2012']
-    test: "iwslt14"     # ['TED.tst2010', 'TED.tst2011', 'TED.tst2012']
+    train: "may-ohta/iwslt14"    # cf. https://huggingface.co/datasets/may-ohta/iwslt14
+    dev: "may-ohta/iwslt14"      # ['TED.dev2010', 'TEDX.dev2012']
+    test: "may-ohta/iwslt14"     # ['TED.tst2010', 'TED.tst2011', 'TED.tst2012']
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
@@ -45,6 +45,15 @@ data:
             character_coverage: 1.0
             alpha: 0.1
             pretokenizer: "moses"
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
     n_best: 1
@@ -64,7 +73,7 @@ training:
     #reset_scheduler: True
     #reset_optimizer: True
     #reset_iter_state: True
-    optimizer: "adam"
+    optimizer: "adamw"
     normalization: "tokens"
     adam_betas: [0.9, 0.999]
     scheduling: "warmupinversesquareroot"

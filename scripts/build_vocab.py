@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
-from joeynmt.config import ConfigurationError, load_config
+from joeynmt.config import ConfigurationError, load_config, _check_special_symbols
 from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import flatten, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
@@ -85,6 +85,7 @@ def train_spm(
         The input sentence must be pretokenized when using word type.
     """
     model_file = Path(model_file)
+    model_file.parent.mkdir(exist_ok=True)
     if model_file.is_file():
         print(f"Model file '{model_file}' will be overwritten.")
 
@@ -148,6 +149,7 @@ def train_bpe(
     :param codes: codes file. should not exist before bpe training, will be overwritten!
     """
     codes = Path(codes)
+    codes.parent.mkdir(exist_ok=True)
     if codes.is_file():
         print(f"### Codes file '{codes}' will be overwitten.")
 
@@ -288,7 +290,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
     cfg = load_config(Path(args.config_path))
     src_cfg = cfg["data"]["src"]
     trg_cfg = cfg["data"]["trg"]
-    special_symbols = cfg["data"].get("special_symbols", SPECIAL_SYMBOLS)
+    special_symbols = _check_special_symbols(cfg["data"].get("special_symbols", SPECIAL_SYMBOLS))
 
     # build basic tokenizer just for preprocessing purpose
     tokenizer = {

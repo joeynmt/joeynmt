@@ -160,8 +160,9 @@ class BasicTokenizer:
         Set vocab
         :param vocab: (Vocabulary)
         """
-        self.unk_token = vocab.specials[0]
-        self.sep_token = vocab.specials[-1] if vocab.sep_index else None
+        self.unk_token = vocab.specials[vocab.unk_index]
+        self.eos_token = vocab.specials[vocab.eos_index]
+        self.sep_token = vocab.specials[vocab.sep_index] if vocab.sep_index else None
         specials = vocab.specials + vocab.lang_tags
         self.specials = [token for token in specials if token != self.unk_token]
         self.lang_tags = vocab.lang_tags

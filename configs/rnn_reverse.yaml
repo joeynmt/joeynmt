@@ -10,6 +10,7 @@ data:
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
+    dataset_type: "plain"
     src:
         lang: "src"
         max_length: 25
@@ -22,7 +23,15 @@ data:
         level: "word"
         voc_limit: 100
         voc_min_freq: 0
-    dataset_type: "plain"
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
     n_best: 1
@@ -37,7 +46,7 @@ testing:
         tokenize: "13a"
 
 training:
-    optimizer: "adam"
+    optimizer: "adamw"
     learning_rate: 0.001
     learning_rate_min: 0.0002
     weight_decay: 0.0

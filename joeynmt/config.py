@@ -120,6 +120,21 @@ def _check_options(name: str, choice: Any, valid_options: List[Any]) -> None:
                                  f"Valid choices: {valids}.")
 
 
+def _check_special_symbols(special_symbols: Dict) -> Dict:
+    special_symbols["unk_id"] = special_symbols.get("unk_id", 0)
+    special_symbols["unk_token"] = special_symbols.get("unk_token", "<unk>")
+    special_symbols["pad_id"] = special_symbols.get("pad_id", 1)
+    special_symbols["pad_token"] = special_symbols.get("pad_token", "<pad>")
+    special_symbols["bos_id"] = special_symbols.get("bos_id", 2)
+    special_symbols["bos_token"] = special_symbols.get("bos_token", "<s>")
+    special_symbols["eos_id"] = special_symbols.get("eos_id", 3)
+    special_symbols["eos_token"] = special_symbols.get("eos_token", "</s>")
+    special_symbols["sep_id"] = special_symbols.get("sep_id", None)
+    special_symbols["sep_token"] = special_symbols.get("sep_token", None)
+    special_symbols["lang_tags"] = special_symbols.get("lang_tags", [])
+    return special_symbols
+
+
 def log_config(cfg: Dict, prefix: str = "cfg") -> None:
     """
     Print configuration to console log.
@@ -196,17 +211,7 @@ def parse_global_args(cfg: Dict = None,
     # special symbols
     _special_symbols = cfg["data"].get("special_symbols", {})
     if isinstance(_special_symbols, dict):
-        _special_symbols["unk_id"] = _special_symbols.get("unk_id", 0)
-        _special_symbols["unk_token"] = _special_symbols.get("unk_token", "<unk>")
-        _special_symbols["pad_id"] = _special_symbols.get("pad_id", 1)
-        _special_symbols["pad_token"] = _special_symbols.get("pad_token", "<pad>")
-        _special_symbols["bos_id"] = _special_symbols.get("bos_id", 2)
-        _special_symbols["bos_token"] = _special_symbols.get("bos_token", "<s>")
-        _special_symbols["eos_id"] = _special_symbols.get("eos_id", 3)
-        _special_symbols["eos_token"] = _special_symbols.get("eos_token", "</s>")
-        _special_symbols["sep_id"] = _special_symbols.get("sep_id", None)
-        _special_symbols["sep_token"] = _special_symbols.get("sep_token", None)
-        _special_symbols["lang_tags"] = _special_symbols.get("lang_tags", [])
+        _special_symbols = _check_special_symbols(_special_symbols)
         cfg["data"]["special_symbols"] = SimpleNamespace(**_special_symbols)
     assert isinstance(cfg["data"]["special_symbols"], SimpleNamespace)
 
