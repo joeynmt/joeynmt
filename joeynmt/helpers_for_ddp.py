@@ -13,8 +13,6 @@ from torch import Tensor
 from torch.utils.data import Dataset, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from joeynmt.constants import PAD_ID
-
 
 def ddp_setup(rank: int, world_size: int) -> None:
     """
@@ -50,7 +48,7 @@ def ddp_synchronize() -> None:
         dist.barrier()
 
 
-def ddp_merge(data: Tensor, pad_index: int = PAD_ID) -> Tensor:
+def ddp_merge(data: Tensor, pad_index: int = 1) -> Tensor:
     """
     Merge tensors from multiple devices
 

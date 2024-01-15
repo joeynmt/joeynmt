@@ -11,7 +11,6 @@ from torch.utils.data import BatchSampler, DataLoader, Dataset, Sampler
 
 from joeynmt.batch import Batch
 from joeynmt.config import ConfigurationError
-from joeynmt.constants import EOS_ID, PAD_ID, SEP_TOKEN
 from joeynmt.helpers import read_list_from_file
 from joeynmt.helpers_for_ddp import (
     DistributedSubsetSampler,
@@ -95,7 +94,7 @@ class BaseDataset(Dataset):
 
     def get_item(self, idx: int, lang: str, is_train: bool = None) -> List[str]:
         """
-        seek one src/trg item of given index.
+        seek one src/trg item of the given index.
             - tokenization is applied here.
             - length-filtering, bpe-dropout etc also triggered if self.split == "train"
         """
@@ -104,7 +103,7 @@ class BaseDataset(Dataset):
         def _remove_escape(item):
             if (item is not None and self.tokenizer[lang] is not None
                     and item[0] == self.tokenizer[lang].SPACE_ESCAPE
-                    and item[1] in self.tokenizer[lang].LANG_TAGS):
+                    and item[1] in self.tokenizer[lang].lang_tags):
                 return item[1:]
             return item
 
@@ -120,12 +119,12 @@ class BaseDataset(Dataset):
             if 0 < max_length < len(prompt) + len(item) + 1:
                 # truncate prompt
                 offset = max_length - len(item) - 1
-                if prompt[0] in self.tokenizer[lang].LANG_TAGS:
+                if prompt[0] in self.tokenizer[lang].lang_tags:
                     prompt = [prompt[0]] + prompt[-(offset - 1):]
                 else:
                     prompt = prompt[-offset:]
 
-            item = prompt + [SEP_TOKEN] + item
+            item = prompt + [self.tokenizer[lang].sep_token] + item
         return item
 
     def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
@@ -133,11 +132,11 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, idx: Union[int, str]) -> Tuple[int, List[str], List[str]]:
         """
-        lookup one item pair of given index.
+        lookup one item pair of the given index.
 
         :param idx: index of the instance to lookup
         :return:
-            - index  # needed to recover original order
+            - index  # needed to recover the original order
             - tokenized src sentences
             - tokenized trg sentences
         """
@@ -173,8 +172,8 @@ class BaseDataset(Dataset):
     def collate_fn(
         self,
         batch: List[Tuple],
-        eos_index: int = EOS_ID,
-        pad_index: int = PAD_ID,
+        pad_index: int,
+        eos_index: int,
         device: torch.device = CPU_DEVICE,
     ) -> Batch:
         """
@@ -183,8 +182,8 @@ class BaseDataset(Dataset):
         Please override the batch class here. (not in TrainManager)
 
         :param batch:
-        :param eos_index:
         :param pad_index:
+        :param eos_index:
         :param device:
         :return: joeynmt batch object
         """
@@ -214,8 +213,8 @@ class BaseDataset(Dataset):
                              if self.has_prompt[self.trg_lang] else None),
             indices=torch.tensor(idx).long(),
             device=device,
-            eos_index=eos_index,
             pad_index=pad_index,
+            eos_index=eos_index,
             is_train=self.split == "train",
         )
 
@@ -226,8 +225,8 @@ class BaseDataset(Dataset):
         seed: int = 42,
         shuffle: bool = False,
         num_workers: int = 0,
-        eos_index: int = EOS_ID,
-        pad_index: int = PAD_ID,
+        pad_index: int = 1,
+        eos_index: int = 3,
         device: torch.device = CPU_DEVICE,
         generator_state: torch.Tensor = None,
     ) -> DataLoader:
@@ -241,8 +240,8 @@ class BaseDataset(Dataset):
                         (for testing, no effect even if set to True; generator is
                          still used for random subsampling, but not for permutation!)
         :param num_workers: number of cpus for multiprocessing
-        :param eos_index:
         :param pad_index:
+        :param eos_index:
         :param device:
         :param generator_state:
         :return: torch DataLoader
@@ -268,7 +267,7 @@ class BaseDataset(Dataset):
         else:
             sampler = RandomSubsetSampler(self, shuffle=shuffle, generator=generator)
 
-        # batch sampler which yields an list of integers
+        # batch sampler which yields a list of integers
         if batch_type == "sentence":
             batch_sampler = SentenceBatchSampler(sampler,
                                                  batch_size=batch_size,
@@ -559,10 +558,11 @@ class StreamDataset(BaseDataset):
         assert isinstance(src_line, str) and src_line.strip() != "", \
             "The input sentence is empty! Please make sure " \
             "that you are feeding a valid input."
+        sep_token = self.tokenizer[self.src_lang].sep_token
 
         def _split_at_sep(line):
             try:
-                line, prompt = line.split(SEP_TOKEN)
+                line, prompt = line.split(sep_token)
                 return line, prompt
             except ValueError:
                 pass
@@ -574,13 +574,13 @@ class StreamDataset(BaseDataset):
                 self.has_prompt[lang] = True
             return line
 
-        if SEP_TOKEN in src_line and src_prompt is None:
+        if sep_token in src_line and src_prompt is None:
             src_line, src_prompt = _split_at_sep(src_line)
 
         src_line = _pre_process(src_line, self.src_lang, allow_empty=False)
 
         if self.has_trg:
-            if SEP_TOKEN in src_line and src_prompt is None:
+            if sep_token in src_line and src_prompt is None:
                 trg_line, trg_prompt = _split_at_sep(trg_line)
             trg_line = _pre_process(trg_line, self.trg_lang, allow_empty=False)
 

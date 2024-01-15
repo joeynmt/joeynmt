@@ -313,8 +313,8 @@ class TrainManager:
             shuffle=self.args.shuffle,
             num_workers=self.num_workers,
             device=self.device,
-            eos_index=self.model.eos_index,
             pad_index=self.model.pad_index,
+            eos_index=self.model.eos_index,
         )
 
         # TODO: set iter state in the first epoch loop (?)
@@ -397,7 +397,7 @@ class TrainManager:
                     start_correct = self.stats.total_correct
                     epoch_nseqs, epoch_ntokens, epoch_loss = 0, 0, 0
                     total_train_duration, total_valid_duration = 0, 0
-                    total_batch_loss, total_nll_loss, total_ctc_loss = 0, 0, 0
+                    total_batch_loss = 0
                     start = time.time()
 
                 batch: Batch  # yield a joeynmt Batch object
@@ -415,7 +415,7 @@ class TrainManager:
                         epoch_nseqs += batch_nseqs.item()
                         epoch_ntokens += batch_ntokens.item()
                         self.stats.total_tokens += batch_ntokens.item()
-                        self.stats.total_correct += correct_tokens.item()
+                        self.stats.total_correct += correct_tokens
 
                     # update the model parameters!
                     if (i + 1) % self.args.batch_multiplier == 0:
@@ -447,9 +447,8 @@ class TrainManager:
                                 and self.rank == 0):
                             elapsed_time = time.time() - start - total_valid_duration
                             total_train_duration += elapsed_time
-                            self._log_scores(
-                                epoch_no, elapsed_time, start_tokens, start_correct,
-                                total_batch_loss, total_nll_loss, total_ctc_loss)
+                            self._log_scores(epoch_no, elapsed_time, start_tokens,
+                                             start_correct, total_batch_loss)
 
                             # restart counter
                             start = time.time()
@@ -692,9 +691,7 @@ class TrainManager:
                     elapsed_time: float,
                     start_tokens: int,
                     start_correct: int,
-                    total_batch_loss: float,
-                    total_nll_loss: float,
-                    total_ctc_loss: float) -> None:
+                    total_batch_loss: float) -> None:
         """Log training progress"""
 
         elapsed_tok = self.stats.total_tokens - start_tokens
@@ -705,10 +702,6 @@ class TrainManager:
         self.tb_writer.add_scalar("train/batch_loss", total_batch_loss, steps)
         self.tb_writer.add_scalar("train/batch_acc", elapsed_correct / elapsed_tok,
                                   steps)
-        if total_nll_loss != 0:
-            self.tb_writer.add_scalar("train/batch_nll_loss", total_nll_loss, steps)
-        if total_ctc_loss != 0:
-            self.tb_writer.add_scalar("train/total_ctc_loss", total_ctc_loss, steps)
 
         # check current_lr
         current_lr = self.optimizer.param_groups[0]["lr"]

@@ -107,9 +107,9 @@ def predict(
         shuffle=False,
         seed=data.seed,  # for subsampling (not for shuffling)
         num_workers=num_workers,
-        eos_index=model.eos_index,
-        pad_index=model.pad_index,
         device=device,
+        pad_index=model.pad_index,
+        eos_index=model.eos_index,
     )
     num_samples = valid_iter.batch_sampler.num_samples
 
@@ -182,7 +182,7 @@ def predict(
                     attn = ddp_merge(attn, 0.0)
                     batch_trg = ddp_merge(batch.trg, model.pad_index)
 
-                    ref_scores = batch.score(log_probs, batch_trg)
+                    ref_scores = batch.score(log_probs, batch_trg, model.pad_index)
                     attention_scores = attn.detach().cpu().numpy()
                     output = batch_trg.detach().cpu().numpy()
 

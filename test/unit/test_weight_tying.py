@@ -1,5 +1,6 @@
 import copy
 import unittest
+from types import SimpleNamespace
 
 import torch
 
@@ -13,7 +14,21 @@ class TestWeightTying(unittest.TestCase):
         self.seed = 42
         vocab_size = 30
         tokens = [f"tok{i:02d}" for i in range(vocab_size)]
-        self.vocab = Vocabulary(tokens=tokens)
+        special_symbols = SimpleNamespace(
+            **{
+                "unk_token": "<unk>",
+                "pad_token": "<pad>",
+                "bos_token": "<s>",
+                "eos_token": "</s>",
+                "sep_token": "<sep>",
+                "unk_id": 0,
+                "pad_id": 1,
+                "bos_id": 2,
+                "eos_id": 3,
+                "sep_id": 4,
+                "lang_tags": ["<de>", "<en>"],
+            })
+        self.vocab = Vocabulary(tokens=tokens, cfg=special_symbols)
 
         self.cfg = {
             "model": {

@@ -105,7 +105,7 @@ def build_optimizer(cfg: Dict, parameters: Generator) -> Optimizer:
         kwargs["betas"] = cfg.get("adam_betas", (0.9, 0.999))
         optimizer = torch.optim.Adam(parameters, **kwargs)
     elif optimizer_name == "adamw":
-        kwargs["betas"] = config.get("adam_betas", (0.0, 0.999))
+        kwargs["betas"] = cfg.get("adam_betas", (0.0, 0.999))
         optimizer = torch.optim.AdamW(parameters, **kwargs)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters, **kwargs)

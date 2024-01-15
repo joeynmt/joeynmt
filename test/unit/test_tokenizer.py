@@ -1,5 +1,6 @@
 import random
 import unittest
+from types import SimpleNamespace
 
 from joeynmt.data import load_data
 from joeynmt.tokenizers import (
@@ -17,8 +18,10 @@ class TestTokenizer(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "train": self.train_path,
-            "dev": self.dev_path,
+            "train":
+            self.train_path,
+            "dev":
+            self.dev_path,
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -31,7 +34,23 @@ class TestTokenizer(unittest.TestCase):
                 "lowercase": False,
                 "max_length": 10,
             },
-            "dataset_type": "plain",
+            "dataset_type":
+            "plain",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": None,
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": None,
+                    "lang_tags": [],
+                }),
         }
 
         # set seed
@@ -200,7 +219,8 @@ class TestPrompt(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "dev": "test/data/toy/dev",
+            "dev":
+            "test/data/toy/dev",
             "src": {
                 "lang": "src",
                 "level": "bpe",
@@ -225,8 +245,25 @@ class TestPrompt(unittest.TestCase):
                 },
                 "voc_file": "test/data/toy/sp200.vocab",
             },
-            "sample_dev_subset": -1,
-            "dataset_type": "tsv",
+            "sample_dev_subset":
+            -1,
+            "dataset_type":
+            "tsv",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
     def testToknizerWithPrompt(self):

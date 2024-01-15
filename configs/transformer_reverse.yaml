@@ -1,7 +1,7 @@
 name: "reverse_experiment"
 joeynmt_version: "2.3.0"
 model_dir: "models/reverse_transformer"
-use_cuda: True
+use_cuda: False
 fp16: True
 random_seed: 42
     
@@ -25,9 +25,18 @@ data:
         level: "word"
         voc_limit: 100
         voc_min_freq: 0
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
-    #load_model: "models/reverse_transformer/best.ckpt"
+    # load_model: "models/reverse_transformer_cpu/best.ckpt"
     n_best: 2
     beam_size: 2
     beam_alpha: 1.0
@@ -41,7 +50,7 @@ testing:
 
 training:
     #load_model: "models/reverse_transformer/best.ckpt"
-    optimizer: "adam"
+    optimizer: "adamw"
     learning_rate: 0.001
     learning_rate_min: 0.0002
     weight_decay: 0.0

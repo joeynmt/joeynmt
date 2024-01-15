@@ -11,7 +11,6 @@ import plotly.express as px
 from torch import nn
 
 from joeynmt.config import BaseConfig, TestConfig, load_config, parse_global_args
-from joeynmt.constants import EOS_TOKEN
 from joeynmt.datasets import BaseDataset, StreamDataset
 from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.model import Model
@@ -202,7 +201,11 @@ class TranslatorHubInterface(nn.Module):
 
         return translations, tokens, probs, attention_probs, test_cfg
 
-    def plot_attention(self, src: str, trg: str, attention_scores: np.ndarray) -> None:
+    def plot_attention(self,
+                       src: str,
+                       trg: str,
+                       attention_scores: np.ndarray,
+                       eos_toekn: str = "</s>") -> None:
         # preprocess and tokenize sentences
         self.dataset.reset_cache()  # reset cache
         self.dataset.has_trg = True
@@ -226,8 +229,8 @@ class TranslatorHubInterface(nn.Module):
                 "x": "Src",
                 "y": "Trg",
             },
-            x=src_tokens + [EOS_TOKEN],
-            y=trg_tokens + [EOS_TOKEN],
+            x=src_tokens + [eos_toekn],
+            y=trg_tokens + [eos_toekn],
         )
         fig.update_xaxes(side="top", tickangle=270)
         fig.show()

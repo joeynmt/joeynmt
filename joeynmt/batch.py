@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from joeynmt.constants import EOS_ID, PAD_ID
 from joeynmt.helpers import adjust_mask_size
 from joeynmt.helpers_for_ddp import get_logger
 
@@ -32,8 +31,8 @@ class Batch:
         trg_prompt_mask: Optional[Tensor],
         indices: Tensor,
         device: torch.device,
-        eos_index: int = EOS_ID,
-        pad_index: int = PAD_ID,
+        pad_index: int,
+        eos_index: int,
         is_train: bool = True,
     ):
         """
@@ -47,8 +46,8 @@ class Batch:
         :param trg: shape (batch_size, max_trg_len)
         :param trg_prompt_mask: shape (batch_size, max_trg_len)
         :param device:
-        :param eos_index:
         :param pad_index: *must be the same for both src and trg
+        :param eos_index:
         :param is_train: *can be used for online data augmentation, subsampling etc.
         """
         self.src: Tensor = src
@@ -182,7 +181,7 @@ class Batch:
         return rev_index
 
     @staticmethod
-    def score(log_probs: Tensor, trg: Tensor, pad_index: int = PAD_ID) -> np.ndarray:
+    def score(log_probs: Tensor, trg: Tensor, pad_index: int) -> np.ndarray:
         """Look up the score of the trg token (ground truth) in the batch"""
         assert log_probs.size(0) == trg.size(0)
         scores = []

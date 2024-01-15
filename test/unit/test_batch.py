@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import torch
 
@@ -11,8 +12,10 @@ class TestBatch(unittest.TestCase):
     def setUp(self):
         # minimal data config
         data_cfg = {
-            "train": "test/data/toy/train",
-            "dev": "test/data/toy/dev",
+            "train":
+            "test/data/toy/train",
+            "dev":
+            "test/data/toy/dev",
             "src": {
                 "lang": "de",
                 "level": "char",
@@ -25,7 +28,23 @@ class TestBatch(unittest.TestCase):
                 "lowercase": True,
                 "max_length": 20,
             },
-            "dataset_type": "plain",
+            "dataset_type":
+            "plain",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
         # load the data
@@ -183,7 +202,8 @@ class TestPrompt(unittest.TestCase):
     def setUp(self):
         # minimal data config
         data_cfg = {
-            "dev": "test/data/toy/dev",
+            "dev":
+            "test/data/toy/dev",
             "src": {
                 "lang": "src",
                 "level": "bpe",
@@ -204,7 +224,23 @@ class TestPrompt(unittest.TestCase):
                 },
                 "voc_file": "test/data/toy/sp200.vocab",
             },
-            "dataset_type": "tsv",
+            "dataset_type":
+            "tsv",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
         _, trg_vocab, _, self.dev_data, _ = load_data(data_cfg, datasets=["dev"])
         self.pad_index = trg_vocab.pad_index

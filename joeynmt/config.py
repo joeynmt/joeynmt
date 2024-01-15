@@ -2,10 +2,12 @@
 """
 Module for configuration
 
+This can only be a temporary solution.
 TODO: Consider better configuration and validation
 cf. https://github.com/joeynmt/joeynmt/issues/196
 """
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, NamedTuple, Optional
 
 import torch
@@ -190,6 +192,23 @@ def parse_global_args(cfg: Dict = None,
     autocast = {"device_type": device.type, "enabled": fp16}
     if fp16:
         autocast["dtype"] = torch.float16  # TODO: torch.bfloat16 for cpu?
+
+    # special symbols
+    _special_symbols = cfg["data"].get("special_symbols", {})
+    if isinstance(_special_symbols, dict):
+        _special_symbols["unk_id"] = _special_symbols.get("unk_id", 0)
+        _special_symbols["unk_token"] = _special_symbols.get("unk_token", "<unk>")
+        _special_symbols["pad_id"] = _special_symbols.get("pad_id", 1)
+        _special_symbols["pad_token"] = _special_symbols.get("pad_token", "<pad>")
+        _special_symbols["bos_id"] = _special_symbols.get("bos_id", 2)
+        _special_symbols["bos_token"] = _special_symbols.get("bos_token", "<s>")
+        _special_symbols["eos_id"] = _special_symbols.get("eos_id", 3)
+        _special_symbols["eos_token"] = _special_symbols.get("eos_token", "</s>")
+        _special_symbols["sep_id"] = _special_symbols.get("sep_id", None)
+        _special_symbols["sep_token"] = _special_symbols.get("sep_token", None)
+        _special_symbols["lang_tags"] = _special_symbols.get("lang_tags", [])
+        cfg["data"]["special_symbols"] = SimpleNamespace(**_special_symbols)
+    assert isinstance(cfg["data"]["special_symbols"], SimpleNamespace)
 
     return BaseConfig(
         name=cfg["name"],

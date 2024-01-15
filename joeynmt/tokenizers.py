@@ -11,15 +11,6 @@ import sentencepiece as sp
 from subword_nmt import apply_bpe
 
 from joeynmt.config import ConfigurationError
-from joeynmt.constants import (
-    BOS_TOKEN,
-    DE_TOKEN,
-    EN_TOKEN,
-    EOS_TOKEN,
-    PAD_TOKEN,
-    SEP_TOKEN,
-    UNK_TOKEN,
-)
 from joeynmt.helpers import remove_extra_spaces, unicode_normalize
 from joeynmt.helpers_for_ddp import get_logger
 
@@ -29,8 +20,6 @@ logger = get_logger(__name__)
 class BasicTokenizer:
     SPACE = chr(32)  # ' ': half-width white space (ascii)
     SPACE_ESCAPE = chr(9601)  # '▁': sentencepiece default
-    SPECIALS = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, SEP_TOKEN]
-    LANG_TAGS = [DE_TOKEN, EN_TOKEN]
 
     def __init__(
         self,
@@ -129,11 +118,10 @@ class BasicTokenizer:
         return length > self.max_length > 0 or self.min_length > length > 0
 
     def _remove_special(self, sequence: List[str], generate_unk: bool = False):
-        specials = self.SPECIALS[1:] if generate_unk else self.SPECIALS
-        specials += self.LANG_TAGS  # remove language tags, too
+        specials = self.specials if generate_unk else self.specials + [self.unk_token]
         valid = [token for token in sequence if token not in specials]
         if len(valid) == 0:  # if empty, return <unk>
-            valid = [self.SPECIALS[0]]
+            valid = [self.unk_token]
         return valid
 
     def post_process(self,
@@ -145,7 +133,7 @@ class BasicTokenizer:
         if isinstance(sequence, list):
             if cut_at_sep:
                 try:
-                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sep_pos = sequence.index(self.sep_token)  # cut off prompt
                     sequence = sequence[sep_pos + 1:]
 
                 except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
@@ -167,12 +155,16 @@ class BasicTokenizer:
         assert sequence is not None and len(sequence) > 0, sequence
         return sequence
 
-    def set_vocab(self, itos: List[str]) -> None:
+    def set_vocab(self, vocab) -> None:
         """
         Set vocab
-        :param itos: (list) indices-to-symbols mapping
+        :param vocab: (Vocabulary)
         """
-        pass  # pylint: disable=unnecessary-pass
+        self.unk_token = vocab.specials[0]
+        self.sep_token = vocab.specials[-1] if vocab.sep_index else None
+        specials = vocab.specials + vocab.lang_tags
+        self.specials = [token for token in specials if token != self.unk_token]
+        self.lang_tags = vocab.lang_tags
 
     def __repr__(self):
         return (f"{self.__class__.__name__}(level={self.level}, "
@@ -230,7 +222,7 @@ class SentencePieceTokenizer(BasicTokenizer):
         if isinstance(sequence, list):
             if cut_at_sep:
                 try:
-                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sep_pos = sequence.index(self.sep_token)  # cut off prompt
                     sequence = sequence[sep_pos:]
                 except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
                     pass
@@ -252,9 +244,10 @@ class SentencePieceTokenizer(BasicTokenizer):
         assert sequence is not None and len(sequence) > 0, sequence
         return sequence
 
-    def set_vocab(self, itos: List[str]) -> None:
+    def set_vocab(self, vocab) -> None:
         """Set vocab"""
-        self.spm.SetVocabulary(itos)
+        super().set_vocab(vocab)
+        self.spm.SetVocabulary(vocab._itos)
 
     def copy_cfg_file(self, model_dir: Path) -> None:
         """Copy config file to model_dir"""
@@ -328,7 +321,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
         if isinstance(sequence, list):
             if cut_at_sep:
                 try:
-                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sep_pos = sequence.index(self.sep_token)  # cut off prompt
                     sequence = sequence[sep_pos:]
                 except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
                     pass
@@ -353,10 +346,10 @@ class SubwordNMTTokenizer(BasicTokenizer):
         assert sequence is not None and len(sequence) > 0, sequence
         return sequence
 
-    def set_vocab(self, itos: List[str]) -> None:
+    def set_vocab(self, vocab) -> None:
         """Set vocab"""
-        vocab = set(itos) - set(self.SPECIALS) - set(self.LANG_TAGS)
-        self.bpe.vocab = vocab
+        super().set_vocab(vocab)
+        self.bpe.vocab = set(vocab._itos) - set(vocab.specials) - set(vocab.lang_tags)
 
     def copy_cfg_file(self, model_dir: Path) -> None:
         """Copy config file to model_dir"""
