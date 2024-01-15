@@ -6,6 +6,7 @@ torch>=1.12.0
 protobuf>=3.19.4,<3.21
 tensorboard>=1.15
 sacrebleu>=2.0.0
+sacremoses
 sentencepiece
 subword-nmt
 matplotlib

@@ -29,22 +29,31 @@ def save_samples(samples, filename, reverse=False):
 
 def generate_task(args):
     out_dir = Path(args.out_dir)
-    out_dir.mkdir(exist_ok = True)
+    out_dir.mkdir(exist_ok=True)
 
     # train
-    samples = generate_samples(n=args.train_size, low=args.low, high=args.high, maxlen=args.maxlen)
+    samples = generate_samples(n=args.train_size,
+                               low=args.low,
+                               high=args.high,
+                               maxlen=args.maxlen)
     filename = out_dir / "train"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)
 
     # dev
-    samples = generate_samples(n=args.dev_size, low=args.low, high=args.high, maxlen=args.maxlen+5)
+    samples = generate_samples(n=args.dev_size,
+                               low=args.low,
+                               high=args.high,
+                               maxlen=args.maxlen + 5)
     filename = out_dir / "dev"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)
 
     # test
-    samples = generate_samples(n=args.test_size, low=args.low, high=args.high, maxlen=args.maxlen+5)
+    samples = generate_samples(n=args.test_size,
+                               low=args.low,
+                               high=args.high,
+                               maxlen=args.maxlen + 5)
     filename = out_dir / "test"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)
@@ -68,6 +77,6 @@ if __name__ == "__main__":
     ap.add_argument("--maxlen", type=int, default=25, help="max sequence length")
     ap.add_argument("--seed", type=int, default=42, help="random seed")
     args = ap.parse_args()
-    
+
     np.random.seed(args.seed)
     generate_task(args)

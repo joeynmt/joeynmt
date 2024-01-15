@@ -350,31 +350,31 @@ class TrainManager:
         # simplify accumulation logic:
         #################################################################
         # for epoch in range(epochs):
-        #     self.model.zero_grad()
+        #     model.zero_grad()
         #     epoch_loss = 0.0
         #     batch_loss = 0.0
         #     for i, batch in enumerate(self.train_iter):
         #
         #         # gradient accumulation:
-        #         # loss.backward() inside _train_step()
-        #         batch_loss += self._train_step(inputs)
+        #         # loss.backward() will be called in _train_step()
+        #         batch_loss += _train_step(inputs)
         #
-        #         if (i + 1) % self.args.batch_multiplier == 0:
-        #             self.optimizer.step()     # update!
-        #             self.model.zero_grad()    # reset gradients
-        #             self.steps += 1           # increment counter
+        #         if (i + 1) % args.batch_multiplier == 0:
+        #             optimizer.step()     # update!
+        #             model.zero_grad()    # reset gradients
+        #             steps += 1           # increment counter
         #
         #             epoch_loss += batch_loss  # accumulate batch loss
         #             batch_loss = 0            # reset batch loss
         #
         #     # leftovers are just ignored.
-        #     # (see `drop_last` arg in self.train_iter.batch_sampler)
+        #     # (see `drop_last` arg in train_iter.batch_sampler)
         #################################################################
 
         # pylint: disable=too-many-nested-blocks
         try:
             for epoch_no in range(self.stats.epochs, self.args.epochs + 1, 1):
-                ddp_synchronize()  # wait for all processes before staring an epoch
+                ddp_synchronize()  # wait for all processes before starting an epoch
 
                 logger.info("EPOCH %d", epoch_no)
                 self.stats.epochs = epoch_no
@@ -464,22 +464,24 @@ class TrainManager:
                         # validate on the entire dev set
                         if self.stats.steps % self.args.validation_freq == 0:
                             # valid_duration includes time for model saving etc.
-                            valid_start_time = time.time()
+                            if self.rank == 0:
+                                valid_start_time = time.time()
 
                             valid_data.seed = self.seed + self.stats.steps  # set seed
                             self._validate(valid_data)
 
-                            total_valid_duration += time.time() - valid_start_time
+                            if self.rank == 0:
+                                total_valid_duration += time.time() - valid_start_time
 
-                    if self.stats.is_min_lr or self.stats.is_max_update:
-                        break  # break batch loop
+                    if self.rank == 0 and (self.stats.is_min_lr or self.stats.is_max_update):
+                        break  # break batch loop (TODO: DDP?)
 
-                if self.stats.is_min_lr or self.stats.is_max_update:
+                if self.rank == 0 and (self.stats.is_min_lr or self.stats.is_max_update):
                     log_str = (f"minimum lr {self.args.learning_rate_min}"
                                if self.stats.is_min_lr else
                                f"maximum num. of updates {self.args.max_updates}")
                     logger.info("Training ended since %s was reached.", log_str)
-                    break  # break epoch loop
+                    break  # break epoch loop (TODO: DDP?)
 
                 if self.rank == 0:
                     total_train_duration += time.time() - start - total_valid_duration
@@ -578,7 +580,7 @@ class TrainManager:
                 valid_attention_scores,
             ) = prediction
 
-            # for eval_metric in ['loss', 'ppl', 'acc'] + self.eval_metrics:
+            # write in tensorboard
             for eval_metric, score in valid_scores.items():
                 if not math.isnan(score):
                     self.tb_writer.add_scalar(f"valid/{eval_metric}", score,
@@ -586,7 +588,7 @@ class TrainManager:
 
             ckpt_score = valid_scores[self.args.early_stopping_metric]
 
-            # TODO: need to update scheduler even when rank != 0
+            # TODO: need to update scheduler even when rank != 0 (?)
             if self.scheduler_step_at == "validation":
                 self.scheduler.step(metrics=ckpt_score)
 
@@ -785,7 +787,8 @@ def train(rank: int, world_size: int, cfg: Dict, skip_test: bool = False) -> Non
     """
     if cfg.pop("use_ddp", False):
         # initialize ddp
-        ddp_setup(rank, world_size)
+        # TODO: make `master_addr` and `master_port` configurable
+        ddp_setup(rank, world_size, master_addr="localhost", master_port=12355)
 
         # need to assign file handlers again, after multi-processes are spawned...
         get_logger(__name__, log_file=Path(cfg["model_dir"]) / "train.log")

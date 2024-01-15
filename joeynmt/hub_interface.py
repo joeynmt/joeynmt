@@ -201,10 +201,7 @@ class TranslatorHubInterface(nn.Module):
 
         return translations, tokens, probs, attention_probs, test_cfg
 
-    def plot_attention(self,
-                       src: str,
-                       trg: str,
-                       attention_scores: np.ndarray) -> None:
+    def plot_attention(self, src: str, trg: str, attention_scores: np.ndarray) -> None:
         # preprocess and tokenize sentences
         self.dataset.reset_cache()  # reset cache
         self.dataset.has_trg = True

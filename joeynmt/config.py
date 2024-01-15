@@ -271,6 +271,10 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     # batch handling
     batch_type = cfg.get("batch_type", "sentence").lower()
     _check_options("batch_type", batch_type, ["sentence", "token"])
+    if use_ddp():
+        assert batch_type == "sentence", (
+            "Token-based batch sampling is not supported in distributed learning. "
+            "Please specify batch size based on the num. of sentences.")
 
     # logging
     logging_freq = cfg.get("logging_freq", 100)

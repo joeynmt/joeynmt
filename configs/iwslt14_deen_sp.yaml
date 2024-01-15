@@ -7,12 +7,13 @@ random_seed: 42
 
 data:
     # CAUTION: the data splits and preprocessing here are different from the data splits created by scripts/get_iwslt14_sp.sh
-    train: "may-ohta/iwslt14"    # cf. https://huggingface.co/datasets/may-ohta/iwslt14
+    train: "may-ohta/iwslt14"    # cf. https://wit3.fbk.eu/2014-01
     dev: "may-ohta/iwslt14"      # ['TED.dev2010', 'TEDX.dev2012']
     test: "may-ohta/iwslt14"     # ['TED.tst2010', 'TED.tst2011', 'TED.tst2012']
     dataset_type: "huggingface"
     dataset_cfg:
         name: "de-en"
+        trust_remote_code: True  # cf. https://huggingface.co/datasets/may-ohta/iwslt14
     src:
         lang: "de"
         max_length: 512
@@ -85,7 +86,7 @@ training:
     loss: "crossentropy"
     batch_size: 8192
     batch_type: "token"
-    batch_multiplier: 1
+    batch_multiplier: 4
     early_stopping_metric: "bleu"
     epochs: 100
     validation_freq: 1000

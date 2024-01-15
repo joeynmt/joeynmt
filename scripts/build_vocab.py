@@ -8,13 +8,13 @@ import sys
 import tempfile
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List
 from types import SimpleNamespace
+from typing import Dict, List
 
 import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
-from joeynmt.config import ConfigurationError, load_config, _check_special_symbols
+from joeynmt.config import ConfigurationError, _check_special_symbols, load_config
 from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import flatten, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
@@ -290,7 +290,8 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
     cfg = load_config(Path(args.config_path))
     src_cfg = cfg["data"]["src"]
     trg_cfg = cfg["data"]["trg"]
-    special_symbols = _check_special_symbols(cfg["data"].get("special_symbols", SPECIAL_SYMBOLS))
+    special_symbols = _check_special_symbols(cfg["data"].get("special_symbols",
+                                                             SPECIAL_SYMBOLS))
 
     # build basic tokenizer just for preprocessing purpose
     tokenizer = {

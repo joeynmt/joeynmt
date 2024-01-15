@@ -42,7 +42,7 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 - Attention visualization
 - Learning curve plotting
 - Scoring hypotheses and references
-
+- Multilingual translation with language tags
 
 
 ## Installation
@@ -69,28 +69,30 @@ You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) 
 $ pip install joeynmt
 ```
 
-
 ### B. From source (for local development)
-1. Clone this repository:
-  ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
-  $ cd joeynmt
-  ```
-2. Install Joey NMT and it's requirements:
-  ```bash
-  $ pip install -e .
-  ```
-3. Run the unit tests:
-  ```bash
-  $ python -m unittest
-  ```
+```bash
+$ git clone https://github.com/joeynmt/joeynmt.git  # Clone this repository
+$ cd joeynmt
+$ pip install -e .  # Install Joey NMT and it's requirements
+$ make test  # Run the unit tests
+```
 
 
 ## Change logs
-### v2.3
-- compatibility with torch 2.0 tested
-- introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html)
+### v2.3 *Breaking change!*
+- introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html). Please use `--use-ddp` flag in the train command call:
+  ```bash
+  $ python -m joeynmt train configs/transformer_small.yaml --use-ddp --skip-test
+  ```
+  > :warning: **Warning**
+  > - Currently, we implemented DDP-training only, we don't support DDP-prediction. (Don't forget to add `--skip-test` option!)
+  > - We only support `batch_type = "sentence"`, in DDP. (`batch_type = "token"` won't work.)
+  > - Early stopping (`break` in multi-process for-loops) is not properly working, currently.
+  > - Keyborad interruption (`crtl-c`) won't stop all the processes. You need to take care of the remaining processes manually.
+  > - MASTER_ADDR and MASTER_PORT env variables are currently hard-coded. See `ddp_setup()` func in [joeynmt/helpers_for_ddp.py](joeynmt/helpers_for_ddp.py)
 - implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
+- special symbols definition refactoring
+  - `joeynmt/constants.py` is removed. You should specify the special symbols in yaml config file. See [configs/transformer_small.yaml](configs/transformer_small.yaml)
 - configuration refactoring
 - autocast refactoring
 - enabled activation function selection

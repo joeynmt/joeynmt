@@ -1,7 +1,7 @@
 name: "reverse_experiment"
 joeynmt_version: "2.3.0"
-model_dir: "models/reverse_transformer"
-use_cuda: False
+model_dir: "models/reverse_transformer_ddp"
+use_cuda: True
 fp16: True
 random_seed: 42
     
@@ -36,7 +36,7 @@ data:
         eos_id: 3
 
 testing:
-    # load_model: "models/reverse_transformer_cpu/best.ckpt"
+    #load_model: "models/reverse_transformer/best.ckpt"
     n_best: 2
     beam_size: 2
     beam_alpha: 1.0
