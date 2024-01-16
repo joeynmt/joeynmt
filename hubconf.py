@@ -12,7 +12,7 @@ import tarfile
 
 import torch.hub
 
-dependencies = ['torch', 'yaml', 'numpy', 'sentencepiece', 'subword_nmt', 'sacremoses']
+dependencies = ['torch', 'yaml', 'numpy', 'sentencepiece', 'subword_nmt', 'sacremoses', 'huggingface_hub']
 
 # Check for required dependencies and raise a RuntimeError if any are missing.
 missing_deps = []
@@ -25,7 +25,8 @@ if len(missing_deps) > 0:
     raise RuntimeError("Missing dependencies: {}".format(", ".join(missing_deps)))
 
 
-# only do joeynmt imports after checking dependencies
+# Do joeynmt imports after dependency check
+from huggingface_hub import snapshot_download
 from joeynmt.hub_interface import _from_pretrained, TranslatorHubInterface
 
 ROOT_URL = "https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2"
@@ -74,14 +75,38 @@ def _load_from_remote(
     return TranslatorHubInterface(config, test_data, model)
 
 
+def _load_from_huggingface(
+    model_name_or_path: str,
+    ckpt_file: str = "best.ckpt",
+    cfg_file: str = "config.yaml",
+    **kwargs
+) -> TranslatorHubInterface:
+    hub_dir = Path(torch.hub.get_dir())
+    download_dir = hub_dir / model_name_or_path
+    download_dir.mkdir(exist_ok=True)
+    cache_dir = snapshot_download(repo_id=f"may-ohta/{model_name_or_path}",
+                                  local_dir_use_symlinks=False,
+                                  local_dir=download_dir)
+    assert download_dir.is_dir(), (download_dir, cache_dir)
+
+    config, test_data, model = _from_pretrained(
+        model_name_or_path=download_dir,
+        ckpt_file=ckpt_file,
+        cfg_file=cfg_file,
+        **kwargs,
+    )
+    return TranslatorHubInterface(config, test_data, model)
+
+
 def iwslt14_prompt(*args, **kwargs) -> TranslatorHubInterface:
     """
-    IWSLT14 deen transformer
-    See: https://github.com/may-/datasets/blob/main/datasets/iwslt14/iwslt14.py
+    IWSLT14 de/en/fr multilingual
+      - https://wit3.fbk.eu/2014-01
+      - https://huggingface.co/datasets/may-ohta/iwslt14
     """
-    return _load_from_remote(
+    return _load_from_huggingface(
         model_name_or_path="iwslt14_prompt",
-        ckpt_file="14000.ckpt",
+        ckpt_file="avg5.ckpt",
         cfg_file="config.yaml",
         **kwargs
     )

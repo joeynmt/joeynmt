@@ -217,10 +217,10 @@ model_dir/
 This mode will generate translations for validation and test set (as specified in the
 configuration) in `model_dir/out.[dev|test]`.
 ```
-$ python -m joeynmt test configs/transformer_small.yaml --ckpt model_dir/avg.ckpt
+$ python -m joeynmt test configs/transformer_small.yaml
 ```
-If `--ckpt` is not specified above, the checkpoint path in `load_model` of the config
-file or the best model in `model_dir` will be used to generate translations.
+You can specify the ckpt path explicitly in the config file. If `load_model` is not given
+in the config, the best model in `model_dir` will be used to generate translations.
 
 You can specify i.e. [sacrebleu](https://github.com/mjpost/sacrebleu) options in the
 `test` section of the config file.
@@ -235,7 +235,7 @@ If you want to output the log-probabilities of the hypotheses or references, you
 specify `return_score: 'hyp'` or `return_score: 'ref'` in the testing section of the
 config. And run `test` with `--output_path` and `--save_scores` options.
 ```
-$ python -m joeynmt test configs/transformer_small.yaml --ckpt model_dir/avg.ckpt --output_path model_dir/pred --save_scores
+$ python -m joeynmt test configs/transformer_small.yaml --output-path model_dir/pred --save-scores
 ```
 This will generate `model_dir/pred.{dev|test}.{scores|tokens}` which contains scores and corresponding tokens.
 
