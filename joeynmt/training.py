@@ -473,10 +473,12 @@ class TrainManager:
                             if self.rank == 0:
                                 total_valid_duration += time.time() - valid_start_time
 
-                    if self.rank == 0 and (self.stats.is_min_lr or self.stats.is_max_update):
+                    if ((self.stats.is_min_lr or self.stats.is_max_update)
+                            and self.rank == 0):
                         break  # break batch loop (TODO: DDP?)
 
-                if self.rank == 0 and (self.stats.is_min_lr or self.stats.is_max_update):
+                if ((self.stats.is_min_lr or self.stats.is_max_update)
+                        and self.rank == 0):
                     log_str = (f"minimum lr {self.args.learning_rate_min}"
                                if self.stats.is_min_lr else
                                f"maximum num. of updates {self.args.max_updates}")

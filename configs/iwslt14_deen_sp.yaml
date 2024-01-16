@@ -1,3 +1,19 @@
+############## https://github.com/joeynmt/joeynmt/pull/216
+#  Install the latest JoeyNMT:
+#   $ git clone https://github.com/joeynmt/joeynmt.git
+#   $ cd joeynmt
+#   $ python -m pip install -e .
+#
+#  Prepare data: call `build_vocab.py` script from the project root path
+#  This will generate sp.model and sp.vocab in /path/to/joeynmt/test/data/iwslt14/.
+#   $ python scripts/build_vocab.py configs/iwslt14_deen_sp.yaml --joint
+#
+#  Train and test:
+#   $ python -m joeynmt train configs/iwslt14_deen_bpe.yaml
+#
+#  Note that the data splits and preprocessing here are different from
+#  the data splits created by scripts/get_iwslt14_sp.sh
+#
 name: "iwslt14_deen_sp"
 joeynmt_version: "2.3.0"
 model_dir: "models/iwslt14_deen_sp"
@@ -6,8 +22,7 @@ fp16: True
 random_seed: 42
 
 data:
-    # CAUTION: the data splits and preprocessing here are different from the data splits created by scripts/get_iwslt14_sp.sh
-    train: "may-ohta/iwslt14"    # cf. https://wit3.fbk.eu/2014-01
+    train: "may-ohta/iwslt14"    # this downloads data from https://wit3.fbk.eu/2014-01
     dev: "may-ohta/iwslt14"      # ['TED.dev2010', 'TEDX.dev2012']
     test: "may-ohta/iwslt14"     # ['TED.tst2010', 'TED.tst2011', 'TED.tst2012']
     dataset_type: "huggingface"

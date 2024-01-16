@@ -219,7 +219,7 @@ def run(
     tokenizer_cfg: Dict,
     special_symbols: Dict = SPECIAL_SYMBOLS,
 ):
-    # pylint: disable=redefined-outer-name
+    # pylint: disable=redefined-outer-name, dangerous-default-value
     # Warn overwriting
     if vocab_file.is_file():
         print(f"### Vocab file '{vocab_file}' will be overwritten.")
@@ -355,7 +355,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
         )
 
     else:
-        for lang, level, min_freq, max_size, voc_file, tok_type, tok_cfg, special_symbols in [
+        for lang, level, min_freq, max_size, voc_file, tok_type, tok_cfg in [
                 src_tuple,
                 trg_tuple,
         ]:

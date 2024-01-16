@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import os
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +27,7 @@ def save_samples(samples, filename, reverse=False):
 
 
 def generate_task(args):
+    # pylint: disable=redefined-outer-name
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True)
 

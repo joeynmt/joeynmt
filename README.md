@@ -73,13 +73,13 @@ $ pip install joeynmt
 ```bash
 $ git clone https://github.com/joeynmt/joeynmt.git  # Clone this repository
 $ cd joeynmt
-$ pip install -e .  # Install Joey NMT and it's requirements
-$ make test  # Run the unit tests
+$ python -m pip install -e .  # Install Joey NMT and it's requirements
+$ python -m unittest  # Run the unit tests
 ```
 
 
 ## Change logs
-### v2.3 *Breaking change!*
+### v2.3
 - introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html). Please use `--use-ddp` flag in the train command call:
   ```bash
   $ python -m joeynmt train configs/transformer_small.yaml --use-ddp --skip-test
@@ -91,12 +91,16 @@ $ make test  # Run the unit tests
   > - Keyborad interruption (`crtl-c`) won't stop all the processes. You need to take care of the remaining processes manually.
   > - MASTER_ADDR and MASTER_PORT env variables are currently hard-coded. See `ddp_setup()` func in [joeynmt/helpers_for_ddp.py](joeynmt/helpers_for_ddp.py)
 - implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
+  > :warning: **Warning**
+  > - `scripts/build_vocab.py` is not optimized for multilingual vocab construction. You may need to modify it manually.
+  > - You may also need to check the language settings in the (pre)tokenizer, accordingly.
 - special symbols definition refactoring
-  - `joeynmt/constants.py` is removed. You should specify the special symbols in yaml config file. See [configs/transformer_small.yaml](configs/transformer_small.yaml)
+  - `joeynmt/constants.py` has beed removed. You should specify the special symbols in yaml config file. See [configs/transformer_small.yaml](configs/transformer_small.yaml)
 - configuration refactoring
 - autocast refactoring
 - enabled activation function selection
 - bugfixes
+- upgrade to python 3.11, torch 2.1.2
 
 <details><summary>previous releases</summary>
 
@@ -153,10 +157,8 @@ We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly f
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
 #### v2.x
-- [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
-- [fine tuning tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/fine_tuning_tutorial_enja.ipynb)
-- [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
-- [joeyS2T ASR tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)
+- [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb) This quick start guide walks you step-by-step through the installation, data preparation, training, and evaluation.
+- [torch hub interface](notebooks/torchhub.ipynb) How to generate translation from a pretrained model
 
 #### v1.x
 - [demo notebook](notebooks/joey_v1_demo.ipynb)
@@ -191,7 +193,7 @@ $ python -m joeynmt train configs/transformer_small.yaml
 ```
 This will train a model on the training data, validate on validation data, and store
 model parameters, vocabularies, validation outputs. All needed information should be
-specified in the `data`, `training` and `model` section of the config file (here
+specified in the `data`, `training` and `model` sections of the config file (here
 `configs/transformer_small.yaml`).
 
 ```

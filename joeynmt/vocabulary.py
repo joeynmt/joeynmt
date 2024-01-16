@@ -4,7 +4,6 @@ Vocabulary module
 """
 import sys
 from collections import Counter
-from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List, Tuple

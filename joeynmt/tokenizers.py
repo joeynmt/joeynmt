@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 
 
 class BasicTokenizer:
+    # pylint: disable=too-many-instance-attributes
     SPACE = chr(32)  # ' ': half-width white space (ascii)
     SPACE_ESCAPE = chr(9601)  # '▁': sentencepiece default
 
@@ -160,6 +161,7 @@ class BasicTokenizer:
         Set vocab
         :param vocab: (Vocabulary)
         """
+        # pylint: disable=attribute-defined-outside-init
         self.unk_token = vocab.specials[vocab.unk_index]
         self.eos_token = vocab.specials[vocab.eos_index]
         self.sep_token = vocab.specials[vocab.sep_index] if vocab.sep_index else None
@@ -248,7 +250,7 @@ class SentencePieceTokenizer(BasicTokenizer):
     def set_vocab(self, vocab) -> None:
         """Set vocab"""
         super().set_vocab(vocab)
-        self.spm.SetVocabulary(vocab._itos)
+        self.spm.SetVocabulary(vocab._itos)  # pylint: disable=protected-access
 
     def copy_cfg_file(self, model_dir: Path) -> None:
         """Copy config file to model_dir"""
@@ -349,6 +351,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def set_vocab(self, vocab) -> None:
         """Set vocab"""
+        # pylint: disable=protected-access
         super().set_vocab(vocab)
         self.bpe.vocab = set(vocab._itos) - set(vocab.specials) - set(vocab.lang_tags)
 

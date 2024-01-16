@@ -3,6 +3,17 @@
 # Adapted from https://github.com/facebookresearch/MIXER/blob/master/prepareData.sh
 # Adapted from https://github.com/pytorch/fairseq/blob/master/examples/translation/prepare-iwslt14.sh
 
+############## https://github.com/joeynmt/joeynmt/pull/216
+# Usage:
+#   $ cd /path/to/joeynmt/scripts # Call this script from /path/to/joeynmt/scripts dir
+#   $ bash get_iwslt14_bpe.sh     # This will create /path/to/joeynmt/test/data/iwslt14/{train | valid | test}.{en | de}
+#                                 # Make sure that /path/to/joeynmt/test/data/iwslt14/bpe.32000 exists, too.
+#   $ cd ..                       # now back to /path/to/joeynmt/
+#
+#  Train: comment out the `voc_file` lines in the data section -> vocab files will be created in the training process 
+#   $ python -m joeynmt train configs/iwslt14_deen_bpe.yaml --skip-test
+##############
+
 git clone https://github.com/moses-smt/mosesdecoder.git
 
 MOSES=`pwd`/mosesdecoder
@@ -110,3 +121,4 @@ done
 mv "${codes_file}" "${prep}/"
 rm -rf ${MOSES}
 rm -rf ${tmp}
+rm -rf ${orig}
