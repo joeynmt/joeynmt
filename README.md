@@ -259,7 +259,7 @@ This mode accepts inputs from stdin and generate translations.
   $ python -m joeynmt translate configs/transformer_small.yaml
   ```
   You'll be prompted to type an input sentence. Joey NMT will then translate with the 
-  model specified in `--ckpt` or the config file.
+  model specified in the config file.
 
   > :bulb: **Tip**
   > Interactive `translate` mode doesn't work with Multi-GPU.
@@ -268,6 +268,20 @@ This mode accepts inputs from stdin and generate translations.
 
 
 ## Benchmarks & pretrained models
+
+### iwslt14 de/en/fr multilingual
+
+We trained this multilingual model with JoeyNMT v2.3.0 using DDP.
+
+Direction | Architecture | tok | test | #params | download
+--------- | :----------: | :-- | ---: | ------: | :-------
+en->de    | Transformer  | sentencepiece | 28.88 | 200M | [iwslt14_prompt](https://huggingface.co/may-ohta/iwslt14_prompt)
+de->en    |  |  | 35.28 |  |
+en->fr    |  |  | 38.86 |  |
+fr->en    |  |  | 40.35 |  |
+
+sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.4.0`
+
 
 ### wmt14 ende / deen
 
@@ -318,8 +332,8 @@ sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.
 ### JParaCrawl enja / jaen
 
 For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
-Please check the preprocessing script [here](scripts/get_jparacrawl.sh).
-We tested then on [kftt](http://www.phontron.com/kftt/) test set and [wmt20]() test set, respectively. 
+Please check the preprocessing script [here](https://github.com/joeynmt/joeynmt/blob/v2.2/scripts/get_jparacrawl.sh).
+We tested then on [kftt](http://www.phontron.com/kftt/) test set and [wmt20](https://data.statmt.org/wmt20/translation-task/) test set, respectively. 
 
 Direction | Architecture | tok | wmt20 | kftt | #params | download
 --------- | ------------ | :-- | ---: | ------: | ------: | :-------
