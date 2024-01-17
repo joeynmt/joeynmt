@@ -7,23 +7,23 @@ Overview
 This page gives an overview of the particular organization of the code.
 If you want to modify or contribute to the code, this is a must-read, so you know where to enter your code.
 
-For a detailed documentation of the API, go to :ref:`modules`.
+For detailed documentation of the API, go to :ref:`api`.
 
 
 Modes
 =====
 When JoeyNMT is called from the command line, the mode ("train/test/translate") determines what happens next.
 
-The **"train"** mode leads to ``training.py``, where executes the following steps:
+The **"train"** mode leads to `training.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/training.py>`_, where executes the following steps:
 
 1. load the configuration file
 2. load the data and build the vocabularies
 3. build the model
 4. create a training manager
 5. train and validate the model (includes saving checkpoints)
-6. test the model with the best checkpoint (if test data given)
+6. test the model with the best checkpoint (if test data is given)
 
-**"test"** and **"translate"** mode are handled by ``prediction.py``.
+**"test"** and **"translate"** mode are handled by `prediction.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/prediction.py>`_.
 In **"test"** mode, JoeyNMT does the following:
 
 1. load the configuration file
@@ -34,12 +34,38 @@ In **"test"** mode, JoeyNMT does the following:
 
 The **"translate"** mode is similar, but it loads source sentences either from an *external* file or prompts lines of *inputs from the user* and does not perform an evaluation.
 
+
 Training Management
 ===================
 
-The training process is managed by the `TrainManager <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/training.py#L37>`_.
+The training process is managed by the `TrainManager <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/training.py>`_.
 The manager receives a model and then performs the following steps: parses the input configuration, sets up the logger, schedules the learning rate, sets up the optimizer and counters for update steps. It then keeps track of the current best checkpoint to determine when to stop training.
 Most of the hyperparameters in the "training" section of the configuration file are turned into attributes of the TrainManager.
+
+When "batch_multiplier" > 0 is set, the gradients are accumulated before the model parameters are updated. In the batch loop, we call ``loss.backward()``  for each batch, but ``optimizer.step()`` is called every (batch_multiplier)-th time steps only, and then the accumulated gradients (``model.zero_grad()``) are reset.
+
+.. code-block:: python
+
+    for epoch in range(epochs):
+        model.zero_grad()
+        epoch_loss = 0.0
+        batch_loss = 0.0
+        for i, batch in enumerate(train_iter):
+
+            # gradient accumulation:
+            # loss.backward() will be called in _train_step()
+            batch_loss += _train_step(batch)
+
+            if (i + 1) % args.batch_multiplier == 0:
+                optimizer.step()     # update!
+                model.zero_grad()    # reset gradients
+                steps += 1           # increment counter
+
+                epoch_loss += batch_loss  # accumulate batch loss
+                batch_loss = 0            # reset batch loss
+
+        # leftovers are just ignored.
+        # (see `drop_last` arg in train_iter.batch_sampler)
 
 
 Encoder-Decoder Model
@@ -50,26 +76,35 @@ This is where encoder and decoder get connected. The forward pass as well as the
 
 Individual encoders and decoders are defined with their forward functions in `encoders.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/encoders.py>`_ and `decoders.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/decoders.py>`_.
 
+
 Data Handling
 =============
 
+Data Loading
+------------
+At the current state, we support the following input data formats:
+- plain txt: one-sentence-per-line; requires language name in the file extension.
+- tsv: requires header row with src and trg language names.
+- Huggingface's datasets: requires `translation` field.  
+- (stdin for interactive translation cli)
+
+In the timing of data loading, we only apply preprocess operations such as lowercasing, punctuation deletion, etc. if needed.
+Tokenization is applied on-the-fly when a batch is constructed during training/prediction. See ``get_item()`` in `BaseDataset <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/datasets.py>`_ class for details.
+
+
 Mini-Batching
 -------------
-The **training** data is split into buckets of similar source and target length and then split into batches (`data.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/data.py>`_) to reduce the amount of padding, i.e. waste of computation time.
-The samples within each mini-batch are sorted, so that we can make use of PyTorch's efficient RNN `sequence padding and packing <https://gist.github.com/Tushar-N/dfca335e370a2bc3bc79876e6270099e>`_ functions.
+The dataloader samples data points from the corpus and constructs a batch with `batch.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/batch.py>`_. The instances within each mini-batch are sorted by length, so that we can make use of PyTorch's efficient RNN `sequence padding and packing <https://gist.github.com/Tushar-N/dfca335e370a2bc3bc79876e6270099e>`_ functions. For **inference**, we keep track of the original order so that we can revert the order of the model outputs.
 
-For **inference**, we sort the data as well (when creating batches with `batch.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/batch.py>`_), but we keep track of the original order so that we can revert the order of the model outputs.
-This trick speeds up validation and also testing.
+Joey NMT v2.3 (or greater) supports DataParallel and DistributedDataParallel in PyTorch. Please refer to external documentation i.e. `PyTorch DDP tutorial <https://pytorch.org/tutorials/intermediate/dist_tuto.html>`_ to learn how those modules dispatch the minibatchs across multiple GPU devices.
+
 
 Vocabulary
 ----------
-For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/vocabulary.py>`_), all tokens occuring in the training set are collected, sorted and optionally filtered by frequency and then cut off as specified in the configuration.
+For the creation of the vocabulary (`vocabulary.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/vocabulary.py>`_), all tokens occurring in the training set are collected, sorted and optionally filtered by frequency and then cut off as specified in the configuration. By default, it creates src language vocab and trg language vocab separately. If you want to use joint vocabulary, you need to create vocabulary (`scripts/build_vocab.py <https://github.com/joeynmt/joeynmt/blob/main/scripts/build_vocab.py>`_) before you start training.
 The vocabularies are stored in the model directory. The vocabulary files contain one token per line, where the line number corresponds to the index of the token in the vocabulary.
 
-Data Loading
-------------
-At the current state, we use `Torchtext <https://torchtext.readthedocs.io/en/latest/>`_ for data loading and the transformation of files of strings to PyTorch tensors.
-Most importantly, the code (`data.py`) works with the `Dataset <https://torchtext.readthedocs.io/en/latest/datasets.html>`_ and `Field <https://torchtext.readthedocs.io/en/latest/data.html#fields>`_ objects: one field for source and one for target, creating a `TranslationDataset <https://torchtext.readthedocs.io/en/latest/datasets.html?highlight=TranslationDataset#machine-translation>`_.
+Token granularity should be specified in the "data" section of the configuration file. Currently, JoeyNMT supports word-based, character-based models and sub-word models with byte-pair-encodings (BPE) as learned with `subword-nmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_.
 
 
 Inference
@@ -83,23 +118,3 @@ Checkpoints
 The TrainManager takes care of saving checkpoints whenever the model has reached a new validation highscore (keeping a configurable number of checkpoints in total).
 The checkpoints do not only contain the model parameters (``model_state``), but also the cumulative count of training tokens and steps, the highscore and iteration count for that highscore, the state of the optimizer, the scheduler and the data iterator.
 This ensures a seamless continuation of training when training is interrupted.
-
-From ``_save_checkpoint``:
-::
-
-    model_state_dict = self.model.module.state_dict() if \
-    isinstance(self.model, torch.nn.DataParallel) else self.model.state_dict()
-    state = {
-        "steps": self.steps,
-        "total_tokens": self.total_tokens,
-        "best_ckpt_score": self.best_ckpt_score,
-        "best_ckpt_iteration": self.best_ckpt_iteration,
-        "model_state": model_state_dict,
-        "optimizer_state": self.optimizer.state_dict(),
-        "scheduler_state": self.scheduler.state_dict() if \
-        self.scheduler is not None else None,
-        'amp_state': amp.state_dict() if self.fp16 else None
-        'train_iter_state': train_iter.state_dict()
-    }
-
-

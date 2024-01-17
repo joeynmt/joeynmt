@@ -353,11 +353,11 @@ class TrainManager:
         #     model.zero_grad()
         #     epoch_loss = 0.0
         #     batch_loss = 0.0
-        #     for i, batch in enumerate(self.train_iter):
+        #     for i, batch in enumerate(train_iter):
         #
         #         # gradient accumulation:
         #         # loss.backward() will be called in _train_step()
-        #         batch_loss += _train_step(inputs)
+        #         batch_loss += _train_step(batch)
         #
         #         if (i + 1) % args.batch_multiplier == 0:
         #             optimizer.step()     # update!

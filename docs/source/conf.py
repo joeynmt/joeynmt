@@ -26,9 +26,9 @@ copyright = '2018, Jasmijn Bastings and Julia Kreutzer'
 author = 'Jasmijn Bastings and Julia Kreutzer'
 
 # The short X.Y version
-version = ''
+version = '2.3'
 # The full version, including alpha/beta/rc tags
-release = '1.5.1'
+release = '2.3.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -45,6 +45,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx_rtd_theme'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -64,7 +65,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -80,7 +81,7 @@ pygments_style = None
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-#html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -135,7 +136,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'JoeyNMT.tex', 'Joey NMT Documentation',
-     'Joost Bastings and Julia Kreutzer', 'manual'),
+     'Jasmijn Bastings and Julia Kreutzer', 'manual'),
 ]
 
 

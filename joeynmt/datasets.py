@@ -238,7 +238,7 @@ class BaseDataset(Dataset):
         :param seed: random seed for shuffling
         :param shuffle: whether to shuffle the order of sequences before each epoch
                         (for testing, no effect even if set to True; generator is
-                         still used for random subsampling, but not for permutation!)
+                        still used for random subsampling, but not for permutation!)
         :param num_workers: number of cpus for multiprocessing
         :param pad_index:
         :param eos_index:

@@ -92,8 +92,10 @@ $ python -m unittest  # Run the unit tests
   > - MASTER_ADDR and MASTER_PORT env variables are currently hard-coded. See `ddp_setup()` func in [joeynmt/helpers_for_ddp.py](joeynmt/helpers_for_ddp.py)
 - implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
   > :warning: **Warning**
-  > - `scripts/build_vocab.py` is not optimized for multilingual vocab construction. You may need to modify it manually.
+  > - `scripts/build_vocab.py` is not optimized for the multilingual vocab construction. You may need to modify it manually.
   > - You may also need to check the language settings in the (pre)tokenizer, accordingly.
+  > - Interactive translation cli won't work with language tags.
+- released a [iwslt14 de-en-fr multilingual model](https://huggingface.co/may-ohta/iwslt14_prompt) trained using DDP
 - special symbols definition refactoring
   - `joeynmt/constants.py` has beed removed. You should specify the special symbols in yaml config file. See [configs/transformer_small.yaml](configs/transformer_small.yaml)
 - configuration refactoring
@@ -273,12 +275,12 @@ This mode accepts inputs from stdin and generate translations.
 
 We trained this multilingual model with JoeyNMT v2.3.0 using DDP.
 
-Direction | Architecture | tok | test | #params | download
---------- | :----------: | :-- | ---: | ------: | :-------
-en->de    | Transformer  | sentencepiece | 28.88 | 200M | [iwslt14_prompt](https://huggingface.co/may-ohta/iwslt14_prompt)
-de->en    |  |  | 35.28 |  |
-en->fr    |  |  | 38.86 |  |
-fr->en    |  |  | 40.35 |  |
+Direction | Architecture | tok | dev | test | #params | download
+--------- | :----------: | :-- | --: | ---: | ------: | :-------
+en->de    | Transformer  | sentencepiece | - | 28.88 | 200M | [iwslt14_prompt](https://huggingface.co/may-ohta/iwslt14_prompt)
+de->en    |  |  | - | 35.28 |  |
+en->fr    |  |  | - | 38.86 |  |
+fr->en    |  |  | - | 40.35 |  |
 
 sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.4.0`
 

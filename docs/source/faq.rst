@@ -5,19 +5,17 @@ Frequently Asked Questions
 ==========================
 
 Documentation
--------------
+^^^^^^^^^^^^^
 - **Are there any Notebooks for Joey?**
-    - `Demo colab <https://github.com/joeynmt/joeynmt/blob/main/joey_demo.ipynb>`_ for an example of Tatoeba translations.
-    - `Colab Notebook <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_ from the Masakhane project that walks you through the installation, data preparation, training, evaluation for African languages.
+    - `Quick start tutorial <https://github.com/joeynmt/joeynmt/blob/main/joey_demo_v2.ipynb>`_ A quick start guide with Tatoeba corpus example.
+    - `Torchhub <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_  How to generate translation from a pretrained model.
 
-- **Is there a bunch of scripts to run all those Joey commands?**
-    Check out the scripts compiled in `Joey Toy Models <https://github.com/bricksdont/joeynmt-toy-models>`_, that also walk you through the installation, data preparation, training, evaluation, and even data download and pre-processing.
+- **The documentation is too old, and doesn't reflect the latest functionality implemented in the main branch of the repository.**
+    We try to keep the documentation up-to-date and aligned with the latest stable release.
 
 - **I can't find the information I'm looking for. What now?**
-    Open an issue on GitHub or post a question on gitter.
+    Open an issue on GitHub or write an email.
 
-Usage
------
 
 Training
 ^^^^^^^^
@@ -25,25 +23,27 @@ Training
 - **How can I train the model on GPU/CPU?**
    First of all, make sure you have the correct version of pytorch installed.
    When running on *GPU* you need to manually install the suitable PyTorch version for your `CUDA <https://developer.nvidia.com/cuda-zone>`_ version. This is described in the `PyTorch installation instructions <https://pytorch.org/get-started/locally/>`_.
-   Then set the ``use_cuda`` flag in the configuration to True for training on GPU (requires CUDA) or to False for training on CPU.
+   Then set the ``use_cuda`` flag in the configuration to True for training/prediction on GPU (requires CUDA) or to False for training/prediction on CPU.
 
 - **Does Joey NMT support multi-GPU processing?**
-   In version 1.0, we integrated multi-gpu and half-precision support.
+   We integrated multi-gpu support (DataParallel) in version 1.0, and multi-node DDP (Distributed DataParallel) in version 2.3. Note that the interactive translation mode currently works on single GPU or CPU only.
 
 - **How can I stop training?**
-   Simply press Control+C.
+   Simply press Control+C. In DDP, this keyboard interruption might not be able to stop all the processes. Please clean up the remaining processes manually.
 
 - **My training data is huge and I actually don't want to train on it all. What can I do?**
-    You could use the ``random_train_subset`` parameter in the data section of the configuration to load only a random subset of the training data. If you change the random seed, this selection changes too. So you could train on multiple random subsets and then ensemble the models with ``scripts/average_checkpoints.py``.
+    You could use the ``random_train_subset`` parameter in the data section of the configuration to load only a random subset of the training data. This evokes random subsampling at the beginning of each epoch. That is, the model will see different random subset of training data at each epoch.
 
 - **How can I see how well my model is doing?**
    1. *Training log*: Validation results and training loss (after each epoch and batch) are reported in the training log file ``train.log`` in your model directory.
    2. *Validation reports*: ``validations.txt`` contains the validation results, learning rates and indicators when a checkpoint was saved. You can easily plot the validation results with `this script <https://github.com/joeynmt/joeynmt/blob/main/scripts/plot_validations.py>`_, e.g.
+
     ::
 
-        python3 scripts/plot_validation.py model_dir --plot_values bleu PPL --output_path my_plot.pdf
+        python3 scripts/plot_validation.py model_dir --plot-values bleu PPL --output-path my_plot.pdf
 
    3. *Tensorboard*: Validation results, training losses and attention scores are also stored in summaries for Tensorboard. Launch Tensorboard with
+
     ::
 
         tensorboard --logdir model_dir/tensorboard
@@ -62,10 +62,10 @@ Training
      1. First train your model on one dataset (the *out-of-domain* data).
 
      2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
-        Specify which vocabularies to use: ``src_vocab: out-of-domain-model/src_vocab.txt`` and likewise for ``trg_vocab``.
+        Specify which vocabularies to use: `voc_file: out-of-domain-model/src_vocab.txt` and likewise for `trg_vocab.txt`.
         You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
-        In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: out-of-domain-model/best.ckpt``.
-        If you set ``reset_best_ckpt'': True'', previously stored high scores under your metric will be ignored, and if you set ``reset_scheduler'' and ``reset_optimizer'' you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
+        In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: `load_model: out-of-domain-model/best.ckpt`.
+        If you set `reset_best_ckpt: True`, previously stored high scores under your metric will be ignored, and if you set `reset_scheduler` and `reset_optimizer` you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
         Use this if the scores on your new dev set are lower than on the old dev set, or if you use a different metric or schedule for fine-tuning.
 
      3. Train the in-domain model.
@@ -79,7 +79,7 @@ Tuning
 ^^^^^^
 - **Which default hyperparameters should I use?**
    There is no universal answer to this question. We recommend you to check publications that used the same data as you're using (or at least the same language pair and data size)
-   and find out how large their models where, how long they trained them etc.
+   and find out how large their models were, how long they trained them etc.
    You might also get inspiration from the benchmarks that we report. Their configuration files can be found in the ``configs`` directory.
 
 - **Which hyperparameters should I change first?**
@@ -113,7 +113,7 @@ Tensorboard
 Configurations
 ^^^^^^^^^^^^^^
 - **Where can I find the default values for the settings in the configuration file?**
-   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/main/configs/small.yaml>`_ or :ref:`api`
+   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/main/configs/transformers_small.yaml>`_ or :ref:`api`
    for individual modules.
    Please note that there is no guarantee that the default setting is a good setting.
 
@@ -131,32 +131,32 @@ Configurations
    A bi-directional RNN with *k* hidden units will have *k* hidden units in the forward RNN plus *k* for the backward RNN.
    This might be different in other toolkits where the number of hidden units is divided by two to use half of them each for backward and forward RNN.
 
-- **My model with configs/small.yaml doesn't perform well.`**
-  No surprise! This configuration is created for the purpose of documentation: it contains all parameter settings with a description. It does not perform well on the actual task that it uses. Try the reverse or copy task instead!
+- **My model with configs/transformer_small.yaml doesn't perform well.`**
+    No surprise! This configuration is created for the purpose of documentation: it contains all parameter settings with a description. It does not perform well on the actual task that it uses. Try the reverse task instead!
 
 - **What does batch_type mean?**
-  The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (`batch_type: "sentence"`), or by a maximum number of tokens (`batch_type: "token"`). For Transformer models, mini-batching is usually done by tokens.
+    The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (`batch_type: "sentence"`), or by a maximum number of tokens (`batch_type: "token"`). For Transformer models, mini-batching is usually done by tokens.
 
 - **Do I need a warm-up scheduler with the Transformer architecture?**
-   No. The 'Noam scheduler' that was introduced with the original Transformer architecture works well for the data sets (several millions) described in the `paper (Vaswani et al. 2017) <https://arxiv.org/pdf/1706.03762.pdf>`_. However, on different data it might require a careful tuning of the warm-up schedule. We experienced good performance with the plateau scheduler as well, which is usally easier to tune. `Popel and Bojar (2018) <https://ufal.mff.cuni.cz/pbml/110/art-popel-bojar.pdf>`_ give further tips on how to tune the hyper-parameters for the Transformer.
+   No. The 'Noam scheduler' that was introduced with the original Transformer architecture works well for the data sets (several millions) described in the `paper (Vaswani et al. 2017) <https://arxiv.org/pdf/1706.03762.pdf>`_. However, on different data it might require a careful tuning of the warm-up schedule. We experienced good performance with the plateau scheduler as well, which is usually easier to tune. `Popel and Bojar (2018) <https://ufal.mff.cuni.cz/pbml/110/art-popel-bojar.pdf>`_ give further tips on how to tune the hyper-parameters for the Transformer.
 
 Data
 ^^^^
 - **Does JoeyNMT pre-process my data?**
-    JoeyNMT does *not* include any pre-processing like tokenization, filtering by length ratio, normalization or learning/applying of BPEs.
-    For that purpose, you might find the  `tools provided by the Moses decoder <https://github.com/moses-smt/mosesdecoder/tree/main/scripts>`_ useful, as well as the `subwordnmt <https://github.com/rsennrich/subword-nmt>`_ or `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs. An example of a pre-processing pipeline is show in the `data preparation script for IWLST 2014 <https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh>`_.
-    However, the training data gets *filtered* by the ``max_sent_length`` (keeping all training instances where source and target are up to that length) that you specify in the data section of the configuration file.
-    You can find an example of a data pre-processing pipeline `here <https://github.com/bricksdont/joeynmt-toy-models/blob/main/scripts/preprocess.sh>`_.
+    Yes. When the data are loaded, JoeyNMT applies several pre-processing defined in the `Tokenizer <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/tokenizers.py>`_ module, such as lowercasing, unicode normalization etc. You can control it in the data section of the configuration. See `pre_process()` function in the `BasicTokenizer` class.
+
+    Tokenization is triggered on-the-fly during batch construction. Currently, JoeyNMT implements wrappers for `subword-nmt <https://github.com/rsennrich/subword-nmt>`_ and `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs, in addition to the simple white-space split (word-level tokenization) and character-level tokenization.
 
 - **Does JoeyNMT post-process your data?**
-  JoeyNMT does generally *not* perform any post-processing like detokenization, recasing or the like. The only exception is when you run it with ´level='bpe'´ -- then it *merges* the BPEs for your convenience. This holds for computing validation BLEU and test BLEU scores, so that they're not computed on subwords, but the previously split tokens.
+    The `Tokenizer <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/tokenizers.py>`_ module takes care of post-processing like detokenization, recasing etc. If you want to add custom post-process operations, you can extend the `post_process()` function there. 
+
 
 Debugging
 ^^^^^^^^^
 - **My model doesn't work. What can I do?**
    First of all, invest in diagnostics: what exactly is not working? Is the training loss going down? Is the validation loss going down? Are there any patterns in the weirdness of the model outputs? Answers to these questions will help you locate the source of the problem.
    Andrej Karpathy wrote this wonderful `recipe for training neural nets <http://karpathy.github.io/2019/04/25/recipe/>`_ by  - it has lots of advice on how to find out what's going wrong and how to fix it.
-   Specifically for NMT, here's three things we can recommend:
+   Specifically for NMT, here're three things we can recommend:
    - *Synthetic data*: If you modified the code, it might help to inspect tensors and outputs manually for a synthetic task like the reverse task presented in the :ref:`tutorial`.
    - *Data*: If you're working with a standard model, doublecheck whether your data is properly aligned, properly pre-processed, properly filtered and whether the vocabularies cover a reasonable amount of tokens.
    - *Hyperparameters*: Try a smaller/larger/deeper/shallower model architecture with smaller/larger learning rates, different optimizers and turn off schedulers. It might be worth to try different initialization options. Train longer and validate less frequently, maybe training just takes longer than you'd expect.
@@ -165,7 +165,7 @@ Debugging
    Consider reducing ``batch_size``. The mini-batch size can be virtually increased by a factor of *k* by setting ``batch_multiplier`` to *k*.
    Tensor operations are still performed with ``batch_size`` instances each, but model updates are done after *k* of these mini-batches.
 
-- **My model performs well on the validation set, but terrible on the test set. What's wrong?**
+- **My model performs well on the validation set, but terribly on the test set. What's wrong?**
    Make sure that your validation set is similar to the data you want to test on, that it's large enough and that you're not "over-tuning" your model.
 
 - **My model produces translations that are generally too short. What's wrong?**
@@ -184,7 +184,7 @@ Features
    We might add it in the future, but from our experience, the most popular models are recurrent and self-attentional.
 
 - **How are the parameters initialized?**
-   Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/initialization.py#L60>`_.
+   Check the description in `initialization.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/initialization.py>`_.
 
 - **Is there the option to ensemble multiple models?**
    You can do checkpoint averaging to combine multiple models. Use the `average_checkpoints script <https://github.com/joeynmt/joeynmt/blob/main/scripts/average_checkpoints.py>`_.
@@ -208,8 +208,8 @@ Features
 - **Is validation performed with greedy decoding or beam search?**
    Greedy decoding, since it's faster and usually aligns with model selection by beam search validation.
 
-- **What's the difference between "max_sent_length" and and "max_output_length"?**
-   ``max_sent_length`` determines the maximum source and target length of the training data,
+- **What's the difference between "max_length" in the data section and "max_output_length" in the testing section?**
+   ``max_length`` determines the maximum source and target length of the training data,
    ``max_output_length`` is the maximum length of the translations that your model will be asked to produce.
 
 - **How is the vocabulary generated?**
@@ -217,7 +217,7 @@ Features
 
 - **What does freezing mean?**
    *Freezing* means that you don't update a subset of your parameters. If you freeze all parts of your model, it won't get updated (which doesn't make much sense).
-   It might, however, might sense to update only a subset of the parameters in the case where you have a pre-trained model and want to carefully fine-tune it to e.g. a new domain.
+   It might, however, make sense to update only a subset of the parameters in the case where you have a pre-trained model and want to carefully fine-tune it to e.g. a new domain.
    For the modules you want to freeze, set ``freeze: True`` in the corresponding configuration section.
 
 
@@ -241,7 +241,7 @@ Model Extensions
 Miscellaneous
 -------------
 - **Why should I use JoeyNMT rather than other NMT toolkits?**
-    It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all latest features, but rather the core features that make up for 99% of the quality.
+    It's easy to use, it is well documented, and it works just as well as other toolkits out-of-the-box. It does and will not implement all the latest features, but rather the core features that make up for 99% of the quality.
     That means for you, once you know how to work with it, we guarantee you the code won't completely change from one day to the next.
 
 - **I found a bug in your code, what should I do?**
@@ -265,6 +265,7 @@ Contributing
     Your new code should also pass tests and adher to style guidelines, this will be tested automatically. The code will only be pushed when all issues raised by reviewers have been addressed.
     See also `here <https://help.github.com/en/articles/about-pull-requests>`_.
 
+
 Evaluation
 ----------
 - **Which quality metrics does JoeyNMT report?**
@@ -275,10 +276,10 @@ Evaluation
     It uses the `raw_corpus_bleu <https://github.com/mjpost/sacrebleu/blob/f54908ac00879f666c92f4174367bcd3a8723197/sacrebleu/sacrebleu.py#L653>`_ scoring function that excludes special de/tokenization or smoothing. This is done to respect the tokenization that is inherent in the provided input data. However, that means that the BLEU score you get out of Joey is *dependent on your input tokenization*, so be careful when comparing it to scores you find in literature.
 
 - **Can I publish the BLEU scores JoeyNMT reports on my test set?**
-    As described in the two preceding questions, BLEU reporting has to be handled with care, since it depends on tokenizers and implementations. Generally, whenever you report BLEU scores, report as well how you computed them. This is essential for reproducability of results and future comparisons. If you compare to previous benchmarks or scores, first find out how these were computed.
+    As described in the two preceding questions, BLEU reporting has to be handled with care, since it depends on tokenizers and implementations. Generally, whenever you report BLEU scores, report as well how you computed them. This is essential for reproducibility of results and future comparisons. If you compare to previous benchmarks or scores, first find out how these were computed.
     Our recommendation is as follows:
-      1. Use the scores that Joey reports on your validation set for tuning and selecting the best model.
-      2. Then translate your test set once (in "translate" mode), and post-process the produced translations accordingly, e.g., detokenize it, restore casing.
-      3. Use the BLEU scoring library of your choice, this is the one that is reported in previous benchmarks, or e.g. sacrebleu (see above). Make sure to set tokenization flags correctly.
-      4. Report these scores together with a description of how you computed them, ideally provide a script with your code.
+    1. Use the scores that Joey reports on your validation set for tuning and selecting the best model.
+    2. Then translate your test set once (in "translate" mode), and post-process the produced translations accordingly, e.g., detokenize it, restore casing.
+    3. Use the BLEU scoring library of your choice, this is the one that is reported in previous benchmarks, or e.g. sacrebleu (see above). Make sure to set tokenization flags correctly.
+    4. Report these scores together with a description of how you computed them, ideally provide a script with your code.
 

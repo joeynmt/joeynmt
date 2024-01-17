@@ -145,6 +145,7 @@ model:                              # specify your model architecture here
         dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
         num_layers: 3               # stack this many layers of equal size, default: 1
         freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
+        activation: "relu"          # activation function. choices: "relu", "gelu", "tanh", "swish". default: "relu"
     decoder:
         type: "recurrent"           # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
         rnn_type: "gru"
