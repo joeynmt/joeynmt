@@ -181,8 +181,7 @@ def predict(
                     log_probs = ddp_merge(log_probs, 0.0)
                     attn = ddp_merge(attn, 0.0)
                     batch_trg = ddp_merge(batch.trg, model.pad_index)
-
-                    ref_scores = batch.score(log_probs, batch_trg)
+                    ref_scores = batch.score(log_probs, batch_trg, model.pad_index)
                     attention_scores = attn.detach().cpu().numpy()
                     output = batch_trg.detach().cpu().numpy()
 

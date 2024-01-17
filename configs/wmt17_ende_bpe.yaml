@@ -43,6 +43,15 @@ data:
             codes: "subwords/wmt17_bpe.codes"
             dropout: 0.1
             pretokenizer: "moses"
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
     load_model: "models/wmt17_ende_bpe/best.ckpt"
@@ -67,7 +76,7 @@ training:
     reset_scheduler: False
     reset_optimizer: False
     reset_iter_state: False
-    optimizer: "adam"
+    optimizer: "adamw"
     normalization: "tokens"
     adam_betas: [0.9, 0.98]
     scheduling: "warmupinversesquareroot"

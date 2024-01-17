@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import torch
 from torch.utils.data import DataLoader
@@ -17,9 +18,12 @@ class TestDataSampler(unittest.TestCase):
 
         # minimal data config
         data_cfg = {
-            "train": "test/data/toy/train",
-            "dev": "test/data/toy/dev",
-            "test": "test/data/toy/test",
+            "train":
+            "test/data/toy/train",
+            "dev":
+            "test/data/toy/dev",
+            "test":
+            "test/data/toy/test",
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -32,9 +36,27 @@ class TestDataSampler(unittest.TestCase):
                 "lowercase": False,
                 "max_length": 10,
             },
-            "sample_train_subset": -1,
-            "sample_dev_subset": 10,
-            "dataset_type": "plain",
+            "sample_train_subset":
+            -1,
+            "sample_dev_subset":
+            10,
+            "dataset_type":
+            "plain",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
         # load toy data

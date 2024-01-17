@@ -2,10 +2,12 @@
 """
 Module for configuration
 
+This can only be a temporary solution.
 TODO: Consider better configuration and validation
 cf. https://github.com/joeynmt/joeynmt/issues/196
 """
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, NamedTuple, Optional
 
 import torch
@@ -118,6 +120,21 @@ def _check_options(name: str, choice: Any, valid_options: List[Any]) -> None:
                                  f"Valid choices: {valids}.")
 
 
+def _check_special_symbols(special_symbols: Dict) -> Dict:
+    special_symbols["unk_id"] = special_symbols.get("unk_id", 0)
+    special_symbols["unk_token"] = special_symbols.get("unk_token", "<unk>")
+    special_symbols["pad_id"] = special_symbols.get("pad_id", 1)
+    special_symbols["pad_token"] = special_symbols.get("pad_token", "<pad>")
+    special_symbols["bos_id"] = special_symbols.get("bos_id", 2)
+    special_symbols["bos_token"] = special_symbols.get("bos_token", "<s>")
+    special_symbols["eos_id"] = special_symbols.get("eos_id", 3)
+    special_symbols["eos_token"] = special_symbols.get("eos_token", "</s>")
+    special_symbols["sep_id"] = special_symbols.get("sep_id", None)
+    special_symbols["sep_token"] = special_symbols.get("sep_token", None)
+    special_symbols["lang_tags"] = special_symbols.get("lang_tags", [])
+    return special_symbols
+
+
 def log_config(cfg: Dict, prefix: str = "cfg") -> None:
     """
     Print configuration to console log.
@@ -191,6 +208,13 @@ def parse_global_args(cfg: Dict = None,
     if fp16:
         autocast["dtype"] = torch.float16  # TODO: torch.bfloat16 for cpu?
 
+    # special symbols
+    _special_symbols = cfg["data"].get("special_symbols", {})
+    if isinstance(_special_symbols, dict):
+        _special_symbols = _check_special_symbols(_special_symbols)
+        cfg["data"]["special_symbols"] = SimpleNamespace(**_special_symbols)
+    assert isinstance(cfg["data"]["special_symbols"], SimpleNamespace)
+
     return BaseConfig(
         name=cfg["name"],
         joeynmt_version=cfg.get("joeynmt_version", "2.3.0"),
@@ -247,6 +271,20 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     # batch handling
     batch_type = cfg.get("batch_type", "sentence").lower()
     _check_options("batch_type", batch_type, ["sentence", "token"])
+    if use_ddp():
+        assert batch_type == "sentence", (
+            "Token-based batch sampling is not supported in distributed learning. "
+            "Please specify batch size based on the num. of sentences.")
+
+    # logging
+    logging_freq = cfg.get("logging_freq", 100)
+    validation_freq = cfg.get("validation_freq", 1000)
+    if logging_freq > validation_freq:
+        raise ConfigurationError(
+            "`logging_freq` must be smaller than `validation_freq`.")
+    if validation_freq % logging_freq != 0:
+        raise ConfigurationError(
+            "`validation_freq` must be divisible by `logging_freq`.")
 
     # logging
     logging_freq = cfg.get("logging_freq", 100)

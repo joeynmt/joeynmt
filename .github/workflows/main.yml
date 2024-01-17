@@ -25,17 +25,17 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
 
-      # Set up Python 3.10
-      - name: Set up Python 3.10
+      # Set up Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v3
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       # Install packages
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade torch --extra-index-url https://download.pytorch.org/whl/cpu
+          python -m pip install --upgrade torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -e .
 
       # Check code format

@@ -19,6 +19,7 @@ Getting Started
    install
    tutorial
    overview
+   benchmarks
    api
    faq
    resources

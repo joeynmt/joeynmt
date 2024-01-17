@@ -11,7 +11,6 @@ import plotly.express as px
 from torch import nn
 
 from joeynmt.config import BaseConfig, TestConfig, load_config, parse_global_args
-from joeynmt.constants import EOS_TOKEN
 from joeynmt.datasets import BaseDataset, StreamDataset
 from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.model import Model
@@ -226,8 +225,8 @@ class TranslatorHubInterface(nn.Module):
                 "x": "Src",
                 "y": "Trg",
             },
-            x=src_tokens + [EOS_TOKEN],
-            y=trg_tokens + [EOS_TOKEN],
+            x=src_tokens + [self.dataset.tokenizer[self.dataset.src_lang].eos_token],
+            y=trg_tokens + [self.dataset.tokenizer[self.dataset.trg_lang].eos_token],
         )
         fig.update_xaxes(side="top", tickangle=270)
         fig.show()

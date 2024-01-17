@@ -8,20 +8,32 @@ import sys
 import tempfile
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, List
 
 import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
-from joeynmt.config import ConfigurationError, load_config
-from joeynmt.constants import (  # pylint: disable=unused-import # noqa:F401
-    BOS_ID, BOS_TOKEN, DE_ID, DE_TOKEN, EN_ID, EN_TOKEN, EOS_ID, EOS_TOKEN, PAD_ID,
-    PAD_TOKEN, SEP_ID, SEP_TOKEN, UNK_ID, UNK_TOKEN,
-)
+from joeynmt.config import ConfigurationError, _check_special_symbols, load_config
 from joeynmt.datasets import BaseDataset, build_dataset
 from joeynmt.helpers import flatten, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
+
+# default definitions
+SPECIAL_SYMBOLS = {
+    "unk_token": "<unk>",
+    "pad_token": "<pad>",
+    "bos_token": "<s>",
+    "eos_token": "</s>",
+    "sep_token": None,  # "<sep>",
+    "unk_id": 0,
+    "pad_id": 1,
+    "bos_id": 2,
+    "eos_id": 3,
+    "sep_id": None,  # 4,
+    "lang_tags": [],  # ["<de>", "<en>"],
+}
 
 
 def build_vocab_from_sents(
@@ -48,6 +60,7 @@ def train_spm(
     model_file: str,
     random_subset: int,
     vocab_file: Path,
+    cfg: SimpleNamespace,
     character_coverage: float = 1.0,
     model_type: str = 'unigram',
 ) -> None:
@@ -64,15 +77,15 @@ def train_spm(
     :param model_file: sentencepiece model file (with ".model" extension)
     :param random_subset: subset size to train sentencepiece
     :param vocab_file: path to vocab file (one token per line)
+    :param cfg: special symbols defined in config file
     :param character_coverage: amount of characters covered by the model,
         good defaults are: 0.9995 for languages with rich character set like Japanese
         or Chinese and 1.0 for other languages with small character set.
     :param model_type: model type. Choose from unigram (default), bpe, char, or word.
         The input sentence must be pretokenized when using word type.
     """
-    LANG_TAGS = [f'<{lang}>' for lang in langs]  # TODO: import LANG_TAGS from Vocab
-
     model_file = Path(model_file)
+    model_file.parent.mkdir(exist_ok=True)
     if model_file.is_file():
         print(f"Model file '{model_file}' will be overwritten.")
 
@@ -88,18 +101,20 @@ def train_spm(
             f"--vocab_size={max_size}",
             f"--character_coverage={character_coverage}",
             f"--accept_language={','.join(langs)}",
-            f"--unk_piece={UNK_TOKEN}",
-            f"--bos_piece={BOS_TOKEN}",
-            f"--eos_piece={EOS_TOKEN}",
-            f"--pad_piece={PAD_TOKEN}",
-            f"--unk_id={UNK_ID}",
-            f"--bos_id={BOS_ID}",
-            f"--eos_id={EOS_ID}",
-            f"--pad_id={PAD_ID}",
-            f"--control_symbols={SEP_TOKEN}",
-            f"--user_defined_symbols={','.join(LANG_TAGS)}",
+            f"--unk_piece={cfg.unk_token}",
+            f"--bos_piece={cfg.bos_token}",
+            f"--eos_piece={cfg.eos_token}",
+            f"--pad_piece={cfg.pad_token}",
+            f"--unk_id={cfg.unk_id}",
+            f"--bos_id={cfg.bos_id}",
+            f"--eos_id={cfg.eos_id}",
+            f"--pad_id={cfg.pad_id}",
             "--vocabulary_output_piece_score=false",
         ]
+        if cfg.sep_token:
+            arguments.append(f"--control_symbols={cfg.sep_token}")
+        if cfg.lang_tags:
+            arguments.append(f"--user_defined_symbols={','.join(cfg.lang_tags)}")
         if len(sents) >= random_subset:  # subsample
             arguments.append(f"--input_sentence_size={random_subset}")
             arguments.append("--shuffle_input_sentence=true")
@@ -134,6 +149,7 @@ def train_bpe(
     :param codes: codes file. should not exist before bpe training, will be overwritten!
     """
     codes = Path(codes)
+    codes.parent.mkdir(exist_ok=True)
     if codes.is_file():
         print(f"### Codes file '{codes}' will be overwitten.")
 
@@ -201,8 +217,9 @@ def run(
     vocab_file: Path,
     tokenizer_type: str,
     tokenizer_cfg: Dict,
+    special_symbols: Dict = SPECIAL_SYMBOLS,
 ):
-    # pylint: disable=redefined-outer-name
+    # pylint: disable=redefined-outer-name, dangerous-default-value
     # Warn overwriting
     if vocab_file.is_file():
         print(f"### Vocab file '{vocab_file}' will be overwritten.")
@@ -243,6 +260,7 @@ def run(
                 model_file=tokenizer_cfg["model_file"],
                 random_subset=args.random_subset,
                 vocab_file=vocab_file,
+                cfg=SimpleNamespace(**special_symbols),
                 character_coverage=tokenizer_cfg.get("character_coverage", 1.0),
                 model_type=tokenizer_cfg.get("model_type", "unigram"),
             )
@@ -272,6 +290,8 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
     cfg = load_config(Path(args.config_path))
     src_cfg = cfg["data"]["src"]
     trg_cfg = cfg["data"]["trg"]
+    special_symbols = _check_special_symbols(cfg["data"].get("special_symbols",
+                                                             SPECIAL_SYMBOLS))
 
     # build basic tokenizer just for preprocessing purpose
     tokenizer = {
@@ -331,6 +351,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
             vocab_file=Path(src_tuple[4]),
             tokenizer_type=src_tuple[5],
             tokenizer_cfg=src_tuple[6],
+            special_symbols=special_symbols,
         )
 
     else:
@@ -349,6 +370,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
                                 'vocab.txt' else voc_file),
                 tokenizer_type=tok_type,
                 tokenizer_cfg=tok_cfg,
+                special_symbols=special_symbols,
             )
 
 

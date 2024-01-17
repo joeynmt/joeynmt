@@ -4,16 +4,12 @@ Vocabulary module
 """
 import sys
 from collections import Counter
-from copy import deepcopy
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, List, Tuple
 
 import numpy as np
 
-from joeynmt.constants import (  # pylint: disable=unused-import # noqa:F401
-    BOS_ID, BOS_TOKEN, DE_ID, DE_TOKEN, EN_ID, EN_TOKEN, EOS_ID, EOS_TOKEN, PAD_ID,
-    PAD_TOKEN, SEP_ID, SEP_TOKEN, UNK_ID, UNK_TOKEN,
-)
 from joeynmt.datasets import BaseDataset
 from joeynmt.helpers import flatten, read_list_from_file, write_list_to_file
 from joeynmt.helpers_for_ddp import get_logger
@@ -24,45 +20,44 @@ logger = get_logger(__name__)
 class Vocabulary:
     """Vocabulary represents mapping between tokens and indices."""
 
-    def __init__(self, tokens: List[str], check_special_symbols=False) -> None:
+    def __init__(self, tokens: List[str], cfg: SimpleNamespace) -> None:
         """
         Create vocabulary from list of tokens.
         Special tokens are added if not already in list.
 
         :param tokens: list of tokens
-        :param check_special_symbols: (bool)
+        :param cfg: special symbols defined in config
         """
         # warning: stoi grows with unknown tokens, don't use for saving or size
 
         # special symbols
-        self.specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, SEP_TOKEN]
-        self.lang_tags = [DE_TOKEN, EN_TOKEN]
+        self.specials = [cfg.unk_token, cfg.pad_token, cfg.bos_token, cfg.eos_token]
+        self.lang_tags = cfg.lang_tags
+        if cfg.sep_token:
+            self.specials.append(cfg.sep_token)
 
         # don't allow to access _stoi and _itos outside of this class
         self._stoi: Dict[str, int] = {}  # string to index
         self._itos: List[str] = []  # index to string
-
-        if check_special_symbols:
-            self._check_special_symbols(tokens)
 
         # construct
         self.add_tokens(tokens=self.specials + self.lang_tags + tokens)
         assert len(self._stoi) == len(self._itos)
 
         # assign after stoi is built
-        self.pad_index = PAD_ID
-        self.bos_index = BOS_ID
-        self.eos_index = EOS_ID
-        self.unk_index = UNK_ID
-        self.sep_index = SEP_ID if SEP_TOKEN in self.specials else None
-        assert self.pad_index == self.lookup(PAD_TOKEN)
-        assert self.bos_index == self.lookup(BOS_TOKEN)
-        assert self.eos_index == self.lookup(EOS_TOKEN)
-        assert self.unk_index == self.lookup(UNK_TOKEN)
-        assert self._itos[UNK_ID] == UNK_TOKEN
+        self.pad_index = cfg.pad_id
+        self.bos_index = cfg.bos_id
+        self.eos_index = cfg.eos_id
+        self.unk_index = cfg.unk_id
+        self.sep_index = cfg.sep_id if cfg.sep_token else None
+        assert self.pad_index == self.lookup(cfg.pad_token)
+        assert self.bos_index == self.lookup(cfg.bos_token)
+        assert self.eos_index == self.lookup(cfg.eos_token)
+        assert self.unk_index == self.lookup(cfg.unk_token)
+        assert self._itos[cfg.unk_id] == cfg.unk_token
 
-        if SEP_TOKEN in self.specials:
-            assert self.sep_index == self.lookup(SEP_TOKEN)
+        if cfg.sep_token:
+            assert self.sep_index == self.lookup(cfg.sep_token)
 
     def add_tokens(self, tokens: List[str]) -> None:
         """
@@ -102,18 +97,6 @@ class Vocabulary:
         :return: token id
         """
         return self._stoi.get(token, self.unk_index)
-
-    def _check_special_symbols(self, valid_tokens: List[str]) -> None:
-        """check special symbols (for backwards compatibility)"""
-        necessary_specials = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
-
-        def _validate(specials, valid_tokens):
-            for s in deepcopy(specials):
-                if s not in necessary_specials and s not in valid_tokens:
-                    specials.remove(s)
-
-        _validate(self.specials, valid_tokens)
-        _validate(self.lang_tags, valid_tokens)
 
     def __len__(self) -> int:
         return len(self._itos)
@@ -241,11 +224,14 @@ def sort_and_cut(counter: Counter,
     return vocab_tokens
 
 
-def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
+def _build_vocab(cfg: Dict,
+                 special_symbols: SimpleNamespace,
+                 dataset: BaseDataset = None) -> Vocabulary:
     """
     Builds vocabulary either from file or sentences.
 
     :param cfg: data cfg
+    :param special_symbols: special symbols
     :param dataset: dataset object which contains preprocessed sentences
     :return: Vocabulary created from either `tokens` or `vocab_file`
     """
@@ -257,11 +243,6 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
     if vocab_file is not None:
         # load it from file (not to apply `sort_and_cut()`)
         unique_tokens = read_list_from_file(Path(vocab_file))
-
-        # assume all needed special symbols are already included.
-        # special symbols don't appear here will be discarded.
-        check_special_symbols = True
-
     elif dataset is not None:
         # tokenize sentences (no subsampling)
         sents = dataset.get_list(lang=cfg["lang"], tokenized=True, subsampled=False)
@@ -269,11 +250,10 @@ def _build_vocab(cfg: Dict, dataset: BaseDataset = None) -> Vocabulary:
         # newly create unique token list (language-wise, no joint-vocab)
         counter = Counter(flatten(sents))
         unique_tokens = sort_and_cut(counter, max_size, min_freq)
-        check_special_symbols = False
     else:
         raise ValueError("Please provide a vocab file path or dataset.")
 
-    vocab = Vocabulary(unique_tokens, check_special_symbols=check_special_symbols)
+    vocab = Vocabulary(unique_tokens, special_symbols)
     assert len(vocab) <= max_size + len(vocab.specials + vocab.lang_tags), \
         (len(vocab), max_size)
 
@@ -295,8 +275,8 @@ def build_vocab(cfg: Dict,
         assert (model_dir / "trg_vocab.txt").is_file()
         cfg["trg"]["voc_file"] = (model_dir / "trg_vocab.txt").as_posix()
 
-    src_vocab = _build_vocab(cfg["src"], dataset)
-    trg_vocab = _build_vocab(cfg["trg"], dataset)
+    src_vocab = _build_vocab(cfg["src"], cfg["special_symbols"], dataset)
+    trg_vocab = _build_vocab(cfg["trg"], cfg["special_symbols"], dataset)
 
     assert src_vocab.pad_index == trg_vocab.pad_index
     assert src_vocab.bos_index == trg_vocab.bos_index

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from joeynmt.data import load_data
 from joeynmt.datasets import PlaintextDataset, TsvDataset
@@ -19,9 +20,12 @@ class TestPlaintextDataset(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "train": self.train_path,
-            "dev": self.dev_path,
-            "test": self.test_path,
+            "train":
+            self.train_path,
+            "dev":
+            self.dev_path,
+            "test":
+            self.test_path,
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -36,7 +40,23 @@ class TestPlaintextDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "dataset_type": "plain",
+            "dataset_type":
+            "plain",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
     def testDataLoading(self):
@@ -186,7 +206,23 @@ class TestTsvDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "dataset_type": "tsv",
+            "dataset_type":
+            "tsv",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
     def tearDown(self):

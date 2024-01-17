@@ -1,6 +1,7 @@
 # coding: utf-8
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -14,7 +15,8 @@ class TestVocabulary(unittest.TestCase):
     def setUp(self):
         self.voc_limit = 1000
         self.cfg = {
-            "train": "test/data/toy/train",
+            "train":
+            "test/data/toy/train",
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -29,7 +31,23 @@ class TestVocabulary(unittest.TestCase):
                 "max_length": 30,
                 "voc_limit": self.voc_limit,
             },
-            "dataset_type": "plain",
+            "dataset_type":
+            "plain",
+            "special_symbols":
+            SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }),
         }
 
         self.sents = [
@@ -41,10 +59,13 @@ class TestVocabulary(unittest.TestCase):
         self.char_list = set(list(" ".join(self.sents)))  # only unique tokens
         self.vocab_file_bpe = Path("test/data/toy/bpe200.txt")
         self.vocab_file_sp = Path("test/data/toy/sp200.vocab")
-        self.word_vocab = Vocabulary(tokens=sorted(list(self.word_list)))
-        self.char_vocab = Vocabulary(tokens=sorted(list(self.char_list)))
-        self.specials = ["<unk>", "<pad>", "<s>", "</s>", "<sep>"]
-        self.lang_tags = ["<de>", "<en>"]
+        self.word_vocab = Vocabulary(tokens=sorted(list(self.word_list)),
+                                     cfg=self.cfg["special_symbols"])
+        self.char_vocab = Vocabulary(tokens=sorted(list(self.char_list)),
+                                     cfg=self.cfg["special_symbols"])
+        self.specials = ["<unk>", "<pad>", "<s>", "</s>",
+                         "<sep>"]  # expected special symbols
+        self.lang_tags = ["<de>", "<en>"]  # expected language tags
 
     def testVocabularyFromList(self):
         self.assertEqual(
@@ -81,8 +102,10 @@ class TestVocabulary(unittest.TestCase):
         self.word_vocab.to_file(tmp_file_word)
         self.char_vocab.to_file(tmp_file_char)
 
-        word_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_word))
-        char_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_char))
+        word_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_word),
+                                cfg=self.cfg["special_symbols"])
+        char_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_char),
+                                cfg=self.cfg["special_symbols"])
         self.assertEqual(self.word_vocab, word_vocab)
         self.assertEqual(self.char_vocab, char_vocab)
 
@@ -91,14 +114,16 @@ class TestVocabulary(unittest.TestCase):
         tmp_file_word.unlink()
 
         # pylint: disable=protected-access
-        bpe_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_bpe))
+        bpe_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_bpe),
+                               cfg=self.cfg["special_symbols"])
         expected_bpe_itos = [
             "t@@", "s@@", "e", "e@@", "d@@", "o@@", "b@@", "g@@", "en", "m@@", "u@@"
         ]
         self.assertEqual(bpe_vocab._itos[:18],
                          self.specials + self.lang_tags + expected_bpe_itos)
 
-        sp_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_sp))
+        sp_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_sp),
+                              cfg=self.cfg["special_symbols"])
         expected_sp_itos = ["▁", "e", "s", "t", "o", "i", "n", "en", "m", "r", "er"]
         self.assertEqual(sp_vocab._itos[:18],
                          self.specials + self.lang_tags + expected_sp_itos)

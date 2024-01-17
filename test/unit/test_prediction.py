@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import torch
 
@@ -36,8 +37,10 @@ class TestPrediction(unittest.TestCase):
         torch.manual_seed(seed)
         cfg = {
             "data": {
-                "train": "test/data/toy/train",  # needed for vocab
-                "test": "test/data/toy/test",
+                "train":
+                "test/data/toy/train",  # needed for vocab
+                "test":
+                "test/data/toy/test",
                 "src": {
                     "lang": "de",
                     "level": "word",
@@ -50,7 +53,23 @@ class TestPrediction(unittest.TestCase):
                     "lowercase": False,
                     "max_length": 10,
                 },
-                "dataset_type": "plain",
+                "dataset_type":
+                "plain",
+                "special_symbols":
+                SimpleNamespace(
+                    **{
+                        "unk_token": "<unk>",
+                        "pad_token": "<pad>",
+                        "bos_token": "<s>",
+                        "eos_token": "</s>",
+                        "sep_token": None,
+                        "unk_id": 0,
+                        "pad_id": 1,
+                        "bos_id": 2,
+                        "eos_id": 3,
+                        "sep_id": None,
+                        "lang_tags": [],
+                    }),
             },
             "testing": {
                 "n_best": 1,

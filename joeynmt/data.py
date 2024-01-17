@@ -83,8 +83,8 @@ def load_data(cfg: Dict, datasets: list = None) \
     src_vocab, trg_vocab = build_vocab(cfg, dataset=train_data)
 
     # set vocab to tokenizer
-    tokenizer[src_lang].set_vocab(src_vocab._itos)  # pylint: disable=protected-access
-    tokenizer[trg_lang].set_vocab(trg_vocab._itos)  # pylint: disable=protected-access
+    tokenizer[src_lang].set_vocab(src_vocab)
+    tokenizer[trg_lang].set_vocab(trg_vocab)
 
     # encoding func
     sequence_encoder = {

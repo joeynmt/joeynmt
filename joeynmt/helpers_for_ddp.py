@@ -13,21 +13,26 @@ from torch import Tensor
 from torch.utils.data import Dataset, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from joeynmt.constants import PAD_ID
 
-
-def ddp_setup(rank: int, world_size: int) -> None:
+def ddp_setup(
+    rank: int,
+    world_size: int,
+    master_addr: str = "localhost",
+    master_port: int = 12355,
+) -> None:
     """
     Setup distributed environment
 
     :param rank: Unique identifier of each process
     :param world_size: Total number of processes
+    :param master_addr:
+    :param master_port:
     """
     if dist.is_available():
         if "MASTER_ADDR" not in os.environ:
-            os.environ["MASTER_ADDR"] = "localhost"
+            os.environ["MASTER_ADDR"] = master_addr
         if "MASTER_PORT" not in os.environ:
-            os.environ["MASTER_PORT"] = "12355"
+            os.environ["MASTER_PORT"] = str(master_port)
 
         dist.init_process_group(backend="nccl", rank=rank, world_size=world_size)
         torch.cuda.set_device(rank)
@@ -50,7 +55,7 @@ def ddp_synchronize() -> None:
         dist.barrier()
 
 
-def ddp_merge(data: Tensor, pad_index: int = PAD_ID) -> Tensor:
+def ddp_merge(data: Tensor, pad_index: int = 1) -> Tensor:
     """
     Merge tensors from multiple devices
 
@@ -240,6 +245,9 @@ class DistributedSubsetSampler(DistributedSampler):
     DistributedSampler with random subsampling.
     `drop_last` logic is simplified; raise error if `len(dataset)` is not divisible
     by `world_size` and cut off leftovers.
+
+    .. warning::
+        Token-based batch sampling is not supported in distributed learning.
 
     :param data_source (Dataset): dataset to sample from
     :param num_replicas (int): ddp world size
