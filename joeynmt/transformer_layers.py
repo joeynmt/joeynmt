@@ -361,7 +361,7 @@ class TransformerDecoderLayer(nn.Module):
         :param x: inputs
         :param memory: source representations
         :param src_mask: source mask
-        :param trg_mask: target mask (so as to not condition on future steps)
+        :param trg_mask: target mask (so as not to condition on future steps)
         :param return_attention: whether to return the attention weights
         :return:
             - output tensor

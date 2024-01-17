@@ -1,5 +1,8 @@
 name: "wmt17_ende_sp"
 joeynmt_version: "2.0.0"
+model_dir: "models/wmt17_ende_sp"
+use_cuda: True
+random_seed: 42
 
 data:
     train: "wmt17"
@@ -46,6 +49,7 @@ data:
             pretokenizer: "moses"
 
 testing:
+    load_model: "models/wmt17_ende_sp/best.ckpt"
     n_best: 1
     beam_size: 5
     beam_alpha: 1.0
@@ -67,7 +71,6 @@ training:
     reset_scheduler: False
     reset_optimizer: False
     reset_iter_state: False
-    random_seed: 42
     optimizer: "adam"
     normalization: "tokens"
     adam_betas: [0.9, 0.98]
@@ -86,10 +89,8 @@ training:
     updates: 100000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "models/wmt17_ende_sp"
     overwrite: False
     shuffle: True
-    use_cuda: True
     print_valid_sents: [0, 1, 2, 3, 4]
     keep_best_ckpts: 5
 

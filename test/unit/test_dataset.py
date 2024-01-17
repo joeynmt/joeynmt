@@ -36,8 +36,6 @@ class TestPlaintextDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "sample_train_subset": 100,
-            "sample_dev_subset": 100,
             "dataset_type": "plain",
         }
 
@@ -97,23 +95,24 @@ class TestPlaintextDataset(unittest.TestCase):
                 self.assertEqual(len(test_data), expected_testdev_len)
 
             train_ex = [train_data[i] for i in range(len(train_data))]
-            train_ex = [(s, t) for s, t in train_ex if s is not None and t is not None]
+            train_ex = [(i, s, t) for i, s, t in train_ex
+                        if s is not None and t is not None]
             self.assertEqual(len(train_ex), after_filtering)
 
             # check the segmentation: src and trg attributes are lists
-            train_src, train_trg = train_ex[0]
-            dev_src, dev_trg = dev_data[0]
+            _, train_src, train_trg = train_ex[0]
+            _, dev_src, dev_trg = dev_data[0]
             self.assertIs(type(train_src), list)
             self.assertIs(type(train_trg), list)
             self.assertIs(type(dev_src), list)
             self.assertIs(type(dev_trg), list)
             if test_path is not None:
-                test_src, test_trg = test_data[0]
+                _, test_src, test_trg = test_data[0]
                 self.assertIs(type(test_src), list)
                 self.assertIs(test_trg, None)
 
             # check the length filtering of the training examples
-            src_len, trg_len = zip(*train_ex)
+            _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
                 all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
@@ -131,39 +130,12 @@ class TestPlaintextDataset(unittest.TestCase):
 
             # check dev: no length filtering
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
-            dev_src, dev_trg = zip(*dev_ex)
+            _, dev_src, dev_trg = zip(*dev_ex)
             self.assertEqual(len(dev_ex), expected_testdev_len)
             self.assertEqual(min([len(t) for t in dev_trg]), 4)
             self.assertEqual(max([len(t) for t in dev_trg]), 46)
             self.assertTrue(all(t is not None for t in dev_src))
             self.assertTrue(all(t is not None for t in dev_trg))
-
-    def testRandomSubset(self):
-        # Load data
-        _, _, train_data, _, test_data = load_data(self.data_cfg,
-                                                   datasets=["train", "test"])
-        self.assertEqual(len(train_data), 1000)
-        self.assertEqual(train_data.random_subset, 100)
-        train_data.sample_random_subset(seed=self.seed)
-        self.assertEqual(len(train_data), 100)
-
-        train_data.reset_random_subset()
-        self.assertEqual(len(train_data), 1000)
-
-        # a random subset can be selected only when len(train_data) > n
-        train_data.random_subset = 2000
-        with self.assertRaises(AssertionError) as e:
-            train_data.sample_random_subset(seed=self.seed)
-        self.assertEqual("Can only subsample from train or dev set larger than 2000.",
-                         str(e.exception))
-
-        # a random subset should be selected for training only
-        self.assertEqual(test_data.random_subset, -1)
-        test_data.random_subset = 100
-        with self.assertRaises(AssertionError) as e:
-            test_data.sample_random_subset(seed=self.seed)
-        self.assertEqual("Can only subsample from train or dev set larger than 100.",
-                         str(e.exception))
 
 
 class TestTsvDataset(unittest.TestCase):
@@ -214,8 +186,6 @@ class TestTsvDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "sample_train_subset": 100,
-            "sample_dev_subset": 100,
             "dataset_type": "tsv",
         }
 
@@ -262,18 +232,19 @@ class TestTsvDataset(unittest.TestCase):
                              self.min_length)
 
             train_ex = [train_data[i] for i in range(len(train_data))]
-            train_ex = [(s, t) for s, t in train_ex if s is not None and t is not None]
+            train_ex = [(i, s, t) for i, s, t in train_ex
+                        if s is not None and t is not None]
             self.assertEqual(len(train_ex), after_filtering)
 
             # check the length filtering of the training examples
-            src_len, trg_len = zip(*train_ex)
+            _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
                 all(self.min_length <= len(s) <= self.max_length for s in src_len))
             self.assertTrue(
                 all(self.min_length <= len(t) <= self.max_length for t in trg_len))
 
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
-            dev_src, dev_trg = zip(*dev_ex)
+            _, dev_src, dev_trg = zip(*dev_ex)
             self.assertEqual(len(dev_ex), expected_dev_len)
             self.assertEqual(min([len(t) for t in dev_trg]), 4)
             self.assertEqual(max([len(t) for t in dev_trg]), 46)
@@ -282,34 +253,4 @@ class TestTsvDataset(unittest.TestCase):
 
         except ImportError as e:
             # need pandas installed.
-            raise unittest.SkipTest(f"{e} Skip.")
-
-    def testRandomSubset(self):
-        try:
-            # load the data
-            _, _, train_data, _, test_data = load_data(self.data_cfg,
-                                                       datasets=["train", "test"])
-            self.assertEqual(len(train_data), 1000)
-            self.assertEqual(train_data.random_subset, 100)
-            train_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(len(train_data), 100)
-
-            # a random subset can be selected only when len(train_data) > n
-            train_data.random_subset = 2000
-            with self.assertRaises(AssertionError) as e:
-                train_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(
-                "Can only subsample from train or dev set larger than 2000.",
-                str(e.exception))
-
-            # a random subset should be selected for training only
-            self.assertEqual(test_data.random_subset, -1)
-            test_data.random_subset = 100
-            with self.assertRaises(AssertionError) as e:
-                test_data.sample_random_subset(seed=self.seed)
-            self.assertEqual(
-                "Can only subsample from train or dev set larger than 100.",
-                str(e.exception))
-
-        except ImportError as e:
             raise unittest.SkipTest(f"{e} Skip.")

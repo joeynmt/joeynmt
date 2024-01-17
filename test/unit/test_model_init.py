@@ -29,6 +29,7 @@ class TestModelInit(unittest.TestCase):
                     },
                     "num_layers": 1,
                     "layer_norm": "pre",
+                    "activation": "relu",
                 },
                 "decoder": {
                     "type": "transformer",
@@ -38,6 +39,7 @@ class TestModelInit(unittest.TestCase):
                     },
                     "num_layers": 1,
                     "layer_norm": "pre",
+                    "activation": "relu",
                 },
             }
         }
@@ -83,19 +85,30 @@ class TestModelInit(unittest.TestCase):
 
         torch.testing.assert_close(
             model.encoder.layers[0].src_src_att.q_layer.weight[:5, 0].data,
-            torch.Tensor([-0.2093, -0.1066, -0.1455, -0.1146, 0.0760]),
+            torch.Tensor([0.1232, 0.1870, -0.1077, 0.0748, -0.0651]),
             rtol=1e-4,
             atol=1e-4,
         )
         torch.testing.assert_close(
             model.decoder.layers[0].src_trg_att.q_layer.weight[:5, 0].data,
-            torch.Tensor([0.0072, -0.0241, 0.2873, -0.0417, -0.2752]),
+            torch.Tensor([-0.1035, 0.2171, 0.1729, -0.0120, -0.1008]),
             rtol=1e-4,
             atol=1e-4,
         )
         torch.testing.assert_close(
             model.decoder.layers[0].trg_trg_att.q_layer.weight[:5, 0].data,
-            torch.Tensor([-0.2140, 0.0942, 0.0203, 0.0417, 0.2482]),
+            torch.Tensor([-0.2248, -0.0396, 0.2041, 0.0627, 0.0255]),
             rtol=1e-4,
             atol=1e-4,
         )
+
+    def test_transformer_activation_init(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["model"]["encoder"]["activation"] = "gelu"
+        cfg["model"]["decoder"]["activation"] = "swish"
+
+        src_vocab = trg_vocab = self.vocab
+
+        model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
+        self.assertTrue(model.encoder.layers[0].feed_forward.pwff_layer[1], nn.GELU)
+        self.assertTrue(model.decoder.layers[0].feed_forward.pwff_layer[1], nn.SiLU)

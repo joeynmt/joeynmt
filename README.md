@@ -4,6 +4,9 @@
 
 
 ## What's new
+
+- 18th March 2023: upgraded to JoeyNMT v2.3.0
+
 - 12th January 2023: upgraded to JoeyNMT v2.2.0
 
 - 26th December 2022:  [＠IT](https://atmarkit.itmedia.co.jp) にて、 [「Python＋Pytorch」と「JoeyNMT」で学ぶニューラル機械翻訳](https://atmarkit.itmedia.co.jp/ait/articles/2212/26/news016.html) の記事が電子書籍化されました。
@@ -52,17 +55,17 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested Joey NMT v2.2 with
+We tested Joey NMT v2.3 with
 - python 3.10
-- torch 1.13.1
-- cuda 11.6
+- torch 2.0.0
+- cuda 11.7
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 1.13.1 with CUDA v11.6 as follows:
+> For example, you can install PyTorch 2.0.0 with CUDA v11.7 as follows:
 > ```
-> $ pip install --upgrade torch==1.13.1 --extra-index-url https://download.pytorch.org/whl/cu116
+> $ pip install --upgrade torch==2.0.0 --index-url https://download.pytorch.org/whl/cu117
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
 
@@ -92,12 +95,21 @@ $ pip install joeynmt
 
 
 ## Change logs
+### v2.3
+- compatibility with torch 2.0 tested
+- introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html)
+- implemented prompting, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
+- configuration refactoring
+- autocast refactoring
+- enabled activation function selection
+- bugfixes
+
+<details><summary>previous releases</summary>
+
 ### v2.2
 - compatibility with torch 1.13 tested
 - torchhub introduced
 - bugfixes, minor refactoring
-
-<details><summary>previous releases</summary>
 
 ### v2.1
 - upgrade to python 3.10, torch 1.12

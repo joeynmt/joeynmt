@@ -102,7 +102,7 @@ class TestWeightTying(unittest.TestCase):
         self.assertEqual(trg_weight.shape, output_weight.shape)
 
         output_weight.data.fill_(3.0)
-        self.assertEqual(output_weight.sum().item(), 6528)
+        self.assertEqual(output_weight.sum().item(), 7104)
         self.assertEqual(output_weight.sum().item(), src_weight.sum().item())
         self.assertEqual(output_weight.sum().item(), trg_weight.sum().item())
         self.assertEqual(src_weight.sum().item(), trg_weight.sum().item())

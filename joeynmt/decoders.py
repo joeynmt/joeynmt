@@ -9,8 +9,9 @@ from torch import Tensor, nn
 
 from joeynmt.attention import BahdanauAttention, LuongAttention
 from joeynmt.builders import build_activation
+from joeynmt.config import ConfigurationError
 from joeynmt.encoders import Encoder
-from joeynmt.helpers import ConfigurationError, freeze_params, subsequent_mask
+from joeynmt.helpers import freeze_params, subsequent_mask
 from joeynmt.transformer_layers import PositionalEncoding, TransformerDecoderLayer
 
 
@@ -572,6 +573,8 @@ class TransformerDecoder(Decoder):
         assert trg_mask is not None, "trg_mask required for Transformer"
 
         x = self.pe(trg_embed)  # add position encoding to word embedding
+        if kwargs.get("trg_prompt_mask", None) is not None:  # add trg_prompt_mask
+            x = x + kwargs["trg_prompt_mask"]
         x = self.emb_dropout(x)
 
         trg_mask = trg_mask & subsequent_mask(trg_embed.size(1)).type_as(trg_mask)

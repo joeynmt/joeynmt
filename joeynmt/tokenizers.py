@@ -3,7 +3,6 @@
 Tokenizer module
 """
 import argparse
-import logging
 import shutil
 from pathlib import Path
 from typing import Dict, List, Union
@@ -11,16 +10,27 @@ from typing import Dict, List, Union
 import sentencepiece as sp
 from subword_nmt import apply_bpe
 
-from joeynmt.constants import BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN
-from joeynmt.helpers import ConfigurationError, remove_extra_spaces, unicode_normalize
+from joeynmt.config import ConfigurationError
+from joeynmt.constants import (
+    BOS_TOKEN,
+    DE_TOKEN,
+    EN_TOKEN,
+    EOS_TOKEN,
+    PAD_TOKEN,
+    SEP_TOKEN,
+    UNK_TOKEN,
+)
+from joeynmt.helpers import remove_extra_spaces, unicode_normalize
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BasicTokenizer:
     SPACE = chr(32)  # ' ': half-width white space (ascii)
     SPACE_ESCAPE = chr(9601)  # '▁': sentencepiece default
-    SPECIALS = [BOS_TOKEN, EOS_TOKEN, PAD_TOKEN, UNK_TOKEN]
+    SPECIALS = [UNK_TOKEN, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, SEP_TOKEN]
+    LANG_TAGS = [DE_TOKEN, EN_TOKEN]
 
     def __init__(
         self,
@@ -63,16 +73,21 @@ class BasicTokenizer:
             if self.normalize:
                 self.moses_normalizer = MosesPunctNormalizer()
 
-    def pre_process(self, raw_input: str) -> str:
+    def pre_process(self, raw_input: str, allow_empty: bool = False) -> str:
         """
         Pre-process text
             - ex.) Lowercase, Normalize, Remove emojis,
                 Pre-tokenize(add extra white space before punc) etc.
             - applied for all inputs both in training and inference.
+
+        :param raw_input: raw input string
+        :param allow_empty: whether to allow empty string
+        :return: preprocessed input string
         """
-        assert isinstance(raw_input, str) and raw_input.strip() != "", \
-            "The input sentence is empty! Please make sure " \
-            "that you are feeding a valid input."
+        if not allow_empty:
+            assert isinstance(raw_input, str) and raw_input.strip() != "", \
+                "The input sentence is empty! Please make sure " \
+                "that you are feeding a valid input."
 
         if self.normalize:
             raw_input = remove_extra_spaces(unicode_normalize(raw_input))
@@ -85,12 +100,16 @@ class BasicTokenizer:
         if self.lowercase:
             raw_input = raw_input.lower()
 
-        # ensure the string is not empty.
-        assert raw_input is not None and len(raw_input) > 0, raw_input
+        if not allow_empty:
+            # ensure the string is not empty.
+            assert raw_input is not None and len(raw_input) > 0, raw_input
         return raw_input
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize single sentence"""
+        if raw_input is None:
+            return None
+
         if self.level == "word":
             sequence = raw_input.split(self.SPACE)
         elif self.level == "char":
@@ -110,14 +129,27 @@ class BasicTokenizer:
         return length > self.max_length > 0 or self.min_length > length > 0
 
     def _remove_special(self, sequence: List[str], generate_unk: bool = False):
-        specials = self.SPECIALS[:-1] if generate_unk else self.SPECIALS
-        return [token for token in sequence if token not in specials]
+        specials = self.SPECIALS[1:] if generate_unk else self.SPECIALS
+        specials += self.LANG_TAGS  # remove language tags, too
+        valid = [token for token in sequence if token not in specials]
+        if len(valid) == 0:  # if empty, return <unk>
+            valid = [self.SPECIALS[0]]
+        return valid
 
     def post_process(self,
                      sequence: Union[List[str], str],
-                     generate_unk: bool = True) -> str:
+                     generate_unk: bool = True,
+                     cut_at_sep: bool = True) -> str:
         """Detokenize"""
+
         if isinstance(sequence, list):
+            if cut_at_sep:
+                try:
+                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sequence = sequence[sep_pos + 1:]
+
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
+                    pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
             if self.level == "word":
                 if self.pretokenizer == "moses":
@@ -174,6 +206,9 @@ class SentencePieceTokenizer(BasicTokenizer):
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""
+        if raw_input is None:
+            return None
+
         if is_train and self.alpha > 0:
             tokenized = self.spm.sample_encode_as_pieces(
                 raw_input,
@@ -189,9 +224,16 @@ class SentencePieceTokenizer(BasicTokenizer):
 
     def post_process(self,
                      sequence: Union[List[str], str],
-                     generate_unk: bool = True) -> str:
+                     generate_unk: bool = True,
+                     cut_at_sep: bool = True) -> str:
         """Detokenize"""
         if isinstance(sequence, list):
+            if cut_at_sep:
+                try:
+                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sequence = sequence[sep_pos:]
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
+                    pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
 
             # Decode back to str
@@ -269,6 +311,9 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
         """Tokenize"""
+        if raw_input is None:
+            return None
+
         dropout = self.dropout if is_train else 0.0
         tokenized = self.bpe.process_line(raw_input, dropout).strip().split()
         if is_train and self._filter_by_length(len(tokenized)):
@@ -277,9 +322,16 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def post_process(self,
                      sequence: Union[List[str], str],
-                     generate_unk: bool = True) -> str:
+                     generate_unk: bool = True,
+                     cut_at_sep: bool = True) -> str:
         """Detokenize"""
         if isinstance(sequence, list):
+            if cut_at_sep:
+                try:
+                    sep_pos = sequence.index(self.SPECIALS[-1])  # cut off prompt
+                    sequence = sequence[sep_pos:]
+                except ValueError as e:  # pylint: disable=unused-variable # noqa: F841
+                    pass
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
 
             # Remove separators, join with spaces
@@ -303,7 +355,7 @@ class SubwordNMTTokenizer(BasicTokenizer):
 
     def set_vocab(self, itos: List[str]) -> None:
         """Set vocab"""
-        vocab = set(itos) - set(self.SPECIALS)
+        vocab = set(itos) - set(self.SPECIALS) - set(self.LANG_TAGS)
         self.bpe.vocab = vocab
 
     def copy_cfg_file(self, model_dir: Path) -> None:
@@ -413,18 +465,20 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
                 **tokenizer_cfg,
             )
         else:
-            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type.")
+            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type. "
+                                     "Valid options: {'sentencepiece', 'subword-nmt'}.")
     else:
-        raise ConfigurationError(f"{cfg['level']}: Unknown tokenization level.")
+        raise ConfigurationError(f"{cfg['level']}: Unknown tokenization level. "
+                                 "Valid options: {'word', 'bpe', 'char'}.")
     return tokenizer
 
 
-def build_tokenizer(data_cfg: Dict) -> Dict[str, BasicTokenizer]:
-    src_lang = data_cfg["src"]["lang"]
-    trg_lang = data_cfg["trg"]["lang"]
+def build_tokenizer(cfg: Dict) -> Dict[str, BasicTokenizer]:
+    src_lang = cfg["src"]["lang"]
+    trg_lang = cfg["trg"]["lang"]
     tokenizer = {
-        src_lang: _build_tokenizer(data_cfg["src"]),
-        trg_lang: _build_tokenizer(data_cfg["trg"]),
+        src_lang: _build_tokenizer(cfg["src"]),
+        trg_lang: _build_tokenizer(cfg["trg"]),
     }
     logger.info("%s tokenizer: %s", src_lang, tokenizer[src_lang])
     logger.info("%s tokenizer: %s", trg_lang, tokenizer[trg_lang])

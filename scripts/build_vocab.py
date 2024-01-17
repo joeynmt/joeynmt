@@ -13,18 +13,13 @@ from typing import Dict, List
 import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
-from joeynmt.constants import (
-    BOS_ID,
-    BOS_TOKEN,
-    EOS_ID,
-    EOS_TOKEN,
-    PAD_ID,
-    PAD_TOKEN,
-    UNK_ID,
-    UNK_TOKEN,
+from joeynmt.config import ConfigurationError, load_config
+from joeynmt.constants import (  # pylint: disable=unused-import # noqa:F401
+    BOS_ID, BOS_TOKEN, DE_ID, DE_TOKEN, EN_ID, EN_TOKEN, EOS_ID, EOS_TOKEN, PAD_ID,
+    PAD_TOKEN, SEP_ID, SEP_TOKEN, UNK_ID, UNK_TOKEN,
 )
 from joeynmt.datasets import BaseDataset, build_dataset
-from joeynmt.helpers import ConfigurationError, flatten, load_config, write_list_to_file
+from joeynmt.helpers import flatten, write_list_to_file
 from joeynmt.tokenizers import BasicTokenizer
 from joeynmt.vocabulary import sort_and_cut
 
@@ -75,9 +70,11 @@ def train_spm(
     :param model_type: model type. Choose from unigram (default), bpe, char, or word.
         The input sentence must be pretokenized when using word type.
     """
+    LANG_TAGS = [f'<{lang}>' for lang in langs]  # TODO: import LANG_TAGS from Vocab
+
     model_file = Path(model_file)
     if model_file.is_file():
-        print(f"Model file {model_file} will be overwritten.")
+        print(f"Model file '{model_file}' will be overwritten.")
 
     with tempfile.NamedTemporaryFile(prefix="sentencepiece_", suffix=".txt") as temp:
         txt_file = Path(temp.name)
@@ -99,6 +96,8 @@ def train_spm(
             f"--bos_id={BOS_ID}",
             f"--eos_id={EOS_ID}",
             f"--pad_id={PAD_ID}",
+            f"--control_symbols={SEP_TOKEN}",
+            f"--user_defined_symbols={','.join(LANG_TAGS)}",
             "--vocabulary_output_piece_score=false",
         ]
         if len(sents) >= random_subset:  # subsample
@@ -136,7 +135,7 @@ def train_bpe(
     """
     codes = Path(codes)
     if codes.is_file():
-        print(f"### Codes file {codes} will be overwitten.")
+        print(f"### Codes file '{codes}' will be overwitten.")
 
     with tempfile.NamedTemporaryFile(prefix="subword-nmt_", suffix=".txt") as temp:
         txt_file = Path(temp.name)
@@ -206,7 +205,7 @@ def run(
     # pylint: disable=redefined-outer-name
     # Warn overwriting
     if vocab_file.is_file():
-        print(f"### Vocab file {vocab_file} will be overwritten.")
+        print(f"### Vocab file '{vocab_file}' will be overwritten.")
 
     def _get_sents(args, dataset: BaseDataset, langs: List[str], tokenized: bool):
         assert len(langs) in [1, 2], langs
@@ -309,7 +308,8 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
         level = cfg["level"]
         min_freq = cfg.get("voc_min_freq", 1)
         max_size = int(cfg.get("voc_limit", sys.maxsize))
-        voc_file = Path(cfg.get("voc_file", "vocab.txt"))
+
+        voc_file = cfg.get("voc_file", 'vocab.txt')
         tok_type = cfg.get("tokenizer_type", "sentencepiece")
         tok_cfg = cfg.get("tokenizer_cfg", {})
         return lang, level, min_freq, max_size, voc_file, tok_type, tok_cfg
@@ -328,7 +328,7 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
             level=src_tuple[1],
             min_freq=src_tuple[2],
             max_size=src_tuple[3],
-            vocab_file=src_tuple[4],
+            vocab_file=Path(src_tuple[4]),
             tokenizer_type=src_tuple[5],
             tokenizer_cfg=src_tuple[6],
         )
@@ -345,7 +345,8 @@ def main(args) -> None:  # pylint: disable=redefined-outer-name
                 level=level,
                 min_freq=min_freq,
                 max_size=max_size,
-                vocab_file=voc_file,
+                vocab_file=Path(f'{lang}_vocab.txt' if voc_file ==
+                                'vocab.txt' else voc_file),
                 tokenizer_type=tok_type,
                 tokenizer_cfg=tok_cfg,
             )

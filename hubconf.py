@@ -74,6 +74,19 @@ def _load_from_remote(
     return TranslatorHubInterface(config, test_data, model)
 
 
+def iwslt14_prompt(*args, **kwargs) -> TranslatorHubInterface:
+    """
+    IWSLT14 deen transformer
+    See: https://github.com/may-/datasets/blob/main/datasets/iwslt14/iwslt14.py
+    """
+    return _load_from_remote(
+        model_name_or_path="iwslt14_prompt",
+        ckpt_file="14000.ckpt",
+        cfg_file="config.yaml",
+        **kwargs
+    )
+
+
 def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 deen transformer
@@ -82,7 +95,7 @@ def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     return _load_from_remote(
         model_name_or_path="transformer_iwslt14_deen_bpe",
         ckpt_file="best.ckpt",
-        cfg_file="config_v2.yaml",
+        cfg_file="config_v2.3.yaml",
         **kwargs
     )
 
@@ -95,7 +108,7 @@ def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     return _load_from_remote(
         model_name_or_path="rnn_iwslt14_deen_bpe",
         ckpt_file="best.ckpt",
-        cfg_file="config_v2.yaml",
+        cfg_file="config_v2.3.yaml",
         **kwargs
     )
 
@@ -103,7 +116,7 @@ def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 deen
-    See https://aclanthology.org/W14-3302
+    See: https://huggingface.co/datasets/wmt14
     """
     return _load_from_remote(
         model_name_or_path="wmt14_deen",
@@ -116,7 +129,7 @@ def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_ende(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 ende
-    See https://aclanthology.org/W14-3302
+    See: https://huggingface.co/datasets/wmt14
     """
     return _load_from_remote(
         model_name_or_path="wmt14_ende",

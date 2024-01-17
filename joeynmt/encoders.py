@@ -244,6 +244,8 @@ class TransformerEncoder(Encoder):
         """
         # pylint: disable=unused-argument
         x = self.pe(src_embed)  # add position encoding to word embeddings
+        if kwargs.get("src_prompt_mask", None) is not None:  # add src_prompt_mask
+            x = x + kwargs["src_prompt_mask"]
         x = self.emb_dropout(x)
 
         for layer in self.layers:

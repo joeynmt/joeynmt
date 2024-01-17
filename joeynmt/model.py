@@ -2,24 +2,24 @@
 """
 Module to represents whole models
 """
-import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from joeynmt.config import ConfigurationError
 from joeynmt.decoders import Decoder, RecurrentDecoder, TransformerDecoder
 from joeynmt.embeddings import Embeddings
 from joeynmt.encoders import Encoder, RecurrentEncoder, TransformerEncoder
-from joeynmt.helpers import ConfigurationError
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.initialization import initialize_model
 from joeynmt.loss import XentLoss
 from joeynmt.vocabulary import Vocabulary
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Model(nn.Module):
@@ -59,8 +59,11 @@ class Model(nn.Module):
         self.pad_index = self.trg_vocab.pad_index
         self.bos_index = self.trg_vocab.bos_index
         self.eos_index = self.trg_vocab.eos_index
+        self.sep_index = self.trg_vocab.sep_index
         self.unk_index = self.trg_vocab.unk_index
-        self._loss_function = None  # set by the TrainManager
+        self.specials = [self.trg_vocab.lookup(t) for t in self.trg_vocab.specials]
+        self.lang_tags = [self.trg_vocab.lookup(t) for t in self.trg_vocab.lang_tags]
+        self._loss_function = None  # set by `prepare()` func in prediction.py
 
     @property
     def loss_function(self):
@@ -178,6 +181,15 @@ class Model(nn.Module):
             - hidden_concat
             - src_mask
         """
+        # embed src prompts if given
+        if (_kwargs.get("src_prompt_mask", None) is not None
+                and isinstance(self.encoder, TransformerEncoder)):
+            assert self.sep_index is not None and self.sep_index in self.specials, \
+                (f"Prompt marker {self.sep_index} not found."
+                 "This model doesn't support prompting!")
+            assert src.size(1) == _kwargs["src_prompt_mask"].size(1)
+            _kwargs["src_prompt_mask"] = self.src_embed(_kwargs["src_prompt_mask"])
+
         return self.encoder(self.src_embed(src), src_length, src_mask, **_kwargs)
 
     def _decode(
@@ -209,6 +221,16 @@ class Model(nn.Module):
             - att_prob
             - att_vector
         """
+        # embed trg prompts if given
+        if (_kwargs.get("trg_prompt_mask", None) is not None
+                and isinstance(self.decoder, TransformerDecoder)):
+            assert self.sep_index is not None and self.sep_index in self.specials, \
+                (f"Prompt marker {self.sep_index} not found."
+                 "This model doesn't support prompting!")
+            assert trg_input.size(1) == _kwargs["trg_prompt_mask"].size(1), (
+                trg_input.size(1), _kwargs["trg_prompt_mask"].size(1))
+            _kwargs["trg_prompt_mask"] = self.trg_embed(_kwargs["trg_prompt_mask"])
+
         return self.decoder(
             trg_embed=self.trg_embed(trg_input),
             encoder_output=encoder_output,
@@ -246,17 +268,50 @@ class Model(nn.Module):
         assert trainable_params
 
 
-class _DataParallel(nn.DataParallel):
-    """DataParallel wrapper to pass through the model attributes"""
+class DataParallelWrapper(nn.Module):
+    """
+    DataParallel wrapper to pass through the model attributes
+
+    ex. 1) for DataParallel
+        >>> from torch.nn import DataParallel as DP
+        >>> model = DataParallelWrapper(DP(model))
+
+    ex. 2) for DistributedDataParallel
+        >>> from torch.nn.parallel import DistributedDataParallel as DDP
+        >>> model = DataParallelWrapper(DDP(model))
+    """
+
+    def __init__(self, module: nn.Module):
+        super().__init__()
+        assert hasattr(module, "module")
+        self.module = module
 
     def __getattr__(self, name):
+        """Forward missing attributes to twice-wrapped module."""
         try:
+            # defer to nn.Module's logic
             return super().__getattr__(name)
         except AttributeError:
-            return getattr(self.module, name)
+            try:
+                # forward to the once-wrapped module
+                return getattr(self.module, name)
+            except AttributeError:
+                # forward to the twice-wrapped module
+                return getattr(self.module.module, name)
+
+    def state_dict(self, *args, **kwargs):
+        """saving the twice-wrapped module."""
+        return self.module.module.state_dict(*args, **kwargs)
+
+    def load_state_dict(self, *args, **kwargs):
+        """loading the twice-wrapped module."""
+        self.module.module.load_state_dict(*args, **kwargs)
+
+    def forward(self, *args, **kwargs):
+        return self.module(*args, **kwargs)
 
 
-def build_model(cfg: dict = None,
+def build_model(cfg: Dict = None,
                 src_vocab: Vocabulary = None,
                 trg_vocab: Vocabulary = None) -> Model:
     """
