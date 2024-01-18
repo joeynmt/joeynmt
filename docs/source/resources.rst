@@ -12,7 +12,7 @@ If you want to learn more about neural machine translation, check out the follow
 
 Toolkits
 --------
-A comprehensive list of NMT toolkits, ordered by deep learning backend can be found `here <https://github.com/jonsafari/nmt-list>`_.
+A comprehensive list of NMT toolkits, ordered by deep learning backends can be found `here <https://github.com/jonsafari/nmt-list>`_.
 
 Tutorials
 ---------
@@ -21,6 +21,7 @@ Tutorials
 - Graham Neubig: `Neural Machine Translation and Sequence-to-sequence Models: A Tutorial. <https://arxiv.org/pdf/1703.01619.pdf>`_
 - Philipp Koehn: `Neural Machine Translation. <https://arxiv.org/pdf/1709.07809.pdf>`_
 - `Video recording <https://www.youtube.com/watch?v=IxQtK2SjWWM>`_ of Chris Manning's lecture on "NMT and Models with Attention" at Stanford (2017)
+- Huggingface NLP task guides: `Translation <https://huggingface.co/docs/transformers/tasks/translation>`_
 
 Publications
 ------------
@@ -32,6 +33,7 @@ Data
 ----
 - WMT: The shared tasks of the yearly `Conference on Machine Translation (WMT) <http://www.statmt.org/wmt22/>`_ provide lots of parallel data
 - OPUS: The OPUS project collects publicly available parallel data and provides it to everyone on their `website <http://opus.nlpl.eu/>`_.
+- Huggingface: `datasets <https://huggingface.co/datasets?task_categories=task_categories:translation>`_.
 
 
 PyTorch
@@ -39,13 +41,12 @@ PyTorch
 
 Here's a collection of links that should help you get started or improve your coding skills with PyTorch:
 
-- `Intro to PyTorch <https://github.com/udacity/deep-learning-v2-pytorch/tree/master/intro-to-pytorch>`_ from Udacity's Deep Learning course (Jupyter notebooks)
-- `60 min Blitz tutorial <https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html>`_ by Soumith Chintala
-- Fast AI's `MOOC "Practical Deep Learning for Coders" <https://course.fast.ai/>`_ for a practical introduction to Deep Learning and PyTorch
+- `Introduction to PyTorch - YouTube Series <https://pytorch.org/tutorials/beginner/introyt.html>`-
+- `PyTorch Tutorials <https://pytorch.org/tutorials/>`_
+- `PyTorch Distributed Overview <https://pytorch.org/tutorials/beginner/dist_overview.html>`_
 
 
 Git Versioning
 ==============
 
-Never worked with Git before? For the basics, check out `this tutorial by Roger Dudler <http://rogerdudler.github.io/git-guide/>`_
-and for more advanced usage `this one by Lars Vogel <https://www.vogella.com/tutorials/Git/article.html>`_.
+Never worked with Git before? For the basics, check out `this tutorial by Roger Dudler <http://rogerdudler.github.io/git-guide/>`_ and for more advanced usage `this one <https://www.vogella.com/tutorials/Git/article.html>`_  by Lars Vogel.

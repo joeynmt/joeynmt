@@ -14,12 +14,21 @@ Getting Started
 ---------------
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   install
-   tutorial
-   overview
-   benchmarks
-   api
-   faq
-   resources
+    install
+    usage
+    tutorial
+    overview
+
+
+Further Topics
+--------------
+
+.. toctree::
+    :maxdepth: 2
+
+    benchmarks
+    api
+    faq
+    resources

@@ -6,9 +6,9 @@ Tutorial
 
 In this tutorial, you learn to build a recurrent neural translation system for a toy translation task, how to train, tune and test it.
 
-Instead of following the synthetic example here, you might also run the `Colab Notebook <https://github.com/joeynmt/joeynmt/blob/master/joey_v2_demo.ipynb>`_ that walks you step-by-step through the installation, data preparation, training, evaluation using "real" translation dataset from `Tatoeba <https://opus.nlpl.eu/Tatoeba.php>`_.
+Instead of following the synthetic example here, you might also run the `quick start guide <https://github.com/joeynmt/joeynmt/blob/master/joey_v2_demo.ipynb>`_ that walks you step-by-step through the installation, data preparation, training, evaluation using "real" translation dataset from `Tatoeba <https://opus.nlpl.eu/Tatoeba.php>`_.
 
-`Torchhub Notebook <https://github.com/joeynmt/joeynmt/blob/master/torchhub.ipynb>`_ demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ api. 
+`Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/master/torchhub.ipynb>`_ demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ api. 
 
 
 1. Data Preparation
@@ -97,7 +97,7 @@ Here we give the path to the data (".src" is the source suffix, ".trg" is the ta
 and for each side separately, indicate which segmentation level we want to train on, here simply on the word level, as opposed to the character level.
 The training set will be filtered by ``max_length``, i.e. only examples where source and target contain not more than 25 tokens are retained for training (that's the full data set for us).
 Source and target vocabulary are created from the training data, by keeping ``voc_limit`` source tokens that occur at least ``voc_min_freq`` times, and equivalently for the target side.
-If you want to use a pre-generated vocabulary, you can load it with ``src_vocab.txt`` and ``trg_vocab.txt``. This will be important when loading a trained model for testing.
+If you want to use a pre-generated vocabulary, you can load it in ``voc_file`` field. This will be important when loading a trained model for testing.
 ``special_symbols`` section defines special tokens required to control training and generation.
 
 .. code-block:: yaml
@@ -273,9 +273,9 @@ This will train a model on the reverse data specified in the config, validate on
 and store model parameters, vocabularies, validation outputs and a small number of attention plots in the ``reverse_model`` directory.
 
 
-.. note:: **Note**
+.. note::
 
-    If you encounter an ``file(dir) not exist`` error, please consider to use the absolute path in the configuration file.
+    If you encounter a file IO error, please consider to use the absolute path in the configuration.
 
 
 Progress Tracking
@@ -514,12 +514,13 @@ Let's try a challenging long one:
 
     Please enter a source sentence:
     1 23 23 43 34 2 2 2 2 2 4 5 32 47 47 47 21 20 0 10 10 10 10 10 8 7 33 36 37
-    JoeyNMT: 37 36 33 7 8 10 10 10 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 34 43 23 10 1
-
+    JoeyNMT:
+    37 36 33 7 8 10 10 10 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 34 43 23 10 1
 
 
 5. Tuning
 =========
+
 Trying out different combinations of hyperparameters to improve the model is called "tuning".
 Improving the model could mean in terms of generalization performance at the end of training, faster convergence or making it more efficient or smaller while achieving the same quality.
 In our case, that means going back to the configuration and changing a few of the hyperparameters.
@@ -542,6 +543,7 @@ or random search (`Bergstra & Bengio 2012 <http://www.jmlr.org/papers/volume13/b
 
 6. What's next?
 ===============
+
 If you want to implement something new in JoeyNMT or dive a bit deeper, you should take a look at the architecture :ref:`overview` and explore the :ref:`api`.
 
 Other than that, we hope that you found this tutorial helpful. Please leave an `issue on Github <https://github.com/joeynmt/joeynmt/issues>`_ if you had trouble with anything or have ideas for improvement.

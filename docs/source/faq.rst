@@ -5,10 +5,10 @@ Frequently Asked Questions
 ==========================
 
 Documentation
-^^^^^^^^^^^^^
+-------------
 - **Are there any Notebooks for Joey?**
     - `Quick start tutorial <https://github.com/joeynmt/joeynmt/blob/main/joey_demo_v2.ipynb>`_ A quick start guide with Tatoeba corpus example.
-    - `Torchhub <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_  How to generate translation from a pretrained model.
+    - `Torchhub tutorial <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_  How to generate translation from a pretrained model.
 
 - **The documentation is too old, and doesn't reflect the latest functionality implemented in the main branch of the repository.**
     We try to keep the documentation up-to-date and aligned with the latest stable release.
@@ -18,7 +18,7 @@ Documentation
 
 
 Training
-^^^^^^^^
+--------
 
 - **How can I train the model on GPU/CPU?**
    First of all, make sure you have the correct version of pytorch installed.
@@ -62,10 +62,10 @@ Training
      1. First train your model on one dataset (the *out-of-domain* data).
 
      2. Modify the original configuration file (or better a copy of it) in the data section to point to the new *in-domain* data.
-        Specify which vocabularies to use: `voc_file: out-of-domain-model/src_vocab.txt` and likewise for `trg_vocab.txt`.
+        Specify which vocabularies to use: ``voc_file: "out-of-domain-model/src_vocab.txt"`` and likewise for ``trg_vocab.txt``.
         You have to specify this, otherwise JoeyNMT will try to build a new vocabulary from the new in-domain data, which the out-of-domain model wasn't built with.
-        In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: `load_model: out-of-domain-model/best.ckpt`.
-        If you set `reset_best_ckpt: True`, previously stored high scores under your metric will be ignored, and if you set `reset_scheduler` and `reset_optimizer` you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
+        In the training section, specify which checkpoint of the out-of-domain model you want to start adapting: ``load_model: "out-of-domain-model/best.ckpt"``.
+        If you set ``reset_best_ckpt: True``, previously stored high scores under your metric will be ignored, and if you set `reset_scheduler` and ``reset_optimizer`` you can also overwrite the stored scheduler and optimizer with the new ones in your configuration.
         Use this if the scores on your new dev set are lower than on the old dev set, or if you use a different metric or schedule for fine-tuning.
 
      3. Train the in-domain model.
@@ -75,8 +75,47 @@ Training
    Then train with this configuration. Joey can be configured to save the checkpoint after every validation run, ensuring that you don't have to resume training from an old checkpoint. This can be enabled by setting ``save_latest_ckpt`` to ``True`` in your config file.
 
 
+Generation
+----------
+- **Why do I see the same output sentences in the n-best list?**
+    In BPE decoding, there are multiple ways to tokenize one sequence. That is, the same output string sequence might appear multiple times in the n-best list, because they have different tokenization and thus different sequence in the generation.
+    For instance, say 3-best generation were:
+
+    ::
+
+        1 best ['▁', 'N', 'e', 'w', '▁York']
+        2 best ['▁', 'New', '▁York']
+        3 best ['▁', 'New', '▁Y', 'o', 'r', 'k']
+
+
+    All three were different in next-token prediction, but ended up the same string sequence `New York` after being un-bpe-ed.
+
+- **My translation contains a lot of repetitions. Can I prevent them?**
+    - First of all, repetitions can be often observed in a premature stage of training. Please check if your training has converged.
+
+    - JoeyNMT offers **Ngram Blocker** and **Repetition Penalty** mechanism to avoid repetitions in generation. **Ngram Blocker** checks. Let's cosider a partial translation "they play in the park in the". Under the option ``no_repeat_ngram_size=3``, a trigram ``["in", "the", "park"]`` will be repeated, if the model generate `NextToken = "park"` in the next generation step. So, the probability of the token "park" will be artificially set to zero in order to avid ngram repetition.
+
+        ::
+    
+            ["they", "play", "in", "the", "park", "in", "the", NextToken]
+                                                                   ^
+                                                set probability of "park" to zero
+    
+        Note that this ``no_repeat_ngram_size`` may the process drastically slow down, since it needs to move the tokens on cpu, and put them back to gpu after the ngram computation.
+    
+        **Repetition Penalty** decreases probability of all the tokens already decoded so far; ``"they"``, ``"play"``, ``"in"``, ``"the"``, and ``"park"``. So the token ``"park"`` will be ranked lower than it should be, and therefore can be avoided.
+    
+        ::
+    
+            ["they", "play", "in", "the", "park", "in", "the", NextToken]
+                                                                   ^
+                                       decrease the probability of already decoded tokens
+    
+        ``repetition_penaly`` option takes value between 0.0 and 1.0 to penalize the repeated tokens. This operation is done on GPU, without offloading the tokens to CPU.
+
+
 Tuning
-^^^^^^
+------
 - **Which default hyperparameters should I use?**
    There is no universal answer to this question. We recommend you to check publications that used the same data as you're using (or at least the same language pair and data size)
    and find out how large their models were, how long they trained them etc.
@@ -90,8 +129,9 @@ Tuning
       Different optimizers need individually tuned learning rates as well.
     - The *model size and depth* matters. Check the benchmarks and their model and data sizes to get an estimate what might work.
 
+
 Tensorboard
-^^^^^^^^^^^
+-----------
 - **How can I start Tensorboard for a model that I trained on a remote server?**
    Start jupyter notebook in the Joey NMT directory, remote_port_number should be a free port, e.g. 8889.
 
@@ -110,11 +150,11 @@ Tensorboard
 
    Then navigate to `localhost:yyyy` in a browser on your local machine.
 
+
 Configurations
-^^^^^^^^^^^^^^
+--------------
 - **Where can I find the default values for the settings in the configuration file?**
-   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/main/configs/transformers_small.yaml>`_ or :ref:`api`
-   for individual modules.
+   Either check `the configuration file <https://github.com/joeynmt/joeynmt/blob/main/configs/transformers_small.yaml>`_ or :ref:`api` for individual modules.
    Please note that there is no guarantee that the default setting is a good setting.
 
 - **What happens if I made a mistake when configuring my model?**
@@ -135,31 +175,39 @@ Configurations
     No surprise! This configuration is created for the purpose of documentation: it contains all parameter settings with a description. It does not perform well on the actual task that it uses. Try the reverse task instead!
 
 - **What does batch_type mean?**
-    The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (`batch_type: "sentence"`), or by a maximum number of tokens (`batch_type: "token"`). For Transformer models, mini-batching is usually done by tokens.
+    The code operates on mini-batches, i.e., blocks of inputs instead of single inputs. Several inputs are grouped into one mini-batch. This grouping can either be done by defining a maximum number of sentences to be in one mini-batch (``batch_type: "sentence"``), or by a maximum number of tokens (``batch_type: "token"``). For Transformer models, mini-batching is usually done by tokens.
 
 - **Do I need a warm-up scheduler with the Transformer architecture?**
    No. The 'Noam scheduler' that was introduced with the original Transformer architecture works well for the data sets (several millions) described in the `paper (Vaswani et al. 2017) <https://arxiv.org/pdf/1706.03762.pdf>`_. However, on different data it might require a careful tuning of the warm-up schedule. We experienced good performance with the plateau scheduler as well, which is usually easier to tune. `Popel and Bojar (2018) <https://ufal.mff.cuni.cz/pbml/110/art-popel-bojar.pdf>`_ give further tips on how to tune the hyper-parameters for the Transformer.
 
+- **When should I specify ``voc_file`` in the config, when not?**
+    - *Training*: When you pre-generated the vocabulary (i.e. using `build_vocab.py <https://github.com/joeynmt/joeynmt/blob/main/scripts/build_vocab.py>`_, or `get_iwslt14_bpe.sh <https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh>`_), you should specify the vocab file path in the config before you start training. Otherwise you can omit the ``voc_file`` field. In that case, the JoeyNMT builds vocabularies per-language separately and export them in the ``model_dir`` during training.
+    - *Testing*: You always should specify the vocabulary files path in the config. The vocabulary files locate in the ``model_dir`` after the training has finished.
+
+
 Data
-^^^^
+----
 - **Does JoeyNMT pre-process my data?**
     Yes. When the data are loaded, JoeyNMT applies several pre-processing defined in the `Tokenizer <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/tokenizers.py>`_ module, such as lowercasing, unicode normalization etc. You can control it in the data section of the configuration. See `pre_process()` function in the `BasicTokenizer` class.
 
     Tokenization is triggered on-the-fly during batch construction. Currently, JoeyNMT implements wrappers for `subword-nmt <https://github.com/rsennrich/subword-nmt>`_ and `sentencepiece <https://github.com/google/sentencepiece>`_ library for BPEs, in addition to the simple white-space split (word-level tokenization) and character-level tokenization.
 
 - **Does JoeyNMT post-process your data?**
-    The `Tokenizer <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/tokenizers.py>`_ module takes care of post-processing like detokenization, recasing etc. If you want to add custom post-process operations, you can extend the `post_process()` function there. 
+    The `Tokenizer <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/tokenizers.py>`_ module takes care of post-processing like detokenization, recasing etc. If you want to add custom post-process operations, you can extend the `post_process()` function there.
 
 
 Debugging
-^^^^^^^^^
+---------
 - **My model doesn't work. What can I do?**
    First of all, invest in diagnostics: what exactly is not working? Is the training loss going down? Is the validation loss going down? Are there any patterns in the weirdness of the model outputs? Answers to these questions will help you locate the source of the problem.
-   Andrej Karpathy wrote this wonderful `recipe for training neural nets <http://karpathy.github.io/2019/04/25/recipe/>`_ by  - it has lots of advice on how to find out what's going wrong and how to fix it.
+   Andrej Karpathy wrote this wonderful `recipe for training neural nets <http://karpathy.github.io/2019/04/25/recipe/>`_; it has lots of advice on how to find out what's going wrong and how to fix it.
    Specifically for NMT, here're three things we can recommend:
-   - *Synthetic data*: If you modified the code, it might help to inspect tensors and outputs manually for a synthetic task like the reverse task presented in the :ref:`tutorial`.
-   - *Data*: If you're working with a standard model, doublecheck whether your data is properly aligned, properly pre-processed, properly filtered and whether the vocabularies cover a reasonable amount of tokens.
-   - *Hyperparameters*: Try a smaller/larger/deeper/shallower model architecture with smaller/larger learning rates, different optimizers and turn off schedulers. It might be worth to try different initialization options. Train longer and validate less frequently, maybe training just takes longer than you'd expect.
+
+    - *Synthetic data*: If you modified the code, it might help to inspect tensors and outputs manually for a synthetic task like the reverse task presented in the :ref:`tutorial`.
+
+    - *Data*: If you're working with a standard model, doublecheck whether your data is properly aligned, properly pre-processed, properly filtered and whether the vocabularies cover a reasonable amount of tokens.
+
+    - *Hyperparameters*: Try a smaller/larger/deeper/shallower model architecture with smaller/larger learning rates, different optimizers and turn off schedulers. It might be worth to try different initialization options. Train longer and validate less frequently, maybe training just takes longer than you'd expect.
 
 - **My model takes too much memory. What can I do?**
    Consider reducing ``batch_size``. The mini-batch size can be virtually increased by a factor of *k* by setting ``batch_multiplier`` to *k*.
@@ -173,12 +221,16 @@ Debugging
    ``max_output_length`` (training section) limits the length of the outputs during inference, so make sure this one is also set correctly.
 
 - **Evaluation breaks because I get an empty iterator. What's wrong?**
-   If you're using `batch_type: token`, try increasing the `eval_batch_size`.
+    If you're using ``batch_type: "token"``, try increasing the ``batch_size`` in training section.
+
+- **I've encountered a file IO error. What should I do?**
+    Pay attention to the relative path structure. Most scripts are designed to be called from the project root path. Consider to use absolute path in the configuration file.
+
 
 Features
 --------
 - **Which models does Joey NMT implement?**
-   For the exact description of the RNN and Transformer model, check out the `paper <https://www.cl.uni-heidelberg.de/~kreutzer/joeynmt/joeynmt_demo.pdf>`_.
+   For the exact description of the RNN and Transformer model, check out the `paper <https://arxiv.org/abs/1907.12484>`_.
 
 - **Why is there no convolutional model?**
    We might add it in the future, but from our experience, the most popular models are recurrent and self-attentional.
@@ -213,12 +265,17 @@ Features
    ``max_output_length`` is the maximum length of the translations that your model will be asked to produce.
 
 - **How is the vocabulary generated?**
-    See the :ref:`tutorial`, section "Configuration - Data Section".
+    See the :ref:`tutorial`, section "Configuration - Data Section". In prediction, the vocabulary should **NOT** be re-generated, but reused the same vocabulary created in training. Make sure that you put the correct vocab file paths in config, before you trigger the "test" or "translation" mode.
 
 - **What does freezing mean?**
    *Freezing* means that you don't update a subset of your parameters. If you freeze all parts of your model, it won't get updated (which doesn't make much sense).
    It might, however, make sense to update only a subset of the parameters in the case where you have a pre-trained model and want to carefully fine-tune it to e.g. a new domain.
    For the modules you want to freeze, set ``freeze: True`` in the corresponding configuration section.
+
+- **What are the language tags?**
+    Language tags are special tokens that control translation directions in multilingual training. These tokens need special handling in tokenization. For example, ``"<en> Hello"`` should **NOT** be tokenized as ``["<", "en", ">", "Hello"]``, but as ``["<en>", "Hello"]``. You may need to manually modify ``build_vocab.py`` script for multilingual joint vocab construction.
+
+    Currently, multilingal models with language tags don't work in the interactive translation mode. Use test mode or TorchHub API (See `Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/main/notebooks/torchhub.ipynb>`_)
 
 
 Model Extensions
@@ -278,8 +335,29 @@ Evaluation
 - **Can I publish the BLEU scores JoeyNMT reports on my test set?**
     As described in the two preceding questions, BLEU reporting has to be handled with care, since it depends on tokenizers and implementations. Generally, whenever you report BLEU scores, report as well how you computed them. This is essential for reproducibility of results and future comparisons. If you compare to previous benchmarks or scores, first find out how these were computed.
     Our recommendation is as follows:
+
     1. Use the scores that Joey reports on your validation set for tuning and selecting the best model.
     2. Then translate your test set once (in "translate" mode), and post-process the produced translations accordingly, e.g., detokenize it, restore casing.
     3. Use the BLEU scoring library of your choice, this is the one that is reported in previous benchmarks, or e.g. sacrebleu (see above). Make sure to set tokenization flags correctly.
     4. Report these scores together with a description of how you computed them, ideally provide a script with your code.
 
+
+DistributedDataParallel
+-----------------------
+- **How can I evoke DDP training?**
+    Add ``--use-ddp`` flag.
+
+    .. code-block:: bash
+
+        python -m joeynmt train configs/ddp_model.yaml --use-ddp --skip-test
+    
+    Currently, we implemented DDP-training only, we don't support DDP-prediction. Don't forget to add ``--skip-test`` option above!
+
+- **Can I use batch_type: "token"?**
+    No. We only support ``batch_type: "sentence"``, in DDP. See ``DistributedSubsetSampler`` class in `helpers_for_ddp.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/helpers_for_ddp.py>`_.
+
+- **How can I set MASTER_ADDR and MASTER_PORT env variables?**
+    These values are currently hard-coded. See ``ddp_setup()`` function in `helpers_for_ddp.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/helpers_for_ddp.py>`_.
+
+- **It seems the early stopping criterion is not working properly in DDP.**
+    Currently, early stopping (``break`` in multi-process for-loops) is not always syncronized across devices, presumably. In addition, Keyborad interruption (crtl-c) doesn't stop all the processes. You may need to take care of the remaining processes manually.

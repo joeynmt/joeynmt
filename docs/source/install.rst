@@ -27,6 +27,9 @@ Then clone JoeyNMT from GitHub and switch to its root directory:
    (jnmt)$ git clone https://github.com/joeynmt/joeynmt.git
    (jnmt)$ cd joeynmt
 
+.. note::
+    For Windows users, we recommend to doublecheck whether txt files (i.e. `test/data/toy/*`) have utf-8 encoding.
+
 
 Installing JoeyNMT
 ------------------
@@ -43,6 +46,8 @@ Run the unit tests to make sure your installation is working:
 
    (jnmt)$ python -m unittest
 
-**Warning!** When running on *GPU* you need to manually install the suitable PyTorch version for your `CUDA <https://developer.nvidia.com/cuda-zone>`_ version. This is described in the `PyTorch installation instructions <https://pytorch.org/get-started/locally/>`_.
+.. warning::
+
+    When running on *GPU* you need to manually install the suitable PyTorch version for your `CUDA <https://developer.nvidia.com/cuda-zone>`_ version. This is described in the `PyTorch installation instructions <https://pytorch.org/get-started/locally/>`_.
 
 You're ready to go!
