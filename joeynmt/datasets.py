@@ -574,7 +574,7 @@ class StreamDataset(BaseDataset):
                 self.has_prompt[lang] = True
             return line
 
-        if sep_token in src_line and src_prompt is None:
+        if sep_token is not None and sep_token in src_line and src_prompt is None:
             src_line, src_prompt = _split_at_sep(src_line)
 
         src_line = _pre_process(src_line, self.src_lang, allow_empty=False)

@@ -81,7 +81,7 @@ testing:                            # specify which inference algorithm to use f
     return_prob: "none"             # whether to return probabilities of references ("ref") or hypotheses ("hyp"). default: "none".
     generate_unk: True              # whether to generate unk token
     no_repeat_ngram_size: -1        # ngram size to prohibit repetition, default -1. If set to -1, no blocker applied.
-    repetition_penalty: -1          # repetition penalty, default: -1. If set to -1, no penalty applied.
+    repetition_penalty: -1          # repetition penalty, default: -1. Between 0.0 and 1.0 penalizes the repeated tokens.  If set to -1, no penalty applied.
     sacrebleu_cfg:                  # sacrebleu options
         whitespace: False           # `whitespace` option in sacrebleu.metrics.CHRF() class (default: False)
         tokenize: "13a"             # `tokenize` option in sacrebleu.metrics.BLEU() class (default: "13a")

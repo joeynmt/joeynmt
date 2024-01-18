@@ -368,49 +368,6 @@ class SubwordNMTTokenizer(BasicTokenizer):
                 f"separator={self.separator}, dropout={self.dropout})")
 
 
-class FastBPETokenizer(SubwordNMTTokenizer):
-
-    def __init__(
-        self,
-        level: str = "bpe",
-        lowercase: bool = False,
-        normalize: bool = False,
-        max_length: int = -1,
-        min_length: int = -1,
-        **kwargs,
-    ):
-        try:
-            import fastBPE  # pylint: disable=import-outside-toplevel
-        except ImportError as e:
-            logger.error(e)
-            raise ImportError from e
-        super(SubwordNMTTokenizer, self).__init__(level, lowercase, normalize,
-                                                  max_length, min_length, **kwargs)
-        assert self.level == "bpe"
-
-        # set codes file path
-        self.codes: Path = Path(kwargs["codes"])
-        assert self.codes.is_file(), f"codes file {self.codes} not found."
-
-        # instantiate fastBPE object
-        self.bpe = fastBPE.fastBPE(self.codes.as_posix())
-        self.separator = "@@"
-        self.dropout = 0.0
-
-    def __call__(self, raw_input: str, is_train: bool = False) -> List[str]:
-        # fastBPE.apply()
-        tokenized = self.bpe.apply([raw_input])
-        tokenized = tokenized[0].strip().split()
-
-        # check if the input sequence length stays within the valid length range
-        if is_train and self._filter_by_length(len(tokenized)):
-            return None
-        return tokenized
-
-    def set_vocab(self, vocab) -> None:
-        super(SubwordNMTTokenizer, self).set_vocab(vocab)
-
-
 def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
     """Builds tokenizer."""
     tokenizer = None
@@ -444,16 +401,6 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
         elif tokenizer_type == "subword-nmt":
             assert "codes" in tokenizer_cfg
             tokenizer = SubwordNMTTokenizer(
-                level=cfg["level"],
-                lowercase=cfg.get("lowercase", False),
-                normalize=cfg.get("normalize", False),
-                max_length=cfg.get("max_length", -1),
-                min_length=cfg.get("min_length", -1),
-                **tokenizer_cfg,
-            )
-        elif tokenizer_type == "fastbpe":
-            assert "codes" in tokenizer_cfg
-            tokenizer = FastBPETokenizer(
                 level=cfg["level"],
                 lowercase=cfg.get("lowercase", False),
                 normalize=cfg.get("normalize", False),

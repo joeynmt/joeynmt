@@ -272,7 +272,7 @@ class TrainManager:
         if not reset_iter_state:
             # restore counters
             assert "train_iter_state" in model_checkpoint
-            self.train_iter_state = model_checkpoint["train_iter_state"]
+            self.train_iter_state = model_checkpoint["train_iter_state"].cpu()
             # TODO: save / restore epoch no, since DistirbutedSampler resets generator
             #       based on the initial seed + epoch no
         else:
@@ -315,7 +315,6 @@ class TrainManager:
             device=self.device,
             eos_index=self.model.eos_index,
             pad_index=self.model.pad_index,
-            eos_index=self.model.eos_index,
         )
 
         # TODO: set iter state in the first epoch loop (?)

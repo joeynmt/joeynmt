@@ -161,6 +161,10 @@ def load_config(cfg_file: str = "configs/default.yaml") -> Dict:
     cfg_file = _check_path(cfg_file)
     with cfg_file.open("r", encoding="utf-8") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
+
+    # for backwards compatibility
+    if "model_dir" not in cfg:
+        cfg["model_dir"] = cfg["training"]["model_dir"]
     return cfg
 
 
@@ -275,16 +279,6 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
         assert batch_type == "sentence", (
             "Token-based batch sampling is not supported in distributed learning. "
             "Please specify batch size based on the num. of sentences.")
-
-    # logging
-    logging_freq = cfg.get("logging_freq", 100)
-    validation_freq = cfg.get("validation_freq", 1000)
-    if logging_freq > validation_freq:
-        raise ConfigurationError(
-            "`logging_freq` must be smaller than `validation_freq`.")
-    if validation_freq % logging_freq != 0:
-        raise ConfigurationError(
-            "`validation_freq` must be divisible by `logging_freq`.")
 
     # logging
     logging_freq = cfg.get("logging_freq", 100)
