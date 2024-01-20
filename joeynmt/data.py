@@ -58,13 +58,20 @@ def load_data(cfg: Dict, datasets: list = None) \
     dataset_type = cfg.get("dataset_type", "plain")
     dataset_cfg = cfg.get("dataset_cfg", {})
 
+    has_prompt = {
+        src_lang: src_cfg.get("has_prompt", False),
+        trg_lang: trg_cfg.get("has_prompt", False),
+    }
+
     # train data
     train_data = None
     if "train" in datasets and train_path is not None:
         train_subset = cfg.get("sample_train_subset", -1)
         if "random_train_subset" in cfg:
-            logger.warning("`random_train_subset` option is obsolete. "
-                           "Please use `sample_train_subset` instead.")
+            logger.warning(
+                "`random_train_subset` option is obsolete. "
+                "Please use `sample_train_subset` instead."
+            )
             train_subset = cfg.get("random_train_subset", train_subset)
         logger.info("Loading train set...")
         train_data = build_dataset(
@@ -74,6 +81,7 @@ def load_data(cfg: Dict, datasets: list = None) \
             trg_lang=trg_lang,
             split="train",
             tokenizer=tokenizer,
+            has_prompt=has_prompt,
             random_subset=train_subset,
             **dataset_cfg,
         )
@@ -99,8 +107,10 @@ def load_data(cfg: Dict, datasets: list = None) \
     if "dev" in datasets and dev_path is not None:
         dev_subset = cfg.get("sample_dev_subset", -1)
         if "random_dev_subset" in cfg:
-            logger.warning("`random_dev_subset` option is obsolete. "
-                           "Please use `sample_dev_subset` instead.")
+            logger.warning(
+                "`random_dev_subset` option is obsolete. "
+                "Please use `sample_dev_subset` instead."
+            )
             dev_subset = cfg.get("random_dev_subset", dev_subset)
         logger.info("Loading dev set...")
         dev_data = build_dataset(
@@ -111,6 +121,7 @@ def load_data(cfg: Dict, datasets: list = None) \
             split="dev",
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
+            has_prompt=has_prompt,
             random_subset=dev_subset,
             **dataset_cfg,
         )
@@ -127,6 +138,7 @@ def load_data(cfg: Dict, datasets: list = None) \
             split="test",
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
+            has_prompt=has_prompt,
             random_subset=-1,  # no subsampling for test
             **dataset_cfg,
         )
@@ -140,6 +152,7 @@ def load_data(cfg: Dict, datasets: list = None) \
             split="test",
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
+            has_prompt=has_prompt,
         )
     logger.info("Data loaded.")
 
@@ -150,9 +163,11 @@ def load_data(cfg: Dict, datasets: list = None) \
 
     if train_data:
         src = "\n\t[SRC] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False))
+            train_data.get_item(idx=0, lang=train_data.src_lang, is_train=False)
+        )
         trg = "\n\t[TRG] " + " ".join(
-            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False))
+            train_data.get_item(idx=0, lang=train_data.trg_lang, is_train=False)
+        )
         logger.info("First training example:%s%s", src, trg)
 
     logger.info("First 10 Src tokens: %s", src_vocab.log_vocab(10))

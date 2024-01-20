@@ -27,7 +27,8 @@ class TestWeightTying(unittest.TestCase):
                 "eos_id": 3,
                 "sep_id": 4,
                 "lang_tags": ["<de>", "<en>"],
-            })
+            }
+        )
         self.vocab = Vocabulary(tokens=tokens, cfg=special_symbols)
 
         self.cfg = {
@@ -37,17 +38,13 @@ class TestWeightTying(unittest.TestCase):
                 "encoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {
-                        "embedding_dim": 32
-                    },
+                    "embeddings": {"embedding_dim": 32},
                     "num_layers": 1,
                 },
                 "decoder": {
                     "type": "recurrent",
                     "hidden_size": 64,
-                    "embeddings": {
-                        "embedding_dim": 32
-                    },
+                    "embeddings": {"embedding_dim": 32},
                     "num_layers": 1,
                 },
             }
@@ -66,10 +63,12 @@ class TestWeightTying(unittest.TestCase):
 
         self.assertEqual(src_vocab, trg_vocab)
         self.assertEqual(model.src_embed, model.trg_embed)
-        torch.testing.assert_close(model.src_embed.lut.weight,
-                                   model.trg_embed.lut.weight)
-        self.assertEqual(model.src_embed.lut.weight.shape,
-                         model.trg_embed.lut.weight.shape)
+        torch.testing.assert_close(
+            model.src_embed.lut.weight, model.trg_embed.lut.weight
+        )
+        self.assertEqual(
+            model.src_embed.lut.weight.shape, model.trg_embed.lut.weight.shape
+        )
 
     def test_tied_softmax(self):
 
@@ -89,8 +88,9 @@ class TestWeightTying(unittest.TestCase):
             model.decoder.output_layer.weight.shape,
         )
 
-        torch.testing.assert_close(model.trg_embed.lut.weight,
-                                   model.decoder.output_layer.weight)
+        torch.testing.assert_close(
+            model.trg_embed.lut.weight, model.decoder.output_layer.weight
+        )
 
     def test_tied_src_trg_softmax(self):
 

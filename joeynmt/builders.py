@@ -35,8 +35,10 @@ def build_activation(activation: str = "relu") -> Callable:
     elif activation == "swish":
         return nn.SiLU
     else:
-        raise ConfigurationError("Invalid activation function. Valid options: "
-                                 "'relu', 'gelu', 'tanh', 'swish'.")
+        raise ConfigurationError(
+            "Invalid activation function. Valid options: "
+            "'relu', 'gelu', 'tanh', 'swish'."
+        )
 
 
 def build_gradient_clipper(cfg: Dict) -> Optional[Callable]:
@@ -55,15 +57,18 @@ def build_gradient_clipper(cfg: Dict) -> Optional[Callable]:
     """
     if cfg["clip_grad_val"] is not None and cfg["clip_grad_norm"] is not None:
         raise ConfigurationError(
-            "You can only specify either clip_grad_val or clip_grad_norm.")
+            "You can only specify either clip_grad_val or clip_grad_norm."
+        )
 
     clip_grad_fun = None
     if cfg["clip_grad_val"] is not None:
-        clip_grad_fun = partial(nn.utils.clip_grad_value_,
-                                clip_value=cfg["clip_grad_val"])
+        clip_grad_fun = partial(
+            nn.utils.clip_grad_value_, clip_value=cfg["clip_grad_val"]
+        )
     elif cfg["clip_grad_norm"] is not None:
-        clip_grad_fun = partial(nn.utils.clip_grad_norm_,
-                                max_norm=cfg["clip_grad_norm"])
+        clip_grad_fun = partial(
+            nn.utils.clip_grad_norm_, max_norm=cfg["clip_grad_norm"]
+        )
     return clip_grad_fun
 
 
@@ -118,8 +123,10 @@ def build_optimizer(cfg: Dict, parameters: Generator) -> Optimizer:
         kwargs["momentum"] = cfg.get("momentum", 0.0)
         optimizer = torch.optim.SGD(parameters, **kwargs)
     else:
-        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
-                                 "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
+        raise ConfigurationError(
+            "Invalid optimizer. Valid options: 'adam', "
+            "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'."
+        )
 
     logger.info(
         "%s(%s)",
@@ -216,9 +223,11 @@ def build_scheduler(
         )
         scheduler_step_at = "step"
     else:
-        raise ConfigurationError("Invalid scheduler. Valid options: 'plateau', "
-                                 "'decaying', 'exponential', 'noam', "
-                                 "'warmupexponentialdecay', 'warmupinversesquareroot'.")
+        raise ConfigurationError(
+            "Invalid scheduler. Valid options: 'plateau', "
+            "'decaying', 'exponential', 'noam', "
+            "'warmupexponentialdecay', 'warmupinversesquareroot'."
+        )
 
     if scheduler is None:
         scheduler_step_at = "none"
@@ -227,9 +236,9 @@ def build_scheduler(
 
     # print log
     if scheduler_name in [
-            "noam",
-            "warmupexponentialdecay",
-            "warmupinversesquareroot",
+        "noam",
+        "warmupexponentialdecay",
+        "warmupinversesquareroot",
     ]:
         logger.info(scheduler)
     else:
@@ -326,8 +335,10 @@ class NoamScheduler(BaseScheduler):
         self.hidden_size = state_dict["hidden_size"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"factor={self.factor}, hidden_size={self.hidden_size})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"factor={self.factor}, hidden_size={self.hidden_size})"
+        )
 
 
 class WarmupExponentialDecayScheduler(BaseScheduler):
@@ -395,11 +406,13 @@ class WarmupExponentialDecayScheduler(BaseScheduler):
         self.min_rate = state_dict["min_rate"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"decay_length={self.decay_length}, "
-                f"decay_rate={self.decay_rate}, "
-                f"peak_rate={self.peak_rate}, "
-                f"min_rate={self.min_rate})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"decay_length={self.decay_length}, "
+            f"decay_rate={self.decay_rate}, "
+            f"peak_rate={self.peak_rate}, "
+            f"min_rate={self.min_rate})"
+        )
 
 
 class WarmupInverseSquareRootScheduler(BaseScheduler):
@@ -465,6 +478,8 @@ class WarmupInverseSquareRootScheduler(BaseScheduler):
         self.min_rate = state_dict["min_rate"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"decay_rate={self.decay_rate:.6f}, peak_rate={self.peak_rate}, "
-                f"min_rate={self.min_rate})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"decay_rate={self.decay_rate:.6f}, peak_rate={self.peak_rate}, "
+            f"min_rate={self.min_rate})"
+        )

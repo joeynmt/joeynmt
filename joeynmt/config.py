@@ -116,8 +116,10 @@ def _check_options(name: str, choice: Any, valid_options: List[Any]) -> None:
     """check if given choice is valid"""
     if choice not in valid_options:
         valids = "{" + ", ".join([f"`{option}`" for option in valid_options]) + "}"
-        raise ConfigurationError(f"Invalid setting for `{name}`. "
-                                 f"Valid choices: {valids}.")
+        raise ConfigurationError(
+            f"Invalid setting for `{name}`. "
+            f"Valid choices: {valids}."
+        )
 
 
 def _check_special_symbols(special_symbols: Dict) -> Dict:
@@ -158,7 +160,7 @@ def load_config(cfg_file: str = "configs/default.yaml") -> Dict:
     :param cfg_file: path to YAML configuration file
     :return: configuration dictionary
     """
-    cfg_file = _check_path(cfg_file)
+    cfg_file = _check_path(cfg_file, allow_empty=False)
     with cfg_file.open("r", encoding="utf-8") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
 
@@ -168,9 +170,9 @@ def load_config(cfg_file: str = "configs/default.yaml") -> Dict:
     return cfg
 
 
-def parse_global_args(cfg: Dict = None,
-                      rank: int = 0,
-                      mode: str = "train") -> BaseConfig:
+def parse_global_args(
+    cfg: Dict = None, rank: int = 0, mode: str = "train"
+) -> BaseConfig:
     """
     Parse and validate global args
 
@@ -180,7 +182,7 @@ def parse_global_args(cfg: Dict = None,
     """
 
     # gpu / cpu
-    use_cuda = cfg.get("use_cuda", True)
+    use_cuda = cfg.get("use_cuda", cfg["training"].get("use_cuda", True))
     if use_cuda and (not torch.cuda.is_available()):
         logger.warning("CUDA is not available. Use cpu device.")
         use_cuda = False
@@ -190,13 +192,14 @@ def parse_global_args(cfg: Dict = None,
         device = torch.device("cpu")
     n_gpu = torch.cuda.device_count() if use_cuda else 0
 
-    num_workers = cfg.get("num_workers", 0)
+    num_workers = cfg.get("num_workers", cfg["training"].get("num_workers", 0))
     if num_workers > 0:
         num_workers = min(cpu_count(), num_workers)
 
     if mode == "translate" and n_gpu > 1:
         raise RuntimeError(
-            "Currently, translate mode is only available on CPU or single GPU.")
+            "Currently, translate mode is only available on CPU or single GPU."
+        )
 
     # normalization
     normalization = cfg.get("normalization", "batch").lower()
@@ -206,7 +209,8 @@ def parse_global_args(cfg: Dict = None,
     fp16 = cfg.get("fp16", False)
     if device.type == "cpu" and fp16:
         logger.warning(
-            "On cpu, half-precision training may raise an error. Disable fp16.")
+            "On cpu, half-precision training may raise an error. Disable fp16."
+        )
         fp16 = False
     autocast = {"device_type": device.type, "enabled": fp16}
     if fp16:
@@ -256,13 +260,17 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     _keep_last_ckpts = cfg.get("keep_last_ckpts", None)
     if _keep_last_ckpts is not None:  # backward compatibility
         keep_best_ckpts = _keep_last_ckpts
-        logger.warning("`keep_last_ckpts` option is outdated. "
-                       "Please use `keep_best_ckpts`, instead.")
+        logger.warning(
+            "`keep_last_ckpts` option is outdated. "
+            "Please use `keep_best_ckpts`, instead."
+        )
 
     # early stopping
     early_stopping_metric = cfg.get("early_stopping_metric", "ppl").lower()
-    _check_options("early_stopping_metric", early_stopping_metric,
-                   ["acc", "loss", "ppl", "bleu", "chrf"])
+    _check_options(
+        "early_stopping_metric", early_stopping_metric,
+        ["acc", "loss", "ppl", "bleu", "chrf"]
+    )
 
     # early_stopping_metric decides on how to find the early stopping point: ckpts
     # are written when there's a new high/low score for this metric. If we schedule
@@ -278,17 +286,20 @@ def parse_train_args(cfg: Dict = None, mode: str = "train") -> TrainConfig:
     if use_ddp():
         assert batch_type == "sentence", (
             "Token-based batch sampling is not supported in distributed learning. "
-            "Please specify batch size based on the num. of sentences.")
+            "Please specify batch size based on the num. of sentences."
+        )
 
     # logging
     logging_freq = cfg.get("logging_freq", 100)
     validation_freq = cfg.get("validation_freq", 1000)
     if logging_freq > validation_freq:
         raise ConfigurationError(
-            "`logging_freq` must be smaller than `validation_freq`.")
+            "`logging_freq` must be smaller than `validation_freq`."
+        )
     if validation_freq % logging_freq != 0:
         raise ConfigurationError(
-            "`validation_freq` must be divisible by `logging_freq`.")
+            "`validation_freq` must be divisible by `logging_freq`."
+        )
 
     is_test = mode != "train"
 
@@ -346,7 +357,8 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
         logger.warning(
             "WARNING: Are you sure you meant to work on huge batches like this? "
             "`batch_size` is > 1000 for sentence-batching. Consider decreasing it "
-            "or switching to `batch_type: 'token'`.")
+            "or switching to `batch_type: 'token'`."
+        )
 
     # eval metrics
     if "eval_metrics" in cfg:
@@ -354,19 +366,23 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
     elif "eval_metric" in cfg:
         eval_metrics = [cfg["eval_metric"].strip().lower()]
         logger.warning(
-            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead.")
+            "`eval_metric` option is obsolete. Please use `eval_metrics`, instead."
+        )
     else:
         eval_metrics = []
     for eval_metric in eval_metrics:
-        _check_options("eval_metric", eval_metric,
-                       ["bleu", "chrf", "token_accuracy", "sequence_accuracy"])
+        _check_options(
+            "eval_metric", eval_metric,
+            ["bleu", "chrf", "token_accuracy", "sequence_accuracy"]
+        )
 
     # sacrebleu cfg
     sacrebleu_cfg: Dict = cfg.get("sacrebleu_cfg", {})
     if "sacrebleu" in cfg:
         sacrebleu_cfg: Dict = cfg["sacrebleu"]
         logger.warning(
-            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead.")
+            "`sacrebleu` option is obsolete. Please use `sacrebleu_cfg`, instead."
+        )
 
     # beam search options
     n_best = cfg.get("n_best", 1)
@@ -379,7 +395,8 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
 
     if n_best > beam_size:
         raise ConfigurationError(
-            "`n_best` must be smaller than or equal to `beam_size`.")
+            "`n_best` must be smaller than or equal to `beam_size`."
+        )
 
     beam_alpha = cfg.get("beam_alpha", -1)
     if "alpha" in cfg:
@@ -393,11 +410,13 @@ def parse_test_args(cfg: Dict = None, mode: str = "test") -> TestConfig:
     repetition_penalty: float = cfg.get("repetition_penalty", -1)
     if 0 < repetition_penalty < 1:
         raise ConfigurationError(
-            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)")
+            "Repetition penalty must be > 1. (-1 indicates no repetition penalty.)"
+        )
 
     return TestConfig(
-        load_model=_check_path(cfg.get("load_model", None),
-                               allow_empty=mode == "train"),
+        load_model=_check_path(
+            cfg.get("load_model", None), allow_empty=mode == "train"
+        ),
         batch_size=batch_size,
         batch_type=batch_type,
         max_output_length=cfg.get("max_output_length", -1),
@@ -424,7 +443,8 @@ def set_validation_args(args: TestConfig) -> TestConfig:
     if use_ddp():
         assert args.batch_type == "sentence", (
             "Token-based batch sampling is not supported in distributed learning. "
-            "Please specify batch size based on the num. of sentences.")
+            "Please specify batch size based on the num. of sentences."
+        )
     args = args._replace(
         beam_size=1,  # greedy decoding during train loop
         n_best=1,  # no further exploration during training

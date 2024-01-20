@@ -52,11 +52,13 @@ def greedy(
             **kwargs,
         )
     elif isinstance(model.decoder, RecurrentDecoder):
-        return recurrent_greedy(src_mask, max_output_length, model, encoder_output,
-                                encoder_hidden, **kwargs)
+        return recurrent_greedy(
+            src_mask, max_output_length, model, encoder_output, encoder_hidden, **kwargs
+        )
     else:
         raise NotImplementedError(
-            f"model.decoder({model.decoder.__class__.__name__}) not supported.")
+            f"model.decoder({model.decoder.__class__.__name__}) not supported."
+        )
 
 
 def recurrent_greedy(
@@ -197,8 +199,10 @@ def transformer_greedy(
     encoder_input: Tensor = kwargs.get("encoder_input", None)  # for repetition blocker
     decoder_prompt: Tensor = kwargs.get("decoder_prompt", None)  # for forced decoding
     trg_prompt_mask: Tensor = kwargs.get("trg_prompt_mask", None)  # for forced decoding
-    compute_softmax: bool = (return_prob or repetition_penalty > 0
-                             or no_repeat_ngram_size > 0 or encoder_input is not None)
+    compute_softmax: bool = (
+        return_prob or repetition_penalty > 0 or no_repeat_ngram_size > 0
+        or encoder_input is not None
+    )
 
     # start with BOS-symbol for each sentence in the batch
     ys = encoder_output.new_full((batch_size, 1), bos_index, dtype=torch.long)
@@ -241,8 +245,9 @@ def transformer_greedy(
                         decoder_hidden=None,
                         trg_mask=trg_mask,
                         return_attention=return_attn,
-                        trg_prompt_mask=adjust_mask_size(trg_prompt_mask, batch_size,
-                                                         ys.size(1)),
+                        trg_prompt_mask=adjust_mask_size(
+                            trg_prompt_mask, batch_size, ys.size(1)
+                        ),
                     )
 
             out = out[:, -1]  # logits
@@ -301,7 +306,8 @@ def transformer_greedy(
                 att = att.data[:, -1, :].unsqueeze(1)  # take last trg token only
                 att = torch.where(
                     forced_word_mask.expand(-1, src_len).unsqueeze(1).bool(),
-                    forced_att, att)
+                    forced_att, att
+                )
                 # `att` shape: (batch_size, 1, src_len)
         else:
             next_word = forced_word
@@ -365,7 +371,8 @@ def beam_search(
     assert beam_size > 0, "Beam size must be >0."
     assert n_best <= beam_size, (
         f"Can only return {beam_size} best hypotheses."
-        "`n_best` must be smaller than or equal to `beam_size`.")
+        "`n_best` must be smaller than or equal to `beam_size`."
+    )
 
     # init
     bos_index = model.bos_index
@@ -440,8 +447,9 @@ def beam_search(
     if is_transformer:
         trg_mask = src_mask.new_ones([1, 1, 1])
         if isinstance(model, DataParallelWrapper):
-            trg_mask = torch.stack(
-                [src_mask.new_ones([1, 1]) for _ in model.device_ids])
+            trg_mask = torch.stack([
+                src_mask.new_ones([1, 1]) for _ in model.device_ids
+            ])
 
     # numbering elements in the batch
     # batch_offset = [0, 1, 2, 3, 4] when batch_size = 5
@@ -449,11 +457,9 @@ def beam_search(
 
     # numbering elements in the extended batch, i.e. k copies of each batch element
     # beam_offset = [0, 2, 4, 6, 8] when batch_size = 5, beam_size = 2
-    beam_offset = torch.arange(0,
-                               batch_size * beam_size,
-                               step=beam_size,
-                               dtype=torch.long,
-                               device=device)
+    beam_offset = torch.arange(
+        0, batch_size * beam_size, step=beam_size, dtype=torch.long, device=device
+    )
 
     # keeps track of the top beam size hypotheses to expand for each element in the
     # batch to be further decoded (that are still "alive")
@@ -493,9 +499,9 @@ def beam_search(
         padding_mask = trg_prompt_mask[:, step + 1].bool() \
             if trg_prompt_mask is not None and trg_prompt_mask.size(1) > step + 1 \
             else torch.zeros((current_batch_size,), dtype=torch.bool, device=device)
-        _log_probs_idx = torch.arange(current_batch_size,
-                                      dtype=torch.long,
-                                      device=device)
+        _log_probs_idx = torch.arange(
+            current_batch_size, dtype=torch.long, device=device
+        )
         _log_probs_val = torch.zeros(current_batch_size, dtype=dtype, device=device)
 
         if torch.any(~padding_mask).item():
@@ -598,8 +604,10 @@ def beam_search(
 
         # forced decoding; overwrite log_probs with zeros (=max value in log scale)
         if torch.any(padding_mask).item():
-            log_probs = log_probs.index_put(indices=[_log_probs_idx, forced_token_ids],
-                                            values=_log_probs_val.to(log_probs.dtype))
+            log_probs = log_probs.index_put(
+                indices=[_log_probs_idx, forced_token_ids],
+                values=_log_probs_val.to(log_probs.dtype)
+            )
 
         # multiply probs by the beam probability (=add logprobs)
         # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
@@ -631,12 +639,12 @@ def beam_search(
 
         # forced decoding; overwrite topk_ids and topk_scores
         if torch.any(padding_mask).item():
-            topk_ids = topk_ids.view(-1).index_put(indices=(_log_probs_idx, ),
-                                                   values=forced_token_ids).view(
-                                                       -1, beam_size)
+            topk_ids = topk_ids.view(-1).index_put(
+                indices=(_log_probs_idx, ), values=forced_token_ids
+            ).view(-1, beam_size)
             topk_scores = topk_scores.view(-1).index_put(
-                indices=(_log_probs_idx, ),
-                values=_log_probs_val.to(topk_scores.dtype)).view(-1, beam_size)
+                indices=(_log_probs_idx, ), values=_log_probs_val.to(topk_scores.dtype)
+            ).view(-1, beam_size)
 
         # map topk_beam_index to batch_index in the flat representation
         # `batch_index` shape: (remaining_batch_size, beam_size)
@@ -678,8 +686,8 @@ def beam_search(
                         # prediction should have already been added to the hypotheses,
                         # so we don't add them again.
                         continue
-                    elif (n_eos == 0 and step + 1 == max_output_length) or (
-                            n_eos == 1 and predictions[i, j, -1] == eos_index):
+                    elif (n_eos == 0 and step + 1 == max_output_length
+                          ) or (n_eos == 1 and predictions[i, j, -1] == eos_index):
                         # If the prediction has no EOS, it means we reached max length.
                         # If the prediction has exactly one EOS, it should be the last
                         # token of the sequence. Then we add it to the hypotheses.
@@ -735,8 +743,8 @@ def beam_search(
             # but only the candidates that finished in the very current time step.
             # TODO: release the space of finished ones, explore more unfinished ones.
             # `alive_seq` shape: (remaining_batch_size * beam_size, hyp_len)
-            alive_seq = predictions.index_select(0, unfinished).view(
-                -1, alive_seq.size(-1))
+            alive_seq = predictions.index_select(0, unfinished
+                                                 ).view(-1, alive_seq.size(-1))
 
             if encoder_input is not None:
                 src_len = encoder_input.size(1)
@@ -832,22 +840,24 @@ def search(
         - stacked_scores: log probabilities for batch,
         - stacked_attention_scores: attention scores for batch
     """
-    autocast = kwargs.get("autocast", {
-        "device_type": batch.src.device.type,
-        "enabled": False
-    })
+    autocast = kwargs.get(
+        "autocast", {"device_type": batch.src.device.type, "enabled": False}
+    )
     with torch.autocast(**autocast):
         with torch.no_grad():
-            encoder_output, encoder_hidden, _, _ = model(return_type="encode",
-                                                         **vars(batch))
+            encoder_output, encoder_hidden, _, _ = model(
+                return_type="encode", **vars(batch)
+            )
 
     # if maximum output length is not globally specified, adapt to src len
     if max_output_length < 0:
         max_output_length = int(max(batch.src_length.cpu().numpy()) * 1.5)
 
     # block src-side repetition (to avoid untranslated copy in trg)
-    if (kwargs.get("no_repeat_ngram_size", -1) > 1
-            or kwargs.get("repetition_penalty", -1) > 1):
+    if (
+        kwargs.get("no_repeat_ngram_size", -1) > 1
+        or kwargs.get("repetition_penalty", -1) > 1
+    ):
         kwargs["encoder_input"] = batch.src
 
     # forced prefix (prompt) decoding
@@ -892,8 +902,9 @@ def search(
     )
 
 
-def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int,
-                        step: int, **kwargs) -> Tensor:
+def block_repeat_ngrams(
+    tokens: Tensor, scores: Tensor, no_repeat_ngram_size: int, step: int, **kwargs
+) -> Tensor:
     """
     For each hypothesis, check a list of previous ngrams and set associated log probs
     to -inf. Taken from fairseq's NGramRepeatBlock.
@@ -937,8 +948,9 @@ def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: in
                 check_end_pos_src = src_length + 1 - no_repeat_ngram_size
                 for i in range(check_end_pos_src):  # no BOS in src
                     if ngram_to_check == src_tokens[hyp_idx][i:i + offset]:
-                        banned_batch_tokens[hyp_idx].add(src_tokens[hyp_idx][i +
-                                                                             offset])
+                        banned_batch_tokens[hyp_idx].add(
+                            src_tokens[hyp_idx][i + offset]
+                        )
 
     # set the score of the banned tokens to -inf
     for i, banned_tokens in enumerate(banned_batch_tokens):
@@ -947,10 +959,12 @@ def block_repeat_ngrams(tokens: Tensor, scores: Tensor, no_repeat_ngram_size: in
     return scores
 
 
-def penalize_repetition(tokens: Tensor,
-                        scores: Tensor,
-                        penalty: float,
-                        exclude_tokens: List[int] = None) -> Tensor:
+def penalize_repetition(
+    tokens: Tensor,
+    scores: Tensor,
+    penalty: float,
+    exclude_tokens: List[int] = None
+) -> Tensor:
     """
     Reduce probability of the given tokens.
     Taken from Huggingface's RepetitionPenaltyLogitsProcessor.

@@ -32,28 +32,25 @@ def generate_task(args):
     out_dir.mkdir(exist_ok=True)
 
     # train
-    samples = generate_samples(n=args.train_size,
-                               low=args.low,
-                               high=args.high,
-                               maxlen=args.maxlen)
+    samples = generate_samples(
+        n=args.train_size, low=args.low, high=args.high, maxlen=args.maxlen
+    )
     filename = out_dir / "train"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)
 
     # dev
-    samples = generate_samples(n=args.dev_size,
-                               low=args.low,
-                               high=args.high,
-                               maxlen=args.maxlen + 5)
+    samples = generate_samples(
+        n=args.dev_size, low=args.low, high=args.high, maxlen=args.maxlen + 5
+    )
     filename = out_dir / "dev"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)
 
     # test
-    samples = generate_samples(n=args.test_size,
-                               low=args.low,
-                               high=args.high,
-                               maxlen=args.maxlen + 5)
+    samples = generate_samples(
+        n=args.test_size, low=args.low, high=args.high, maxlen=args.maxlen + 5
+    )
     filename = out_dir / "test"
     save_samples(samples, filename.with_suffix('.src'), reverse=False)
     save_samples(samples, filename.with_suffix('.trg'), reverse=True)

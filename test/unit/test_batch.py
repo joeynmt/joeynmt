@@ -12,10 +12,8 @@ class TestBatch(unittest.TestCase):
     def setUp(self):
         # minimal data config
         data_cfg = {
-            "train":
-            "test/data/toy/train",
-            "dev":
-            "test/data/toy/dev",
+            "train": "test/data/toy/train",
+            "dev": "test/data/toy/dev",
             "src": {
                 "lang": "de",
                 "level": "char",
@@ -28,10 +26,8 @@ class TestBatch(unittest.TestCase):
                 "lowercase": True,
                 "max_length": 20,
             },
-            "dataset_type":
-            "plain",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -44,12 +40,14 @@ class TestBatch(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
         # load the data
         _, trg_vocab, self.train_data, self.dev_data, _ = load_data(
-            data_cfg, datasets=["train", "dev"])
+            data_cfg, datasets=["train", "dev"]
+        )
         self.eos_index = trg_vocab.eos_index
         self.pad_index = trg_vocab.pad_index
         # random seed
@@ -71,13 +69,14 @@ class TestBatch(unittest.TestCase):
             device=torch.device("cpu"),
         )
 
-        # yapf: disable
         expected_src0 = torch.LongTensor([
             [30, 10, 8, 17, 8, 7, 30, 8, 12, 33, 9, 15, 8, 12, 18, 9, 20, 8, 9, 27, 3],
             [22, 28, 14, 40, 27, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [31, 26, 8, 10, 26, 8, 9, 7, 15, 14, 9, 28, 8, 7, 11, 19, 16, 34, 9, 27, 3],
-            [15, 14, 11, 7, 10, 11, 13, 7, 31, 14, 11, 11, 10, 8, 12, 13, 27, 3,
-             1, 1, 1],
+            [
+                15, 14, 11, 7, 10, 11, 13, 7, 31, 14, 11, 11, 10, 8, 12, 13, 27, 3, 1,
+                1, 1
+            ],
         ])
         expected_src0_len = torch.LongTensor([21, 6, 21, 18])
         expected_trg0 = torch.LongTensor([
@@ -150,7 +149,6 @@ class TestBatch(unittest.TestCase):
             device=torch.device("cpu"),
         )
 
-        # yapf: disable
         expected_src0 = torch.LongTensor([
             [35, 14, 7, 25, 7, 14, 17, 11, 22, 7, 25, 7, 24, 14, 11, 7, 11, 22, 17, 17,
              7, 23, 10, 22, 16, 14, 19, 28, 10, 9, 20, 7, 11, 8, 10, 9, 7, 41, 3],
@@ -158,7 +156,7 @@ class TestBatch(unittest.TestCase):
              11, 7, 10, 19, 16, 7, 15, 14, 7, 23, 10, 9, 7, 27, 3, 1, 1, 1, 1],
             [35, 14, 7, 25, 7, 20, 18, 13, 8, 9, 7, 13, 14, 20, 7, 27, 3, 1, 1, 1, 1,
              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        ])
+        ])  # yapf: disable
         expected_before_sort_len = torch.LongTensor([35, 17, 39])
         expected_after_sort_len = torch.LongTensor([39, 35, 17])
         expected_trg0 = torch.LongTensor([
@@ -168,10 +166,9 @@ class TestBatch(unittest.TestCase):
              15, 8, 7, 27, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
             [21, 8, 14, 7, 29, 7, 16, 8, 17, 17, 11, 7, 27, 3, 1, 1, 1, 1,
              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        ])
+        ])  # yapf: disable
         expected_before_sort_idx = torch.LongTensor([0, 1, 2])
         expected_after_sort_idx = torch.LongTensor([2, 0, 1])
-        # yapf: enable
 
         total_samples = 0
         for b in dev_iter:
@@ -184,7 +181,8 @@ class TestBatch(unittest.TestCase):
             after_sort = b.src_length
             after_sort_idx = b.indices
             torch.testing.assert_close(
-                torch.sort(before_sort, descending=True)[0], after_sort)
+                torch.sort(before_sort, descending=True)[0], after_sort
+            )
             if total_samples == 0:
                 torch.testing.assert_close(b.src, expected_src0)
                 torch.testing.assert_close(before_sort, expected_before_sort_len)
@@ -202,16 +200,13 @@ class TestPrompt(unittest.TestCase):
     def setUp(self):
         # minimal data config
         data_cfg = {
-            "dev":
-            "test/data/toy/dev",
+            "dev": "test/data/toy/dev",
             "src": {
                 "lang": "src",
                 "level": "bpe",
                 "lowercase": False,
                 "tokenizer_type": "sentencepiece",
-                "tokenizer_cfg": {
-                    "model_file": "test/data/toy/sp200.model"
-                },
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
                 "voc_file": "test/data/toy/sp200.vocab",
             },
             "trg": {
@@ -219,15 +214,11 @@ class TestPrompt(unittest.TestCase):
                 "level": "bpe",
                 "lowercase": False,
                 "tokenizer_type": "sentencepiece",
-                "tokenizer_cfg": {
-                    "model_file": "test/data/toy/sp200.model"
-                },
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
                 "voc_file": "test/data/toy/sp200.vocab",
             },
-            "dataset_type":
-            "tsv",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "tsv",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -240,7 +231,8 @@ class TestPrompt(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
         _, trg_vocab, _, self.dev_data, _ = load_data(data_cfg, datasets=["dev"])
         self.pad_index = trg_vocab.pad_index
@@ -296,7 +288,8 @@ class TestPrompt(unittest.TestCase):
             b.sort_by_src_length()
             after_sort = b.src_length
             torch.testing.assert_close(
-                torch.sort(before_sort, descending=True)[0], after_sort)
+                torch.sort(before_sort, descending=True)[0], after_sort
+            )
             if total_samples == 0:
                 torch.testing.assert_close(b.src, expected_src0)
                 torch.testing.assert_close(b.src_prompt_mask, expected_src_prompt_mask0)

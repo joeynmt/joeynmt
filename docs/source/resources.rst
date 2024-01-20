@@ -10,10 +10,6 @@ Neural Machine Translation
 
 If you want to learn more about neural machine translation, check out the following resources.
 
-Toolkits
---------
-A comprehensive list of NMT toolkits, ordered by deep learning backends can be found `here <https://github.com/jonsafari/nmt-list>`_.
-
 Tutorials
 ---------
 - `The Annotated Transformer <http://nlp.seas.harvard.edu/2018/04/03/attention.html>`_ by Alexander Rush
@@ -35,13 +31,17 @@ Data
 - OPUS: The OPUS project collects publicly available parallel data and provides it to everyone on their `website <http://opus.nlpl.eu/>`_.
 - Huggingface: `datasets <https://huggingface.co/datasets?task_categories=task_categories:translation>`_.
 
+Toolkits
+--------
+A comprehensive list of NMT toolkits, ordered by deep learning backends can be found `here <https://github.com/jonsafari/nmt-list>`_.
+
 
 PyTorch
 =======
 
 Here's a collection of links that should help you get started or improve your coding skills with PyTorch:
 
-- `Introduction to PyTorch - YouTube Series <https://pytorch.org/tutorials/beginner/introyt.html>`-
+- `Introduction to PyTorch - YouTube Series <https://pytorch.org/tutorials/beginner/introyt.html>`_
 - `PyTorch Tutorials <https://pytorch.org/tutorials/>`_
 - `PyTorch Distributed Overview <https://pytorch.org/tutorials/beginner/dist_overview.html>`_
 

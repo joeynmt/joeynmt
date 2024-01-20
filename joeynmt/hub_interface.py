@@ -2,7 +2,6 @@
 """
 Torch Hub Interface
 """
-import logging
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Union
 
@@ -17,7 +16,6 @@ from joeynmt.model import Model
 from joeynmt.prediction import predict, prepare
 
 logger = get_logger(__name__)
-logger.setLevel(level=logging.WARNING)
 
 PredictionOutput = NamedTuple(
     "PredictionOutput",
@@ -49,8 +47,8 @@ def _from_pretrained(
 ):
     """Prepare model and data placeholder"""
     # model dir
-    model_dir = Path(model_name_or_path) if isinstance(model_name_or_path,
-                                                       str) else model_name_or_path
+    model_dir = Path(model_name_or_path
+                     ) if isinstance(model_name_or_path, str) else model_name_or_path
     assert model_dir.is_dir(), model_dir
 
     # cfg file
@@ -58,6 +56,7 @@ def _from_pretrained(
     assert cfg_file.is_file(), cfg_file
     cfg = load_config(cfg_file)
     cfg.update(kwargs)
+    cfg["model_dir"] = model_dir.as_posix()  # override model_dir
 
     # rewrite paths in cfg
     for side in ["src", "trg"]:
@@ -68,13 +67,13 @@ def _from_pretrained(
             for tok_model in ["codes", "model_file"]:
                 if tok_model in data_side["tokenizer_cfg"]:
                     data_side["tokenizer_cfg"][tok_model] = _check_file_path(
-                        data_side["tokenizer_cfg"][tok_model], model_dir).as_posix()
+                        data_side["tokenizer_cfg"][tok_model], model_dir
+                    ).as_posix()
 
     if "load_model" in cfg["testing"]:
-        cfg["testing"]["load_model"] = _check_file_path(cfg["testing"]["load_model"],
-                                                        model_dir).as_posix()
-    if not Path(cfg["model_dir"]).is_dir():
-        cfg["model_dir"] = model_dir.as_posix()
+        cfg["testing"]["load_model"] = _check_file_path(
+            cfg["testing"]["load_model"], model_dir
+        ).as_posix()
 
     # parse args
     args = parse_global_args(cfg, rank=0, mode="translate")
@@ -156,13 +155,15 @@ class TranslatorHubInterface(nn.Module):
 
         if src_prompt:
             assert len(src) == len(
-                src_prompt), "src and src_prompt must have the same length!"
+                src_prompt
+            ), "src and src_prompt must have the same length!"
         else:
             src_prompt = [None] * len(src)
 
         if trg_prompt:
             assert len(src) == len(
-                trg_prompt), "src and trg_prompt must have the same length!"
+                trg_prompt
+            ), "trg and trg_prompt must have the same length!"
         else:
             trg_prompt = [None] * len(src)
 
@@ -173,8 +174,9 @@ class TranslatorHubInterface(nn.Module):
             test_cfg["n_best"] = 1
             test_cfg["beam_size"] = 1
             test_cfg["return_prob"] = "ref"
-            for src_sent, trg_sent, src_p, trg_p in zip(src, trg, src_prompt,
-                                                        trg_prompt):
+            for src_sent, trg_sent, src_p, trg_p in zip(
+                src, trg, src_prompt, trg_prompt
+            ):
                 self.dataset.set_item(src_sent, trg_sent, src_p, trg_p)
         else:
             self.dataset.has_trg = False
@@ -206,12 +208,12 @@ class TranslatorHubInterface(nn.Module):
         self.dataset.reset_cache()  # reset cache
         self.dataset.has_trg = True
         self.dataset.set_item(src, trg)
-        src_tokens = self.dataset.get_item(idx=0,
-                                           lang=self.dataset.src_lang,
-                                           is_train=False)
-        trg_tokens = self.dataset.get_item(idx=0,
-                                           lang=self.dataset.trg_lang,
-                                           is_train=False)
+        src_tokens = self.dataset.get_item(
+            idx=0, lang=self.dataset.src_lang, is_train=False
+        )
+        trg_tokens = self.dataset.get_item(
+            idx=0, lang=self.dataset.trg_lang, is_train=False
+        )
 
         self.dataset.reset_cache()  # reset cache
 

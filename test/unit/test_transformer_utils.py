@@ -21,9 +21,9 @@ class TestTransformerUtils(unittest.TestCase):
         output = pe(x)
         self.assertEqual(pe.pe.size(2), hidden_size)
         for i in range(batch_size):
-            # yapf: disable
             torch.testing.assert_close(
-                output[i].unsqueeze(0), pe.pe[:, :max_time], rtol=1e-4, atol=1e-4)
+                output[i].unsqueeze(0), pe.pe[:, :max_time], rtol=1e-4, atol=1e-4
+            )
 
     def test_src_src_attention(self):
         num_heads = 2

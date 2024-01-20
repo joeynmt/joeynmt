@@ -206,7 +206,8 @@ def get_logger(name: str = "", log_file: str = None) -> logging.Logger:
     :return: logging.Logger
     """
     formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    )
 
     def _add_filehandler(logger, log_file):
         fh = logging.FileHandler(log_file, encoding="utf-8")
@@ -257,13 +258,15 @@ class DistributedSubsetSampler(DistributedSampler):
     :param generator (Generator): Generator used in sampling.
     """
 
-    def __init__(self,
-                 dataset: Dataset,
-                 num_replicas: Optional[int] = None,
-                 rank: Optional[int] = None,
-                 shuffle: bool = True,
-                 drop_last: bool = True,
-                 generator: torch.Generator = None):
+    def __init__(
+        self,
+        dataset: Dataset,
+        num_replicas: Optional[int] = None,
+        rank: Optional[int] = None,
+        shuffle: bool = True,
+        drop_last: bool = True,
+        generator: torch.Generator = None
+    ):
         # pylint: disable=super-init-not-called
         # super().__init__(dataset, num_replicas, rank, shuffle, seed, drop_last)
 
@@ -276,8 +279,10 @@ class DistributedSubsetSampler(DistributedSampler):
                 raise RuntimeError("Requires distributed package to be available")
             rank = dist.get_rank()
         if rank >= num_replicas or rank < 0:
-            raise ValueError(f"Invalid rank {rank}, rank should be in the interval"
-                             f" [0, {num_replicas - 1}]")
+            raise ValueError(
+                f"Invalid rank {rank}, rank should be in the interval"
+                f" [0, {num_replicas - 1}]"
+            )
         self.data_source = dataset  # alias
         self.num_replicas = num_replicas
         self.rank = rank
@@ -305,14 +310,16 @@ class DistributedSubsetSampler(DistributedSampler):
         # remove tail of data to make it evenly divisible.
         total_samples = (self.num_samples // self.num_replicas) * self.num_replicas
         indices = indices[:total_samples]
-        assert len(indices) % self.num_replicas == 0, (len(indices), self.num_samples,
-                                                       self.num_replicas)
+        assert len(indices) % self.num_replicas == 0, (
+            len(indices), self.num_samples, self.num_replicas
+        )
         self.data_source.indices = indices  # reset indices after dropping leftovers
 
         # distribute samples
         indices_per_replica = indices[self.rank:self.num_samples:self.num_replicas]
-        assert len(indices_per_replica) == math.ceil(self.num_samples /
-                                                     self.num_replicas)
+        assert len(indices_per_replica) == math.ceil(
+            self.num_samples / self.num_replicas
+        )
 
         return iter(indices_per_replica)
 

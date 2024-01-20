@@ -7,8 +7,8 @@ Frequently Asked Questions
 Documentation
 -------------
 - **Are there any Notebooks for Joey?**
-    - `Quick start tutorial <https://github.com/joeynmt/joeynmt/blob/main/joey_demo_v2.ipynb>`_ A quick start guide with Tatoeba corpus example.
-    - `Torchhub tutorial <https://github.com/masakhane-io/masakhane/blob/main/starter_notebook.ipynb>`_  How to generate translation from a pretrained model.
+    - `Quick start tutorial <https://github.com/joeynmt/joeynmt/blob/main/notebooks/joey_demo_v2.ipynb>`_ A quick start guide with Tatoeba corpus example.
+    - `Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/main/notebooks/torchhub.ipynb>`_  How to generate translation from a pretrained model.
 
 - **The documentation is too old, and doesn't reflect the latest functionality implemented in the main branch of the repository.**
     We try to keep the documentation up-to-date and aligned with the latest stable release.
@@ -40,7 +40,7 @@ Training
 
     ::
 
-        python3 scripts/plot_validation.py model_dir --plot-values bleu PPL --output-path my_plot.pdf
+        python scripts/plot_validation.py model_dir --plot-values bleu ppl --output-path my_plot.pdf
 
    3. *Tensorboard*: Validation results, training losses and attention scores are also stored in summaries for Tensorboard. Launch Tensorboard with
 
@@ -217,7 +217,7 @@ Debugging
    Make sure that your validation set is similar to the data you want to test on, that it's large enough and that you're not "over-tuning" your model.
 
 - **My model produces translations that are generally too short. What's wrong?**
-   Make sure that ``max_sent_length`` for the filtering of the data (data section in configuration) is set sufficiently high. The training log reports how many training sentences remain after filtering.
+   Make sure that ``max_length`` for the filtering of the data (data section in configuration) is set sufficiently high. The training log reports how many training sentences remain after filtering.
    ``max_output_length`` (training section) limits the length of the outputs during inference, so make sure this one is also set correctly.
 
 - **Evaluation breaks because I get an empty iterator. What's wrong?**

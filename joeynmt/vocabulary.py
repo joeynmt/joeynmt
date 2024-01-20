@@ -106,10 +106,12 @@ class Vocabulary:
             return self._itos == other._itos
         return False
 
-    def _array_to_sentence(self,
-                           array: np.ndarray,
-                           cut_at_eos: bool = True,
-                           skip_pad: bool = True) -> List[str]:
+    def _array_to_sentence(
+        self,
+        array: np.ndarray,
+        cut_at_eos: bool = True,
+        skip_pad: bool = True
+    ) -> List[str]:
         """
         Converts an array of IDs to a sentence, optionally cutting the result off at the
         end-of-sequence token.
@@ -132,10 +134,12 @@ class Vocabulary:
                 break
         return sentence
 
-    def arrays_to_sentences(self,
-                            arrays: np.ndarray,
-                            cut_at_eos: bool = True,
-                            skip_pad: bool = True) -> List[List[str]]:
+    def arrays_to_sentences(
+        self,
+        arrays: np.ndarray,
+        cut_at_eos: bool = True,
+        skip_pad: bool = True
+    ) -> List[List[str]]:
         """
         Convert multiple arrays containing sequences of token IDs to their sentences,
         optionally cutting them off at the end-of-sequence token.
@@ -196,8 +200,10 @@ class Vocabulary:
         return " ".join(f"({i}) {t}" for i, t in enumerate(self._itos[:k]))
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}(len={self.__len__()}, "
-                f"specials={self.specials}, lang_tags={self.lang_tags})")
+        return (
+            f"{self.__class__.__name__}(len={self.__len__()}, "
+            f"specials={self.specials}, lang_tags={self.lang_tags})"
+        )
 
 
 def sort_and_cut(counter: Counter,
@@ -224,9 +230,11 @@ def sort_and_cut(counter: Counter,
     return vocab_tokens
 
 
-def _build_vocab(cfg: Dict,
-                 special_symbols: SimpleNamespace,
-                 dataset: BaseDataset = None) -> Vocabulary:
+def _build_vocab(
+    cfg: Dict,
+    special_symbols: SimpleNamespace,
+    dataset: BaseDataset = None
+) -> Vocabulary:
     """
     Builds vocabulary either from file or sentences.
 

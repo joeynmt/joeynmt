@@ -21,3 +21,4 @@ pytest
 datasets
 packaging
 plotly
+pandas

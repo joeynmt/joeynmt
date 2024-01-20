@@ -28,7 +28,8 @@ class TestModelInit(unittest.TestCase):
                 "eos_id": 3,
                 "sep_id": 4,
                 "lang_tags": ["<de>", "<en>"],
-            })
+            }
+        )
         self.vocab = Vocabulary(tokens=tokens, cfg=special_symbols)
         self.hidden_size = 64
 
@@ -39,9 +40,7 @@ class TestModelInit(unittest.TestCase):
                 "encoder": {
                     "type": "transformer",
                     "hidden_size": self.hidden_size,
-                    "embeddings": {
-                        "embedding_dim": self.hidden_size
-                    },
+                    "embeddings": {"embedding_dim": self.hidden_size},
                     "num_layers": 1,
                     "layer_norm": "pre",
                     "activation": "relu",
@@ -49,9 +48,7 @@ class TestModelInit(unittest.TestCase):
                 "decoder": {
                     "type": "transformer",
                     "hidden_size": self.hidden_size,
-                    "embeddings": {
-                        "embedding_dim": self.hidden_size
-                    },
+                    "embeddings": {"embedding_dim": self.hidden_size},
                     "num_layers": 1,
                     "layer_norm": "pre",
                     "activation": "relu",
@@ -70,10 +67,12 @@ class TestModelInit(unittest.TestCase):
         def check_layer_norm(m: nn.Module):
             for _, child in m.named_children():
                 if isinstance(child, nn.LayerNorm):
-                    torch.testing.assert_close(child.weight,
-                                               torch.ones([self.hidden_size]))
-                    torch.testing.assert_close(child.bias,
-                                               torch.zeros([self.hidden_size]))
+                    torch.testing.assert_close(
+                        child.weight, torch.ones([self.hidden_size])
+                    )
+                    torch.testing.assert_close(
+                        child.bias, torch.zeros([self.hidden_size])
+                    )
                 else:
                     check_layer_norm(child)
 

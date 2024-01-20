@@ -18,12 +18,9 @@ class TestDataSampler(unittest.TestCase):
 
         # minimal data config
         data_cfg = {
-            "train":
-            "test/data/toy/train",
-            "dev":
-            "test/data/toy/dev",
-            "test":
-            "test/data/toy/test",
+            "train": "test/data/toy/train",
+            "dev": "test/data/toy/dev",
+            "test": "test/data/toy/test",
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -36,14 +33,10 @@ class TestDataSampler(unittest.TestCase):
                 "lowercase": False,
                 "max_length": 10,
             },
-            "sample_train_subset":
-            -1,
-            "sample_dev_subset":
-            10,
-            "dataset_type":
-            "plain",
-            "special_symbols":
-            SimpleNamespace(
+            "sample_train_subset": -1,
+            "sample_dev_subset": 10,
+            "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -56,12 +49,14 @@ class TestDataSampler(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
         # load toy data
         _, self.trg_vocab, self.train_data, self.dev_data, self.test_data = load_data(
-            data_cfg, datasets=["train", "dev", "test"])
+            data_cfg, datasets=["train", "dev", "test"]
+        )
 
         # random seed
         self.seed = 42
@@ -86,8 +81,8 @@ class TestDataSampler(unittest.TestCase):
         self.assertTrue(isinstance(train_loader, DataLoader))
         self.assertTrue(isinstance(train_loader.batch_sampler, SentenceBatchSampler))
         self.assertTrue(
-            isinstance(train_loader.batch_sampler.sampler,
-                       RandomSubsetSampler))  # shuffle=True
+            isinstance(train_loader.batch_sampler.sampler, RandomSubsetSampler)
+        )  # shuffle=True
         initial_seed = train_loader.batch_sampler.sampler.generator.initial_seed()
         self.assertEqual(initial_seed, self.seed)
         self.assertEqual(len(train_loader), 100)  # num_samples // batch_size
@@ -112,7 +107,8 @@ class TestDataSampler(unittest.TestCase):
             self.test_data.reset_indices(random_subset=2000)
             self.assertEqual(
                 "Can only subsample from train or dev set larger than 2000.",
-                str(e.exception))
+                str(e.exception)
+            )
 
         # make batches by number of sentences
         dev_loader = self.dev_data.make_iter(
@@ -128,20 +124,26 @@ class TestDataSampler(unittest.TestCase):
         self.assertTrue(isinstance(dev_loader, DataLoader))
         self.assertTrue(isinstance(dev_loader.batch_sampler, SentenceBatchSampler))
         self.assertTrue(
-            isinstance(dev_loader.batch_sampler.sampler,
-                       RandomSubsetSampler))  # shuffle=False
+            isinstance(dev_loader.batch_sampler.sampler, RandomSubsetSampler)
+        )  # shuffle=False
 
         # reset seed
-        self.assertEqual(dev_loader.batch_sampler.sampler.data_source.indices,
-                         [0, 1, 2, 4, 6, 10, 11, 14, 15, 18])
+        self.assertEqual(
+            dev_loader.batch_sampler.sampler.data_source.indices,
+            [0, 1, 2, 4, 6, 10, 11, 14, 15, 18]
+        )
 
         dev_loader.batch_sampler.set_seed(self.seed + 10)
-        self.assertEqual(dev_loader.batch_sampler.sampler.data_source.indices,
-                         [1, 2, 6, 8, 9, 11, 12, 13, 16, 17])
+        self.assertEqual(
+            dev_loader.batch_sampler.sampler.data_source.indices,
+            [1, 2, 6, 8, 9, 11, 12, 13, 16, 17]
+        )
 
         dev_loader.batch_sampler.set_seed(self.seed + 20)
-        self.assertEqual(dev_loader.batch_sampler.sampler.data_source.indices,
-                         [1, 2, 3, 5, 7, 9, 13, 14, 18, 19])
+        self.assertEqual(
+            dev_loader.batch_sampler.sampler.data_source.indices,
+            [1, 2, 3, 5, 7, 9, 13, 14, 18, 19]
+        )
 
     def testTokenBatchSampler(self):
         batch_size = 50  # 50 tokens
@@ -163,8 +165,8 @@ class TestDataSampler(unittest.TestCase):
         self.assertEqual(test_loader.batch_sampler.batch_size, batch_size)
         self.assertTrue(isinstance(test_loader.batch_sampler, TokenBatchSampler))
         self.assertTrue(
-            isinstance(test_loader.batch_sampler.sampler,
-                       RandomSubsetSampler))  # shuffle=False
+            isinstance(test_loader.batch_sampler.sampler, RandomSubsetSampler)
+        )  # shuffle=False
 
         with self.assertRaises(NotImplementedError) as e:
             len(test_loader)
@@ -173,5 +175,7 @@ class TestDataSampler(unittest.TestCase):
         # subsampling
         with self.assertRaises(AssertionError) as e:
             self.test_data.reset_indices(random_subset=10)
-            self.assertEqual("Can only subsample from train or dev set larger than 10.",
-                             str(e.exception))
+            self.assertEqual(
+                "Can only subsample from train or dev set larger than 10.",
+                str(e.exception)
+            )

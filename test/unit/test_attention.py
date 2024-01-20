@@ -87,13 +87,14 @@ class TestBahdanauAttention(unittest.TestCase):
         self.assertEqual(len(contexts), trg_length)
         contexts = torch.cat(contexts, dim=1)
         attention_probs = torch.cat(attention_probs, dim=1)
-        self.assertEqual(contexts.shape,
-                         torch.Size([batch_size, trg_length, self.key_size]))
+        self.assertEqual(
+            contexts.shape, torch.Size([batch_size, trg_length, self.key_size])
+        )
         self.assertEqual(
             attention_probs.shape,
             torch.Size([batch_size, trg_length, src_length]),
         )
-        # yapf: disable
+
         contexts_target = torch.Tensor([
             [[0.5080, 0.5832, 0.5614], [0.5096, 0.5816, 0.5596],
              [0.5092, 0.5820, 0.5601], [0.5079, 0.5833, 0.5615]],
@@ -149,7 +150,8 @@ class TestBahdanauAttention(unittest.TestCase):
             ],
         ])
         torch.testing.assert_close(
-            attention_probs_targets, attention_probs, rtol=1e-4, atol=1e-4)
+            attention_probs_targets, attention_probs, rtol=1e-4, atol=1e-4
+        )
 
     def test_bahdanau_precompute_None(self):
         self.assertIsNone(self.bahdanau_att.proj_keys)
@@ -206,7 +208,8 @@ class TestBahdanauAttention(unittest.TestCase):
             ],
         ])
         torch.testing.assert_close(
-            self.bahdanau_att.proj_keys, proj_keys_targets, rtol=1e-4, atol=1e-4)
+            self.bahdanau_att.proj_keys, proj_keys_targets, rtol=1e-4, atol=1e-4
+        )
 
 
 class TestLuongAttention(unittest.TestCase):
@@ -222,8 +225,9 @@ class TestLuongAttention(unittest.TestCase):
         self.hidden_size = self.query_size
         seed = 42
         torch.manual_seed(seed)
-        self.luong_att = LuongAttention(hidden_size=self.hidden_size,
-                                        key_size=self.key_size)
+        self.luong_att = LuongAttention(
+            hidden_size=self.hidden_size, key_size=self.key_size
+        )
 
     def test_luong_attention_size(self):
         self.assertIsNone(self.luong_att.key_layer.bias)  # no bias
@@ -279,36 +283,49 @@ class TestLuongAttention(unittest.TestCase):
         self.assertEqual(len(contexts), trg_length)
         contexts = torch.cat(contexts, dim=1)
         attention_probs = torch.cat(attention_probs, dim=1)
-        self.assertEqual(contexts.shape,
-                         torch.Size([batch_size, trg_length, self.key_size]))
+        self.assertEqual(
+            contexts.shape, torch.Size([batch_size, trg_length, self.key_size])
+        )
         self.assertEqual(
             attention_probs.shape,
             torch.Size([batch_size, trg_length, src_length]),
         )
         context_targets = torch.Tensor([
             [
-                [0.5347, 0.2918, 0.4707], [0.5062, 0.2657, 0.4117],
-                [0.4969, 0.2572, 0.3926], [0.5320, 0.2893, 0.4651],
+                [0.5347, 0.2918, 0.4707],
+                [0.5062, 0.2657, 0.4117],
+                [0.4969, 0.2572, 0.3926],
+                [0.5320, 0.2893, 0.4651],
             ],
             [
-                [0.5210, 0.6707, 0.4343], [0.5111, 0.6809, 0.4274],
-                [0.5156, 0.6622, 0.4274], [0.5046, 0.6634, 0.4175],
+                [0.5210, 0.6707, 0.4343],
+                [0.5111, 0.6809, 0.4274],
+                [0.5156, 0.6622, 0.4274],
+                [0.5046, 0.6634, 0.4175],
             ],
             [
-                [0.4998, 0.5570, 0.3388], [0.4949, 0.5357, 0.3609],
-                [0.4982, 0.5208, 0.3468], [0.5013, 0.5474, 0.3503],
+                [0.4998, 0.5570, 0.3388],
+                [0.4949, 0.5357, 0.3609],
+                [0.4982, 0.5208, 0.3468],
+                [0.5013, 0.5474, 0.3503],
             ],
             [
-                [0.5911, 0.6944, 0.5319], [0.5964, 0.6899, 0.5257],
-                [0.6161, 0.6771, 0.5042], [0.5937, 0.7011, 0.5330],
+                [0.5911, 0.6944, 0.5319],
+                [0.5964, 0.6899, 0.5257],
+                [0.6161, 0.6771, 0.5042],
+                [0.5937, 0.7011, 0.5330],
             ],
             [
-                [0.4439, 0.5916, 0.3691], [0.4409, 0.5970, 0.3762],
-                [0.4446, 0.5845, 0.3659], [0.4417, 0.6157, 0.3796],
+                [0.4439, 0.5916, 0.3691],
+                [0.4409, 0.5970, 0.3762],
+                [0.4446, 0.5845, 0.3659],
+                [0.4417, 0.6157, 0.3796],
             ],
             [
-                [0.4581, 0.4343, 0.5151], [0.4493, 0.4297, 0.5348],
-                [0.4399, 0.4265, 0.5419], [0.4833, 0.4570, 0.4855],
+                [0.4581, 0.4343, 0.5151],
+                [0.4493, 0.4297, 0.5348],
+                [0.4399, 0.4265, 0.5419],
+                [0.4833, 0.4570, 0.4855],
             ],
         ])
         torch.testing.assert_close(context_targets, contexts, rtol=1e-4, atol=1e-4)
@@ -351,7 +368,8 @@ class TestLuongAttention(unittest.TestCase):
             ],
         ])
         torch.testing.assert_close(
-            attention_probs_targets, attention_probs, rtol=1e-4, atol=1e-4)
+            attention_probs_targets, attention_probs, rtol=1e-4, atol=1e-4
+        )
 
     def test_luong_precompute_None(self):
         self.assertIsNone(self.luong_att.proj_keys)
@@ -407,4 +425,5 @@ class TestLuongAttention(unittest.TestCase):
             ],
         ])
         torch.testing.assert_close(
-            self.luong_att.proj_keys, proj_keys_targets, rtol=1e-4, atol=1e-4)
+            self.luong_att.proj_keys, proj_keys_targets, rtol=1e-4, atol=1e-4
+        )

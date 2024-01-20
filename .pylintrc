@@ -34,7 +34,7 @@ unsafe-load-any-extension=no
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code
-extension-pkg-whitelist=fastBPE
+# extension-pkg-whitelist=
 
 [MESSAGES CONTROL]
 
@@ -229,7 +229,7 @@ single-line-if-stmt=no
 #no-space-check=trailing-comma,dict-separator
 
 # Maximum number of lines in a module
-max-module-lines=1000
+max-module-lines=1050
 
 # String used as indentation unit. This is usually "    " (4 spaces) or "\t" (1
 # tab).

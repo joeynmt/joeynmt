@@ -18,10 +18,8 @@ class TestTokenizer(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "train":
-            self.train_path,
-            "dev":
-            self.dev_path,
+            "train": self.train_path,
+            "dev": self.dev_path,
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -34,10 +32,8 @@ class TestTokenizer(unittest.TestCase):
                 "lowercase": False,
                 "max_length": 10,
             },
-            "dataset_type":
-            "plain",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -50,7 +46,8 @@ class TestTokenizer(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": None,
                     "lang_tags": [],
-                }),
+                }
+            ),
         }
 
         # set seed
@@ -129,16 +126,13 @@ class TestTokenizer(unittest.TestCase):
                     '▁', 'D', 'er', '▁', 'G', 'r', 'o', 'ß', 'te', 'il', '▁der', '▁E',
                     'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'as', 's', 'er', '.'
                 ],
-                "detokenized":
-                "Der Großteil der Erde ist Meerwasser.",
-            },
-            "en": {
+                "detokenized": "Der Großteil der Erde ist Meerwasser.",
+            }, "en": {
                 "tokenized": [
                     '▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e', 't',
                     '▁is', '▁', 'o', 'c', 'e', 'an', '▁w', 'at', 'er', '.'
                 ],
-                "detokenized":
-                "Most of the planet is ocean water.",
+                "detokenized": "Most of the planet is ocean water.",
             }
         }
 
@@ -181,8 +175,7 @@ class TestTokenizer(unittest.TestCase):
                 "tokenized": ['D@@', 'an@@', 'k@@', 'e.'],
                 "dropout": ['D@@', 'a@@', 'n@@', 'k@@', 'e@@', '.'],
                 "detokenized": "Danke.",
-            },
-            "en": {
+            }, "en": {
                 "tokenized": ['Th@@', 'an@@', 'k', 'y@@', 'ou@@', '.'],
                 "dropout": ['T@@', 'ha@@', 'n@@', 'k', 'y@@', 'o@@', 'u@@', '.'],
                 "detokenized": "Thank you.",
@@ -219,8 +212,7 @@ class TestPrompt(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "dev":
-            "test/data/toy/dev",
+            "dev": "test/data/toy/dev",
             "src": {
                 "lang": "src",
                 "level": "bpe",
@@ -228,9 +220,7 @@ class TestPrompt(unittest.TestCase):
                 "max_length": 128,
                 "min_length": 5,
                 "tokenizer_type": "sentencepiece",
-                "tokenizer_cfg": {
-                    "model_file": "test/data/toy/sp200.model"
-                },
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
                 "voc_file": "test/data/toy/sp200.vocab",
             },
             "trg": {
@@ -240,17 +230,12 @@ class TestPrompt(unittest.TestCase):
                 "max_length": 128,
                 "min_length": 5,
                 "tokenizer_type": "sentencepiece",
-                "tokenizer_cfg": {
-                    "model_file": "test/data/toy/sp200.model"
-                },
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
                 "voc_file": "test/data/toy/sp200.vocab",
             },
-            "sample_dev_subset":
-            -1,
-            "dataset_type":
-            "tsv",
-            "special_symbols":
-            SimpleNamespace(
+            "sample_dev_subset": -1,
+            "dataset_type": "tsv",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -263,14 +248,14 @@ class TestPrompt(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
     def testToknizerWithPrompt(self):
         _, _, _, dev_data, _ = load_data(self.data_cfg, datasets=["dev"])
         self.assertEqual(len(dev_data), 40)
 
-        # yapf: disable
         expected = {
             "src": [
                 '<de>', '▁', 'J', 'a', '▁', ',', '▁', 'g', 'ut', 'en', '▁T', 'a', 'g',
@@ -283,7 +268,7 @@ class TestPrompt(unittest.TestCase):
                 '<sep>', '▁', 'Y', 'es', '▁', ',', '▁so', '▁', ',', '▁w', 'h', 'at',
                 '▁is', '▁b', 'i', 'o', 'h', 'a', 'c', 'k', 'ing', '▁', '?',
             ],
-        }
+        }  # yapf: disable
 
         dev_src, dev_trg = dev_data.src, dev_data.trg
         _, dev_src_2, dev_trg_2 = dev_data[2]

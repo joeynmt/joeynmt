@@ -43,8 +43,9 @@ class XentLoss(nn.Module):
         # give padding probability of 0 everywhere
         smooth_dist[:, self.pad_index] = 0
         # masking out padding area (sum of probabilities for padding area = 0)
-        padding_positions = torch.nonzero(targets.data == self.pad_index,
-                                          as_tuple=False)
+        padding_positions = torch.nonzero(
+            targets.data == self.pad_index, as_tuple=False
+        )
         if len(padding_positions) > 0:
             smooth_dist.index_fill_(0, padding_positions.squeeze(), 0.0)
         return Variable(smooth_dist, requires_grad=False)
@@ -56,8 +57,9 @@ class XentLoss(nn.Module):
         log_probs_flat = log_probs.contiguous().view(-1, vocab_size)
 
         if self.smoothing > 0:
-            targets_flat = self._smooth_targets(targets=targets.contiguous().view(-1),
-                                                vocab_size=vocab_size)
+            targets_flat = self._smooth_targets(
+                targets=targets.contiguous().view(-1), vocab_size=vocab_size
+            )
             # targets: distributions with batch*seq_len x vocab_size
             assert log_probs_flat.size() == targets_flat.size(), (
                 log_probs.size(),
@@ -92,5 +94,7 @@ class XentLoss(nn.Module):
         return logits
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(criterion={self.criterion}, "
-                f"smoothing={self.smoothing})")
+        return (
+            f"{self.__class__.__name__}(criterion={self.criterion}, "
+            f"smoothing={self.smoothing})"
+        )

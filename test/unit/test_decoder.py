@@ -48,8 +48,9 @@ class TestRecurrentDecoder(unittest.TestCase):
                         input_feeding=input_feeding,
                     )
                     self.assertEqual(decoder.rnn.hidden_size, self.hidden_size)
-                    self.assertEqual(decoder.att_vector_layer.out_features,
-                                     self.hidden_size)
+                    self.assertEqual(
+                        decoder.att_vector_layer.out_features, self.hidden_size
+                    )
                     self.assertEqual(decoder.output_layer.out_features, self.vocab_size)
                     self.assertEqual(decoder.output_size, self.vocab_size)
                     self.assertEqual(decoder.rnn.bidirectional, False)
@@ -57,16 +58,19 @@ class TestRecurrentDecoder(unittest.TestCase):
                     self.assertEqual(decoder.init_hidden_option, init_hidden)
                     if init_hidden == "bridge":
                         self.assertTrue(hasattr(decoder, "bridge_layer"))
-                        self.assertEqual(decoder.bridge_layer.out_features,
-                                         self.hidden_size)
-                        self.assertEqual(decoder.bridge_layer.in_features,
-                                         encoder.output_size)
+                        self.assertEqual(
+                            decoder.bridge_layer.out_features, self.hidden_size
+                        )
+                        self.assertEqual(
+                            decoder.bridge_layer.in_features, encoder.output_size
+                        )
                     else:
                         self.assertFalse(hasattr(decoder, "bridge_layer"))
 
                     if input_feeding:
-                        self.assertEqual(decoder.rnn_input_size,
-                                         self.emb_size + self.hidden_size)
+                        self.assertEqual(
+                            decoder.rnn_input_size, self.emb_size + self.hidden_size
+                        )
                     else:
                         self.assertEqual(decoder.rnn_input_size, self.emb_size)
 
@@ -199,8 +203,9 @@ class TestRecurrentDecoder(unittest.TestCase):
             init_hidden="zero",
             input_feeding=False,
         )
-        encoder_states = torch.rand(size=(batch_size, time_dim,
-                                          self.encoders[0].output_size))
+        encoder_states = torch.rand(
+            size=(batch_size, time_dim, self.encoders[0].output_size)
+        )
         trg_inputs = torch.ones(size=(batch_size, time_dim, self.emb_size))
         # no padding, no mask
         # x_length = torch.Tensor([time_dim]*batch_size).int()
@@ -214,15 +219,17 @@ class TestRecurrentDecoder(unittest.TestCase):
             hidden=None,
             prev_att_vector=None,
         )
-        self.assertEqual(output.shape,
-                         torch.Size([batch_size, time_dim, self.vocab_size]))
-        self.assertEqual(hidden.shape,
-                         torch.Size([batch_size, self.num_layers, self.hidden_size]))
+        self.assertEqual(
+            output.shape, torch.Size([batch_size, time_dim, self.vocab_size])
+        )
+        self.assertEqual(
+            hidden.shape, torch.Size([batch_size, self.num_layers, self.hidden_size])
+        )
         self.assertEqual(att_probs.shape, torch.Size([batch_size, time_dim, time_dim]))
-        self.assertEqual(att_vectors.shape,
-                         torch.Size([batch_size, time_dim, self.hidden_size]))
+        self.assertEqual(
+            att_vectors.shape, torch.Size([batch_size, time_dim, self.hidden_size])
+        )
 
-        # yapf: disable
         hidden_target = torch.Tensor([
             [
                 [0.1814, 0.5468, -0.4717, -0.7580, 0.5834, -0.4018],
@@ -266,7 +273,9 @@ class TestRecurrentDecoder(unittest.TestCase):
         torch.testing.assert_close(hidden, hidden_target, rtol=1e-4, atol=1e-4)
         torch.testing.assert_close(output, output_target, rtol=1e-4, atol=1e-4)
         torch.testing.assert_close(
-            att_vectors, att_vectors_target, rtol=1e-4, atol=1e-4)
+            att_vectors, att_vectors_target, rtol=1e-4, atol=1e-4
+        )
         # att_probs should be a distribution over the output vocabulary
         torch.testing.assert_close(
-            att_probs.sum(2), torch.ones(batch_size, time_dim), rtol=1e-4, atol=1e-4)
+            att_probs.sum(2), torch.ones(batch_size, time_dim), rtol=1e-4, atol=1e-4
+        )

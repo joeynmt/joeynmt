@@ -343,13 +343,15 @@ In order to keep the code clean and readable, we make use of:
 - Typing: Every function has documented input types.
 - Docstrings: Every function, class and module has docstrings describing their purpose and usage.
 - Unittests: Every module has unit tests, defined in `test/unit/`.
+- Documentation: Update documentation in `docs/source/` accordingly.
 
 To ensure the repository stays clean, unittests and linters are triggered by github's
 workflow on every push or pull request to `main` branch. Before you create a pull request,
 you can check the validity of your modifications with the following commands:
 ```bash
-make check
 make test
+make check
+make -C docs clean html
 ```
 
 ## Contributing

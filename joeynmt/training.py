@@ -52,17 +52,19 @@ class TrainManager:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self,
-                 rank: int,
-                 model: Model,
-                 model_dir: Path,
-                 device: torch.device,
-                 n_gpu: int = 0,
-                 num_workers: int = 0,
-                 autocast: Dict = None,
-                 seed: int = 42,
-                 train_args: TrainConfig = None,
-                 dev_args: TestConfig = None) -> None:
+    def __init__(
+        self,
+        rank: int,
+        model: Model,
+        model_dir: Path,
+        device: torch.device,
+        n_gpu: int = 0,
+        num_workers: int = 0,
+        autocast: Dict = None,
+        seed: int = 42,
+        train_args: TrainConfig = None,
+        dev_args: TestConfig = None
+    ) -> None:
         """
         Creates a new TrainManager for a model, specified as in configuration.
 
@@ -85,8 +87,9 @@ class TrainManager:
         # access these variables only when rank == 0
         if self.rank == 0:
             # tensorboard
-            self.tb_writer = SummaryWriter(log_dir=(model_dir /
-                                                    "tensorboard").as_posix())
+            self.tb_writer = SummaryWriter(
+                log_dir=(model_dir / "tensorboard").as_posix()
+            )
 
             # save/delete checkpoints
             self.ckpt_queue: List[Tuple[float, Path]] = []  # heap queue
@@ -101,8 +104,9 @@ class TrainManager:
 
         # optimization
         self.clip_grad_fun = build_gradient_clipper(cfg=self.args._asdict())
-        self.optimizer = build_optimizer(cfg=self.args._asdict(),
-                                         parameters=self.model.parameters())
+        self.optimizer = build_optimizer(
+            cfg=self.args._asdict(), parameters=self.model.parameters()
+        )
 
         # fp16
         self.scaler = torch.cuda.amp.GradScaler(enabled=autocast["enabled"]) \
@@ -156,14 +160,15 @@ class TrainManager:
 
         model_path = Path(self.model_dir) / f"{self.stats.steps}.ckpt"
 
-        # yapf: disable
         state = {
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
-            "scaler_state": (self.scaler.state_dict()
-                             if self.scaler is not None else None),
-            "scheduler_state": (self.scheduler.state_dict()
-                                if self.scheduler is not None else None),
+            "scaler_state": (
+                self.scaler.state_dict() if self.scaler is not None else None
+            ),
+            "scheduler_state": (
+                self.scheduler.state_dict() if self.scheduler is not None else None
+            ),
             "train_iter_state": self.train_iter.batch_sampler.get_state(),
             "stats_state": self.stats.state_dict(),
         }
@@ -205,7 +210,7 @@ class TrainManager:
 
             # remove old symlink target if not in queue after push/pop
             if prev_path is not None and prev_path.stem not in [
-                    c[1].stem for c in self.ckpt_queue
+                c[1].stem for c in self.ckpt_queue
             ]:
                 delete_ckpt(prev_path)
 
@@ -248,22 +253,26 @@ class TrainManager:
             logger.info("Reset optimizer.")
 
         if not reset_scheduler:
-            if (model_checkpoint["scheduler_state"] is not None
-                    and self.scheduler is not None):
+            if (
+                model_checkpoint["scheduler_state"] is not None
+                and self.scheduler is not None
+            ):
                 self.scheduler.load_state_dict(model_checkpoint["scheduler_state"])
         else:
             logger.info("Reset scheduler.")
 
         if not reset_best_ckpt:
             # for backwards compatibility:
-            stats_state = model_checkpoint.get("stats_state", {
-                "epochs": model_checkpoint.get("epochs", 1),
-                "steps": model_checkpoint.get("steps", 0),
-                "total_tokens": model_checkpoint.get("total_tokens", 0),
-                "total_correct": model_checkpoint.get("total_correct", 0),
-                "best_ckpt_score": model_checkpoint.get("best_ckpt_score", 0.0),
-                "best_ckpt_iter": model_checkpoint.get("best_ckpt_iteration", 0),
-            })
+            stats_state = model_checkpoint.get(
+                "stats_state", {
+                    "epochs": model_checkpoint.get("epochs", 1),
+                    "steps": model_checkpoint.get("steps", 0),
+                    "total_tokens": model_checkpoint.get("total_tokens", 0),
+                    "total_correct": model_checkpoint.get("total_correct", 0),
+                    "best_ckpt_score": model_checkpoint.get("best_ckpt_score", 0.0),
+                    "best_ckpt_iter": model_checkpoint.get("best_ckpt_iteration", 0),
+                }
+            )
             # restore TrainStatistics
             self.stats.load_state_dict(stats_state)
         else:
@@ -443,12 +452,16 @@ class TrainManager:
                             self.stats.is_max_update = True
 
                         # log learning progress (only in the master process)
-                        if (self.stats.steps % self.args.logging_freq == 0
-                                and self.rank == 0):
+                        if (
+                            self.stats.steps % self.args.logging_freq == 0
+                            and self.rank == 0
+                        ):
                             elapsed_time = time.time() - start - total_valid_duration
                             total_train_duration += elapsed_time
-                            self._log_scores(epoch_no, elapsed_time, start_tokens,
-                                             start_correct, total_batch_loss)
+                            self._log_scores(
+                                epoch_no, elapsed_time, start_tokens, start_correct,
+                                total_batch_loss
+                            )
 
                             # restart counter
                             start = time.time()
@@ -474,23 +487,26 @@ class TrainManager:
                                 total_valid_duration += time.time() - valid_start_time
 
                     if ((self.stats.is_min_lr or self.stats.is_max_update)
-                            and self.rank == 0):
+                        and self.rank == 0):  # noqa: E129
                         break  # break batch loop (TODO: DDP?)
 
                 if ((self.stats.is_min_lr or self.stats.is_max_update)
-                        and self.rank == 0):
-                    log_str = (f"minimum lr {self.args.learning_rate_min}"
-                               if self.stats.is_min_lr else
-                               f"maximum num. of updates {self.args.max_updates}")
+                    and self.rank == 0):  # noqa: E129
+                    log_str = (
+                        f"minimum lr {self.args.learning_rate_min}"
+                        if self.stats.is_min_lr else
+                        f"maximum num. of updates {self.args.max_updates}"
+                    )
                     logger.info("Training ended since %s was reached.", log_str)
                     break  # break epoch loop (TODO: DDP?)
 
                 if self.rank == 0:
                     total_train_duration += time.time() - start - total_valid_duration
-                    logger.info("Epoch %3d, total training loss: %.2f, "
-                                "num. of seqs: %d, num. of tokens: %d, %.4f[sec]",
-                                epoch_no, epoch_loss, epoch_nseqs, epoch_ntokens,
-                                total_train_duration)
+                    logger.info(
+                        "Epoch %3d, total training loss: %.2f, "
+                        "num. of seqs: %d, num. of tokens: %d, %.4f[sec]", epoch_no,
+                        epoch_loss, epoch_nseqs, epoch_ntokens, total_train_duration
+                    )
 
             else:
                 # epoch loop did not encounter a `break` (neither min_lr nor max_update)
@@ -502,10 +518,11 @@ class TrainManager:
 
         else:
             # KeyboardInterrupt not triggered
-            logger.info("Best validation result (greedy) at step %8d: %6.2f %s.",
-                        self.stats.best_ckpt_iter,
-                        self.stats.best_ckpt_score,
-                        self.args.early_stopping_metric)
+            logger.info(
+                "Best validation result (greedy) at step %8d: %6.2f %s.",
+                self.stats.best_ckpt_iter, self.stats.best_ckpt_score,
+                self.args.early_stopping_metric
+            )
 
         finally:
             ddp_synchronize()  # wait for all processes
@@ -530,14 +547,17 @@ class TrainManager:
 
         with torch.autocast(**self.autocast):
             # get loss (run as during training with teacher forcing)
-            batch_loss, _, _, correct_tokens = self.model(return_type="loss",
-                                                          **vars(batch))
+            batch_loss, _, _, correct_tokens = self.model(
+                return_type="loss", **vars(batch)
+            )
 
         # normalize batch loss
-        norm_batch_loss = batch.normalize(batch_loss,
-                                          normalization=self.args.normalization,
-                                          n_gpu=self.n_gpu,
-                                          n_accumulation=self.args.batch_multiplier)
+        norm_batch_loss = batch.normalize(
+            batch_loss,
+            normalization=self.args.normalization,
+            n_gpu=self.n_gpu,
+            n_accumulation=self.args.batch_multiplier
+        )
 
         # sum over multiple gpus
         sum_correct_tokens = batch.normalize(correct_tokens, "sum", self.n_gpu)
@@ -585,8 +605,9 @@ class TrainManager:
             # write in tensorboard
             for eval_metric, score in valid_scores.items():
                 if not math.isnan(score):
-                    self.tb_writer.add_scalar(f"valid/{eval_metric}", score,
-                                              self.stats.steps)
+                    self.tb_writer.add_scalar(
+                        f"valid/{eval_metric}", score, self.stats.steps
+                    )
 
             ckpt_score = valid_scores[self.args.early_stopping_metric]
 
@@ -605,8 +626,10 @@ class TrainManager:
                 )
 
             # save checkpoints
-            is_better = (self.stats.is_better(ckpt_score, self.ckpt_queue)
-                         if len(self.ckpt_queue) > 0 else True)
+            is_better = (
+                self.stats.is_better(ckpt_score, self.ckpt_queue)
+                if len(self.ckpt_queue) > 0 else True
+            )
             if self.args.keep_best_ckpts < 0 or is_better:
                 self._save_checkpoint(new_best, ckpt_score)
 
@@ -622,17 +645,18 @@ class TrainManager:
             )
 
             # store validation set outputs
-            write_list_to_file(self.model_dir / f"{self.stats.steps}.hyps",
-                               valid_hypotheses)
+            write_list_to_file(
+                self.model_dir / f"{self.stats.steps}.hyps", valid_hypotheses
+            )
 
             # store attention plots for selected valid sentences
             if valid_attention_scores:
                 store_attention_plots(
                     attentions=valid_attention_scores,
                     targets=valid_hypotheses_raw,
-                    sources=valid_data.get_list(lang=valid_data.src_lang,
-                                                tokenized=True,
-                                                subsampled=True),
+                    sources=valid_data.get_list(
+                        lang=valid_data.src_lang, tokenized=True, subsampled=True
+                    ),
                     indices=self.args.print_valid_sents,
                     output_prefix=(self.model_dir /
                                    f"att.{self.stats.steps}").as_posix(),
@@ -690,12 +714,10 @@ class TrainManager:
             logger.debug("\tTokenized reference:  %s", tokenized_trg)
             logger.debug("\tTokenized hypothesis: %s", hypotheses_raw[p][:-1])
 
-    def _log_scores(self,
-                    epoch_no: int,
-                    elapsed_time: float,
-                    start_tokens: int,
-                    start_correct: int,
-                    total_batch_loss: float) -> None:
+    def _log_scores(
+        self, epoch_no: int, elapsed_time: float, start_tokens: int, start_correct: int,
+        total_batch_loss: float
+    ) -> None:
         """Log training progress"""
 
         elapsed_tok = self.stats.total_tokens - start_tokens
@@ -704,8 +726,9 @@ class TrainManager:
         steps = self.stats.steps
 
         self.tb_writer.add_scalar("train/batch_loss", total_batch_loss, steps)
-        self.tb_writer.add_scalar("train/batch_acc", elapsed_correct / elapsed_tok,
-                                  steps)
+        self.tb_writer.add_scalar(
+            "train/batch_acc", elapsed_correct / elapsed_tok, steps
+        )
 
         # check current_lr
         current_lr = self.optimizer.param_groups[0]["lr"]
@@ -713,10 +736,11 @@ class TrainManager:
             self.stats.is_min_lr = True
         self.tb_writer.add_scalar("train/learning_rate", current_lr, steps)
 
-        logger.info("Epoch %3d, Step: %8d, Batch Loss: %12.6f, Batch Acc: %.6f, "
-                    "Tokens per Sec: %8.0f, Lr: %.6f", epoch_no, steps,
-                    total_batch_loss, elapsed_correct / elapsed_tok,
-                    elapsed_tok / elapsed_time, current_lr)
+        logger.info(
+            "Epoch %3d, Step: %8d, Batch Loss: %12.6f, Batch Acc: %.6f, "
+            "Tokens per Sec: %8.0f, Lr: %.6f", epoch_no, steps, total_batch_loss,
+            elapsed_correct / elapsed_tok, elapsed_tok / elapsed_time, current_lr
+        )
 
     class TrainStatistics:
         """
@@ -731,6 +755,7 @@ class TrainManager:
         :param minimize_metric: minimize or maximize score
         :param total_correct: number of correct tokens seen so far
         """
+
         def __init__(self, minimize_metric: bool = True) -> None:
             self.epochs = 1
             self.steps = 0
@@ -806,16 +831,18 @@ def train(rank: int, world_size: int, cfg: Dict, skip_test: bool = False) -> Non
     dev_args = set_validation_args(args.test)
 
     # for training management, e.g. early stopping and model selection
-    trainer = TrainManager(model=model,
-                           model_dir=args.model_dir,
-                           device=args.device,
-                           n_gpu=args.n_gpu,
-                           rank=rank,
-                           num_workers=args.num_workers,
-                           autocast=args.autocast,
-                           seed=args.seed,
-                           train_args=args.train,
-                           dev_args=dev_args)
+    trainer = TrainManager(
+        model=model,
+        model_dir=args.model_dir,
+        device=args.device,
+        n_gpu=args.n_gpu,
+        rank=rank,
+        num_workers=args.num_workers,
+        autocast=args.autocast,
+        seed=args.seed,
+        train_args=args.train,
+        dev_args=dev_args
+    )
 
     # train the model
     trainer.train_and_validate(train_data=train_data, valid_data=dev_data)

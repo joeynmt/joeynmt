@@ -53,8 +53,8 @@ JoeyNMT v1.x
 .. warning::
 
     The following models are trained with JoeynNMT v1.x, and decoded with Joey NMT v2.0. 
-    See `config_v1.yaml` and `config_v2.yaml` in the linked tar.gz, respectively.
-    Joey NMT v1.x benchmarks are archived `here <https://github.com/joeynmt/joeynmt/blob/main/docs/benchmarks_v1.md>`_.
+    See ``config_v1.yaml`` and ``config_v2.yaml`` in the linked tar.gz, respectively.
+    Joey NMT v1.x benchmarks are archived `here <https://github.com/joeynmt/joeynmt/blob/main/docs/benchmarks_v1.md>`__.
 
 
 IWSLT14 deen
@@ -74,9 +74,9 @@ IWSLT14 deen
 
     .. note::
 
-        For interactive translate mode, you should specify `pretokenizer: "moses"` in both src's and trg's `tokenizer_cfg`,
-        so that you can input raw sentences. Then `MosesTokenizer` and `MosesDetokenizer` will be applied internally.
-        For test mode, we used the preprocessed texts as input and set `pretokenizer: "none"` in the config.
+        For interactive translate mode, you should specify ``pretokenizer: "moses"`` in both src's and trg's ``tokenizer_cfg``,
+        so that you can input raw sentences. Then ``MosesTokenizer`` and ``MosesDetokenizer`` will be applied internally.
+        For test mode, we used the preprocessed texts as input and set ``pretokenizer: "none"`` in the config.
 
 
 Masakhane JW300 afen / enaf
@@ -99,7 +99,7 @@ JParaCrawl enja / jaen
 ^^^^^^^^^^^^^^^^^^^^^^
 
     For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
-    Please check the preprocessing script `here <https://github.com/joeynmt/joeynmt/blob/v2.2/scripts/get_jparacrawl.sh>`_.
+    Please check the preprocessing script `here <https://github.com/joeynmt/joeynmt/blob/v2.2/scripts/get_jparacrawl.sh>`__.
     We tested then on `kftt <http://www.phontron.com/kftt/>`_ test set and `wmt20 <https://data.statmt.org/wmt20/translation-task/>`_ test set, respectively.
 
     +-----------+--------------+---------------+-------+-------+---------+---------------------------------------------------------------------------------------------------------------+
@@ -111,7 +111,7 @@ JParaCrawl enja / jaen
     +-----------+--------------+---------------+-------+-------+---------+---------------------------------------------------------------------------------------------------------------+
 
     sacrebleu signature:
-        - en->ja `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
-        - ja->en `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
+        - en->ja: `nrefs:1|case:mixed|eff:no|tok:ja-mecab-0.996-IPA|smooth:exp|version:2.0.0`
+        - ja->en: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
     (Note: In wmt20 test set, `newstest2020-enja` has 1000 examples, `newstest2020-jaen` has 993 examples.)

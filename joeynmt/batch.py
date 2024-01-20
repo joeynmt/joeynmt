@@ -81,8 +81,9 @@ class Batch:
             self.ntokens: int = self.trg_mask.sum().item()
 
             if trg_prompt_mask is not None:
-                self.trg_prompt_mask = adjust_mask_size(trg_prompt_mask, self.nseqs,
-                                                        self.trg_input.size(1))
+                self.trg_prompt_mask = adjust_mask_size(
+                    trg_prompt_mask, self.nseqs, self.trg_input.size(1)
+                )
 
         if device.type == "cuda":
             self._make_cuda(device)
@@ -190,12 +191,15 @@ class Batch:
                 np.array([
                     log_probs[i, j, ind].item() for j, ind in enumerate(trg[i])
                     if ind != pad_index
-                ]))
+                ])
+            )
         # Note: each element in `scores` list can have different lengths.
         return np.array(scores, dtype=object)
 
     def __repr__(self) -> str:
         nseqs = self.nseqs.item() if torch.is_tensor(self.nseqs) else self.nseqs
         ntokens = self.ntokens.item() if torch.is_tensor(self.ntokens) else self.ntokens
-        return (f"{self.__class__.__name__}(nseqs={nseqs}, ntokens={ntokens}, "
-                f"has_trg={self.has_trg}, is_train={self.is_train})")
+        return (
+            f"{self.__class__.__name__}(nseqs={nseqs}, ntokens={ntokens}, "
+            f"has_trg={self.has_trg}, is_train={self.is_train})"
+        )

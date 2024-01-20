@@ -69,7 +69,7 @@ You can specify i.e. `sacrebleu <https://github.com/mjpost/sacrebleu>`_ options 
         python scripts/average_checkpoints.py --inputs model_dir/*00.ckpt --output model_dir/avg.ckpt
 
 
-If you want to output the log-probabilities of the hypotheses or references, you can specify ``return_score: 'hyp'`` or ``return_score: 'ref'`` in the testing section of the config. And run ``test`` with ``--output_path`` and ``--save_scores`` options.
+If you want to output the log-probabilities of the hypotheses or references, you can specify ``return_score: 'hyp'`` or ``return_score: 'ref'`` in the testing section of the config. And run ``test`` with ``--output-path`` and ``--save-scores`` options.
 
 .. code-block:: bash
 
@@ -77,7 +77,7 @@ If you want to output the log-probabilities of the hypotheses or references, you
 
 This will generate ``model_dir/pred.{dev|test}.{scores|tokens}`` which contains scores and corresponding tokens.
 
-.. note::
+.. tip::
 
     - If you set ``return_score: 'hyp'`` with greedy decoding, then token-wise scores will be returned. The beam search will return sequence-level scores, because the scores are summed up per sequence during beam exploration.
     - If you set ``return_score: 'ref'``, the model looks up the probabilities of the given ground truth tokens, and both decoding and evaluation will be skipped.

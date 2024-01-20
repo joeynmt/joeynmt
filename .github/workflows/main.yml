@@ -41,9 +41,9 @@ jobs:
       # Check code format
       - name: Lint
         run: |
-          yapf -dr joeynmt test/unit scripts/*.py
-          pylint --rcfile=.pylintrc joeynmt test/unit scripts/*.py
-          flake8 --max-line-length 88 joeynmt test/unit scripts/*.py
+          yapf -dr joeynmt test/unit scripts/*.py ./*.py
+          pylint --rcfile=.pylintrc joeynmt test/unit scripts/*.py ./*.py
+          flake8 --max-line-length 88 joeynmt test/unit scripts/*.py ./*.py
 
       # Run unittest
       - name: Test

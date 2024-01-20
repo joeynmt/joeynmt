@@ -2,8 +2,6 @@
 """
 Collection of helper functions
 """
-from __future__ import annotations
-
 import copy
 import functools
 import operator
@@ -15,9 +13,9 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import importlib_metadata
 import numpy as np
 import packaging.version
-import pkg_resources
 import torch
 from torch import Tensor, nn
 from torch.utils.tensorboard import SummaryWriter
@@ -38,8 +36,10 @@ def make_model_dir(model_dir: Path, overwrite: bool = False) -> None:
     model_dir = model_dir.absolute()
     if model_dir.is_dir():
         if not overwrite:
-            raise FileExistsError(f"Model directory {model_dir} exists "
-                                  f"and overwriting is disabled.")
+            raise FileExistsError(
+                f"Model directory {model_dir} exists "
+                f"and overwriting is disabled."
+            )
         # delete previous directory to start with empty dir again
         shutil.rmtree(model_dir)
     model_dir.mkdir(parents=True)  # create model_dir recursively
@@ -52,7 +52,7 @@ def check_version(cfg_version: str = None) -> str:
     :param cfg_version: version number specified in config
     :return: package version number string
     """
-    pkg_version = pkg_resources.require("joeynmt")[0].version
+    pkg_version = importlib_metadata.version("joeynmt")
 
     joeynmt_version = packaging.version.parse(pkg_version)
     if cfg_version is not None:
@@ -61,7 +61,8 @@ def check_version(cfg_version: str = None) -> str:
         # pylint: disable=use-maxsplit-arg
         assert joeynmt_version.major == config_version.major, (
             f"You are using JoeyNMT version {joeynmt_version}, "
-            f'but {config_version} is expected in the given config.')
+            f'but {config_version} is expected in the given config.'
+        )
     return pkg_version
 
 
@@ -111,6 +112,8 @@ def write_list_to_file(output_path: Path, array: List[Any]) -> None:
     """
     with output_path.open("w", encoding="utf-8") as opened_file:
         for entry in array:
+            if isinstance(entry, np.ndarray):
+                entry = entry.tolist()
             opened_file.write(f"{entry}\n")
 
 
@@ -195,9 +198,11 @@ def store_attention_plots(
                 )
                 tb_writer.add_figure(f"attention/{i}.", fig, global_step=steps)
         except Exception:  # pylint: disable=broad-except
-            logger.warning(f"Couldn't plot example {i}: "
-                           f"src len {len(src)}, trg len {len(trg)}, "
-                           f"attention scores shape {attention_scores.shape}")
+            logger.warning(
+                f"Couldn't plot example {i}: "
+                f"src len {len(src)}, trg len {len(trg)}, "
+                f"attention scores shape {attention_scores.shape}"
+            )
             continue
 
 

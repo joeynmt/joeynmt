@@ -15,8 +15,7 @@ class TestVocabulary(unittest.TestCase):
     def setUp(self):
         self.voc_limit = 1000
         self.cfg = {
-            "train":
-            "test/data/toy/train",
+            "train": "test/data/toy/train",
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -31,10 +30,8 @@ class TestVocabulary(unittest.TestCase):
                 "max_length": 30,
                 "voc_limit": self.voc_limit,
             },
-            "dataset_type":
-            "plain",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -47,7 +44,8 @@ class TestVocabulary(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
         self.sents = [
@@ -59,12 +57,13 @@ class TestVocabulary(unittest.TestCase):
         self.char_list = set(list(" ".join(self.sents)))  # only unique tokens
         self.vocab_file_bpe = Path("test/data/toy/bpe200.txt")
         self.vocab_file_sp = Path("test/data/toy/sp200.vocab")
-        self.word_vocab = Vocabulary(tokens=sorted(list(self.word_list)),
-                                     cfg=self.cfg["special_symbols"])
-        self.char_vocab = Vocabulary(tokens=sorted(list(self.char_list)),
-                                     cfg=self.cfg["special_symbols"])
-        self.specials = ["<unk>", "<pad>", "<s>", "</s>",
-                         "<sep>"]  # expected special symbols
+        self.word_vocab = Vocabulary(
+            tokens=sorted(list(self.word_list)), cfg=self.cfg["special_symbols"]
+        )
+        self.char_vocab = Vocabulary(
+            tokens=sorted(list(self.char_list)), cfg=self.cfg["special_symbols"]
+        )
+        self.specials = ["<unk>", "<pad>", "<s>", "</s>", "<sep>"]  # yapf: disable
         self.lang_tags = ["<de>", "<en>"]  # expected language tags
 
     def testVocabularyFromList(self):
@@ -76,23 +75,25 @@ class TestVocabulary(unittest.TestCase):
             len(self.char_vocab) - len(self.char_vocab.specials) - len(self.lang_tags),
             len(self.char_list),
         )
-        # yapf: disable
+
         expected_char_itos = [
             " ", ",", ".", "D", "G", "K", "M", "O", "R", "T", "W",
             "a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "l",
             "m", "n", "o", "r", "s", "t", "u", "v", "w", "ẞ", "–",
-        ]
+        ]  # yapf: disable
 
         # pylint: disable=protected-access
-        self.assertEqual(self.char_vocab._itos,
-                         self.specials + self.lang_tags + expected_char_itos)
+        self.assertEqual(
+            self.char_vocab._itos, self.specials + self.lang_tags + expected_char_itos
+        )
         expected_word_itos = [
             "Die", "GROẞ", "Geschichte", "Kinokassenrekorde", "Meer", "Titanic",
             "Wahrheit", "alle", "aufregendste", "bricht", "dass", "die", "gerade",
             "ist,", "ist.", "nicht", "obwohl", "sie", "vom", "–",
-        ]
-        self.assertEqual(self.word_vocab._itos,
-                         self.specials + self.lang_tags + expected_word_itos)
+        ]  # yapf: disable
+        self.assertEqual(
+            self.word_vocab._itos, self.specials + self.lang_tags + expected_word_itos
+        )
         # pylint: enable=protected-access
 
     def testVocabularyFromFile(self):
@@ -102,10 +103,12 @@ class TestVocabulary(unittest.TestCase):
         self.word_vocab.to_file(tmp_file_word)
         self.char_vocab.to_file(tmp_file_char)
 
-        word_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_word),
-                                cfg=self.cfg["special_symbols"])
-        char_vocab = Vocabulary(tokens=read_list_from_file(tmp_file_char),
-                                cfg=self.cfg["special_symbols"])
+        word_vocab = Vocabulary(
+            tokens=read_list_from_file(tmp_file_word), cfg=self.cfg["special_symbols"]
+        )
+        char_vocab = Vocabulary(
+            tokens=read_list_from_file(tmp_file_char), cfg=self.cfg["special_symbols"]
+        )
         self.assertEqual(self.word_vocab, word_vocab)
         self.assertEqual(self.char_vocab, char_vocab)
 
@@ -114,39 +117,49 @@ class TestVocabulary(unittest.TestCase):
         tmp_file_word.unlink()
 
         # pylint: disable=protected-access
-        bpe_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_bpe),
-                               cfg=self.cfg["special_symbols"])
+        bpe_vocab = Vocabulary(
+            tokens=read_list_from_file(self.vocab_file_bpe),
+            cfg=self.cfg["special_symbols"]
+        )
         expected_bpe_itos = [
             "t@@", "s@@", "e", "e@@", "d@@", "o@@", "b@@", "g@@", "en", "m@@", "u@@"
         ]
-        self.assertEqual(bpe_vocab._itos[:18],
-                         self.specials + self.lang_tags + expected_bpe_itos)
+        self.assertEqual(
+            bpe_vocab._itos[:18], self.specials + self.lang_tags + expected_bpe_itos
+        )
 
-        sp_vocab = Vocabulary(tokens=read_list_from_file(self.vocab_file_sp),
-                              cfg=self.cfg["special_symbols"])
+        sp_vocab = Vocabulary(
+            tokens=read_list_from_file(self.vocab_file_sp),
+            cfg=self.cfg["special_symbols"]
+        )
         expected_sp_itos = ["▁", "e", "s", "t", "o", "i", "n", "en", "m", "r", "er"]
-        self.assertEqual(sp_vocab._itos[:18],
-                         self.specials + self.lang_tags + expected_sp_itos)
+        self.assertEqual(
+            sp_vocab._itos[:18], self.specials + self.lang_tags + expected_sp_itos
+        )
         # pylint: enable=protected-access
 
     def testVocabularyFromDataset(self):
         src_vocab, trg_vocab, _, _, _ = load_data(self.cfg, datasets=["train"])
-        self.assertEqual(len(src_vocab),
-                         self.voc_limit + len(self.specials + self.lang_tags))
-        self.assertEqual(len(trg_vocab),
-                         self.voc_limit + len(self.specials + self.lang_tags))
+        self.assertEqual(
+            len(src_vocab), self.voc_limit + len(self.specials + self.lang_tags)
+        )
+        self.assertEqual(
+            len(trg_vocab), self.voc_limit + len(self.specials + self.lang_tags)
+        )
 
         expected_src_itos = [
             "die", "und", "der", "ist", "in", "das", "wir", "zu", "Sie", "es", "von",
-        ]
+        ]  # yapf: disable
         expected_trg_itos = [
             "the", "of", "to", "and", "a", "that", "in", "is", "you", "we", "And",
-        ]
+        ]  # yapf: disable
         # pylint: disable=protected-access
-        self.assertEqual(src_vocab._itos[:18],
-                         self.specials + self.lang_tags + expected_src_itos)
-        self.assertEqual(trg_vocab._itos[:18],
-                         self.specials + self.lang_tags + expected_trg_itos)
+        self.assertEqual(
+            src_vocab._itos[:18], self.specials + self.lang_tags + expected_src_itos
+        )
+        self.assertEqual(
+            trg_vocab._itos[:18], self.specials + self.lang_tags + expected_trg_itos
+        )
 
     def testIsUnk(self):
         self.assertTrue(self.word_vocab.is_unk("BLA"))
@@ -158,13 +171,14 @@ class TestVocabulary(unittest.TestCase):
 
     def testEncodingDecoding(self):
         tokenized = [s.split() for s in self.sents]
-        ids, length, prompt = self.word_vocab.sentences_to_ids(tokenized,
-                                                               bos=True, eos=True)
+        ids, length, prompt = self.word_vocab.sentences_to_ids(
+            tokenized, bos=True, eos=True
+        )
         expected_ids = [
             [2, 7, 13, 20, 17, 18, 12, 26, 23, 24, 14, 10, 16, 26, 22, 19, 18, 15,
              9, 25, 11, 21, 3],
             [2, 8, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ]
+        ]   # yapf: disable
         expected_prompt = [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -174,8 +188,8 @@ class TestVocabulary(unittest.TestCase):
         self.assertEqual(length, expected_length)
         self.assertEqual(prompt, expected_prompt)
 
-        decoded = self.word_vocab.arrays_to_sentences(np.array(ids),
-                                                      cut_at_eos=True,
-                                                      skip_pad=True)
+        decoded = self.word_vocab.arrays_to_sentences(
+            np.array(ids), cut_at_eos=True, skip_pad=True
+        )
         self.assertEqual(decoded[0], ["<s>"] + tokenized[0] + ["</s>"])
         self.assertEqual(decoded[1], ["<s>"] + tokenized[1] + ["</s>"])

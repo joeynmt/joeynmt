@@ -118,7 +118,8 @@ training:                           # specify training details here
     logging_freq: 10                # log the training progress after this many updates, default: 100
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
     shuffle: True                   # shuffle the training data, default: True
-    overwrite: False                    # overwrite existing model directory, default: False. Do not set to True unless for debugging!    print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
+    overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
+    print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_best_ckpts: 3              # keep this many of the best checkpoints, if -1: all of them, default: 5
 
 model:                              # specify your model architecture here

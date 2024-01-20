@@ -20,12 +20,9 @@ class TestPlaintextDataset(unittest.TestCase):
 
         # minimal data config
         self.data_cfg = {
-            "train":
-            self.train_path,
-            "dev":
-            self.dev_path,
-            "test":
-            self.test_path,
+            "train": self.train_path,
+            "dev": self.dev_path,
+            "test": self.test_path,
             "src": {
                 "lang": "de",
                 "level": "word",
@@ -40,10 +37,8 @@ class TestPlaintextDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "dataset_type":
-            "plain",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -56,7 +51,8 @@ class TestPlaintextDataset(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
     def testDataLoading(self):
@@ -72,8 +68,9 @@ class TestPlaintextDataset(unittest.TestCase):
                 if "test" in datasets:
                     datasets.remove("test")
 
-            _, _, train_data, dev_data, test_data = load_data(current_cfg,
-                                                              datasets=datasets)
+            _, _, train_data, dev_data, test_data = load_data(
+                current_cfg, datasets=datasets
+            )
 
             self.assertIs(type(train_data), PlaintextDataset)
             self.assertIs(type(dev_data), PlaintextDataset)
@@ -91,15 +88,19 @@ class TestPlaintextDataset(unittest.TestCase):
                 self.assertEqual(test_data.split, "test")
                 self.assertFalse(test_data.has_trg)
 
-            self.assertEqual(train_data.tokenizer[train_data.src_lang].max_length,
-                             self.max_length)
-            self.assertEqual(train_data.tokenizer[train_data.trg_lang].max_length,
-                             self.max_length)
+            self.assertEqual(
+                train_data.tokenizer[train_data.src_lang].max_length, self.max_length
+            )
+            self.assertEqual(
+                train_data.tokenizer[train_data.trg_lang].max_length, self.max_length
+            )
 
-            self.assertEqual(train_data.tokenizer[train_data.src_lang].min_length,
-                             self.min_length)
-            self.assertEqual(train_data.tokenizer[train_data.trg_lang].min_length,
-                             self.min_length)
+            self.assertEqual(
+                train_data.tokenizer[train_data.src_lang].min_length, self.min_length
+            )
+            self.assertEqual(
+                train_data.tokenizer[train_data.trg_lang].min_length, self.min_length
+            )
 
             # check the number of examples loaded
             # NOTE: since tokenization is applied in batch construction,
@@ -134,9 +135,11 @@ class TestPlaintextDataset(unittest.TestCase):
             # check the length filtering of the training examples
             _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
-                all(self.min_length <= len(s) <= self.max_length for s in src_len))
+                all(self.min_length <= len(s) <= self.max_length for s in src_len)
+            )
             self.assertTrue(
-                all(self.min_length <= len(t) <= self.max_length for t in trg_len))
+                all(self.min_length <= len(t) <= self.max_length for t in trg_len)
+            )
 
             # check the lowercasing
             if current_cfg["src"]["lowercase"]:
@@ -163,9 +166,9 @@ class TestTsvDataset(unittest.TestCase):
     def setUp(self):
         # save toy data temporarily in tsv format
         def _read_write_sents(path, src_lang, trg_lang):
-            with tempfile.NamedTemporaryFile(prefix="joeynmt_unittest_",
-                                             suffix=".tsv",
-                                             delete=False) as temp:
+            with tempfile.NamedTemporaryFile(
+                prefix="joeynmt_unittest_", suffix=".tsv", delete=False
+            ) as temp:
                 tsv_file = Path(temp.name)
                 src = read_list_from_file(Path(path).with_suffix(f".{src_lang}"))
                 if trg_lang:
@@ -206,10 +209,8 @@ class TestTsvDataset(unittest.TestCase):
                 "max_length": self.max_length,
                 "min_length": self.min_length,
             },
-            "dataset_type":
-            "tsv",
-            "special_symbols":
-            SimpleNamespace(
+            "dataset_type": "tsv",
+            "special_symbols": SimpleNamespace(
                 **{
                     "unk_token": "<unk>",
                     "pad_token": "<pad>",
@@ -222,7 +223,8 @@ class TestTsvDataset(unittest.TestCase):
                     "eos_id": 3,
                     "sep_id": 4,
                     "lang_tags": ["<de>", "<en>"],
-                }),
+                }
+            ),
         }
 
     def tearDown(self):
@@ -242,8 +244,9 @@ class TestTsvDataset(unittest.TestCase):
         try:
             expected_train_len, after_filtering = 1000, 290
             expected_dev_len = 20
-            _, _, train_data, dev_data, _ = load_data(self.data_cfg,
-                                                      datasets=["train", "dev"])
+            _, _, train_data, dev_data, _ = load_data(
+                self.data_cfg, datasets=["train", "dev"]
+            )
 
             self.assertIs(type(train_data), TsvDataset)
             self.assertIs(type(dev_data), TsvDataset)
@@ -257,15 +260,19 @@ class TestTsvDataset(unittest.TestCase):
             self.assertTrue(train_data.has_trg)
             self.assertTrue(dev_data.has_trg)
 
-            self.assertEqual(train_data.tokenizer[train_data.src_lang].max_length,
-                             self.max_length)
-            self.assertEqual(train_data.tokenizer[train_data.trg_lang].max_length,
-                             self.max_length)
+            self.assertEqual(
+                train_data.tokenizer[train_data.src_lang].max_length, self.max_length
+            )
+            self.assertEqual(
+                train_data.tokenizer[train_data.trg_lang].max_length, self.max_length
+            )
 
-            self.assertEqual(train_data.tokenizer[train_data.src_lang].min_length,
-                             self.min_length)
-            self.assertEqual(train_data.tokenizer[train_data.trg_lang].min_length,
-                             self.min_length)
+            self.assertEqual(
+                train_data.tokenizer[train_data.src_lang].min_length, self.min_length
+            )
+            self.assertEqual(
+                train_data.tokenizer[train_data.trg_lang].min_length, self.min_length
+            )
 
             train_ex = [train_data[i] for i in range(len(train_data))]
             train_ex = [(i, s, t) for i, s, t in train_ex
@@ -275,9 +282,11 @@ class TestTsvDataset(unittest.TestCase):
             # check the length filtering of the training examples
             _, src_len, trg_len = zip(*train_ex)
             self.assertTrue(
-                all(self.min_length <= len(s) <= self.max_length for s in src_len))
+                all(self.min_length <= len(s) <= self.max_length for s in src_len)
+            )
             self.assertTrue(
-                all(self.min_length <= len(t) <= self.max_length for t in trg_len))
+                all(self.min_length <= len(t) <= self.max_length for t in trg_len)
+            )
 
             dev_ex = [dev_data[i] for i in range(len(dev_data))]
             _, dev_src, dev_trg = zip(*dev_ex)

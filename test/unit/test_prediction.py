@@ -37,10 +37,8 @@ class TestPrediction(unittest.TestCase):
         torch.manual_seed(seed)
         cfg = {
             "data": {
-                "train":
-                "test/data/toy/train",  # needed for vocab
-                "test":
-                "test/data/toy/test",
+                "train": "test/data/toy/train",  # needed for vocab
+                "test": "test/data/toy/test",
                 "src": {
                     "lang": "de",
                     "level": "word",
@@ -53,10 +51,8 @@ class TestPrediction(unittest.TestCase):
                     "lowercase": False,
                     "max_length": 10,
                 },
-                "dataset_type":
-                "plain",
-                "special_symbols":
-                SimpleNamespace(
+                "dataset_type": "plain",
+                "special_symbols": SimpleNamespace(
                     **{
                         "unk_token": "<unk>",
                         "pad_token": "<pad>",
@@ -69,7 +65,8 @@ class TestPrediction(unittest.TestCase):
                         "eos_id": 3,
                         "sep_id": None,
                         "lang_tags": [],
-                    }),
+                    }
+                ),
             },
             "testing": {
                 "n_best": 1,
@@ -79,9 +76,7 @@ class TestPrediction(unittest.TestCase):
                 "beam_alpha": 1.0,
                 "eval_metrics": ["bleu"],
                 "return_prob": "none",
-                "sacrebleu_cfg": {
-                    "tokenize": "13a"
-                },
+                "sacrebleu_cfg": {"tokenize": "13a"},
             },
             "model": {
                 "tied_embeddings": False,
@@ -90,9 +85,7 @@ class TestPrediction(unittest.TestCase):
                     "type": "transformer",
                     "hidden_size": 12,
                     "ff_size": 24,
-                    "embeddings": {
-                        "embedding_dim": 12
-                    },
+                    "embeddings": {"embedding_dim": 12},
                     "num_layers": 1,
                     "num_heads": 4,
                     "layer_norm": "pre",
@@ -101,9 +94,7 @@ class TestPrediction(unittest.TestCase):
                     "type": "transformer",
                     "hidden_size": 12,
                     "ff_size": 24,
-                    "embeddings": {
-                        "embedding_dim": 12
-                    },
+                    "embeddings": {"embedding_dim": 12},
                     "num_layers": 1,
                     "num_heads": 4,
                     "layer_norm": "pre",
@@ -114,7 +105,8 @@ class TestPrediction(unittest.TestCase):
 
         # load data
         src_vocab, trg_vocab, _, _, self.test_data = load_data(
-            cfg["data"], datasets=["train", "test"])
+            cfg["data"], datasets=["train", "test"]
+        )
 
         # build model
         self.model = build_model(cfg["model"], src_vocab=src_vocab, trg_vocab=trg_vocab)
@@ -130,10 +122,7 @@ class TestPrediction(unittest.TestCase):
             num_workers=0,
             normalization="none",
             args=self.args,
-            autocast={
-                "device_type": "cpu",
-                "enabled": False
-            },
+            autocast={"device_type": "cpu", "enabled": False},
         )
         return hypotheses
 
@@ -160,4 +149,5 @@ class TestPrediction(unittest.TestCase):
             self._translate(n_best)
         self.assertEqual(
             f"Can only return {self.args.beam_size} best hypotheses."
-            "`n_best` must be smaller than or equal to `beam_size`.", str(e.exception))
+            "`n_best` must be smaller than or equal to `beam_size`.", str(e.exception)
+        )

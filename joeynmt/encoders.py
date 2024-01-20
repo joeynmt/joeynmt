@@ -79,8 +79,9 @@ class RecurrentEncoder(Encoder):
         if freeze:
             freeze_params(self)
 
-    def _check_shapes_input_forward(self, src_embed: Tensor, src_length: Tensor,
-                                    mask: Tensor) -> None:
+    def _check_shapes_input_forward(
+        self, src_embed: Tensor, src_length: Tensor, mask: Tensor
+    ) -> None:
         """
         Make sure the shape of the inputs to `self.forward` are correct.
         Same input semantics as `self.forward`.
@@ -115,9 +116,9 @@ class RecurrentEncoder(Encoder):
             - hidden_concat: last hidden state with
                 shape (batch_size, directions*hidden)
         """
-        self._check_shapes_input_forward(src_embed=src_embed,
-                                         src_length=src_length,
-                                         mask=mask)
+        self._check_shapes_input_forward(
+            src_embed=src_embed, src_length=src_length, mask=mask
+        )
         total_length = src_embed.size(1)
 
         # apply dropout to the rnn input
@@ -129,9 +130,9 @@ class RecurrentEncoder(Encoder):
         if isinstance(hidden, tuple):
             hidden, memory_cell = hidden  # pylint: disable=unused-variable
 
-        output, _ = pad_packed_sequence(output,
-                                        batch_first=True,
-                                        total_length=total_length)
+        output, _ = pad_packed_sequence(
+            output, batch_first=True, total_length=total_length
+        )
         # hidden: dir*layers x batch x hidden
         # output: batch x max_length x directions*hidden
         batch_size = hidden.size()[1]
@@ -212,8 +213,10 @@ class TransformerEncoder(Encoder):
         self.pe = PositionalEncoding(hidden_size)
         self.emb_dropout = nn.Dropout(p=emb_dropout)
 
-        self.layer_norm = (nn.LayerNorm(hidden_size, eps=1e-6) if kwargs.get(
-            "layer_norm", "post") == "pre" else None)
+        self.layer_norm = (
+            nn.LayerNorm(hidden_size, eps=1e-6)
+            if kwargs.get("layer_norm", "post") == "pre" else None
+        )
 
         if freeze:
             freeze_params(self)
@@ -256,8 +259,10 @@ class TransformerEncoder(Encoder):
         return x, None
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
-                f"num_heads={self.layers[0].src_src_att.num_heads}, "
-                f"alpha={self.layers[0].alpha}, "
-                f'layer_norm="{self.layers[0]._layer_norm_position}", '
-                f"activation={self.layers[0].feed_forward.pwff_layer[1]})")
+        return (
+            f"{self.__class__.__name__}(num_layers={len(self.layers)}, "
+            f"num_heads={self.layers[0].src_src_att.num_heads}, "
+            f"alpha={self.layers[0].alpha}, "
+            f'layer_norm="{self.layers[0]._layer_norm_position}", '
+            f"activation={self.layers[0].feed_forward.pwff_layer[1]})"
+        )

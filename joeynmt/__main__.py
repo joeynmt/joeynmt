@@ -15,36 +15,36 @@ from joeynmt.training import train
 def main():
     ap = argparse.ArgumentParser("Joey NMT")
 
-    ap.add_argument("mode",
-                    choices=["train", "test", "translate"],
-                    help="Train a model or test or translate")
+    ap.add_argument(
+        "mode",
+        choices=["train", "test", "translate"],
+        help="Train a model or test or translate"
+    )
 
-    ap.add_argument("config_path",
-                    metavar="config-path",
-                    type=str,
-                    help="Path to YAML config file")
+    ap.add_argument(
+        "config_path", metavar="config-path", type=str, help="Path to YAML config file"
+    )
 
-    ap.add_argument("-o",
-                    "--output-path",
-                    type=str,
-                    help="Path for saving translation output")
+    ap.add_argument(
+        "-o", "--output-path", type=str, help="Path for saving translation output"
+    )
 
-    ap.add_argument("-a",
-                    "--save-attention",
-                    action="store_true",
-                    help="Save attention visualizations")
+    ap.add_argument(
+        "-a",
+        "--save-attention",
+        action="store_true",
+        help="Save attention visualizations"
+    )
 
     ap.add_argument("-s", "--save-scores", action="store_true", help="Save scores")
 
-    ap.add_argument("-t",
-                    "--skip-test",
-                    action="store_true",
-                    help="Skip test after training")
+    ap.add_argument(
+        "-t", "--skip-test", action="store_true", help="Skip test after training"
+    )
 
-    ap.add_argument("-d",
-                    "--use-ddp",
-                    action="store_true",
-                    help="Invoke DDP environment")
+    ap.add_argument(
+        "-d", "--use-ddp", action="store_true", help="Invoke DDP environment"
+    )
 
     args = ap.parse_args()
 
@@ -53,8 +53,9 @@ def main():
 
     # make model_dir
     if args.mode == "train":
-        make_model_dir(Path(cfg["model_dir"]),
-                       overwrite=cfg["training"].get("overwrite", False))
+        make_model_dir(
+            Path(cfg["model_dir"]), overwrite=cfg["training"].get("overwrite", False)
+        )
     model_dir = _check_path(cfg["model_dir"], allow_empty=False)
     if args.mode == "train":
         # store a copy of original training config in model dir
@@ -78,8 +79,10 @@ def main():
         elif args.mode == "test":
             raise RuntimeError("For testing mode, DDP is currently not available.")
         elif args.mode == "translate":
-            raise RuntimeError("For interactive translation mode, "
-                               "DDP is currently not available.")
+            raise RuntimeError(
+                "For interactive translation mode, "
+                "DDP is currently not available."
+            )
 
     else:
         if args.mode == "train":

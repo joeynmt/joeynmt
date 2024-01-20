@@ -20,8 +20,9 @@ class TestEmbeddings(unittest.TestCase):
             vocab_size=self.vocab_size,
             padding_idx=self.pad_idx,
         )
-        self.assertEqual(emb.lut.weight.shape,
-                         torch.Size([self.vocab_size, self.emb_size]))
+        self.assertEqual(
+            emb.lut.weight.shape, torch.Size([self.vocab_size, self.emb_size])
+        )
 
     def test_pad_zeros(self):
         emb = Embeddings(
@@ -30,8 +31,9 @@ class TestEmbeddings(unittest.TestCase):
             padding_idx=self.pad_idx,
         )
         # pad embedding should be zeros
-        torch.testing.assert_close(emb.lut.weight[self.pad_idx],
-                                   torch.zeros([self.emb_size]))
+        torch.testing.assert_close(
+            emb.lut.weight[self.pad_idx], torch.zeros([self.emb_size])
+        )
 
     def test_freeze(self):
         encoder = Embeddings(
@@ -56,7 +58,8 @@ class TestEmbeddings(unittest.TestCase):
         embedded = emb.forward(x=indices)
         # embedding operation is just slicing from weights matrix
         torch.testing.assert_close(
-            embedded, torch.index_select(input=weights, index=indices, dim=0))
+            embedded, torch.index_select(input=weights, index=indices, dim=0)
+        )
         # after embedding, representations for PAD should still be zero
         torch.testing.assert_close(embedded[2], torch.zeros([self.emb_size]))
 

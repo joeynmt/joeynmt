@@ -48,7 +48,9 @@ class BasicTokenizer:
         if self.pretokenizer == "moses":
             try:
                 from sacremoses import (  # pylint: disable=import-outside-toplevel
-                    MosesDetokenizer, MosesPunctNormalizer, MosesTokenizer,
+                    MosesDetokenizer,
+                    MosesPunctNormalizer,
+                    MosesTokenizer,
                 )
 
                 # sacremoses package has to be installed.
@@ -125,10 +127,12 @@ class BasicTokenizer:
             valid = [self.unk_token]
         return valid
 
-    def post_process(self,
-                     sequence: Union[List[str], str],
-                     generate_unk: bool = True,
-                     cut_at_sep: bool = True) -> str:
+    def post_process(
+        self,
+        sequence: Union[List[str], str],
+        generate_unk: bool = True,
+        cut_at_sep: bool = True
+    ) -> str:
         """Detokenize"""
 
         if isinstance(sequence, list):
@@ -170,10 +174,12 @@ class BasicTokenizer:
         self.lang_tags = vocab.lang_tags
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(level={self.level}, "
-                f"lowercase={self.lowercase}, normalize={self.normalize}, "
-                f"filter_by_length=({self.min_length}, {self.max_length}), "
-                f"pretokenizer={self.pretokenizer})")
+        return (
+            f"{self.__class__.__name__}(level={self.level}, "
+            f"lowercase={self.lowercase}, normalize={self.normalize}, "
+            f"filter_by_length=({self.min_length}, {self.max_length}), "
+            f"pretokenizer={self.pretokenizer})"
+        )
 
 
 class SentencePieceTokenizer(BasicTokenizer):
@@ -217,10 +223,12 @@ class SentencePieceTokenizer(BasicTokenizer):
             return None
         return tokenized
 
-    def post_process(self,
-                     sequence: Union[List[str], str],
-                     generate_unk: bool = True,
-                     cut_at_sep: bool = True) -> str:
+    def post_process(
+        self,
+        sequence: Union[List[str], str],
+        generate_unk: bool = True,
+        cut_at_sep: bool = True
+    ) -> str:
         """Detokenize"""
         if isinstance(sequence, list):
             if cut_at_sep:
@@ -262,12 +270,14 @@ class SentencePieceTokenizer(BasicTokenizer):
         shutil.copy2(self.model_file, (model_dir / self.model_file.name).as_posix())
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(level={self.level}, "
-                f"lowercase={self.lowercase}, normalize={self.normalize}, "
-                f"filter_by_length=({self.min_length}, {self.max_length}), "
-                f"pretokenizer={self.pretokenizer}, "
-                f"tokenizer={self.spm.__class__.__name__}, "
-                f"nbest_size={self.nbest_size}, alpha={self.alpha})")
+        return (
+            f"{self.__class__.__name__}(level={self.level}, "
+            f"lowercase={self.lowercase}, normalize={self.normalize}, "
+            f"filter_by_length=({self.min_length}, {self.max_length}), "
+            f"pretokenizer={self.pretokenizer}, "
+            f"tokenizer={self.spm.__class__.__name__}, "
+            f"nbest_size={self.nbest_size}, alpha={self.alpha})"
+        )
 
 
 class SubwordNMTTokenizer(BasicTokenizer):
@@ -294,8 +304,9 @@ class SubwordNMTTokenizer(BasicTokenizer):
         for action in bpe_parser._actions:  # workaround to ensure utf8 encoding
             if action.dest == "codes":
                 action.type = argparse.FileType('r', encoding='utf8')
-        bpe_args = bpe_parser.parse_args(
-            ["--codes", codes_file.as_posix(), "--separator", self.separator])
+        bpe_args = bpe_parser.parse_args([
+            "--codes", codes_file.as_posix(), "--separator", self.separator
+        ])
         self.bpe = apply_bpe.BPE(
             bpe_args.codes,
             bpe_args.merges,
@@ -316,10 +327,12 @@ class SubwordNMTTokenizer(BasicTokenizer):
             return None
         return tokenized
 
-    def post_process(self,
-                     sequence: Union[List[str], str],
-                     generate_unk: bool = True,
-                     cut_at_sep: bool = True) -> str:
+    def post_process(
+        self,
+        sequence: Union[List[str], str],
+        generate_unk: bool = True,
+        cut_at_sep: bool = True
+    ) -> str:
         """Detokenize"""
         if isinstance(sequence, list):
             if cut_at_sep:
@@ -331,8 +344,8 @@ class SubwordNMTTokenizer(BasicTokenizer):
             sequence = self._remove_special(sequence, generate_unk=generate_unk)
 
             # Remove separators, join with spaces
-            sequence = self.SPACE.join(sequence).replace(self.separator + self.SPACE,
-                                                         "")
+            sequence = self.SPACE.join(sequence
+                                       ).replace(self.separator + self.SPACE, "")
             # Remove final merge marker.
             if sequence.endswith(self.separator):
                 sequence = sequence[:-len(self.separator)]
@@ -360,12 +373,14 @@ class SubwordNMTTokenizer(BasicTokenizer):
         shutil.copy2(self.codes, (model_dir / self.codes.name).as_posix())
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(level={self.level}, "
-                f"lowercase={self.lowercase}, normalize={self.normalize}, "
-                f"filter_by_length=({self.min_length}, {self.max_length}), "
-                f"pretokenizer={self.pretokenizer}, "
-                f"tokenizer={self.bpe.__class__.__name__}, "
-                f"separator={self.separator}, dropout={self.dropout})")
+        return (
+            f"{self.__class__.__name__}(level={self.level}, "
+            f"lowercase={self.lowercase}, normalize={self.normalize}, "
+            f"filter_by_length=({self.min_length}, {self.max_length}), "
+            f"pretokenizer={self.pretokenizer}, "
+            f"tokenizer={self.bpe.__class__.__name__}, "
+            f"separator={self.separator}, dropout={self.dropout})"
+        )
 
 
 def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
@@ -409,11 +424,15 @@ def _build_tokenizer(cfg: Dict) -> BasicTokenizer:
                 **tokenizer_cfg,
             )
         else:
-            raise ConfigurationError(f"{tokenizer_type}: Unknown tokenizer type. "
-                                     "Valid options: {'sentencepiece', 'subword-nmt'}.")
+            raise ConfigurationError(
+                f"{tokenizer_type}: Unknown tokenizer type. "
+                "Valid options: {'sentencepiece', 'subword-nmt'}."
+            )
     else:
-        raise ConfigurationError(f"{cfg['level']}: Unknown tokenization level. "
-                                 "Valid options: {'word', 'bpe', 'char'}.")
+        raise ConfigurationError(
+            f"{cfg['level']}: Unknown tokenization level. "
+            "Valid options: {'word', 'bpe', 'char'}."
+        )
     return tokenizer
 
 

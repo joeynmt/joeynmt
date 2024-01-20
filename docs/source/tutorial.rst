@@ -8,7 +8,7 @@ In this tutorial, you learn to build a recurrent neural translation system for a
 
 Instead of following the synthetic example here, you might also run the `quick start guide <https://github.com/joeynmt/joeynmt/blob/master/joey_v2_demo.ipynb>`_ that walks you step-by-step through the installation, data preparation, training, evaluation using "real" translation dataset from `Tatoeba <https://opus.nlpl.eu/Tatoeba.php>`_.
 
-`Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/master/torchhub.ipynb>`_ demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ api. 
+`Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/master/torchhub.ipynb>`_ demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ API. 
 
 
 1. Data Preparation
@@ -78,7 +78,7 @@ Top Section
 -----------
 
 Here we specify general settings applied both in training and prediction.
-With `use_cuda` we can decide whether to train the model on GPU (True) or CPU (False). Note that for training on GPU you need the appropriate CUDA libraries installed.
+With ``use_cuda`` we can decide whether to train the model on GPU (True) or CPU (False). Note that for training on GPU you need the appropriate CUDA libraries installed.
 
 .. code-block:: yaml
 
@@ -311,7 +311,7 @@ After the reports on the model should see something like this:
 
 The training batch loss is logged every 100 mini-batches, as specified in the configuration, and every 1000 batches the model is validated on the dev set.
 So after 1000 batches the model achieves a BLEU score of 22.52 (which will not be that fast for a real translation task, our reverse task is much easier).
-You can see that the model prediction is only partially correct, up to the 7th token.
+You can see that the model prediction is only partially correct.
 
 The loss on individual batches might vary and not only decrease, but after every completed epoch, the accumulated training loss for the whole training set is reported.
 This quantity should decrease if your model is properly learning.
@@ -344,7 +344,7 @@ You can choose several models and metrics to plot. For now, we're interested in 
 
 .. code-block:: bash
 
-    python scripts/plot_validations.py reverse_model --plot-values bleu PPL  --output-path reverse_model/bleu-ppl.png
+    python scripts/plot_validations.py reverse_model --plot-values bleu ppl  --output-path reverse_model/bleu-ppl.png
 
 It should look like this:
 
@@ -358,8 +358,8 @@ It should look like this:
 Tensorboard
 ^^^^^^^^^^^
 
-JoeyNMT additionally uses `Tensorboard <https://pytorch.org/docs/stable/tensorboard.html>`_ to visualize training and validation curves and attention matrices during training.
-Launch `Tensorboard <https://github.com/tensorflow/tensorboard>`_ like this:
+JoeyNMT additionally uses `Tensorboard <https://pytorch.org/docs/stable/tensorboard.html>`__ to visualize training and validation curves and attention matrices during training.
+Launch `Tensorboard <https://github.com/tensorflow/tensorboard>`__ like this:
 
 .. code-block:: bash
 
@@ -455,7 +455,7 @@ For testing and evaluating on the parallel test set specified in the configurati
 
 This will generate beam search translations for dev and test set (as specified in the configuration) in ``reverse_model/predictions.[dev|test]``
 with the latest/best model in the ``reverse_model`` directory (or a specific checkpoint set with ``load_model``).
-It will also evaluate the outputs with ``eval_metric`` and print the evaluation result.
+It will also evaluate the outputs with ``eval_metrics`` and print the evaluation result.
 If ``--output-path`` is not specified, it will not store the translation, and solely do the evaluation and print the results.
 
 The evaluation for our reverse model should look like this:
@@ -515,7 +515,19 @@ Let's try a challenging long one:
     Please enter a source sentence:
     1 23 23 43 34 2 2 2 2 2 4 5 32 47 47 47 21 20 0 10 10 10 10 10 8 7 33 36 37
     JoeyNMT:
-    37 36 33 7 8 10 10 10 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 34 43 23 10 1
+    33 10 10 37 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 2 34 43 23 1
+
+.. tip::
+
+    There are several options to control generation.
+
+    - ``beam_size``: size of the beam for beam search
+    - ``beam_alpha``: length penalty for beam search
+    - ``n_best``: n_best size, must be smaller than or equal to beam_size
+    - ``return_prob``: whether to return probabilities of references ("ref") or hypotheses ("hyp"). default: "none".
+    - ``return_attention``: whether to return attention scores. (enabled if ``--save-attention`` flag is set.)
+    - ``no_repeat_ngram_size``: ngram size to prohibit repetition. If set to -1, no blocker applied.
+    - ``repetition_penalty``: repetition penalty. Between 0.0 and 1.0 penalizes the repeated tokens. If set to -1, no penalty applied.
 
 
 5. Tuning

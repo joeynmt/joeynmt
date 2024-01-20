@@ -32,7 +32,8 @@ def average_checkpoints(inputs: List[str]) -> Dict:
         state = torch.load(
             f,
             map_location=(
-                lambda s, _: torch.serialization.default_restore_location(s, "cpu")),
+                lambda s, _: torch.serialization.default_restore_location(s, "cpu")
+            ),
         )
         # Copies over the settings from the first checkpoint
         if new_state is None:
@@ -47,7 +48,8 @@ def average_checkpoints(inputs: List[str]) -> Dict:
         elif params_keys != model_params_keys:
             raise KeyError(
                 f"For checkpoint {f}, expected list of params: {params_keys}, "
-                f"but found: {model_params_keys}")
+                f"but found: {model_params_keys}"
+            )
 
         for k in params_keys:
             p = model_params[k]
@@ -74,11 +76,11 @@ def average_checkpoints(inputs: List[str]) -> Dict:
 def main():
     parser = argparse.ArgumentParser(
         description="Tool to average the params of input checkpoints to produce "
-        "a new checkpoint", )
-    parser.add_argument("--inputs",
-                        required=True,
-                        nargs="+",
-                        help="Input checkpoint file paths.")
+        "a new checkpoint",
+    )
+    parser.add_argument(
+        "--inputs", required=True, nargs="+", help="Input checkpoint file paths."
+    )
     parser.add_argument(
         "--output",
         required=True,

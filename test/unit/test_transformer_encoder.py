@@ -51,8 +51,9 @@ class TestTransformerEncoder(unittest.TestCase):
 
         output, hidden = encoder(x, x_length, mask)
 
-        self.assertEqual(output.shape,
-                         torch.Size([batch_size, time_dim, self.hidden_size]))
+        self.assertEqual(
+            output.shape, torch.Size([batch_size, time_dim, self.hidden_size])
+        )
         self.assertEqual(hidden, None)
 
         output_target = torch.Tensor([
@@ -106,9 +107,11 @@ class TestTransformerEncoder(unittest.TestCase):
             self.assertTrue(hasattr(layer, "feed_forward"))
             self.assertEqual(layer.alpha, self.alpha)
             self.assertEqual(layer.size, self.hidden_size)
-            self.assertEqual(layer.feed_forward.pwff_layer[0].in_features,
-                             self.hidden_size)
-            self.assertEqual(layer.feed_forward.pwff_layer[0].out_features,
-                             self.ff_size)
+            self.assertEqual(
+                layer.feed_forward.pwff_layer[0].in_features, self.hidden_size
+            )
+            self.assertEqual(
+                layer.feed_forward.pwff_layer[0].out_features, self.ff_size
+            )
             # pylint: disable=protected-access
             self.assertEqual(layer._layer_norm_position, self.layer_norm)

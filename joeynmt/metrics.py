@@ -61,8 +61,9 @@ def bleu(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float
     return score
 
 
-def token_accuracy(hypotheses: List[str], references: List[str],
-                   tokenizer: Callable) -> float:
+def token_accuracy(
+    hypotheses: List[str], references: List[str], tokenizer: Callable
+) -> float:
     """
     Compute the accuracy of hypothesis tokens: correct tokens / all tokens
     Tokens are correct if they appear in the same position in the reference.
@@ -99,6 +100,7 @@ def sequence_accuracy(hypotheses: List[str], references: List[str]) -> float:
     :return:
     """
     assert len(hypotheses) == len(references)
-    correct_sequences = sum(
-        [1 for (hyp, ref) in zip(hypotheses, references) if hyp == ref])
+    correct_sequences = sum([
+        1 for (hyp, ref) in zip(hypotheses, references) if hyp == ref
+    ])
     return (correct_sequences / len(hypotheses)) * 100 if hypotheses else 0.0

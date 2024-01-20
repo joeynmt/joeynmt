@@ -46,12 +46,13 @@ class BaseDataset(Dataset):
         src_lang: str,
         trg_lang: str,
         split: str = "train",
-        has_trg: bool = True,
+        has_trg: bool = False,
         has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
-        random_subset: int = -1,
+        random_subset: int = -1
     ):
+
         self.path = path
         self.src_lang = src_lang
         self.trg_lang = trg_lang
@@ -60,11 +61,9 @@ class BaseDataset(Dataset):
         if self.split == "train":
             assert self.has_trg
 
-        _place_holder = {self.src_lang: None, self.trg_lang: None}
-        self.tokenizer = _place_holder if tokenizer is None else tokenizer
-        self.sequence_encoder = (_place_holder
-                                 if sequence_encoder is None else sequence_encoder)
-        self.has_prompt = _place_holder if has_prompt is None else has_prompt
+        self.tokenizer = tokenizer
+        self.sequence_encoder = sequence_encoder
+        self.has_prompt = has_prompt
 
         # for random subsampling
         self.random_subset = random_subset
@@ -101,9 +100,11 @@ class BaseDataset(Dataset):
 
         # workaround if tokenizer prepends an extra escape symbol before lang_tang ...
         def _remove_escape(item):
-            if (item is not None and self.tokenizer[lang] is not None
-                    and item[0] == self.tokenizer[lang].SPACE_ESCAPE
-                    and item[1] in self.tokenizer[lang].lang_tags):
+            if (
+                item is not None and self.tokenizer[lang] is not None
+                and item[0] == self.tokenizer[lang].SPACE_ESCAPE
+                and item[1] in self.tokenizer[lang].lang_tags
+            ):
                 return item[1:]
             return item
 
@@ -166,8 +167,10 @@ class BaseDataset(Dataset):
     @property
     def trg(self) -> List[str]:
         """get detokenized preprocessed data in trg language."""
-        return (self.get_list(self.trg_lang, tokenized=False, subsampled=True)
-                if self.has_trg else [])
+        return (
+            self.get_list(self.trg_lang, tokenized=False, subsampled=True)
+            if self.has_trg else []
+        )
 
     def collate_fn(
         self,
@@ -190,27 +193,31 @@ class BaseDataset(Dataset):
         idx, src_list, trg_list = zip(*batch)
         assert len(batch) == len(src_list) == len(trg_list), (len(batch), len(src_list))
         assert all(s is not None for s in src_list), src_list
-        src, src_length, src_prompt_mask = self.sequence_encoder[self.src_lang](
-            src_list, bos=False, eos=True)
+        src, src_length, src_prompt_mask = self.sequence_encoder[
+            self.src_lang](src_list, bos=False, eos=True)
 
         if self.has_trg or self.has_prompt[self.trg_lang]:
             if self.has_trg:
                 assert all(t is not None for t in trg_list), trg_list
             trg, _, trg_prompt_mask = self.sequence_encoder[self.trg_lang](
-                trg_list, bos=True, eos=self.has_trg)  # no EOS if not self.has_trg
+                trg_list, bos=True, eos=self.has_trg
+            )  # no EOS if not self.has_trg
         else:
             assert all(t is None for t in trg_list)
-            trg, trg_prompt_mask = None, None
-        # Note: we don't need trg_length!
+            trg, trg_prompt_mask = None, None  # Note: we don't need trg_length!
 
         return Batch(
             src=torch.tensor(src).long(),
             src_length=torch.tensor(src_length).long(),
-            src_prompt_mask=(torch.tensor(src_prompt_mask).long()
-                             if self.has_prompt[self.src_lang] else None),
+            src_prompt_mask=(
+                torch.tensor(src_prompt_mask).long()
+                if self.has_prompt[self.src_lang] else None
+            ),
             trg=torch.tensor(trg).long() if trg else None,
-            trg_prompt_mask=(torch.tensor(trg_prompt_mask).long()
-                             if self.has_prompt[self.trg_lang] else None),
+            trg_prompt_mask=(
+                torch.tensor(trg_prompt_mask).long()
+                if self.has_prompt[self.trg_lang] else None
+            ),
             indices=torch.tensor(idx).long(),
             device=device,
             pad_index=pad_index,
@@ -260,24 +267,21 @@ class BaseDataset(Dataset):
         # define sampler which yields an integer
         sampler: Sampler[int]
         if use_ddp():  # use ddp
-            sampler = DistributedSubsetSampler(self,
-                                               shuffle=shuffle,
-                                               drop_last=True,
-                                               generator=generator)
+            sampler = DistributedSubsetSampler(
+                self, shuffle=shuffle, drop_last=True, generator=generator
+            )
         else:
             sampler = RandomSubsetSampler(self, shuffle=shuffle, generator=generator)
 
         # batch sampler which yields a list of integers
         if batch_type == "sentence":
-            batch_sampler = SentenceBatchSampler(sampler,
-                                                 batch_size=batch_size,
-                                                 drop_last=False,
-                                                 seed=seed)
+            batch_sampler = SentenceBatchSampler(
+                sampler, batch_size=batch_size, drop_last=False, seed=seed
+            )
         elif batch_type == "token":
-            batch_sampler = TokenBatchSampler(sampler,
-                                              batch_size=batch_size,
-                                              drop_last=False,
-                                              seed=seed)
+            batch_sampler = TokenBatchSampler(
+                sampler, batch_size=batch_size, drop_last=False, seed=seed
+            )
         else:
             raise ConfigurationError(f"{batch_type}: Unknown batch type")
 
@@ -293,22 +297,26 @@ class BaseDataset(Dataset):
         return DataLoader(
             dataset=self,
             batch_sampler=batch_sampler,
-            collate_fn=partial(self.collate_fn,
-                               eos_index=eos_index,
-                               pad_index=pad_index,
-                               device=device),
-            num_workers=num_workers,
+            collate_fn=partial(
+                self.collate_fn,
+                eos_index=eos_index,
+                pad_index=pad_index,
+                device=device
+            ),
+            num_workers=num_workers
         )
 
     def __len__(self) -> int:
         raise NotImplementedError
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}(split={self.split}, len={self.__len__()}, "
-                f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-                f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
-                f"has_src_prompt={self.has_prompt[self.src_lang]}, "
-                f"has_trg_prompt={self.has_prompt[self.trg_lang]})")
+        return (
+            f"{self.__class__.__name__}(split={self.split}, len={self.__len__()}, "
+            f'src_lang="{self.src_lang}", trg_lang="{self.trg_lang}", '
+            f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+            f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+            f"has_trg_prompt={self.has_prompt[self.trg_lang]})"
+        )
 
 
 class PlaintextDataset(BaseDataset):
@@ -322,14 +330,15 @@ class PlaintextDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        split: int = "train",
-        has_trg: bool = True,
+        split: str = "train",
+        has_trg: bool = False,
         has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
-        **kwargs,
+        **kwargs
     ):
+
         super().__init__(
             path=path,
             src_lang=src_lang,
@@ -339,7 +348,7 @@ class PlaintextDataset(BaseDataset):
             has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
-            random_subset=random_subset,
+            random_subset=random_subset
         )
 
         # load data
@@ -372,8 +381,10 @@ class PlaintextDataset(BaseDataset):
     def lookup_item(self, idx: int, lang: str) -> Tuple[str, str]:
         try:
             line = self.data[lang][idx]
-            prompt = (self.data[f"{lang}_prompt"][idx]
-                      if f"{lang}_prompt" in self.data else None)
+            prompt = (
+                self.data[f"{lang}_prompt"][idx]
+                if f"{lang}_prompt" in self.data else None
+            )
             return line, prompt
         except Exception as e:
             logger.error(idx, e)
@@ -414,14 +425,15 @@ class TsvDataset(BaseDataset):
         path: str,
         src_lang: str,
         trg_lang: str,
-        split: int = "train",
-        has_trg: bool = True,
+        split: str = "train",
+        has_trg: bool = False,
         has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
-        **kwargs,
+        **kwargs
     ):
+
         super().__init__(
             path=path,
             src_lang=src_lang,
@@ -431,7 +443,7 @@ class TsvDataset(BaseDataset):
             has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
-            random_subset=random_subset,
+            random_subset=random_subset
         )
 
         # load tsv file
@@ -443,42 +455,41 @@ class TsvDataset(BaseDataset):
         file_path = path.with_suffix(f"{path.suffix}.tsv")
         assert file_path.is_file(), f"{file_path} not found. Abort."
 
-        # read tsv data
         try:
             import pandas as pd  # pylint: disable=import-outside-toplevel
 
+            # TODO: use `chunksize` for online data loading.
             df = pd.read_csv(
                 file_path.as_posix(),
                 sep="\t",
                 header=0,
                 encoding="utf-8",
-                # escapechar="\\",
-                # quoting=3,
-                # na_filter=False,
-                index_col=None,
+                index_col=None
             )
             df = df.dropna()
             df = df.reset_index()
 
-            # TODO: use `chunksize` for online data loading.
             assert self.src_lang in df.columns
-            df[self.src_lang] = df[self.src_lang].apply(
-                self.tokenizer[self.src_lang].pre_process)
+            df[self.src_lang
+               ] = df[self.src_lang].apply(self.tokenizer[self.src_lang].pre_process)
 
             if self.trg_lang not in df.columns:
                 self.has_trg = False
                 assert self.split == "test"
             if self.has_trg:
                 df[self.trg_lang] = df[self.trg_lang].apply(
-                    self.tokenizer[self.trg_lang].pre_process)
+                    self.tokenizer[self.trg_lang].pre_process
+                )
             if f"{self.src_lang}_prompt" in df.columns:
                 self.has_prompt[self.src_lang] = True
                 df[f"{self.src_lang}_prompt"] = df[f"{self.src_lang}_prompt"].apply(
-                    self.tokenizer[self.src_lang].pre_process, allow_empty=True)
+                    self.tokenizer[self.src_lang].pre_process, allow_empty=True
+                )
             if f"{self.trg_lang}_prompt" in df.columns:
                 self.has_prompt[self.trg_lang] = True
                 df[f"{self.trg_lang}_prompt"] = df[f"{self.trg_lang}_prompt"].apply(
-                    self.tokenizer[self.trg_lang].pre_process, allow_empty=True)
+                    self.tokenizer[self.trg_lang].pre_process, allow_empty=True
+                )
             return df
 
         except ImportError as e:
@@ -501,8 +512,10 @@ class TsvDataset(BaseDataset):
                  subsampled: bool = True) -> Union[List[str], List[List[str]]]:
         indices = self.indices if subsampled else range(self.__len__())
         df = self.df.iloc[indices]
-        return (df[lang].apply(self.tokenizer[lang]).to_list()
-                if tokenized else df[lang].to_list())
+        return (
+            df[lang].apply(self.tokenizer[lang]).to_list()
+            if tokenized else df[lang].to_list()
+        )
 
     def __len__(self) -> int:
         return len(self.df)
@@ -514,20 +527,21 @@ class StreamDataset(BaseDataset):
     - called by `translate()` func in `prediction.py`.
     """
 
+    # pylint: disable=unused-argument
     def __init__(
         self,
         path: str,
         src_lang: str,
         trg_lang: str,
-        split: int = "test",
+        split: str = "test",
         has_trg: bool = False,
         has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
-        **kwargs,
+        **kwargs
     ):
-        # pylint: disable=unused-argument
+
         super().__init__(
             path=path,
             src_lang=src_lang,
@@ -537,16 +551,42 @@ class StreamDataset(BaseDataset):
             has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
-            random_subset=random_subset,
+            random_subset=random_subset
         )
+
         # place holder
         self.cache = []
 
-    def set_item(self,
-                 src_line: str,
-                 trg_line: Optional[str] = None,
-                 src_prompt: Optional[str] = None,
-                 trg_prompt: Optional[str] = None) -> None:
+    def _split_at_sep(self, line: str, prompt: str, lang: str, sep_token: str):
+        """
+        Split string at sep_token
+
+        :param line: (non-empty) input string
+        :param prompt: input prompt
+        :param lang:
+        :param sep_token:
+        """
+        if (
+            sep_token is not None and line is not None and sep_token in line
+            and prompt is None
+        ):
+            line, prompt = line.split(sep_token)
+
+        if line:
+            line = self.tokenizer[lang].pre_process(line, allow_empty=False)
+        if prompt:
+            prompt = self.tokenizer[lang].pre_process(prompt, allow_empty=True)
+            self.has_prompt[lang] = True
+
+        return line, prompt
+
+    def set_item(
+        self,
+        src_line: str,
+        trg_line: Optional[str] = None,
+        src_prompt: Optional[str] = None,
+        trg_prompt: Optional[str] = None
+    ) -> None:
         """
         Set input text to the cache.
 
@@ -558,36 +598,17 @@ class StreamDataset(BaseDataset):
         assert isinstance(src_line, str) and src_line.strip() != "", \
             "The input sentence is empty! Please make sure " \
             "that you are feeding a valid input."
-        sep_token = self.tokenizer[self.src_lang].sep_token
 
-        def _split_at_sep(line):
-            try:
-                line, prompt = line.split(sep_token)
-                return line, prompt
-            except ValueError:
-                pass
-            return line, None
+        src_line, src_prompt = self._split_at_sep(
+            src_line, src_prompt, self.src_lang, self.tokenizer[self.src_lang].sep_token
+        )
+        assert src_line is not None
 
-        def _pre_process(line, lang, allow_empty):
-            line = self.tokenizer[lang].pre_process(line, allow_empty=allow_empty)
-            if allow_empty is True and line is not None:
-                self.has_prompt[lang] = True
-            return line
-
-        if sep_token is not None and sep_token in src_line and src_prompt is None:
-            src_line, src_prompt = _split_at_sep(src_line)
-
-        src_line = _pre_process(src_line, self.src_lang, allow_empty=False)
-
+        trg_line, trg_prompt = self._split_at_sep(
+            trg_line, trg_prompt, self.trg_lang, self.tokenizer[self.trg_lang].sep_token
+        )
         if self.has_trg:
-            if sep_token in src_line and src_prompt is None:
-                trg_line, trg_prompt = _split_at_sep(trg_line)
-            trg_line = _pre_process(trg_line, self.trg_lang, allow_empty=False)
-
-        if src_prompt:
-            src_prompt = _pre_process(src_prompt, self.src_lang, allow_empty=True)
-        if trg_prompt:
-            trg_prompt = _pre_process(trg_prompt, self.trg_lang, allow_empty=True)
+            assert trg_line is not None
 
         self.cache.append((src_line, trg_line, src_prompt, trg_prompt))
         self.reset_indices()
@@ -618,11 +639,13 @@ class StreamDataset(BaseDataset):
         return len(self.cache)
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}(split={self.split}, len={len(self.cache)}, "
-                f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-                f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
-                f"has_src_prompt={self.has_prompt[self.src_lang]}, "
-                f"has_trg_prompt={self.has_prompt[self.trg_lang]})")
+        return (
+            f"{self.__class__.__name__}(split={self.split}, len={len(self.cache)}, "
+            f'src_lang="{self.src_lang}", trg_lang="{self.trg_lang}", '
+            f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+            f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+            f"has_trg_prompt={self.has_prompt[self.trg_lang]})"
+        )
 
 
 class BaseHuggingfaceDataset(BaseDataset):
@@ -638,6 +661,7 @@ class BaseHuggingfaceDataset(BaseDataset):
         src_lang: str,
         trg_lang: str,
         has_trg: bool = True,
+        has_prompt: Dict[str, bool] = None,
         tokenizer: Dict[str, BasicTokenizer] = None,
         sequence_encoder: Dict[str, Callable] = None,
         random_subset: int = -1,
@@ -649,6 +673,7 @@ class BaseHuggingfaceDataset(BaseDataset):
             trg_lang=trg_lang,
             split=kwargs["split"],
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -696,8 +721,9 @@ class BaseHuggingfaceDataset(BaseDataset):
                  subsampled: bool = True) -> Union[List[str], List[List[str]]]:
         dataset = self.dataset
         if subsampled:
-            dataset = dataset.filter(lambda x, idx: idx in self.indices,
-                                     with_indices=True)
+            dataset = dataset.filter(
+                lambda x, idx: idx in self.indices, with_indices=True
+            )
             assert len(dataset) == len(self.indices), (len(dataset), len(self.indices))
 
         if tokenized:
@@ -713,11 +739,13 @@ class BaseHuggingfaceDataset(BaseDataset):
         return self.dataset.num_rows
 
     def __repr__(self) -> str:
-        ret = (f"{self.__class__.__name__}(len={self.__len__()}, "
-               f"src_lang={self.src_lang}, trg_lang={self.trg_lang}, "
-               f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
-               f"has_src_prompt={self.has_prompt[self.src_lang]}, "
-               f"has_trg_prompt={self.has_prompt[self.trg_lang]}")
+        ret = (
+            f"{self.__class__.__name__}(len={self.__len__()}, "
+            f'src_lang="{self.src_lang}", trg_lang="{self.trg_lang}", '
+            f"has_trg={self.has_trg}, random_subset={self.random_subset}, "
+            f"has_src_prompt={self.has_prompt[self.src_lang]}, "
+            f"has_trg_prompt={self.has_prompt[self.trg_lang]}"
+        )
         for k, v in self._kwargs.items():
             ret += f", {k}={v}"
         ret += ")"
@@ -752,16 +780,20 @@ class HuggingfaceTranslationDataset(BaseHuggingfaceDataset):
             sl = self.src_lang
             tl = self.trg_lang
             item[self.COLUMN_NAME][sl] = self.tokenizer[sl].pre_process(
-                item[self.COLUMN_NAME][sl])
+                item[self.COLUMN_NAME][sl]
+            )
             if self.has_trg:
                 item[self.COLUMN_NAME][tl] = self.tokenizer[tl].pre_process(
-                    item[self.COLUMN_NAME][tl])
+                    item[self.COLUMN_NAME][tl]
+                )
             if self.has_prompt[sl]:
                 item[f"{sl}_prompt"] = self.tokenizer[sl].pre_process(
-                    item[f"{sl}_prompt"], allow_empty=True)
+                    item[f"{sl}_prompt"], allow_empty=True
+                )
             if self.has_prompt[tl]:
                 item[f"{tl}_prompt"] = self.tokenizer[tl].pre_process(
-                    item[f"{tl}_prompt"], allow_empty=True)
+                    item[f"{tl}_prompt"], allow_empty=True
+                )
             return item
 
         def _drop_nan(item):
@@ -786,6 +818,7 @@ def build_dataset(
     split: str,
     tokenizer: Dict = None,
     sequence_encoder: Dict = None,
+    has_prompt: Dict = None,
     random_subset: int = -1,
     **kwargs,
 ):
@@ -800,22 +833,27 @@ def build_dataset(
     :param split: (str) one of {`train`, `dev`, `test`}
     :param tokenizer: tokenizer objects for both source and target
     :param sequence_encoder: encoding functions for both source and target
+    :param has_prompt: prompt indicators
     :param random_subset: (int) number of random subset; -1 means no subsampling
     :return: loaded Dataset
     """
     dataset = None
     has_trg = True  # by default, we expect src-trg pairs
+    _placeholder = {src_lang: None, trg_lang: None}
+    tokenizer = _placeholder if tokenizer is None else tokenizer
+    sequence_encoder = _placeholder if sequence_encoder is None else sequence_encoder
+    has_prompt = _placeholder if has_prompt is None else has_prompt
 
     if dataset_type == "plain":
         if not Path(path).with_suffix(f"{Path(path).suffix}.{trg_lang}").is_file():
-            # no target is given -> create dataset from src only
-            has_trg = False
+            has_trg = False  # no target is given -> create dataset from src only
         dataset = PlaintextDataset(
             path=path,
             src_lang=src_lang,
             trg_lang=trg_lang,
             split=split,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -828,6 +866,7 @@ def build_dataset(
             trg_lang=trg_lang,
             split=split,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -840,6 +879,7 @@ def build_dataset(
             trg_lang=trg_lang,
             split="test",
             has_trg=False,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=-1,
@@ -854,6 +894,7 @@ def build_dataset(
             src_lang=src_lang,
             trg_lang=trg_lang,
             has_trg=has_trg,
+            has_prompt=has_prompt,
             tokenizer=tokenizer,
             sequence_encoder=sequence_encoder,
             random_subset=random_subset,
@@ -930,8 +971,10 @@ class SentenceBatchSampler(BatchSampler):
             self.sampler.generator.manual_seed(seed)
 
         if self.num_samples < len(self.sampler.data_source):
-            logger.info("Sample random subset from %s data: n=%d, seed=%d",
-                        self.sampler.data_source.split, self.num_samples, seed)
+            logger.info(
+                "Sample random subset from %s data: n=%d, seed=%d",
+                self.sampler.data_source.split, self.num_samples, seed
+            )
 
     def reset(self) -> None:
         if hasattr(self.sampler, 'reset'):

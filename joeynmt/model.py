@@ -73,8 +73,9 @@ class Model(nn.Module):
     def loss_function(self, cfg: Tuple):
         loss_type, label_smoothing = cfg
         assert loss_type == "crossentropy"
-        self._loss_function = XentLoss(pad_index=self.pad_index,
-                                       smoothing=label_smoothing)
+        self._loss_function = XentLoss(
+            pad_index=self.pad_index, smoothing=label_smoothing
+        )
 
     def forward(self,
                 return_type: str = None,
@@ -89,8 +90,10 @@ class Model(nn.Module):
         :param return_type: one of {"loss", "encode", "decode"}
         """
         if return_type is None:
-            raise ValueError("Please specify return_type: "
-                             "{`loss`, `encode`, `decode`}.")
+            raise ValueError(
+                "Please specify return_type: "
+                "{`loss`, `encode`, `decode`}."
+            )
 
         if return_type == "loss":
             assert self.loss_function is not None
@@ -110,7 +113,9 @@ class Model(nn.Module):
             assert kwargs["trg"].size() == trg_mask.size()
             n_correct = torch.sum(
                 log_probs.argmax(-1).masked_select(trg_mask).eq(
-                    kwargs["trg"].masked_select(trg_mask)))
+                    kwargs["trg"].masked_select(trg_mask)
+                )
+            )
 
             # return batch loss
             #     = sum over all elements in batch that are not pad
@@ -151,10 +156,9 @@ class Model(nn.Module):
         :param trg_mask: target mask
         :return: decoder outputs
         """
-        encoder_output, encoder_hidden = self._encode(src=src,
-                                                      src_length=src_length,
-                                                      src_mask=src_mask,
-                                                      **kwargs)
+        encoder_output, encoder_hidden = self._encode(
+            src=src, src_length=src_length, src_mask=src_mask, **kwargs
+        )
 
         unroll_steps = trg_input.size(1)
 
@@ -182,8 +186,10 @@ class Model(nn.Module):
             - src_mask
         """
         # embed src prompts if given
-        if (_kwargs.get("src_prompt_mask", None) is not None
-                and isinstance(self.encoder, TransformerEncoder)):
+        if (
+            _kwargs.get("src_prompt_mask", None) is not None
+            and isinstance(self.encoder, TransformerEncoder)
+        ):
             assert self.sep_index is not None and self.sep_index in self.specials, \
                 (f"Prompt marker {self.sep_index} not found."
                  "This model doesn't support prompting!")
@@ -222,13 +228,16 @@ class Model(nn.Module):
             - att_vector
         """
         # embed trg prompts if given
-        if (_kwargs.get("trg_prompt_mask", None) is not None
-                and isinstance(self.decoder, TransformerDecoder)):
+        if (
+            _kwargs.get("trg_prompt_mask", None) is not None
+            and isinstance(self.decoder, TransformerDecoder)
+        ):
             assert self.sep_index is not None and self.sep_index in self.specials, \
                 (f"Prompt marker {self.sep_index} not found."
                  "This model doesn't support prompting!")
             assert trg_input.size(1) == _kwargs["trg_prompt_mask"].size(1), (
-                trg_input.size(1), _kwargs["trg_prompt_mask"].size(1))
+                trg_input.size(1), _kwargs["trg_prompt_mask"].size(1)
+            )
             _kwargs["trg_prompt_mask"] = self.trg_embed(_kwargs["trg_prompt_mask"])
 
         return self.decoder(
@@ -249,12 +258,14 @@ class Model(nn.Module):
 
         :return: string representation
         """
-        return (f"{self.__class__.__name__}(\n"
-                f"\tencoder={self.encoder},\n"
-                f"\tdecoder={self.decoder},\n"
-                f"\tsrc_embed={self.src_embed},\n"
-                f"\ttrg_embed={self.trg_embed},\n"
-                f"\tloss_function={self.loss_function})")
+        return (
+            f"{self.__class__.__name__}(\n"
+            f"\tencoder={self.encoder},\n"
+            f"\tdecoder={self.decoder},\n"
+            f"\tsrc_embed={self.src_embed},\n"
+            f"\ttrg_embed={self.trg_embed},\n"
+            f"\tloss_function={self.loss_function})"
+        )
 
     def log_parameters_list(self) -> None:
         """
@@ -311,9 +322,11 @@ class DataParallelWrapper(nn.Module):
         return self.module(*args, **kwargs)
 
 
-def build_model(cfg: Dict = None,
-                src_vocab: Vocabulary = None,
-                trg_vocab: Vocabulary = None) -> Model:
+def build_model(
+    cfg: Dict = None,
+    src_vocab: Vocabulary = None,
+    trg_vocab: Vocabulary = None
+) -> Model:
     """
     Build and initialize the model according to the configuration.
 
@@ -341,7 +354,8 @@ def build_model(cfg: Dict = None,
             trg_embed = src_embed  # share embeddings for src and trg
         else:
             raise ConfigurationError(
-                "Embedding cannot be tied since vocabularies differ.")
+                "Embedding cannot be tied since vocabularies differ."
+            )
     else:
         trg_embed = Embeddings(
             **dec_cfg["embeddings"],
@@ -355,7 +369,8 @@ def build_model(cfg: Dict = None,
     if enc_cfg.get("type", "recurrent") == "transformer":
         assert enc_cfg["embeddings"]["embedding_dim"] == enc_cfg["hidden_size"], (
             "for transformer, emb_size must be "
-            "the same as hidden_size")
+            "the same as hidden_size"
+        )
         emb_size = src_embed.embedding_dim
         encoder = TransformerEncoder(
             **enc_cfg,
@@ -407,7 +422,8 @@ def build_model(cfg: Dict = None,
         else:
             raise ConfigurationError(
                 "For tied_softmax, the decoder embedding_dim and decoder hidden_size "
-                "must be the same. The decoder must be a Transformer.")
+                "must be the same. The decoder must be a Transformer."
+            )
 
     # custom initialization of model parameters
     initialize_model(model, cfg, src_pad_index, trg_pad_index)
