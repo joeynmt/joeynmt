@@ -269,6 +269,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
         raise ConfigurationError(
             "Invalid setting for `early_stopping_metric`. "
             "Valid options: {`acc`, `loss`, `ppl`, `bleu`, `chrf`}.")
+    validation_step_patience = cfg.get("validation_step_patience", -1)
 
     # data & batch handling
     seed: int = cfg.get("random_seed", 42)
@@ -302,6 +303,7 @@ def parse_train_args(cfg: Dict, mode: str = "training") -> Tuple:
         validation_freq,
         log_valid_sents,
         early_stopping_metric,
+        validation_step_patience,
         seed,
         shuffle,
         epochs,
