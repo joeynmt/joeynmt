@@ -235,7 +235,7 @@ def transformer_greedy(
         if torch.any(~forced_word_mask).item():
             with torch.autocast(**autocast):
                 with torch.no_grad():
-                    out, _, att, _ = model(
+                    log_probs, _, att, _ = model(
                         return_type="decode",
                         trg_input=ys,  # model.trg_embed(ys) # embed the previous tokens
                         encoder_output=encoder_output,
@@ -250,28 +250,16 @@ def transformer_greedy(
                         ),
                     )
 
-            out = out[:, -1]  # logits
-
-            # don't generate BOS, SEP, language tags
-            for forbidden_index in [bos_index, sep_index] + model.lang_tags:
-                if forbidden_index is not None and forbidden_index < out.size(1):
-                    out[:, forbidden_index] = float("-inf")
-
-            if not generate_unk:
-                out[:, unk_index] = float("-inf")
-
-            # don't generate EOS until we reached min_output_length
-            if step < min_output_length:
-                out[:, eos_index] = float("-inf")
+            log_probs = log_probs[:, -1]  # logits
 
             if compute_softmax:
-                out = F.log_softmax(out, dim=-1)
+                log_probs = F.log_softmax(log_probs, dim=-1)
 
                 # ngram blocker
                 if no_repeat_ngram_size > 1:
-                    out = block_repeat_ngrams(
+                    log_probs = block_repeat_ngrams(
                         ys,
-                        out,
+                        log_probs,
                         no_repeat_ngram_size,
                         step,
                         src_tokens=encoder_input,
@@ -280,22 +268,34 @@ def transformer_greedy(
 
                 # repetition penalty
                 if repetition_penalty > 1.0:
-                    out = penalize_repetition(
+                    log_probs = penalize_repetition(
                         ys,
-                        out,
+                        log_probs,
                         repetition_penalty,
                         exclude_tokens=model.specials + model.lang_tags,
                     )
                     if encoder_input is not None:
-                        out = penalize_repetition(
+                        log_probs = penalize_repetition(
                             encoder_input,
-                            out,
+                            log_probs,
                             repetition_penalty,
                             exclude_tokens=model.specials + model.lang_tags,
                         )
 
+            # don't generate BOS, SEP, language tags
+            for forbidden_index in [bos_index, sep_index] + model.lang_tags:
+                if forbidden_index is not None and forbidden_index < log_probs.size(1):
+                    log_probs[:, forbidden_index] = float("-inf")
+
+            if not generate_unk:
+                log_probs[:, unk_index] = float("-inf")
+
+            # don't generate EOS until we reached min_output_length
+            if step < min_output_length:
+                log_probs[:, eos_index] = float("-inf")
+
             # take the most likely token
-            prob, next_word = torch.max(out, dim=1)
+            prob, next_word = torch.max(log_probs, dim=1)
             next_word = next_word.data.unsqueeze(-1)
             next_word = torch.where(forced_word_mask.bool(), forced_word, next_word)
             if return_prob:
@@ -549,22 +549,14 @@ def beam_search(
                             trg_mask=None,  # subsequent mask for Transformer only
                         )
 
+                # squeeze the output along the unroll-steps dimension
+                # `logits` shape: (batch_size, unroll_steps, trg_vocab_size)
+                #              -> (batch_size, trg_vocab_size)
+                logits = logits.squeeze(1)
+
             # compute log probability distribution over trg vocab
             # `log_probs` shape: (remaining_batch_size * beam_size, trg_vocab)
-            log_probs = F.log_softmax(logits, dim=-1).squeeze(1)
-
-            # don't generate BOS, SEP, language tags
-            for forbidden_index in [bos_index, pad_index, sep_index] + model.lang_tags:
-                if forbidden_index is not None and forbidden_index < log_probs.size(1):
-                    log_probs[:, forbidden_index] = float("-inf")
-
-            # don't generate UNK
-            if not generate_unk:
-                log_probs[:, unk_index] = float("-inf")
-
-            # don't generate EOS until we reached min_output_length
-            if step < min_output_length:
-                log_probs[:, eos_index] = float("-inf")
+            log_probs = F.log_softmax(logits, dim=-1)
 
             # block repetitions
             if no_repeat_ngram_size > 0:
@@ -591,6 +583,19 @@ def beam_search(
                         repetition_penalty,
                         exclude_tokens=model.specials + model.lang_tags,
                     )
+
+            # don't generate BOS, SEP, language tags
+            for forbidden_index in [bos_index, pad_index, sep_index] + model.lang_tags:
+                if forbidden_index is not None and forbidden_index < log_probs.size(1):
+                    log_probs[:, forbidden_index] = float("-inf")
+
+            # don't generate UNK
+            if not generate_unk:
+                log_probs[:, unk_index] = float("-inf")
+
+            # don't generate EOS until we reached min_output_length
+            if step < min_output_length:
+                log_probs[:, eos_index] = float("-inf")
 
             forced_token_ids = forced_token_ids.masked_select(padding_mask)
             _log_probs_idx = _log_probs_idx.masked_select(padding_mask)

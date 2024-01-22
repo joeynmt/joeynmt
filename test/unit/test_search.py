@@ -48,15 +48,13 @@ class TestSearch(unittest.TestCase):
 
         self.expected_transformer_ids = torch.tensor([[0, 0, 0], [0, 0, 7]])
         self.expected_transformer_scores = torch.tensor([
-            [-0.5069, -0.4394, -0.4898],
-            [-0.8484, -0.8299, -0.8048],
-        ])
+            [-0.5425, -0.4908, -0.5439], [-0.8726, -0.9898, -0.9668],
+        ])  # yapf: disable
 
         self.expected_recurrent_ids = torch.tensor([[0, 0, 0], [0, 0, 0]])
         self.expected_recurrent_scores = torch.tensor([
-            [-2.7310, -1.1748, -0.8349],
-            [-1.8635, -1.6904, -1.4866],
-        ])
+            [-2.7310, -1.1748, -0.8349], [-1.8635, -1.6904, -1.4866],
+        ])  # yapf: disable
 
 
 class TestSearchTransformer(TestSearch):
@@ -161,8 +159,8 @@ class TestSearchTransformer(TestSearch):
 
         # zero log_prob on the forced positions
         expected_score = torch.tensor([
-            [0.0000, 0.0000, 0.0000, -0.4302, -0.3030, -0.2777, -0.3206],
-            [0.0000, 0.0000, -0.7326, -0.6498, -0.5499, -0.4744, -0.5515],
+            [0.0000, 0.0000, 0.0000, -0.4631, -0.3289, -0.3042, -0.3404],
+            [0.0000, 0.0000, -0.7532, -0.6751, -0.5730, -0.4957, -0.5718],
         ])
         self.assertEqual(scores.shape, (batch_size, max_output_length))  # batch x time
         torch.testing.assert_close(scores, expected_score, rtol=1e-4, atol=1e-4)
@@ -354,7 +352,7 @@ class TestSearchTransformer(TestSearch):
             autocast=self.autocat,
         )
 
-        expected_output_trg_penalty = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        expected_output_trg_penalty = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 3]])
         torch.testing.assert_close(
             output_trg_penalty, expected_output_trg_penalty, check_dtype=False
         )
@@ -376,7 +374,7 @@ class TestSearchTransformer(TestSearch):
             autocast=self.autocat,
         )
 
-        expected_output_src_penalty = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        expected_output_src_penalty = torch.tensor([[1, 7, 3], [1, 7, 1], [1, 1, 1]])
         torch.testing.assert_close(
             output_src_penalty, expected_output_src_penalty, check_dtype=False
         )
@@ -385,9 +383,9 @@ class TestSearchTransformer(TestSearch):
         # (batch_size, trg_len, src_len) = (3, 3, 4)
         expected_attention = torch.tensor([
             [[0.5292, 0.4708, 0.0000, 0.0000], [0.5269, 0.4731, 0.0000, 0.0000],
-             [0.5250, 0.4750, 0.0000, 0.0000]],
+             [0.5264, 0.4736, 0.0000, 0.0000]],
             [[0.3075, 0.6322, 0.0602, 0.0000], [0.2890, 0.6350, 0.0760, 0.0000],
-             [0.2808, 0.6317, 0.0875, 0.0000]],
+             [0.3343, 0.6314, 0.0343, 0.0000]],
             [[0.2648, 0.1326, 0.5174, 0.0852], [0.2642, 0.1167, 0.5365, 0.0825],
              [0.2646, 0.1125, 0.5421, 0.0809]],
         ])
@@ -459,8 +457,8 @@ class TestSearchTransformer(TestSearch):
         torch.testing.assert_close(output, expected_output, check_dtype=False)
 
         expected_scores = torch.tensor([
-            [-0.5069, -0.4394, -0.4898, -0.6675, -0.6461, -0.6012, -0.6067],
-            [-0.8484, -0.8299, -0.8048, -0.6847, -0.6409, -0.9883, -0.6123],
+            [-0.5425, -0.4908, -0.5439, -0.7328, -0.6922, -0.6422, -0.6464],
+            [-0.8726, -0.9898, -0.9668, -1.3988, -0.6783, -1.0269, -0.6804],
         ])
         torch.testing.assert_close(scores, expected_scores, rtol=1e-4, atol=1e-4)
 
