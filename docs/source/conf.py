@@ -14,9 +14,11 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../..'))
+import packaging.version
+from pathlib import Path
 
-# print(sys.path)
+root_path = os.path.abspath('../..')
+sys.path.insert(0, root_path)
 
 
 # -- Project information -----------------------------------------------------
@@ -25,10 +27,15 @@ project = 'Joey NMT'
 copyright = '2018, Jasmijn Bastings and Julia Kreutzer'
 author = 'Jasmijn Bastings and Julia Kreutzer'
 
+for line in (Path(root_path) / "joeynmt/__init__.py").read_text().splitlines():
+    if line.startswith("__version__"):
+        joeynmt_version = line.strip().split('=')[-1].strip()[1:-1]
+        break
+
 # The short X.Y version
-version = '2.3'
+version = '.'.join(map(str, packaging.version.parse(joeynmt_version).release[:2]))
 # The full version, including alpha/beta/rc tags
-release = '2.3.0'
+release = joeynmt_version
 
 
 # -- General configuration ---------------------------------------------------
@@ -42,10 +49,10 @@ release = '2.3.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.extlinks',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'sphinx_rtd_theme',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -81,7 +88,8 @@ pygments_style = None
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'furo'
+html_logo = (Path(root_path) / "joey2-small.png").as_posix()
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -178,6 +186,28 @@ epub_title = project
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
+
+
+# -- Options for extlinks ----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/extensions/extlinks.html
+
+github_url = "https://github.com"
+github_repo_org = "joeynmt"
+github_repo_name = "joeynmt"
+github_repo_slug = f"{github_repo_org}/{github_repo_name}"
+github_repo_url = f"{github_url}/{github_repo_slug}"
+github_repo_main_url = f"{github_url}/{github_repo_slug}/blob/main"
+github_repo_issues_url = f"{github_url}/{github_repo_slug}/issues"
+
+extlinks = {
+    "joeynmt": (f"{github_repo_main_url}/joeynmt/%s", "%s"),
+    "scripts": (f"{github_repo_main_url}/scripts/%s", "%s"),
+    "configs": (f"{github_repo_main_url}/configs/%s", "%s"),
+    "notebooks": (f"{github_repo_main_url}/notebooks/%s", "%s"),
+    "issue": (f"{github_repo_issues_url}/%s", "#%s"),
+    "pr": (f"{github_repo_url}/pull/%s", "PR #%s"),
+    "commit": (f"{github_repo_url}/commit/%s", "%s"),
+}
 
 
 # -- Extension configuration -------------------------------------------------

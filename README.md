@@ -1,6 +1,7 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
 [![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![arXiv](https://img.shields.io/badge/arXiv-1907.12484-b31b1b.svg)](https://arxiv.org/abs/1907.12484)
 
 
 ## Goal and Purpose
@@ -18,8 +19,8 @@ increase in code complexity and a decrease in readability. :eyes:
 
 However, Joey NMT re-implements baselines from major publications.
 
-Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our
-[paper](https://arxiv.org/abs/1907.12484).
+Check out the detailed [documentation](https://joeynmt.readthedocs.io) :books: and our
+[paper](https://arxiv.org/abs/1907.12484). :newspaper:
 
 
 ## Contributors
@@ -82,7 +83,7 @@ python -m unittest  # Run the unit tests
 > For Windows users, we recommend to check whether txt files (i.e. `test/data/toy/*`) have utf-8 encoding.
 
 
-## Change logs
+## Changelog
 
 ### v2.3
 - introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html).

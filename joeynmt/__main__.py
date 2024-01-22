@@ -13,7 +13,7 @@ from joeynmt.training import train
 
 
 def main():
-    ap = argparse.ArgumentParser("Joey NMT")
+    ap = argparse.ArgumentParser("joeynmt")
 
     ap.add_argument(
         "mode",

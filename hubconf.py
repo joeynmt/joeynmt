@@ -27,7 +27,7 @@ if len(missing_deps) > 0:
     raise RuntimeError(f"Missing dependencies: {', '.join(missing_deps)}")
 
 # pylint: disable=wrong-import-position
-# Do joeynmt imports after dependency check
+# Import after dependency check
 from huggingface_hub import snapshot_download  # noqa: E402
 
 from joeynmt.helpers_for_ddp import get_logger  # noqa: E402

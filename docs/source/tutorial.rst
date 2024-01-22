@@ -6,19 +6,19 @@ Tutorial
 
 In this tutorial, you learn to build a recurrent neural translation system for a toy translation task, how to train, tune and test it.
 
-Instead of following the synthetic example here, you might also run the `quick start guide <https://github.com/joeynmt/joeynmt/blob/master/joey_v2_demo.ipynb>`_ that walks you step-by-step through the installation, data preparation, training, evaluation using "real" translation dataset from `Tatoeba <https://opus.nlpl.eu/Tatoeba.php>`_.
+Instead of following the synthetic example here, you might also run the :notebooks:`quick start guide <joey_v2_demo.ipynb>` that walks you step-by-step through the installation, data preparation, training, evaluation using "real" translation dataset from `Tatoeba <https://opus.nlpl.eu/Tatoeba.php>`_.
 
-`Torchhub tutorial <https://github.com/joeynmt/joeynmt/blob/master/torchhub.ipynb>`_ demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ API. 
+:notebooks:`Torchhub tutorial <torchhub.ipynb>` demonstrates how to generate translation from a pretrained model via `Torchhub <https://pytorch.org/hub/>`_ API. 
 
 
 1. Data Preparation
-===================
+-------------------
 For training a translation model, you need parallel data, i.e. a collection of source sentences and reference translations that are aligned sentence-by-sentence and stored in two files,
 such that each line in the reference file is the translation of the same line in the source file.
 
 
 Synthetic Data
---------------
+^^^^^^^^^^^^^^
 
 For the sake of this tutorial, we'll simply generate synthetic data to mimic a real-world translation task.
 Our machine translation task is here to learn to reverse a given input sequence of integers.
@@ -61,21 +61,21 @@ The generated files are placed under `test/data/reverse/`.
 
 
 2. Configuration
-================
+----------------
 
 Once you have the data, it's time to build the NMT model.
 
-In JoeyNMT, experiments are specified in configuration files, in `YAML <http://yaml.org/>`_ format.
+In Joey NMT, experiments are specified in configuration files, in `YAML <http://yaml.org/>`_ format.
 Most importantly, the configuration contains the description of the model architecture (e.g. number of hidden units in the encoder RNN),
 paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
-You can find examples in the `configs directory <https://github.com/joeynmt/joeynmt/tree/main/configs>`_.
-`rnn_small.yaml <https://github.com/joeynmt/joeynmt/tree/main/configs/rnn_small.yaml>`_ contains a detailed explanation of all configuration options.
+You can find examples in the ``configs`` directory. :configs:`rnn_small.yaml` contains a detailed explanation of all configuration options.
 
-For the tutorial, we'll use `rnn_reverse.yaml <https://github.com/joeynmt/joeynmt/tree/main/configs/rnn_reverse.yaml>`_. We'll go through it section by section.
+For the tutorial, we'll use :configs:`rnn_reverse.yaml`. We'll go through it section by section.
+
 
 Top Section
------------
+^^^^^^^^^^^
 
 Here we specify general settings applied both in training and prediction.
 With ``use_cuda`` we can decide whether to train the model on GPU (True) or CPU (False). Note that for training on GPU you need the appropriate CUDA libraries installed.
@@ -91,7 +91,7 @@ With ``use_cuda`` we can decide whether to train the model on GPU (True) or CPU 
 
 
 Data Section
-------------
+^^^^^^^^^^^^
 
 Here we give the path to the data (".src" is the source suffix, ".trg" is the target suffix of the plain txt files)
 and for each side separately, indicate which segmentation level we want to train on, here simply on the word level, as opposed to the character level.
@@ -133,7 +133,7 @@ If you want to use a pre-generated vocabulary, you can load it in ``voc_file`` f
 
 
 Training Section
-----------------
+^^^^^^^^^^^^^^^^
 
 This section describes how the model is trained.
 Training stops when either the learning rate decreased to ``learning_rate_min`` (when using a decreasing learning rate schedule) or the maximum number of epochs is reached.
@@ -172,16 +172,15 @@ At the beginning of each epoch, the training data is shuffled if we set ``shuffl
         keep_best_ckpts: 2
         overwrite: True
 
-.. warning::
+.. danger::
 
     In this example, we set ``overwrite: True`` which you shouldn't do if you're running serious experiments, since it overwrites the existing ``model_dir`` and all its content if it already exists and you re-start training.
 
 
 Testing Section
----------------
+^^^^^^^^^^^^^^^
 
-Here we only specify which decoding strategy we want to use during testing. If ``beam_size: 1`` the model greedily decodes, otherwise it uses a beam of ``beam_size`` to search for the best output.
-``beam_alpha`` is the length penalty for beam search (proposed in `Wu et al. 2018 <https://arxiv.org/pdf/1609.08144.pdf>`_).
+Here we only specify which decoding strategy we want to use during testing. If ``beam_size: 1`` the model greedily decodes, otherwise it uses a beam of ``beam_size`` to search for the best output. ``beam_alpha`` is the length penalty for beam search (proposed in `Wu et al. 2018 <https://arxiv.org/pdf/1609.08144.pdf>`_).
 
 .. code-block:: yaml
 
@@ -191,17 +190,19 @@ Here we only specify which decoding strategy we want to use during testing. If `
         beam_size: 1
         beam_alpha: 1.0
         eval_metrics: ["bleu"]
+        min_output_length: 1
         max_output_length: 30
         batch_size: 12
         batch_type: "sentence"
         return_prob: "none"
+        generate_unk: False
         sacrebleu_cfg:
             tokenize: "13a"
             lowercase: False
 
 
 Model Section
--------------
+^^^^^^^^^^^^^
 
 Here we describe the model architecture and the initialization of parameters.
 
@@ -209,7 +210,7 @@ In this example we use a one-layer bidirectional LSTM encoder with 64 units, a o
 Source and target embeddings both have the size of 16.
 
 We're not going into details for the initialization, just know that it matters for tuning but that our default configurations should generally work fine.
-A detailed description for the initialization options is described in `initialization.py <https://github.com/joeynmt/joeynmt/blob/main/joeynmt/initialization.py>`_.
+A detailed description for the initialization options is described in :joeynmt:`initialization.py`.
 
 Dropout is applied onto the input of the encoder RNN with dropout probability of 0.1, as well as to the input of the decoder RNN and to the input of the attention vector layer (``hidden_dropout``).
 Input feeding (`Luong et al. 2015 <https://aclweb.org/anthology/D15-1166>`_) means the attention vector is concatenated to the hidden state before feeding it to the RNN in the next step.
@@ -258,10 +259,10 @@ That's it! We've specified all that we need to train a translation model for the
 
 
 3. Training
-===========
+-----------
 
 Start
------
+^^^^^
 For training, run the following command:
 
 .. code-block:: bash
@@ -279,12 +280,12 @@ and store model parameters, vocabularies, validation outputs and a small number 
 
 
 Progress Tracking
------------------
+^^^^^^^^^^^^^^^^^
 
 The Log File
-^^^^^^^^^^^^
+""""""""""""
 
-During training the JoeyNMT will print the training log to stdout, and also save it to a log file ``reverse_model/train.log``.
+During training the Joey NMT will print the training log to stdout, and also save it to a log file ``reverse_model/train.log``.
 It reports information about the model, like the total number of parameters, the vocabulary size, the data sizes.
 You can doublecheck that what you specified in the configuration above is actually matching the model that is now training.
 
@@ -317,7 +318,7 @@ The loss on individual batches might vary and not only decrease, but after every
 This quantity should decrease if your model is properly learning.
 
 Validation Reports
-^^^^^^^^^^^^^^^^^^
+""""""""""""""""""
 
 The scores on the validation set express how well your model is generalizing to unseen data.
 The ``validations.txt`` file in the model directory reports the validation results (Loss, evaluation metric (here: BLEU), Perplexity (PPL)) and the current learning rate at every validation point.
@@ -337,9 +338,9 @@ You can see when a checkpoint was saved by the asterisk at the end of the line i
 ``best.ckpt`` links to the checkpoint that has so far achieved the best validation score.
 
 Learning Curves
-^^^^^^^^^^^^^^^
+"""""""""""""""
 
-JoeyNMT provides a `script <https://github.com/joeynmt/joeynmt/blob/main/scripts/plot_validations.py>`_ to plot validation scores with matplotlib.
+Joey NMT provides a script :scripts:`plot_validations.py` to plot validation scores with matplotlib.
 You can choose several models and metrics to plot. For now, we're interested in BLEU and perplexity and we want to save it as png.
 
 .. code-block:: bash
@@ -356,10 +357,10 @@ It should look like this:
 
 
 Tensorboard
-^^^^^^^^^^^
+"""""""""""
 
-JoeyNMT additionally uses `Tensorboard <https://pytorch.org/docs/stable/tensorboard.html>`__ to visualize training and validation curves and attention matrices during training.
-Launch `Tensorboard <https://github.com/tensorflow/tensorboard>`__ like this:
+Joey NMT additionally uses `Tensorboard <https://pytorch.org/docs/stable/tensorboard.html>`_ to visualize training and validation curves and attention matrices during training.
+Launch Tensorboardlike this:
 
 .. code-block:: bash
 
@@ -403,11 +404,11 @@ Looks good! Training and validation loss are decreasing, that means the model is
 
 
 Attention Visualization
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Attention scores often allow us a more visual inspection of what the model has learned.
 For every pair of source and target tokens, the model computes attention scores, so we can visualize this matrix.
-JoeyNMT automatically saves plots of attention scores for examples of the validation set (the ones you picked for ``print_valid_examples``) and saves them in your model directory.
+Joey NMT automatically saves plots of attention scores for examples of the validation set (the ones you picked for ``print_valid_examples``) and saves them in your model directory.
 
 Here's an example, target tokens as columns and source tokens as rows:
 
@@ -438,14 +439,14 @@ For real machine translation tasks, the attention looks less monotonic, for exam
 
 
 4. Testing
-==========
+----------
 
 There are *three* options for testing what the model has learned.
 
 In general, testing works by loading a trained model (``load_model`` in the configuration) and feeding it new sources that it will generate predictions for.
 
 Test Set Evaluation
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 For testing and evaluating on the parallel test set specified in the configuration, run
 
@@ -478,7 +479,7 @@ Once again you can see that the reverse task is relatively easy to learn, while 
 
 
 File Translation
-----------------
+^^^^^^^^^^^^^^^^
 
 In order to translate the contents of any file (one source sentence per line) not contained in the configuration (here ``my_input.txt``), simply run
 
@@ -497,8 +498,8 @@ For this example, the output (all correct!) will be
         12 11 10 9 8 7 6 5 4 3
 
 
-Interactive
------------
+Interactive Translation
+^^^^^^^^^^^^^^^^^^^^^^^
 
 If you just want to try a few examples, run
 
@@ -506,7 +507,7 @@ If you just want to try a few examples, run
 
     python -m joeynmt translate reverse_model/config.yaml
 
-and you'll be prompted to type input sentences that JoeyNMT will then translate with the model specified in the configuration.
+and you'll be prompted to type input sentences that Joey NMT will then translate with the model specified in the configuration.
 
 Let's try a challenging long one:
 
@@ -514,24 +515,16 @@ Let's try a challenging long one:
 
     Please enter a source sentence:
     1 23 23 43 34 2 2 2 2 2 4 5 32 47 47 47 21 20 0 10 10 10 10 10 8 7 33 36 37
-    JoeyNMT:
+    Joey NMT:
     33 10 10 37 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 2 34 43 23 1
 
-.. tip::
+.. warning::
 
-    There are several options to control generation.
-
-    - ``beam_size``: size of the beam for beam search
-    - ``beam_alpha``: length penalty for beam search
-    - ``n_best``: n_best size, must be smaller than or equal to beam_size
-    - ``return_prob``: whether to return probabilities of references ("ref") or hypotheses ("hyp"). default: "none".
-    - ``return_attention``: whether to return attention scores. (enabled if ``--save-attention`` flag is set.)
-    - ``no_repeat_ngram_size``: ngram size to prohibit repetition. If set to -1, no blocker applied.
-    - ``repetition_penalty``: repetition penalty. Between 0.0 and 1.0 penalizes the repeated tokens. If set to -1, no penalty applied.
+    Interactive ``translate`` mode doesn't work with Multi-GPU. Please run it on single GPU or CPU.
 
 
 5. Tuning
-=========
+---------
 
 Trying out different combinations of hyperparameters to improve the model is called "tuning".
 Improving the model could mean in terms of generalization performance at the end of training, faster convergence or making it more efficient or smaller while achieving the same quality.
@@ -554,8 +547,8 @@ or random search (`Bergstra & Bengio 2012 <http://www.jmlr.org/papers/volume13/b
 
 
 6. What's next?
-===============
+---------------
 
-If you want to implement something new in JoeyNMT or dive a bit deeper, you should take a look at the architecture :ref:`overview` and explore the :ref:`api`.
+If you want to implement something new in Joey NMT or dive a bit deeper, you should take a look at the :ref:`overview` and explore the :ref:`api`.
 
 Other than that, we hope that you found this tutorial helpful. Please leave an `issue on Github <https://github.com/joeynmt/joeynmt/issues>`_ if you had trouble with anything or have ideas for improvement.

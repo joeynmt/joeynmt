@@ -5,6 +5,14 @@ API Documentation
 =================
 
 
+Module contents
+---------------
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+
+
 Submodules
 ----------
 
@@ -193,11 +201,3 @@ joeynmt.transformer_layers module
     :members:
     :undoc-members:
     :show-inheritance:
-
-
-Module contents
----------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

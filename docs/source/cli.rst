@@ -1,17 +1,17 @@
-.. _usage:
+.. _cli:
 
-=====
-Usage
-=====
+======================
+Command-line Interface
+======================
 
-Joey NMT has 3 modes: ``train``, ``test``, and ``translate``, and all of them takes a `YAML <https://yaml.org/>`_-style config file as argument. You can find examples in the ``configs`` directory. ``transformer_small.yaml`` contains a detailed explanation of configuration options.
+Joey NMT has 3 modes: ``train``, ``test``, and ``translate``, and all of them takes a `YAML <https://yaml.org/>`_-style config file as argument. You can find examples in the ``configs`` directory. :configs:`transformer_small.yaml` contains a detailed explanation of configuration options.
 
 Most importantly, the configuration contains the description of the model architecture (e.g. number of hidden units in the encoder RNN), paths to the training, development and test data, and the training hyperparameters (learning rate, validation frequency etc.).
 
 .. note::
 
     Note that subword model training and joint vocabulary creation is not included in the 3 modes above, has to be done separately.
-    We provide a script that takes care of it: ``scritps/build_vocab.py``.
+    We provide a script that takes care of it: :scripts:`build_vocab.py`.
 
     .. code-block:: bash
 
@@ -27,7 +27,7 @@ For training, run
 
     python -m joeynmt train configs/transformer_small.yaml
 
-This will train a model on the training data, validate on validation data, and store model parameters, vocabularies, validation outputs. All needed information should be specified in the ``data``, ``training`` and ``model`` sections of the config file (here ``configs/transformer_small.yaml``).
+This will train a model on the training data, validate on validation data, and store model parameters, vocabularies, validation outputs. All needed information should be specified in the ``data``, ``training`` and ``model`` sections of the config file (here :configs:`transformer_small.yaml`).
 
 ::
 
@@ -41,8 +41,8 @@ This will train a model on the training data, validate on validation data, and s
     ├── train.log       # train log
     └── validation.txt  # validation scores
 
+.. danger::
 
-.. warning::
     Be careful not to overwrite ``model_dir``; set ``overwrite: False`` in the config file.
 
 
@@ -55,14 +55,13 @@ This mode will generate translations for validation and test set (as specified i
 
     python -m joeynmt test configs/transformer_small.yaml
 
-
 You can specify the ckpt path explicitly in the config file. If ``load_model`` is not given in the config, the best model in ``model_dir`` will be used to generate translations.
 
 You can specify i.e. `sacrebleu <https://github.com/mjpost/sacrebleu>`_ options in the ``test`` section of the config file.
 
 .. note::
 
-    ``scripts/average_checkpoints.py`` will generate averaged checkpoints for you.
+    :scripts:`average_checkpoints.py` will generate averaged checkpoints for you.
 
     .. code-block:: bash
 
@@ -89,22 +88,21 @@ This will generate ``model_dir/pred.{dev|test}.{scores|tokens}`` which contains 
 
 This mode accepts inputs from stdin and generate translations.
 
-- File translation
 
-    .. code-block:: bash
+File translation
+^^^^^^^^^^^^^^^^
 
-        python -m joeynmt translate configs/transformer_small.yaml < my_input.txt > output.txt
+.. code-block:: bash
+
+    python -m joeynmt translate configs/transformer_small.yaml < my_input.txt > output.txt
 
 
-- Interactive translation
+Interactive translation
+^^^^^^^^^^^^^^^^^^^^^^^
 
-    .. code-block:: bash
+.. code-block:: bash
 
-        python -m joeynmt translate configs/transformer_small.yaml
+    python -m joeynmt translate configs/transformer_small.yaml
 
-    You'll be prompted to type an input sentence. Joey NMT will then translate with the model specified in the config file.
+You'll be prompted to type an input sentence. Joey NMT will then translate with the model specified in the config file.
 
-.. warning::
-
-    Interactive ``translate`` mode doesn't work with Multi-GPU.
-    Please run it on single GPU or CPU.
