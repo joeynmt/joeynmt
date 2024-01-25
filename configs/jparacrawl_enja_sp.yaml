@@ -1,5 +1,8 @@
 name: "jparacrawl_enja_sp"
-joeynmt_version: "2.0.0"
+joeynmt_version: "2.3.0"
+model_dir: "models/jparacrawl_enja"
+use_cuda: True
+random_seed: 42
 
 data:
     train: "jparacrawl"
@@ -42,8 +45,18 @@ data:
             character_coverage: 0.995
             nbest_size: 10
             alpha: 0.1
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
+    load_model: "models/jparacrawl_enja_sp/best.ckpt"
     n_best: 1
     beam_size: 6
     beam_alpha: 1.0
@@ -61,8 +74,7 @@ testing:
 
 training:
     #load_model: "models/jparacrawl_enja_sp/best.ckpt"
-    random_seed: 42
-    optimizer: "adam"
+    optimizer: "adamw"
     normalization: "tokens"
     adam_betas: [0.9, 0.98]
     scheduling: "warmupinversesquareroot"
@@ -81,10 +93,8 @@ training:
     updates: 36000
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "models/jparacrawl_enja"
     overwrite: False
     shuffle: True
-    use_cuda: True
     print_valid_sents: [0, 1, 2, 3]
     keep_best_ckpts: 3
 

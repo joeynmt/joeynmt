@@ -38,15 +38,15 @@ class TestMetrics(unittest.TestCase):
 
     def test_token_acc_level_char(self):
         # if len(hyp) > len(ref)
-        hyp = [list("tests")]
-        ref = [list("tezt")]
+        hyp = ["tests"]
+        ref = ["tezt"]
         # level = "char"
-        score = token_accuracy(hyp, ref)
+        score = token_accuracy(hyp, ref, list)
         self.assertEqual(score, 60.0)
 
         # if len(hyp) < len(ref)
-        hyp = [list("test")]
-        ref = [list("tezts")]
+        hyp = ["test"]
+        ref = ["tezts"]
         # level = "char"
-        score = token_accuracy(hyp, ref)
+        score = token_accuracy(hyp, ref, list)
         self.assertEqual(score, 75.0)

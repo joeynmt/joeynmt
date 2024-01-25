@@ -3,7 +3,6 @@
 Embedding module
 """
 
-import logging
 import math
 from pathlib import Path
 from typing import Dict
@@ -12,9 +11,10 @@ import torch
 from torch import Tensor, nn
 
 from joeynmt.helpers import freeze_params
+from joeynmt.helpers_for_ddp import get_logger
 from joeynmt.vocabulary import Vocabulary
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Embeddings(nn.Module):
@@ -64,9 +64,11 @@ class Embeddings(nn.Module):
         return self.lut(x)
 
     def __repr__(self) -> str:
-        return (f"{self.__class__.__name__}("
-                f"embedding_dim={self.embedding_dim}, "
-                f"vocab_size={self.vocab_size})")
+        return (
+            f"{self.__class__.__name__}("
+            f"embedding_dim={self.embedding_dim}, "
+            f"vocab_size={self.vocab_size})"
+        )
 
     # from fairseq
     def load_from_file(self, embed_path: Path, vocab: Vocabulary) -> None:
@@ -102,8 +104,8 @@ class Embeddings(nn.Module):
             for line in f_embed.readlines():
                 tokens = line.rstrip().split(" ")
                 if tokens[0] in vocab.specials or not vocab.is_unk(tokens[0]):
-                    embed_dict[vocab.lookup(tokens[0])] = torch.FloatTensor(
-                        [float(t) for t in tokens[1:]])
+                    embed_dict[vocab.lookup(tokens[0])
+                               ] = torch.FloatTensor([float(t) for t in tokens[1:]])
 
             logger.warning(
                 "Loaded %d of %d (%%) tokens in the pre-trained WE.",

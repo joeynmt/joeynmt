@@ -2,9 +2,8 @@
 """
 Collection of builder functions
 """
-import logging
 from functools import partial
-from typing import Callable, Generator, Optional
+from typing import Callable, Dict, Generator, Optional
 
 import torch
 from torch import nn
@@ -16,9 +15,10 @@ from torch.optim.lr_scheduler import (
     _LRScheduler,
 )
 
-from joeynmt.helpers import ConfigurationError
+from joeynmt.config import ConfigurationError
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def build_activation(activation: str = "relu") -> Callable:
@@ -35,11 +35,13 @@ def build_activation(activation: str = "relu") -> Callable:
     elif activation == "swish":
         return nn.SiLU
     else:
-        raise ConfigurationError("Invalid activation function. Valid options: "
-                                 "'relu', 'gelu', 'tanh', 'swish'.")
+        raise ConfigurationError(
+            "Invalid activation function. Valid options: "
+            "'relu', 'gelu', 'tanh', 'swish'."
+        )
 
 
-def build_gradient_clipper(config: dict) -> Optional[Callable]:
+def build_gradient_clipper(cfg: Dict) -> Optional[Callable]:
     """
     Define the function for gradient clipping as specified in configuration.
     If not specified, returns None.
@@ -50,24 +52,27 @@ def build_gradient_clipper(config: dict) -> Optional[Callable]:
         - "clip_grad_norm": clip the gradients if their norm exceeds this value,
             see `torch.nn.utils.clip_grad_norm_`
 
-    :param config: dictionary with training configurations
+    :param cfg: dictionary with training configurations
     :return: clipping function (in-place) or None if no gradient clipping
     """
-    if "clip_grad_val" in config.keys() and "clip_grad_norm" in config.keys():
+    if cfg["clip_grad_val"] is not None and cfg["clip_grad_norm"] is not None:
         raise ConfigurationError(
-            "You can only specify either clip_grad_val or clip_grad_norm.")
+            "You can only specify either clip_grad_val or clip_grad_norm."
+        )
 
     clip_grad_fun = None
-    if "clip_grad_val" in config.keys():
-        clip_grad_fun = partial(nn.utils.clip_grad_value_,
-                                clip_value=config["clip_grad_val"])
-    elif "clip_grad_norm" in config.keys():
-        clip_grad_fun = partial(nn.utils.clip_grad_norm_,
-                                max_norm=config["clip_grad_norm"])
+    if cfg["clip_grad_val"] is not None:
+        clip_grad_fun = partial(
+            nn.utils.clip_grad_value_, clip_value=cfg["clip_grad_val"]
+        )
+    elif cfg["clip_grad_norm"] is not None:
+        clip_grad_fun = partial(
+            nn.utils.clip_grad_norm_, max_norm=cfg["clip_grad_norm"]
+        )
     return clip_grad_fun
 
 
-def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
+def build_optimizer(cfg: Dict, parameters: Generator) -> Optimizer:
     """
     Create an optimizer for the given parameters as specified in config.
 
@@ -90,22 +95,22 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
     Note that the scheduler state is saved in the checkpoint, so if you load
     a model for further training you have to use the same type of scheduler.
 
-    :param config: configuration dictionary
+    :param cfg: configuration dictionary
     :param parameters:
     :return: optimizer
     """
-    optimizer_name = config.get("optimizer", "sgd").lower()
+    optimizer_name = cfg.get("optimizer", "sgd").lower()
 
     kwargs = {
-        "lr": config.get("learning_rate", 3.0e-4),
-        "weight_decay": config.get("weight_decay", 0),
+        "lr": cfg.get("learning_rate", 3.0e-4),
+        "weight_decay": cfg.get("weight_decay", 0),
     }
 
     if optimizer_name == "adam":
-        kwargs["betas"] = config.get("adam_betas", (0.9, 0.999))
+        kwargs["betas"] = cfg.get("adam_betas", (0.9, 0.999))
         optimizer = torch.optim.Adam(parameters, **kwargs)
     elif optimizer_name == "adamw":
-        kwargs["betas"] = config.get("adam_betas", (0.0, 0.999))
+        kwargs["betas"] = cfg.get("adam_betas", (0.0, 0.999))
         optimizer = torch.optim.AdamW(parameters, **kwargs)
     elif optimizer_name == "adagrad":
         optimizer = torch.optim.Adagrad(parameters, **kwargs)
@@ -115,11 +120,13 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
         optimizer = torch.optim.RMSprop(parameters, **kwargs)
     elif optimizer_name == "sgd":
         # default
-        kwargs["momentum"] = config.get("momentum", 0.0)
+        kwargs["momentum"] = cfg.get("momentum", 0.0)
         optimizer = torch.optim.SGD(parameters, **kwargs)
     else:
-        raise ConfigurationError("Invalid optimizer. Valid options: 'adam', "
-                                 "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'.")
+        raise ConfigurationError(
+            "Invalid optimizer. Valid options: 'adam', "
+            "'adamw', 'adagrad', 'adadelta', 'rmsprop', 'sgd'."
+        )
 
     logger.info(
         "%s(%s)",
@@ -130,7 +137,7 @@ def build_optimizer(config: dict, parameters: Generator) -> Optimizer:
 
 
 def build_scheduler(
-    config: dict,
+    cfg: Dict,
     optimizer: Optimizer,
     scheduler_mode: str,
     hidden_size: int = 0,
@@ -152,7 +159,7 @@ def build_scheduler(
     If no scheduler is specified, returns (None, None) which will result in a constant
     learning rate.
 
-    :param config: training configuration
+    :param cfg: training configuration
     :param optimizer: optimizer for the scheduler, determines the set of parameters
         which the scheduler sets the learning rate for
     :param scheduler_mode: "min" or "max", depending on whether the validation score
@@ -163,59 +170,64 @@ def build_scheduler(
         - scheduler_step_at: either "validation", "epoch", "step" or "none"
     """
     scheduler, scheduler_step_at = None, None
-    if "scheduling" in config.keys() and config["scheduling"]:
-        scheduler_name = config["scheduling"].lower()
-        kwargs = {}
-        if scheduler_name == "plateau":
-            # learning rate scheduler
-            kwargs = {
-                "mode": scheduler_mode,
-                "verbose": False,
-                "threshold_mode": "abs",
-                "eps": 0.0,
-                "factor": config.get("decrease_factor", 0.1),
-                "patience": config.get("patience", 10),
-            }
-            scheduler = ReduceLROnPlateau(optimizer=optimizer, **kwargs)
-            # scheduler step is executed after every validation
-            scheduler_step_at = "validation"
-        elif scheduler_name == "decaying":
-            kwargs = {"step_size": config.get("decaying_step_size", 1)}
-            scheduler = StepLR(optimizer=optimizer, **kwargs)
-            # scheduler step is executed after every epoch
-            scheduler_step_at = "epoch"
-        elif scheduler_name == "exponential":
-            kwargs = {"gamma": config.get("decrease_factor", 0.99)}
-            scheduler = ExponentialLR(optimizer=optimizer, **kwargs)
-            # scheduler step is executed after every epoch
-            scheduler_step_at = "epoch"
-        elif scheduler_name == "noam":
-            scheduler = NoamScheduler(
-                optimizer=optimizer,
-                hidden_size=hidden_size,
-                factor=config.get("learning_rate_factor", 1),
-                warmup=config.get("learning_rate_warmup", 4000),
-            )
-            scheduler_step_at = "step"
-        elif scheduler_name == "warmupexponentialdecay":
-            scheduler = WarmupExponentialDecayScheduler(
-                min_rate=config.get("learning_rate_min", 1.0e-5),
-                decay_rate=config.get("learning_rate_decay", 0.1),
-                warmup=config.get("learning_rate_warmup", 4000),
-                peak_rate=config.get("learning_rate_peak", 1.0e-3),
-                decay_length=config.get("learning_rate_decay_length", 10000),
-            )
-            scheduler_step_at = "step"
-        elif scheduler_name == "warmupinversesquareroot":
-            lr = config.get("learning_rate", 1.0e-3)
-            peak_rate = config.get("learning_rate_peak", lr)
-            scheduler = WarmupInverseSquareRootScheduler(
-                optimizer=optimizer,
-                peak_rate=peak_rate,
-                min_rate=config.get("learning_rate_min", 1.0e-5),
-                warmup=config.get("learning_rate_warmup", 10000),
-            )
-            scheduler_step_at = "step"
+    scheduler_name = cfg.get("scheduling", None)
+    kwargs = {}
+    if scheduler_name == "plateau":
+        # learning rate scheduler
+        kwargs = {
+            "mode": scheduler_mode,
+            "verbose": False,
+            "threshold_mode": "abs",
+            "eps": 0.0,
+            "factor": cfg.get("decrease_factor", 0.1),
+            "patience": cfg.get("patience", 10),
+        }
+        scheduler = ReduceLROnPlateau(optimizer=optimizer, **kwargs)
+        # scheduler step is executed after every validation
+        scheduler_step_at = "validation"
+    elif scheduler_name == "decaying":
+        kwargs = {"step_size": cfg.get("decaying_step_size", 1)}
+        scheduler = StepLR(optimizer=optimizer, **kwargs)
+        # scheduler step is executed after every epoch
+        scheduler_step_at = "epoch"
+    elif scheduler_name == "exponential":
+        kwargs = {"gamma": cfg.get("decrease_factor", 0.99)}
+        scheduler = ExponentialLR(optimizer=optimizer, **kwargs)
+        # scheduler step is executed after every epoch
+        scheduler_step_at = "epoch"
+    elif scheduler_name == "noam":
+        scheduler = NoamScheduler(
+            optimizer=optimizer,
+            hidden_size=hidden_size,
+            factor=cfg.get("learning_rate_factor", 1),
+            warmup=cfg.get("learning_rate_warmup", 4000),
+        )
+        scheduler_step_at = "step"
+    elif scheduler_name == "warmupexponentialdecay":
+        scheduler = WarmupExponentialDecayScheduler(
+            min_rate=cfg.get("learning_rate_min", 1.0e-5),
+            decay_rate=cfg.get("learning_rate_decay", 0.1),
+            warmup=cfg.get("learning_rate_warmup", 4000),
+            peak_rate=cfg.get("learning_rate_peak", 1.0e-3),
+            decay_length=cfg.get("learning_rate_decay_length", 10000),
+        )
+        scheduler_step_at = "step"
+    elif scheduler_name == "warmupinversesquareroot":
+        lr = cfg.get("learning_rate", 1.0e-3)
+        peak_rate = cfg.get("learning_rate_peak", lr)
+        scheduler = WarmupInverseSquareRootScheduler(
+            optimizer=optimizer,
+            peak_rate=peak_rate,
+            min_rate=cfg.get("learning_rate_min", 1.0e-5),
+            warmup=cfg.get("learning_rate_warmup", 10000),
+        )
+        scheduler_step_at = "step"
+    else:
+        raise ConfigurationError(
+            "Invalid scheduler. Valid options: 'plateau', "
+            "'decaying', 'exponential', 'noam', "
+            "'warmupexponentialdecay', 'warmupinversesquareroot'."
+        )
 
     if scheduler is None:
         scheduler_step_at = "none"
@@ -224,9 +236,9 @@ def build_scheduler(
 
     # print log
     if scheduler_name in [
-            "noam",
-            "warmupexponentialdecay",
-            "warmupinversesquareroot",
+        "noam",
+        "warmupexponentialdecay",
+        "warmupinversesquareroot",
     ]:
         logger.info(scheduler)
     else:
@@ -323,8 +335,10 @@ class NoamScheduler(BaseScheduler):
         self.hidden_size = state_dict["hidden_size"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"factor={self.factor}, hidden_size={self.hidden_size})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"factor={self.factor}, hidden_size={self.hidden_size})"
+        )
 
 
 class WarmupExponentialDecayScheduler(BaseScheduler):
@@ -392,11 +406,13 @@ class WarmupExponentialDecayScheduler(BaseScheduler):
         self.min_rate = state_dict["min_rate"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"decay_length={self.decay_length}, "
-                f"decay_rate={self.decay_rate}, "
-                f"peak_rate={self.peak_rate}, "
-                f"min_rate={self.min_rate})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"decay_length={self.decay_length}, "
+            f"decay_rate={self.decay_rate}, "
+            f"peak_rate={self.peak_rate}, "
+            f"min_rate={self.min_rate})"
+        )
 
 
 class WarmupInverseSquareRootScheduler(BaseScheduler):
@@ -462,6 +478,8 @@ class WarmupInverseSquareRootScheduler(BaseScheduler):
         self.min_rate = state_dict["min_rate"]
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(warmup={self.warmup}, "
-                f"decay_rate={self.decay_rate:.6f}, peak_rate={self.peak_rate}, "
-                f"min_rate={self.min_rate})")
+        return (
+            f"{self.__class__.__name__}(warmup={self.warmup}, "
+            f"decay_rate={self.decay_rate:.6f}, peak_rate={self.peak_rate}, "
+            f"min_rate={self.min_rate})"
+        )

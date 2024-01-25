@@ -98,14 +98,16 @@ class MultiHeadedAttention(nn.Module):
         # back to [batch_size, query_len, hidden_size]
         context = torch.matmul(attention_probs, v)
         context = context.transpose(1, 2).contiguous().view(
-            batch_size, -1, self.num_heads * self.head_size)
+            batch_size, -1, self.num_heads * self.head_size
+        )
 
         output = self.output_layer(context)
 
         if return_weights:
             # average attention weights over heads: [batch_size, query_len, key_len]
             attention_output_weights = attention_weights.view(
-                batch_size, self.num_heads, query_len, key_len)
+                batch_size, self.num_heads, query_len, key_len
+            )
             return output, attention_output_weights.sum(dim=1) / self.num_heads
         return output, None
 
@@ -182,11 +184,13 @@ class PositionalEncoding(nn.Module):
         """
         if size % 2 != 0:
             raise ValueError(
-                f"Cannot use sin/cos positional encoding with odd dim (got dim={size})")
+                f"Cannot use sin/cos positional encoding with odd dim (got dim={size})"
+            )
         pe = torch.zeros(max_len, size)
         position = torch.arange(0, max_len).unsqueeze(1)
         div_term = torch.exp(
-            (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size)))
+            (torch.arange(0, size, 2, dtype=torch.float) * -(math.log(10000.0) / size))
+        )
         pe[:, 0::2] = torch.sin(position.float() * div_term)
         pe[:, 1::2] = torch.cos(position.float() * div_term)
         pe = pe.unsqueeze(0)  # shape: (1, max_len, size)
@@ -361,7 +365,7 @@ class TransformerDecoderLayer(nn.Module):
         :param x: inputs
         :param memory: source representations
         :param src_mask: source mask
-        :param trg_mask: target mask (so as to not condition on future steps)
+        :param trg_mask: target mask (so as not to condition on future steps)
         :param return_attention: whether to return the attention weights
         :return:
             - output tensor
@@ -384,11 +388,9 @@ class TransformerDecoderLayer(nn.Module):
         if self._layer_norm_position == "pre":
             h1 = self.dec_layer_norm(h1)
 
-        h2, att = self.src_trg_att(memory,
-                                   memory,
-                                   h1,
-                                   mask=src_mask,
-                                   return_weights=return_attention)
+        h2, att = self.src_trg_att(
+            memory, memory, h1, mask=src_mask, return_weights=return_attention
+        )
         h2 = self.dropout(h2) + self.alpha * h1_residual
 
         if self._layer_norm_position == "post":

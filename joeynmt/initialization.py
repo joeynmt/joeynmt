@@ -2,7 +2,6 @@
 """
 Implements custom initialization
 """
-import logging
 import math
 from typing import Dict
 
@@ -10,9 +9,10 @@ import torch
 from torch import Tensor, nn
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
-from joeynmt.helpers import ConfigurationError
+from joeynmt.config import ConfigurationError
+from joeynmt.helpers_for_ddp import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def orthogonal_rnn_init_(cell: nn.RNNBase, gain: float = 1.0) -> None:
@@ -75,8 +75,9 @@ def compute_alpha_beta(num_enc_layers: int, num_dec_layers: int) -> Dict[str, Di
     }
 
 
-def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
-                     trg_padding_idx: int) -> None:
+def initialize_model(
+    model: nn.Module, cfg: dict, src_padding_idx: int, trg_padding_idx: int
+) -> None:
     """
     This initializes a model based on the provided config.
 
@@ -116,27 +117,31 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
     if init == "xavier":
         init = "xavier_uniform"
         logger.warning(
-            "`xavier` option is obsolete. Please use `xavier_uniform`, instead.")
+            "`xavier` option is obsolete. Please use `xavier_uniform`, instead."
+        )
     init_weight = float(cfg.get("init_weight", 0.01))
 
     embed_init = cfg.get("embed_initializer", "xavier_uniform")
     if embed_init == "xavier":
         embed_init = "xavier_uniform"
         logger.warning(
-            "`xavier` option is obsolete. Please use `xavier_uniform`, instead.")
+            "`xavier` option is obsolete. Please use `xavier_uniform`, instead."
+        )
     embed_init_weight = float(cfg.get("embed_init_weight", 0.01))
     embed_gain = float(cfg.get("embed_init_gain", 1.0))  # for xavier
 
     bias_init = cfg.get("bias_initializer", "zeros")
     bias_init_weight = float(cfg.get("bias_init_weight", 0.01))
 
-    if (init == "xavier_normal"
-            and cfg["encoder"]["type"] == cfg["decoder"]["type"] == "transformer"):
+    if (
+        init == "xavier_normal"
+        and cfg["encoder"]["type"] == cfg["decoder"]["type"] == "transformer"
+    ):
         # apply `alpha`: weight factor for residual connection
         deepnet = {
-            "xavier_normal":
-            compute_alpha_beta(cfg["encoder"]["num_layers"],
-                               cfg["decoder"]["num_layers"])
+            "xavier_normal": compute_alpha_beta(
+                cfg["encoder"]["num_layers"], cfg["decoder"]["num_layers"]
+            )
         }
         for layer in model.encoder.layers:
             layer.alpha = deepnet["xavier_normal"]["alpha"]["encoder"]
@@ -190,8 +195,10 @@ def initialize_model(model: nn.Module, cfg: dict, src_padding_idx: int,
                 elif init == "xavier_normal" and init in deepnet:
                     # use beta value suggested in https://arxiv.org/abs/2203.00555
                     beta = 1.0
-                    if ("pwff_layer" in name or "v_layer" in name
-                            or "output_layer" in name):
+                    if (
+                        "pwff_layer" in name or "v_layer" in name
+                        or "output_layer" in name
+                    ):
                         if "encoder" in name:
                             beta = deepnet[init]["beta"]["encoder"]
                         elif "decoder" in name:

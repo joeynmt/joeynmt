@@ -1,11 +1,16 @@
 name: "reverse_experiment"
-joeynmt_version: "2.0.0"
+joeynmt_version: "2.3.0"
+model_dir: "reverse_model"
+use_cuda: False
+fp16: True
+random_seed: 42
 
 data:
     # generate data with scripts/generate_reverse_task.py
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
+    dataset_type: "plain"
     src:
         lang: "src"
         max_length: 25
@@ -18,7 +23,15 @@ data:
         level: "word"
         voc_limit: 100
         voc_min_freq: 0
-    dataset_type: "plain"
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
     n_best: 1
@@ -33,8 +46,7 @@ testing:
         tokenize: "13a"
 
 training:
-    random_seed: 42
-    optimizer: "adam"
+    optimizer: "adamw"
     learning_rate: 0.001
     learning_rate_min: 0.0002
     weight_decay: 0.0
@@ -48,11 +60,8 @@ training:
     epochs: 1
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "reverse_model"
     overwrite: True
     shuffle: True
-    use_cuda: False
-    fp16: True
     print_valid_sents: [0, 3, 6]
     keep_best_ckpts: 2
 
@@ -73,6 +82,7 @@ model:
         bidirectional: True
         dropout: 0.1
         num_layers: 1
+        activation: "tanh"
     decoder:
         type: "recurrent"
         rnn_type: "lstm"

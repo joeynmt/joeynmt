@@ -28,8 +28,9 @@ class TestXentLoss(unittest.TestCase):
 
         # test the smoothing function
         # pylint: disable=protected-access
-        smoothed_targets = criterion._smooth_targets(targets=targets.view(-1),
-                                                     vocab_size=predict.size(-1))
+        smoothed_targets = criterion._smooth_targets(
+            targets=targets.view(-1), vocab_size=predict.size(-1)
+        )
         # pylint: enable=protected-access
         torch.testing.assert_close(
             smoothed_targets,
@@ -67,20 +68,23 @@ class TestXentLoss(unittest.TestCase):
 
         # test the smoothing function: should still be one-hot
         # pylint: disable=protected-access
-        smoothed_targets = criterion._smooth_targets(targets=targets.view(-1),
-                                                     vocab_size=predict.size(-1))
+        smoothed_targets = criterion._smooth_targets(
+            targets=targets.view(-1), vocab_size=predict.size(-1)
+        )
         # pylint: enable=protected-access
 
         self.assertEqual(torch.max(smoothed_targets), 1)
         self.assertEqual(torch.min(smoothed_targets), 0)
 
-        # yapf: disable
         torch.testing.assert_close(
             smoothed_targets,
             torch.Tensor([
-                [0.0, 0.0, 1.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 0.0, 0.0],
             ]),
             rtol=1e-4,
             atol=1e-4,

@@ -1,6 +1,8 @@
 # &nbsp; ![Joey-NMT](joey2-small.png) Joey NMT
 [![build](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml/badge.svg)](https://github.com/joeynmt/joeynmt/actions/workflows/main.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![arXiv](https://img.shields.io/badge/arXiv-1907.12484-b31b1b.svg)](https://arxiv.org/abs/1907.12484)
+
 
 ## Goal and Purpose
 :koala: Joey NMT framework is developed for educational purposes.
@@ -17,14 +19,19 @@ increase in code complexity and a decrease in readability. :eyes:
 
 However, Joey NMT re-implements baselines from major publications.
 
-Check out the detailed [documentation](https://joeynmt.readthedocs.io) and our
-[paper](https://arxiv.org/abs/1907.12484).
+Check out the detailed [documentation](https://joeynmt.readthedocs.io) :books: and our
+[paper](https://arxiv.org/abs/1907.12484). :newspaper:
+
 
 ## Contributors
-Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://github.com/bastings) (University of Amsterdam) and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research. [Mayumi Ohta](https://www.cl.uni-heidelberg.de/statnlpgroup/members/ohta/) at Heidelberg University is continuing the legacy.
+Joey NMT was initially developed and is maintained by [Jasmijn Bastings](https://bastings.github.io/) (University of Amsterdam)
+and [Julia Kreutzer](https://juliakreutzer.github.io/) (Heidelberg University), now both at Google Research.
+[Mayumi Ohta](https://www.isi.fraunhofer.de/en/competence-center/innovations-wissensoekonomie/mitarbeiter/ohta.html)
+at Fraunhofer Institute is continuing the legacy.
 
 Welcome to our new contributors :hearts:, please don't hesitate to open a PR or an issue
 if there's something that needs improvement!
+
 
 ## Features
 Joey NMT implements the following features (aka the minimalist toolkit of NMT :wrench:):
@@ -38,59 +45,63 @@ Joey NMT implements the following features (aka the minimalist toolkit of NMT :w
 - Attention visualization
 - Learning curve plotting
 - Scoring hypotheses and references
-
+- Multilingual translation with language tags
 
 
 ## Installation
 Joey NMT is built on [PyTorch](https://pytorch.org/). Please make sure you have a compatible environment.
-We tested Joey NMT v2.2.1 with
-- python 3.10
-- torch 2.0.1
-- cuda 11.7
+We tested Joey NMT v2.3 with
+- python 3.11
+- torch 2.1.2
+- cuda 12.1
 
 > :warning: **Warning**
 > When running on **GPU** you need to manually install the suitable PyTorch version 
 > for your [CUDA](https://developer.nvidia.com/cuda-zone) version.
-> For example, you can install PyTorch 2.0.1 with CUDA v11.7 as follows:
+> For example, you can install PyTorch 2.1.2 with CUDA v12.1 as follows:
 > ```
-> $ pip install --upgrade torch==2.0.1 --extra-index-url https://download.pytorch.org/whl/cu117
+> python -m pip install --upgrade torch==2.1.2 --index-url https://download.pytorch.org/whl/cu121
 > ```
 > See [PyTorch installation instructions](https://pytorch.org/get-started/locally/).
-
 
 You can install Joey NMT either A. via [pip](https://pypi.org/project/joeynmt/) or B. from source.
 
 ### A. Via pip (the latest stable version)
 ```bash
-$ pip install joeynmt
+python -m pip install joeynmt
 ```
 
-
 ### B. From source (for local development)
-1. Clone this repository:
-  ```bash
-  $ git clone https://github.com/joeynmt/joeynmt.git
-  $ cd joeynmt
-  ```
-2. Install Joey NMT and it's requirements:
-  ```bash
-  $ pip install -e .
-  ```
-3. Run the unit tests:
-  ```bash
-  $ python -m unittest
-  ```
+```bash
+git clone https://github.com/joeynmt/joeynmt.git  # Clone this repository
+cd joeynmt
+python -m pip install -e .  # Install Joey NMT and it's requirements
+python -m unittest  # Run the unit tests
+```
+
+> :memo: **Info**
+> For Windows users, we recommend to check whether txt files (i.e. `test/data/toy/*`) have utf-8 encoding.
 
 
-## Change logs
+## Changelog
+
+### v2.3
+- introduced [DistributedDataParallel](https://pytorch.org/tutorials/beginner/dist_overview.html).
+- implemented language tags, see [notebooks/torchhub.ipynb](notebooks/torchhub.ipynb)
+- released a [iwslt14 de-en-fr multilingual model](https://huggingface.co/may-ohta/iwslt14_prompt) (trained using DDP)
+- special symbols definition refactoring
+- configuration refactoring
+- autocast refactoring
+- bugfixes
+- upgrade to python 3.11, torch 2.1.2
+- documentation refactoring
+
+<details><summary>previous releases</summary>
 
 ### v2.2.1
 - compatibility with torch 2.0 tested
 - configurable activation function [#211](https://github.com/joeynmt/joeynmt/pull/211)
 - bug fix [#207](https://github.com/joeynmt/joeynmt/pull/207)
-
-
-<details><summary>previous releases</summary>
 
 ### v2.2
 - compatibility with torch 1.13 tested
@@ -105,7 +116,6 @@ $ pip install joeynmt
 - add wmt14 ende / deen benchmark trained on v2 from scratch
 - add tokenizer tutorial
 - minor bugfixes
-
 
 ### v2.0 *Breaking change!*
 - upgrade to python 3.9, torch 1.11
@@ -139,16 +149,15 @@ $ pip install joeynmt
 
 </details>
 
-## Documentation & Tutorials
 
+## Documentation & Tutorials
 We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
+
 #### v2.x
-- [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb)
-- [fine tuning tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/fine_tuning_tutorial_enja.ipynb)
-- [tokenizer tutorial](https://github.com/may-/joeynmt/blob/main/notebooks/tokenizer_tutorial_en.ipynb)
-- [joeyS2T ASR tutorial](https://github.com/may-/joeys2t/blob/main/notebooks/joeyS2T_ASR_tutorial.ipynb)
+- [quick start with joeynmt2](notebooks/joey_v2_demo.ipynb) This quick start guide walks you step-by-step through the installation, data preparation, training, and evaluation.
+- [torch hub interface](notebooks/torchhub.ipynb) How to generate translation from a pretrained model
 
 #### v1.x
 - [demo notebook](notebooks/joey_v1_demo.ipynb)
@@ -172,18 +181,18 @@ test data, and the training hyperparameters (learning rate, validation frequency
 > Note that subword model training and joint vocabulary creation is not included
 > in the 3 modes above, has to be done separately.
 > We provide a script that takes care of it: `scritps/build_vocab.py`.
-> ```
-> $ python scripts/build_vocab.py configs/transformer_small.yaml --joint
+> ```bash
+> python scripts/build_vocab.py configs/transformer_small.yaml --joint
 > ```
 
 ### `train` mode
 For training, run 
 ```bash
-$ python -m joeynmt train configs/transformer_small.yaml
+python -m joeynmt train configs/transformer_small.yaml
 ```
 This will train a model on the training data, validate on validation data, and store
 model parameters, vocabularies, validation outputs. All needed information should be
-specified in the `data`, `training` and `model` section of the config file (here
+specified in the `data`, `training` and `model` sections of the config file (here
 `configs/transformer_small.yaml`).
 
 ```
@@ -201,31 +210,29 @@ model_dir/
 > :bulb: **Tip**
 > Be careful not to overwrite `model_dir`, set `overwrite: False` in the config file.
 
-
-
 ### `test` mode
 This mode will generate translations for validation and test set (as specified in the
 configuration) in `model_dir/out.[dev|test]`.
+```bash
+python -m joeynmt test configs/transformer_small.yaml
 ```
-$ python -m joeynmt test configs/transformer_small.yaml --ckpt model_dir/avg.ckpt
-```
-If `--ckpt` is not specified above, the checkpoint path in `load_model` of the config
-file or the best model in `model_dir` will be used to generate translations.
+You can specify the ckpt path explicitly in the config file. If `load_model` is not given
+in the config, the best model in `model_dir` will be used to generate translations.
 
 You can specify i.e. [sacrebleu](https://github.com/mjpost/sacrebleu) options in the
 `test` section of the config file.
 
 > :bulb: **Tip**
 > `scripts/average_checkpoints.py` will generate averaged checkpoints for you.
-> ```
-> $ python scripts/average_checkpoints.py --inputs model_dir/*00.ckpt --output model_dir/avg.ckpt
+> ```bash
+> python scripts/average_checkpoints.py --inputs model_dir/*00.ckpt --output model_dir/avg.ckpt
 > ```
 
 If you want to output the log-probabilities of the hypotheses or references, you can
 specify `return_score: 'hyp'` or `return_score: 'ref'` in the testing section of the
 config. And run `test` with `--output_path` and `--save_scores` options.
-```
-$ python -m joeynmt test configs/transformer_small.yaml --ckpt model_dir/avg.ckpt --output_path model_dir/pred --save_scores
+```bash
+python -m joeynmt test configs/transformer_small.yaml --output-path model_dir/pred --save-scores
 ```
 This will generate `model_dir/pred.{dev|test}.{scores|tokens}` which contains scores and corresponding tokens.
 
@@ -234,33 +241,41 @@ This will generate `model_dir/pred.{dev|test}.{scores|tokens}` which contains sc
 > - If you set `return_score: 'ref'`, the model looks up the probabilities of the given ground truth tokens, and both decoding and evaluation will be skipped.
 > - If you specify `n_best` >1 in config, the first translation in the nbest list will be used in the evaluation.
 
-
-
 ### `translate` mode
 This mode accepts inputs from stdin and generate translations.
 
 - File translation
-  ```
-  $ python -m joeynmt translate configs/transformer_small.yaml < my_input.txt > output.txt
+  ```bash
+  python -m joeynmt translate configs/transformer_small.yaml < my_input.txt > output.txt
   ```
 
 - Interactive translation
-  ```
-  $ python -m joeynmt translate configs/transformer_small.yaml
+  ```bash
+  python -m joeynmt translate configs/transformer_small.yaml
   ```
   You'll be prompted to type an input sentence. Joey NMT will then translate with the 
-  model specified in `--ckpt` or the config file.
+  model specified in the config file.
 
   > :bulb: **Tip**
   > Interactive `translate` mode doesn't work with Multi-GPU.
   > Please run it on single GPU or CPU.
 
 
-
 ## Benchmarks & pretrained models
 
-### wmt14 ende / deen
+### iwslt14 de/en/fr multilingual
+We trained this multilingual model with JoeyNMT v2.3.0 using DDP.
 
+Direction | Architecture | tok | dev | test | #params | download
+--------- | :----------: | :-- | --: | ---: | ------: | :-------
+en->de    | Transformer  | sentencepiece | - | 28.88 | 200M | [iwslt14_prompt](https://huggingface.co/may-ohta/iwslt14_prompt)
+de->en    |  |  | - | 35.28 |  |
+en->fr    |  |  | - | 38.86 |  |
+fr->en    |  |  | - | 40.35 |  |
+
+sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.4.0`
+
+### wmt14 ende / deen
 We trained the models with JoeyNMT v2.1.0 from scratch.  
 cf) [wmt14 deen leaderboard](https://paperswithcode.com/sota/machine-translation-on-wmt2014-german-english) in paperswithcode
 
@@ -279,7 +294,6 @@ sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:13a|smooth:exp|version:2.2.0
 > Joey NMT v1.x benchmarks are archived [here](docs/benchmarks_v1.md).
 
 ### iwslt14 deen
-
 Pre-processing with Moses decoder tools as in [this script](scripts/get_iwslt14_bpe.sh).
 
 Direction | Architecture | tok | dev | test | #params | download
@@ -294,9 +308,7 @@ sacrebleu signature: `nrefs:1|case:lc|eff:no|tok:13a|smooth:exp|version:2.0.0`
 > so that you can input raw sentence. Then `MosesTokenizer` and `MosesDetokenizer` will be applied internally.
 > For test mode, we used the preprocessed texts as input and set `pretokenizer: "none"` in the config.
 
-
 ### Masakhane JW300 afen / enaf
-
 We picked the pretrained models and configs (bpe codes file etc.) from [masakhane.io](https://github.com/masakhane-io/masakhane-mt).
 
 Direction | Architecture | tok | dev | test | #params | download
@@ -306,12 +318,10 @@ en->af | Transformer | subword-nmt | 47.24 | 47.31 | 24M | [transformer_jw300_en
 
 sacrebleu signature: `nrefs:1|case:mixed|eff:no|tok:intl|smooth:exp|version:2.0.0`
 
-
 ### JParaCrawl enja / jaen
-
 For training, we split JparaCrawl v2 into train and dev set and trained a model on them.
-Please check the preprocessing script [here](scripts/get_jparacrawl.sh).
-We tested then on [kftt](http://www.phontron.com/kftt/) test set and [wmt20]() test set, respectively. 
+Please check the preprocessing script [here](https://github.com/joeynmt/joeynmt/blob/v2.2/scripts/get_jparacrawl.sh).
+We tested then on [kftt](http://www.phontron.com/kftt/) test set and [wmt20](https://data.statmt.org/wmt20/translation-task/) test set, respectively. 
 
 Direction | Architecture | tok | wmt20 | kftt | #params | download
 --------- | ------------ | :-- | ---: | ------: | ------: | :-------
@@ -334,13 +344,15 @@ In order to keep the code clean and readable, we make use of:
 - Typing: Every function has documented input types.
 - Docstrings: Every function, class and module has docstrings describing their purpose and usage.
 - Unittests: Every module has unit tests, defined in `test/unit/`.
+- Documentation: Update documentation in `docs/source/` accordingly.
 
 To ensure the repository stays clean, unittests and linters are triggered by github's
 workflow on every push or pull request to `main` branch. Before you create a pull request,
 you can check the validity of your modifications with the following commands:
-```
-$ make check
-$ make test
+```bash
+make test
+make check
+make -C docs clean html
 ```
 
 ## Contributing

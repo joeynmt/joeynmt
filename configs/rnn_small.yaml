@@ -1,5 +1,9 @@
 name: "toy_experiment"              # name of experiment
-joeynmt_version: "2.0.0"            # joeynmt version
+joeynmt_version: "2.3.0"            # joeynmt version
+model_dir: "toy_model"              # directory where models and validation results are stored, required
+use_cuda: False                     # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
+fp16: True                          # whether to use 16-bit half-precision training instead of 32-bit training. Used also for prediction.
+random_seed: 42                     # set this seed to make training and prediction deterministic.
 
 data:
     train: "test/data/toy/train"    # training data path (If dataset_type="huggingface", `path` argument in huggingface's datasets.load_data() func)
@@ -31,7 +35,6 @@ data:
             #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
             #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
             pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
-
     trg:
         lang: "en"                  # trg language. If dataset_type is "plain", expected suffix of train files, e.g. "train.en".
         max_length: 30              # filter out longer sentences from training
@@ -53,6 +56,18 @@ data:
             #character_coverage: 1.0 # Character coverage, default 1.0 (for sentencepiece training)
             #model_type: "bpe"      # Model type, default "unigram" (for sentencepiece training)
             pretokenizer: "none"    # either "moses" or "none" (default: "none") If you choose "moses", the data will be tokenized before any subword segmentation with the Moses tokenizer. sacremoses package has to be installed.
+    special_symbols:                # special symbols
+        unk_token: "<unk>"          # surface form for unknown token
+        pad_token: "<pad>"          # surface form for pad token
+        bos_token: "<s>"            # surface form for begin-of-sentence token
+        eos_token: "</s>"           # surface form for end-of-sensente token
+        #sep_token: "<sep>"          # surface form for separator; Used for prompt
+        unk_id: 0                   # unknown token index
+        pad_id: 1                   # pad token index
+        bos_id: 2                   # begin-of-sentence token index
+        eos_id: 3                   # end-of-sensence token index
+        #sep_id: 4                   # separator token index
+        #lang_tags: ["<de>", "<en>"] # language tags; Used for multi-task training
 
 testing:                            # specify which inference algorithm to use for testing (for validation it's always greedy decoding)
     n_best: 1                       # n_best size, must be smaller than or equal to beam_size
@@ -66,7 +81,7 @@ testing:                            # specify which inference algorithm to use f
     return_prob: "none"             # whether to return probabilities of references ("ref") or hypotheses ("hyp"). default: "none".
     generate_unk: True              # whether to generate unk token
     no_repeat_ngram_size: -1        # ngram size to prohibit repetition, default -1. If set to -1, no blocker applied.
-    repetition_penalty: -1          # repetition penalty, default: -1. If set to -1, no penalty applied.
+    repetition_penalty: -1          # repetition penalty, default: -1. Between 0.0 and 1.0 penalizes the repeated tokens.  If set to -1, no penalty applied.
     sacrebleu_cfg:                  # sacrebleu options
         whitespace: False           # `whitespace` option in sacrebleu.metrics.CHRF() class (default: False)
         tokenize: "13a"             # `tokenize` option in sacrebleu.metrics.BLEU() class (default: "13a")
@@ -77,8 +92,7 @@ training:                           # specify training details here
     reset_scheduler: False          # if True, overwrite scheduler in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     reset_optimizer: False          # if True, overwrite optimizer in loaded checkpoint with parameters specified in this config. Use for domain adaptation or fine-tuning.
     reset_iter_state: False         # if True, overwrite iterator state in loaded checkpoint with parameters specified in this config. Use for resumed training.
-    random_seed: 42                 # set this seed to make training deterministic
-    optimizer: "adam"               # choices: "sgd", "adam", "adadelta", "adagrad", "rmsprop", default is SGD
+    optimizer: "adamw"              # choices: "sgd", "adam", "adamw", "adadelta", "adagrad", "rmsprop", default is SGD
     adam_betas: [0.9, 0.999]        # beta parameters for Adam. These are the defaults. Typically these are different for Transformer models.
     learning_rate: 0.005            # initial learning rate, default: 3.0e-4
     learning_rate_min: 0.0001       # stop learning when learning rate is reduced below this threshold, default: 1.0e-8
@@ -101,11 +115,8 @@ training:                           # specify training details here
     validation_freq: 10             # validate after this many updates (number of mini-batches), default: 1000
     logging_freq: 10                # log the training progress after this many updates, default: 100
     early_stopping_metric: "loss"   # when a new high score on this metric is achieved, a checkpoint is written, when "eval_metric" (default) is maximized, when "loss" or "ppl" is minimized
-    model_dir: "toy_model"          # directory where models and validation results are stored, required
     overwrite: False                # overwrite existing model directory, default: False. Do not set to True unless for debugging!
     shuffle: True                   # shuffle the training data, default: True
-    use_cuda: False                 # use CUDA for acceleration on GPU, required. Set to False when working on CPU.
-    fp16: True                      # whether to use 16-bit half-precision training (through NVIDIA apex) instead of 32-bit training.
     print_valid_sents: [0, 1, 2]    # print this many validation sentences during each validation run, default: [0, 1, 2]
     keep_best_ckpts: 3              # keep this many of the best checkpoints, if -1: all of them, default: 5
 
@@ -128,12 +139,13 @@ model:                              # specify your model architecture here
             embedding_dim: 16       # size of embeddings
             scale: False            # scale the embeddings by sqrt of their size, default: False
             freeze: False           # if True, embeddings are not updated during training
-            #load_pretrained: "my_data/src.embed.txt" # if given, load pretrain embedding weights from this text file
+            #load_pretrained: "my_data/src.embed.txt" # if given, load pretrained embedding weights from this text file
         hidden_size: 30             # size of RNN
         bidirectional: True         # use a bi-directional encoder, default: True
         dropout: 0.2                # apply dropout to the inputs to the RNN, default: 0.0
         num_layers: 3               # stack this many layers of equal size, default: 1
         freeze: False               # if True, encoder parameters are not updated during training (does not include embedding parameters)
+        activation: "relu"          # activation function. choices: "relu", "gelu", "tanh", "swish". default: "relu"
     decoder:
         type: "recurrent"           # decoder type: "recurrent" for LSTM or GRU, or "transformer" for a Transformer
         rnn_type: "gru"

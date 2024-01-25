@@ -1,12 +1,18 @@
 name: "reverse_experiment"
-joeynmt_version: "2.0.0"
-
+joeynmt_version: "2.3.0"
+model_dir: "models/reverse_transformer"
+use_cuda: True
+fp16: True
+random_seed: 42
+    
 data:
     # generate data with scripts/generate_reverse_task.py
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
     dataset_type: "plain"
+    sample_train_subset: 40000  # must be divisible by n_gpu if use_ddp
+    sample_dev_subset: 400    # must be divisible by n_gpu if use_ddp
     src:
         lang: "src"
         max_length: 25
@@ -19,50 +25,58 @@ data:
         level: "word"
         voc_limit: 100
         voc_min_freq: 0
+    special_symbols:
+        unk_token: "<unk>"
+        unk_id: 0
+        pad_token: "<pad>"
+        pad_id: 1
+        bos_token: "<s>"
+        bos_id: 2
+        eos_token: "</s>"
+        eos_id: 3
 
 testing:
-    n_best: 1
-    beam_size: 1
+    #load_model: "models/reverse_transformer/best.ckpt"
+    n_best: 2
+    beam_size: 2
     beam_alpha: 1.0
     eval_metrics: ["bleu"]
     max_output_length: 30
-    batch_size: 10
+    batch_size: 12
     batch_type: "sentence"
-    return_prob: "none"
+    return_prob: "hyp"
     sacrebleu_cfg:
         tokenize: "13a"
 
 training:
-    random_seed: 42
-    optimizer: "adam"
+    #load_model: "models/reverse_transformer/best.ckpt"
+    optimizer: "adamw"
     learning_rate: 0.001
     learning_rate_min: 0.0002
     weight_decay: 0.0
     clip_grad_norm: 1.0
-    batch_size: 10
+    batch_size: 12
     batch_type: "sentence"
+    batch_multiplier: 2
     scheduling: "plateau"
     patience: 5
     decrease_factor: 0.5
     early_stopping_metric: "bleu"
-    epochs: 1
+    epochs: 5
     validation_freq: 1000
     logging_freq: 100
-    model_dir: "reverse_transformer"
-    overwrite: True
     shuffle: True
-    use_cuda: False
-    fp16: True
     print_valid_sents: [0, 3, 6]
     keep_best_ckpts: 2
+    overwrite: True
 
 model:
-    initializer: "xavier_uniform"   # initializer for all trainable weights (xavier_uniform, xavier_normal, zeros, normal, uniform)
-    init_gain: 1.0                  # gain for Xavier initializer (default: 1.0)
-    bias_initializer: "zeros"       # initializer for bias terms (xavier_uniform, xavier_normal, zeros, normal, uniform)
-    embed_initializer: "xavier_uniform"  # initializer for embeddings (xavier_uniform, xavier_normal, zeros, normal, uniform)
-    embed_init_gain: 1.0            # gain for Xavier initializer for embeddings (default: 1.0)
-    tied_embeddings: True           # tie src and trg embeddings, only applicable if vocabularies are the same, default: False
+    initializer: "xavier_uniform"
+    init_gain: 1.0
+    bias_initializer: "zeros"
+    embed_initializer: "xavier_uniform"
+    embed_init_gain: 1.0
+    tied_embeddings: True
     tied_softmax: True
     encoder:
         type: "transformer"

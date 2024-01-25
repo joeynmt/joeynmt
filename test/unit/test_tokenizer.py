@@ -1,5 +1,6 @@
 import random
 import unittest
+from types import SimpleNamespace
 
 from joeynmt.data import load_data
 from joeynmt.tokenizers import (
@@ -32,6 +33,21 @@ class TestTokenizer(unittest.TestCase):
                 "max_length": 10,
             },
             "dataset_type": "plain",
+            "special_symbols": SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": None,
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": None,
+                    "lang_tags": [],
+                }
+            ),
         }
 
         # set seed
@@ -79,7 +95,7 @@ class TestTokenizer(unittest.TestCase):
                     comparison_src = list(expected_src.replace(" ", "▁"))
                     comparison_trg = list(expected_trg.replace(" ", "▁"))
 
-                    train_src, train_trg = train_data[191]
+                    _, train_src, train_trg = train_data[191]
                     self.assertEqual(train_src, comparison_src)
                     self.assertEqual(train_trg, comparison_trg)
 
@@ -90,7 +106,7 @@ class TestTokenizer(unittest.TestCase):
                     comparison_src = expected_src.split()
                     comparison_trg = expected_trg.split()
 
-                    train_src, train_trg = train_data[0]
+                    _, train_src, train_trg = train_data[0]
                     self.assertEqual(train_src, comparison_src)
                     self.assertEqual(train_trg, comparison_trg)
 
@@ -101,40 +117,28 @@ class TestTokenizer(unittest.TestCase):
             cfg[side]["level"] = "bpe"
             cfg[side]["tokenizer_type"] = "sentencepiece"
             cfg[side]["tokenizer_cfg"] = {"model_file": "test/data/toy/sp200.model"}
-            cfg[side]["voc_file"] = "test/data/toy/sp200.txt"
+            cfg[side]["voc_file"] = "test/data/toy/sp200.vocab"
 
         # 6th example from the training set
         expected = {
             "de": {
                 "tokenized": [
-                    '▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 'te', 'il', '▁der', '▁E', 'r',
-                    'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'as', 's', 'er', '.'
+                    '▁', 'D', 'er', '▁', 'G', 'r', 'o', 'ß', 'te', 'il', '▁der', '▁E',
+                    'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'as', 's', 'er', '.'
                 ],
-                "dropout": [
-                    '▁D', 'er', '▁', 'G', 'r', 'o', 'ß', 't', 'e', 'il', '▁der', '▁E',
-                    'r', 'd', 'e', '▁ist', '▁M', 'e', 'er', 'w', 'a', 's', 'se', 'r',
-                    '.'
-                ],
-                "detokenized":
-                "Der Großteil der Erde ist Meerwasser.",
-            },
-            "en": {
+                "detokenized": "Der Großteil der Erde ist Meerwasser.",
+            }, "en": {
                 "tokenized": [
                     '▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e', 't',
                     '▁is', '▁', 'o', 'c', 'e', 'an', '▁w', 'at', 'er', '.'
                 ],
-                "dropout": [
-                    '▁M', 'o', 'st', '▁of', '▁the', '▁', 'p', 'l', 'an', 'e', 't',
-                    '▁is', '▁', 'o', 'c', 'e', 'an', '▁', 'w', 'a', 'te', 'r', '.'
-                ],
-                "detokenized":
-                "Most of the planet is ocean water.",
+                "detokenized": "Most of the planet is ocean water.",
             }
         }
 
         _, _, train_data, _, _ = load_data(cfg, datasets=["train"])
 
-        train_src, train_trg = train_data[6]
+        _, train_src, train_trg = train_data[6]
         for tokenized, lang in [(train_src, train_data.src_lang),
                                 (train_trg, train_data.trg_lang)]:
             # check tokenizer
@@ -171,8 +175,7 @@ class TestTokenizer(unittest.TestCase):
                 "tokenized": ['D@@', 'an@@', 'k@@', 'e.'],
                 "dropout": ['D@@', 'a@@', 'n@@', 'k@@', 'e@@', '.'],
                 "detokenized": "Danke.",
-            },
-            "en": {
+            }, "en": {
                 "tokenized": ['Th@@', 'an@@', 'k', 'y@@', 'ou@@', '.'],
                 "dropout": ['T@@', 'ha@@', 'n@@', 'k', 'y@@', 'o@@', 'u@@', '.'],
                 "detokenized": "Thank you.",
@@ -181,7 +184,7 @@ class TestTokenizer(unittest.TestCase):
 
         _, _, train_data, _, _ = load_data(cfg, datasets=["train"])
 
-        train_src, train_trg = train_data[191]
+        _, train_src, train_trg = train_data[191]
         for tokenized, lang in [(train_src, train_data.src_lang),
                                 (train_trg, train_data.trg_lang)]:
             # check tokenizer
@@ -199,3 +202,84 @@ class TestTokenizer(unittest.TestCase):
             tokenizer.dropout = 0.8
             dropout = tokenizer(detokenized, is_train=True)
             self.assertEqual(dropout, expected[lang]['dropout'])
+
+
+class TestPrompt(unittest.TestCase):
+
+    def setUp(self):
+        self.max_length = 10
+        self.min_length = 5
+
+        # minimal data config
+        self.data_cfg = {
+            "dev": "test/data/toy/dev",
+            "src": {
+                "lang": "src",
+                "level": "bpe",
+                "lowercase": False,
+                "max_length": 128,
+                "min_length": 5,
+                "tokenizer_type": "sentencepiece",
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
+                "voc_file": "test/data/toy/sp200.vocab",
+            },
+            "trg": {
+                "lang": "trg",
+                "level": "bpe",
+                "lowercase": False,
+                "max_length": 128,
+                "min_length": 5,
+                "tokenizer_type": "sentencepiece",
+                "tokenizer_cfg": {"model_file": "test/data/toy/sp200.model"},
+                "voc_file": "test/data/toy/sp200.vocab",
+            },
+            "sample_dev_subset": -1,
+            "dataset_type": "tsv",
+            "special_symbols": SimpleNamespace(
+                **{
+                    "unk_token": "<unk>",
+                    "pad_token": "<pad>",
+                    "bos_token": "<s>",
+                    "eos_token": "</s>",
+                    "sep_token": "<sep>",
+                    "unk_id": 0,
+                    "pad_id": 1,
+                    "bos_id": 2,
+                    "eos_id": 3,
+                    "sep_id": 4,
+                    "lang_tags": ["<de>", "<en>"],
+                }
+            ),
+        }
+
+    def testToknizerWithPrompt(self):
+        _, _, _, dev_data, _ = load_data(self.data_cfg, datasets=["dev"])
+        self.assertEqual(len(dev_data), 40)
+
+        expected = {
+            "src": [
+                '<de>', '▁', 'J', 'a', '▁', ',', '▁', 'g', 'ut', 'en', '▁T', 'a', 'g',
+                '▁', '.', '<sep>', '▁', 'J', 'a', '▁', ',', '▁', 'al', 's', 'o', '▁',
+                ',', '▁was', '▁so', 'll', '▁B', 'i', 'o', 'h', 'a', 'c', 'k', 'ing',
+                '▁', 'se', 'in', '▁', '?',
+            ],
+            "trg": [
+                '<en>', '▁', 'Y', 'es', '▁', ',', '▁h', 'e', 'll', 'o', '▁', '.',
+                '<sep>', '▁', 'Y', 'es', '▁', ',', '▁so', '▁', ',', '▁w', 'h', 'at',
+                '▁is', '▁b', 'i', 'o', 'h', 'a', 'c', 'k', 'ing', '▁', '?',
+            ],
+        }  # yapf: disable
+
+        dev_src, dev_trg = dev_data.src, dev_data.trg
+        _, dev_src_2, dev_trg_2 = dev_data[2]
+
+        for tokenized, orig, side in [(dev_src_2, dev_src[2], dev_data.src_lang),
+                                      (dev_trg_2, dev_trg[2], dev_data.trg_lang)]:
+            tokenizer = dev_data.tokenizer[side]
+
+            # check tokenized sequence
+            self.assertEqual(tokenized, expected[side])
+
+            # check detokenized sequence
+            detokenized = tokenizer.post_process(tokenized)
+            self.assertEqual(detokenized, orig)
