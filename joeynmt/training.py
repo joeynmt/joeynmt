@@ -658,8 +658,8 @@ class TrainManager:
                         lang=valid_data.src_lang, tokenized=True, subsampled=True
                     ),
                     indices=self.args.print_valid_sents,
-                    output_prefix=(self.model_dir /
-                                   f"att.{self.stats.steps}").as_posix(),
+                    output_prefix=(self.model_dir
+                                   / f"att.{self.stats.steps}").as_posix(),
                     tb_writer=self.tb_writer,
                     steps=self.stats.steps,
                 )

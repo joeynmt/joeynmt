@@ -108,9 +108,9 @@ We tested then on `kftt <http://www.phontron.com/kftt/>`_ test set and `wmt20 <h
 +-----------+--------------+---------------+-------+-------+---------+---------------------------------------------------------------------------------------------------------------+
 | Direction | Architecture | Tokenizer     | kftt  | wmt20 | #params | download                                                                                                      |
 +===========+==============+===============+=======+=======+=========+===============================================================================================================+
-| af->en    | Transformer  | sentencepiece | 17.66 | 14.31 | 225M    | `jparacrawl_enja.tar.gz <https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_enja.tar.gz>`_ (2.3GB) |
+| ja->en    | Transformer  | sentencepiece | 17.66 | 14.31 | 225M    | `jparacrawl_enja.tar.gz <https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_enja.tar.gz>`_ (2.3GB) |
 +-----------+--------------+---------------+-------+-------+---------+---------------------------------------------------------------------------------------------------------------+
-| en->af    | Transformer  | sentencepiece | 14.97 | 11.49 | 221M    | `jparacrawl_jaen.tar.gz <https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_jaen.tar.gz>`_ (2.2GB) |
+| en->ja    | Transformer  | sentencepiece | 14.97 | 11.49 | 221M    | `jparacrawl_jaen.tar.gz <https://cl.uni-heidelberg.de/statnlpgroup/joeynmt2/jparacrawl_jaen.tar.gz>`_ (2.2GB) |
 +-----------+--------------+---------------+-------+-------+---------+---------------------------------------------------------------------------------------------------------------+
 
 sacrebleu signature:

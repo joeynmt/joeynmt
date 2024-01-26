@@ -68,13 +68,13 @@ def _load_from_remote(
     **kwargs
 ) -> TranslatorHubInterface:
     download_dir = _download_and_extract(model_name_or_path, **kwargs)
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=download_dir,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 def _load_from_huggingface(
@@ -99,13 +99,13 @@ def _load_from_huggingface(
         )
         assert download_dir.is_dir(), (download_dir, cache_dir)
 
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=download_dir,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 def iwslt14_prompt(*args, **kwargs) -> TranslatorHubInterface:
@@ -212,13 +212,13 @@ def local(model_name_or_path, ckpt_file, cfg_file, **kwargs) -> TranslatorHubInt
     joeynmt model saved in local
     """
     # pylint: disable=unused-argument
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=model_name_or_path,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 if __name__ == '__main__':
