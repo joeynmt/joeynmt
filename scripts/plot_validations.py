@@ -93,7 +93,7 @@ def main(args):  # pylint: disable=redefined-outer-name
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("JoeyNMT Validation plotting.")
-    parser.add_argument("model_dirs", type=str, nargs="+", help="Model directories.")
+    parser.add_argument("model-dirs", type=str, nargs="+", help="Model directories.")
     parser.add_argument(
         "--plot-values",
         type=str,
