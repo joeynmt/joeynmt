@@ -255,10 +255,6 @@ class BaseDataset(Dataset):
         """
         shuffle = shuffle and self.split == "train"
 
-        # for decoding in DDP, we cannot use TokenBatchSampler
-        if use_ddp() and self.split != "train":
-            assert batch_type == "sentence", self
-
         generator = torch.Generator()
         generator.manual_seed(seed)
         if generator_state is not None:
@@ -267,6 +263,8 @@ class BaseDataset(Dataset):
         # define sampler which yields an integer
         sampler: Sampler[int]
         if use_ddp():  # use ddp
+            # for decoding in DDP, we cannot use TokenBatchSampler
+            assert batch_type == "sentence", self
             sampler = DistributedSubsetSampler(
                 self, shuffle=shuffle, drop_last=True, generator=generator
             )

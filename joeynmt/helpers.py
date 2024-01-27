@@ -405,6 +405,25 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
     return resort_reverse_index
 
 
+def cast_and_sort(t: Any, index: List, size: int) -> np.ndarray:
+    """
+    Cast array to numpy and re-sort it
+
+    :param t: array
+    :param index: index used in sorting
+    :param size: int
+    :return: sorted numpy array
+    """
+    if t is not None:
+        if torch.is_tensor(t):
+            t = t.detach().cpu().numpy()
+        if isinstance(t, list):
+            t = np.array(t, dtype=object)
+        assert isinstance(t, np.ndarray) and t.shape[0] == size
+        return t[index]
+    return []
+
+
 def remove_extra_spaces(s: str) -> str:
     """
     Remove extra spaces

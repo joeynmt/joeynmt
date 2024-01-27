@@ -209,25 +209,25 @@ def get_logger(name: str = "", log_file: str = None) -> logging.Logger:
         "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
     )
 
-    def _add_filehandler(logger, log_file):
+    def _add_filehandler(_logger, log_file):
         fh = logging.FileHandler(log_file, encoding="utf-8")
         fh.setLevel(level=logging.DEBUG)
         fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        _logger.addHandler(fh)
 
-    def _add_streamhandler(logger):
+    def _add_streamhandler(_logger):
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.setFormatter(formatter)
-        logger.addHandler(sh)
+        _logger.addHandler(sh)
 
     # assign file handler whenever `log_file` arg is provided
     if log_file is not None:
         for logger_name in logging.root.manager.loggerDict:
             if logger_name.startswith("joeynmt."):
-                logger = logging.getLogger(logger_name)
-                if len(logger.handlers) < 2:
-                    _add_filehandler(logger, log_file)
+                _logger = logging.getLogger(logger_name)
+                if len(_logger.handlers) < 2:
+                    _add_filehandler(_logger, log_file)
 
     current_logger = logging.getLogger(name)
     if len(current_logger.handlers) == 0:
@@ -239,6 +239,9 @@ def get_logger(name: str = "", log_file: str = None) -> logging.Logger:
     current_logger.propagate = False  # otherwise root logger prints things again
 
     return MultiProcessAdapter(current_logger, {})
+
+
+logger = get_logger(__name__)
 
 
 class DistributedSubsetSampler(DistributedSampler):
@@ -303,9 +306,15 @@ class DistributedSubsetSampler(DistributedSampler):
             indices = [indices[i] for i in perm]
             # don't assign permuted indices to self.data_source.indices
 
-        if len(indices) % self.num_replicas != 0 and not self.drop_last:
-            raise RuntimeError("`len(dataset)` must be divisible by `world_size`.")
-            # set `random_subset` with a divisible value or enable drop_last
+        if len(indices) % self.num_replicas != 0:
+            if self.drop_last:
+                logger.warning(
+                    "`len(dataset)` is not divisible by `world_size`. "
+                    "Leftovers will be omitted."
+                )
+            else:
+                raise RuntimeError("`len(dataset)` must be divisible by `world_size`.")
+                # set `random_subset` with a divisible value or enable drop_last
 
         # remove tail of data to make it evenly divisible.
         total_samples = (self.num_samples // self.num_replicas) * self.num_replicas

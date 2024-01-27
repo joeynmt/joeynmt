@@ -691,8 +691,8 @@ def beam_search(
                         # prediction should have already been added to the hypotheses,
                         # so we don't add them again.
                         continue
-                    elif (n_eos == 0 and step + 1 == max_output_length
-                          ) or (n_eos == 1 and predictions[i, j, -1] == eos_index):
+                    elif ((n_eos == 0 and step + 1 == max_output_length)
+                          or (n_eos == 1 and predictions[i, j, -1] == eos_index)):
                         # If the prediction has no EOS, it means we reached max length.
                         # If the prediction has exactly one EOS, it should be the last
                         # token of the sequence. Then we add it to the hypotheses.
@@ -727,10 +727,10 @@ def beam_search(
 
             # **CAUTION:** `alive_seq` still can contain finished beam candidates
             # because we only remove finished examples. For instance, beam_size = 3,
-            # 2 sents remain in batch and all 3 candidates of the 1st sent is finished.
+            # 2 sents remain in batch and all 3 candidates of the 1st sent are finished.
             #     end_condition = [True, False]
             #     unfinished = [1]  # 2nd sent (idx 1) remaining in batch is unfinished
-            # Say, the first and the second beam candidate of the second example are
+            # Say, the first and the second beam candidates of the second example are
             # finished but the third candidate of the second example is still alive.
             # Then we include all three candidates of the second example in `alive_seq`,
             # even though the 1st and 2nd candidates of the second example are finished.
@@ -830,7 +830,7 @@ def search(
     beam_alpha: float,
     n_best: int = 1,
     **kwargs,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Get outputs and attentions scores for a given batch.
 
@@ -894,17 +894,7 @@ def search(
             **kwargs,
         )
 
-    # cast to numpy nd.array
-    def _to_numpy(t: Tensor):
-        if torch.is_tensor(t):
-            return t.detach().cpu().numpy()
-        return t  # if t is None
-
-    return (
-        _to_numpy(stacked_output),
-        _to_numpy(stacked_scores),
-        _to_numpy(stacked_attention_scores),
-    )
+    return stacked_output, stacked_scores, stacked_attention_scores
 
 
 def block_repeat_ngrams(

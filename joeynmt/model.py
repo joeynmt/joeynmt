@@ -63,19 +63,7 @@ class Model(nn.Module):
         self.unk_index = self.trg_vocab.unk_index
         self.specials = [self.trg_vocab.lookup(t) for t in self.trg_vocab.specials]
         self.lang_tags = [self.trg_vocab.lookup(t) for t in self.trg_vocab.lang_tags]
-        self._loss_function = None  # set by `prepare()` func in prediction.py
-
-    @property
-    def loss_function(self):
-        return self._loss_function
-
-    @loss_function.setter
-    def loss_function(self, cfg: Tuple):
-        loss_type, label_smoothing = cfg
-        assert loss_type == "crossentropy"
-        self._loss_function = XentLoss(
-            pad_index=self.pad_index, smoothing=label_smoothing
-        )
+        self.loss_function = None  # set by `prepare()` func in prediction.py
 
     def forward(self,
                 return_type: str = None,
@@ -96,7 +84,7 @@ class Model(nn.Module):
             )
 
         if return_type == "loss":
-            assert self.loss_function is not None
+            assert isinstance(self.loss_function, XentLoss), self.loss_function
             assert "trg" in kwargs and "trg_mask" in kwargs  # need trg to compute loss
 
             out, _, att_probs, _ = self._encode_decode(**kwargs)
