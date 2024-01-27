@@ -12,8 +12,8 @@ data:
     dataset_type: "plain"           # dataset type: one of {"plain", "tsv", "huggingface"} (default: "plain")
     #dataset_cfg:                   # dataset config (used only if dataset_type="huggingface")
     #    name: "de-en"              # name: argument passed to huggingface's datasets.load_data() func
-    sample_train_subset: -1         # select this many training examples randomly for training in each epoch, default: -1 (no subsampling)
-    sample_dev_subset: -1           # select this many validation examples randomly for training in each epoch, default: -1 (no subsampling)
+    sample_train_subset: -1         # select this many training examples randomly for training in each epoch, default: -1 (no subsampling); must be divisible by world_size if use_ddp
+    sample_dev_subset: -1           # select this many validation examples randomly for training in each epoch, default: -1 (no subsampling); must be divisible by world_size if use_ddp
     src:
         lang: "de"                  # src language: expected suffix of train files, e.g. "train.de"
         max_length: 30              # filter out longer sentences from training
