@@ -46,8 +46,7 @@ logger = get_logger(__name__)
 
 class TrainManager:
     """
-    Manages training loop, validations, learning rate scheduling
-    and early stopping.
+    Manages training loop, validations, learning rate scheduling and early stopping.
     """
 
     # pylint: disable=too-many-instance-attributes

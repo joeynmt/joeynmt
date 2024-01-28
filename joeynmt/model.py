@@ -65,9 +65,11 @@ class Model(nn.Module):
         self.lang_tags = [self.trg_vocab.lookup(t) for t in self.trg_vocab.lang_tags]
         self.loss_function = None  # set by `prepare()` func in prediction.py
 
-    def forward(self,
-                return_type: str = None,
-                **kwargs) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(
+        self,
+        return_type: str = None,
+        **kwargs,
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         """Interface for multi-gpu
 
         For DataParallel, We need to encapsulate all model call: `model.encode()`,
@@ -160,8 +162,13 @@ class Model(nn.Module):
             **kwargs,
         )
 
-    def _encode(self, src: Tensor, src_length: Tensor, src_mask: Tensor,
-                **_kwargs) -> Tuple[Tensor, Tensor, Tensor]:
+    def _encode(
+        self,
+        src: Tensor,
+        src_length: Tensor,
+        src_mask: Tensor,
+        **_kwargs,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Encodes the source sentence.
 
@@ -271,13 +278,22 @@ class DataParallelWrapper(nn.Module):
     """
     DataParallel wrapper to pass through the model attributes
 
-    ex. 1) for DataParallel
-        >>> from torch.nn import DataParallel as DP
-        >>> model = DataParallelWrapper(DP(model))
+    .. admonition:: Examples
 
-    ex. 2) for DistributedDataParallel
-        >>> from torch.nn.parallel import DistributedDataParallel as DDP
-        >>> model = DataParallelWrapper(DDP(model))
+        1. for DataParallel
+
+            .. code-block:: python
+
+                from torch.nn import DataParallel as DP
+                model = DataParallelWrapper(DP(model))
+
+        2. for DistributedDataParallel
+
+            .. code-block:: python
+
+                from torch.nn.parallel import DistributedDataParallel as DDP
+                model = DataParallelWrapper(DDP(model))
+
     """
 
     def __init__(self, module: nn.Module):

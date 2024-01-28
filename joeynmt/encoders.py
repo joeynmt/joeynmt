@@ -183,6 +183,7 @@ class TransformerEncoder(Encoder):
     ):
         """
         Initializes the Transformer.
+
         :param hidden_size: hidden size and size of embeddings
         :param ff_size: position-wise feed-forward layer size.
           (Typically this is 2*hidden_size.)

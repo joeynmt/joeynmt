@@ -84,9 +84,9 @@ With ``use_cuda`` we can decide whether to train the model on GPU (True) or CPU 
 
     name: "reverse_experiment"
     joeynmt_version: "2.3.0"
-    model_dir: "reverse_model"
+    model_dir: "models/reverse_rnn"
     use_cuda: False
-    fp16: False
+    fp16: True
     random_seed: 42
 
 
@@ -142,7 +142,7 @@ For individual schedulers and optimizers, we refer to the `PyTorch documentation
 Here we're using the "plateau" scheduler that reduces the initial learning rate by ``decrease_factor`` whenever the ``early_stopping_metric`` has not improved for ``patience`` validations.
 Validations (with greedy decoding) are performed every ``validation_freq`` batches and every ``logging_freq`` batches the training batch loss will be logged.
 
-Checkpoints for the model parameters are saved whenever a new high score in ``early_stopping_metric``, here the ``eval_metric`` BLEU, has been reached.
+Checkpoints for the model parameters are saved whenever a new high score in ``early_stopping_metric``, here the BLEU, has been reached.
 In order not to waste much memory on old checkpoints, we're only keeping the ``keep_best_ckpts`` best checkpoints. Nevertheless, we always keep the latest checkpoint so that one can resume the training from that point. By setting ``keep_best_ckpts = -1``, you can prevent to delete any checkpoints.
 
 At the beginning of each epoch, the training data is shuffled if we set ``shuffle`` to True (there is actually no good reason for not doing so).
@@ -151,7 +151,7 @@ At the beginning of each epoch, the training data is shuffled if we set ``shuffl
 .. code-block:: yaml
 
     training:
-        #load_model: "reverse_model/best.ckpt"
+        #load_model: "models/reverse_rnn/best.ckpt"
         optimizer: "adamw"
         learning_rate: 0.001
         learning_rate_min: 0.0002
@@ -167,10 +167,10 @@ At the beginning of each epoch, the training data is shuffled if we set ``shuffl
         epochs: 5
         validation_freq: 1000
         logging_freq: 100
+        overwrite: True
         shuffle: True
         print_valid_sents: [0, 3, 6]
         keep_best_ckpts: 2
-        overwrite: True
 
 .. danger::
 
@@ -185,7 +185,7 @@ Here we only specify which decoding strategy we want to use during testing. If `
 .. code-block:: yaml
 
     testing:
-        #load_model: "reverse_model/best.ckpt"
+        #load_model: "models/reverse_rnn/best.ckpt"
         n_best: 1
         beam_size: 1
         beam_alpha: 1.0
@@ -271,7 +271,7 @@ For training, run the following command:
 
 
 This will train a model on the reverse data specified in the config, validate on validation data,
-and store model parameters, vocabularies, validation outputs and a small number of attention plots in the ``reverse_model`` directory.
+and store model parameters, vocabularies, validation outputs and a small number of attention plots in the ``models/reverse_rnn`` directory.
 
 
 .. note::
@@ -285,7 +285,7 @@ Progress Tracking
 The Log File
 """"""""""""
 
-During training the Joey NMT will print the training log to stdout, and also save it to a log file ``reverse_model/train.log``.
+During training the Joey NMT will print the training log to stdout, and also save it to a log file ``models/reverse_rnn/train.log``.
 It reports information about the model, like the total number of parameters, the vocabulary size, the data sizes.
 You can doublecheck that what you specified in the configuration above is actually matching the model that is now training.
 
@@ -300,7 +300,7 @@ After the reports on the model should see something like this:
     2024-01-15 12:57:29,548 - INFO - joeynmt.metrics - nrefs:1|case:mixed|eff:no|tok:13a|smooth:exp|version:2.4.0
     2024-01-15 12:57:29,549 - INFO - joeynmt.prediction - Evaluation result (greedy): bleu:  22.52, loss:  29.77, ppl:   5.88, acc:   0.50, 0.0398[sec]
     2024-01-15 12:57:29,549 - INFO - joeynmt.training - Hooray! New best validation result [bleu]!
-    2024-01-15 12:57:29,576 - INFO - joeynmt.training - Checkpoint saved in reverse_model/1000.ckpt.
+    2024-01-15 12:57:29,576 - INFO - joeynmt.training - Checkpoint saved in /path/to/models/reverse_rnn/1000.ckpt.
     2024-01-15 12:57:29,578 - INFO - joeynmt.training - Example #0
     2024-01-15 12:57:29,578 - INFO - joeynmt.training -     Source:     10 43 37 32 6 9 25 36 21 29 16 7 18 27 30 46 37 15 7 48 18
     2024-01-15 12:57:29,578 - INFO - joeynmt.training -     Reference:  18 48 7 15 37 46 30 27 18 7 16 29 21 36 25 9 6 32 37 43 10
@@ -345,7 +345,7 @@ You can choose several models and metrics to plot. For now, we're interested in 
 
 .. code-block:: bash
 
-    python scripts/plot_validations.py reverse_model --plot-values bleu ppl  --output-path reverse_model/bleu-ppl.png
+    python scripts/plot_validations.py models/reverse_rnn --plot-values bleu ppl  --output-path models/reverse_rnn/bleu-ppl.png
 
 It should look like this:
 
@@ -364,7 +364,7 @@ Launch Tensorboardlike this:
 
 .. code-block:: bash
 
-    tensorboard --logdir reverse_model/tensorboard
+    tensorboard --logdir models/reverse_rnn/tensorboard
 
 and then open the url (default: ``localhost:6006``) with a browser.
 
@@ -452,10 +452,10 @@ For testing and evaluating on the parallel test set specified in the configurati
 
 .. code-block:: bash
 
-    python -m joeynmt test reverse_model/config.yaml --output-path reverse_model/predictions
+    python -m joeynmt test models/reverse_rnn/config.yaml --output-path models/reverse_rnn/predictions
 
-This will generate beam search translations for dev and test set (as specified in the configuration) in ``reverse_model/predictions.[dev|test]``
-with the latest/best model in the ``reverse_model`` directory (or a specific checkpoint set with ``load_model``).
+This will generate beam search translations for dev and test set (as specified in the configuration) in ``models/reverse_rnn/predictions.[dev|test]``
+with the latest/best model in the ``models/reverse_rnn`` directory (or a specific checkpoint set with ``load_model``).
 It will also evaluate the outputs with ``eval_metrics`` and print the evaluation result.
 If ``--output-path`` is not specified, it will not store the translation, and solely do the evaluation and print the results.
 
@@ -486,7 +486,7 @@ In order to translate the contents of any file (one source sentence per line) no
 .. code-block:: bash
 
     echo $'2 34 43 21 2 \n3 4 5 6 7 8 9 10 11 12' > my_input.txt
-    python -m joeynmt translate reverse_model/config.yaml < my_input.txt
+    python -m joeynmt translate models/reverse_rnn/config.yaml < my_input.txt
 
 The translations will be written to stdout or alternatively ``--output-path`` if specified.
 
@@ -505,7 +505,7 @@ If you just want to try a few examples, run
 
 .. code-block:: bash
 
-    python -m joeynmt translate reverse_model/config.yaml
+    python -m joeynmt translate models/reverse_rnn/config.yaml
 
 and you'll be prompted to type input sentences that Joey NMT will then translate with the model specified in the configuration.
 
@@ -515,7 +515,7 @@ Let's try a challenging long one:
 
     Please enter a source sentence:
     1 23 23 43 34 2 2 2 2 2 4 5 32 47 47 47 21 20 0 10 10 10 10 10 8 7 33 36 37
-    Joey NMT:
+    Joey-NMT:
     33 10 10 37 10 10 0 20 21 47 47 47 32 5 4 2 2 2 2 2 2 34 43 23 1
 
 .. warning::
@@ -542,8 +542,7 @@ In this case, a small mini-batch size leads to the fastest progress but also tak
     :alt: comparison of mini-batch sizes
 
 You might have noticed that there are lots hyperparameters and that you can't possibly try out all combinations to find the best model.
-What is commonly done instead of an exhaustive search is grid search over a small subset of hyperparameters,
-or random search (`Bergstra & Bengio 2012 <http://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf>`_), which is usually the more efficient solution.
+What is commonly done instead of an exhaustive search is grid search over a small subset of hyperparameters, or random search (`Bergstra & Bengio 2012 <http://www.jmlr.org/papers/volume13/bergstra12a/bergstra12a.pdf>`_), which is usually the more efficient solution.
 
 
 6. What's next?

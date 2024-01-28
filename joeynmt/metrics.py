@@ -15,7 +15,9 @@ logger = get_logger(__name__)
 def chrf(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float:
     """
     Character F-score from sacrebleu
-    cf. https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/chrf.py
+
+    .. seealso::
+        https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/chrf.py
 
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)
@@ -40,7 +42,9 @@ def chrf(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float
 def bleu(hypotheses: List[str], references: List[str], **sacrebleu_cfg) -> float:
     """
     Raw corpus BLEU from sacrebleu (without tokenization)
-    cf. https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/bleu.py
+
+    .. seealso::
+        https://github.com/mjpost/sacrebleu/blob/master/sacrebleu/metrics/bleu.py
 
     :param hypotheses: list of hypotheses (strings)
     :param references: list of references (strings)

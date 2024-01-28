@@ -86,10 +86,13 @@ class Embeddings(nn.Module):
           pretrained vocabulary will be kept (not overwritten in this func).
         - This function should be called after initialization!
 
-        Example:
-            2 5
-            the -0.0230 -0.0264  0.0287  0.0171  0.1403
-            at -0.0395 -0.1286  0.0275  0.0254 -0.0932
+        .. admonition:: Example
+
+            .. code-block:: python
+
+                2 5
+                the -0.0230 -0.0264  0.0287  0.0171  0.1403
+                at -0.0395 -0.1286  0.0275  0.0254 -0.0932
 
         :param embed_path: embedding weights text file
         :param vocab: Vocabulary object

@@ -349,7 +349,7 @@ Evaluation
     Joey NMT reports `BLEU <https://www.aclweb.org/anthology/P02-1040.pdf>`_, `chrF <https://www.aclweb.org/anthology/W15-3049.pdf>`_, sentence- and token-level accuracy. You can choose which of those to report with setting ``eval_metrics`` accordingly. As a default, we recommend BLEU since it is a standard metric. However, not all BLEU implementations compute the score in the same way, as discussed `in this paper by Matt Post <https://www.aclweb.org/anthology/W18-6319/>`_. So the scores that you obtain might not be comparable to those published in a paper, *even* if the data is identical!
 
 - **Which library is Joey NMT using to compute BLEU scores?**
-    Joey NMT uses `sacrebleu <ttps://github.com/mjpost/sacrebleu>`_ to compute BLEU and chrF scores.
+    Joey NMT uses `sacrebleu <https://github.com/mjpost/sacrebleu>`_ to compute BLEU and chrF scores.
     It uses the `raw_corpus_bleu <https://github.com/mjpost/sacrebleu/blob/f54908ac00879f666c92f4174367bcd3a8723197/sacrebleu/sacrebleu.py#L653>`_ scoring function that excludes special de/tokenization or smoothing. This is done to respect the tokenization that is inherent in the provided input data. However, that means that the BLEU score you get out of Joey is *dependent on your input tokenization*, so be careful when comparing it to scores you find in literature.
 
 - **Can I publish the BLEU scores Joey NMT reports on my test set?**

@@ -4,7 +4,9 @@ Module for configuration
 
 This can only be a temporary solution.
 TODO: Consider better configuration and validation
-cf. https://github.com/joeynmt/joeynmt/issues/196
+
+.. seealso::
+    https://github.com/joeynmt/joeynmt/issues/196
 """
 from pathlib import Path
 from types import SimpleNamespace

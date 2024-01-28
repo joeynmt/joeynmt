@@ -384,11 +384,19 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
     """
     Expand resort_reverse_index for n_best prediction
 
-    ex. 1) reverse_index = [1, 0, 2] and n_best = 2, then this will return
-    [2, 3, 0, 1, 4, 5].
+    .. admonition:: Examples
 
-    ex. 2) reverse_index = [1, 0, 2] and n_best = 3, then this will return
-    [3, 4, 5, 0, 1, 2, 6, 7, 8]
+        1. This will return `[2, 3, 0, 1, 4, 5]`
+
+            .. code-block:: python
+
+                expand_reverse_index(reverse_index=[1, 0, 2], n_best=2)
+
+        2. This will return `[3, 4, 5, 0, 1, 2, 6, 7, 8]`
+
+            .. code-block:: python
+
+                expand_reverse_index(reverse_index=[1, 0, 2], n_best=3)
 
     :param reverse_index: reverse_index returned from batch.sort_by_src_length()
     :param n_best:

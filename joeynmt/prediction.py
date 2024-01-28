@@ -630,7 +630,9 @@ def translate(cfg: Dict, output_path: str = None) -> None:
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or asks for
     input to translate interactively. Translations and scores are printed to stdout.
-    Note: The input sentences don't have to be pre-tokenized.
+
+    .. note::
+        The input sentences don't have to be pre-tokenized.
 
     :param cfg: configuration dict
     :param output_path: path to output file
