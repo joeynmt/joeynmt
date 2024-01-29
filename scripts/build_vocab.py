@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List
 
+import numpy as np
 import sentencepiece as sp
 from subword_nmt import apply_bpe, learn_bpe
 
@@ -226,9 +227,12 @@ def run(
     def _get_sents(args, dataset: BaseDataset, langs: List[str], tokenized: bool):
         assert len(langs) in [1, 2], langs
         if len(dataset) > args.random_subset:
+            # sample subset
             n = args.random_subset if len(langs) == 1 else args.random_subset // 2
-            dataset.random_subset = n
-            dataset.sample_random_subset(seed=args.seed)
+            np.random.seed(args.seed)
+            indices = np.random.choice(range(len(dataset)), n, replace=False)
+            indices.sort()
+            dataset.indices = indices.tolist()
 
         sents = []
         for lang in langs:

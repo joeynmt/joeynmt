@@ -23,7 +23,8 @@ class BahdanauAttention(AttentionMechanism):
     """
     Implements Bahdanau (MLP) attention
 
-    Section A.1.2 in https://arxiv.org/abs/1409.0473.
+    .. seealso::
+        Section A.1.2 in https://arxiv.org/abs/1409.0473.
     """
 
     def __init__(self, hidden_size: int = 1, key_size: int = 1, query_size: int = 1):
@@ -134,7 +135,8 @@ class LuongAttention(AttentionMechanism):
     """
     Implements Luong (bilinear / multiplicative) attention.
 
-    Eq. 8 ("general") in http://aclweb.org/anthology/D15-1166.
+    .. seealso::
+        Eq. 8 ("general") in http://aclweb.org/anthology/D15-1166.
     """
 
     def __init__(self, hidden_size: int = 1, key_size: int = 1):

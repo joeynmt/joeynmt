@@ -1,12 +1,18 @@
-name: "reverse_experiment"
+# Reverse Experiment
+# See https://joeynmt.readthedocs.io/en/stable/tutorial.html
+#
+# - generate data with 
+#
+#     $ python scripts/generate_reverse_task.py
+#
+name: "reverse_experiment_rnn"
 joeynmt_version: "2.3.0"
-model_dir: "reverse_model"
+model_dir: "models/reverse_rnn"
 use_cuda: False
 fp16: True
 random_seed: 42
 
 data:
-    # generate data with scripts/generate_reverse_task.py
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
@@ -34,6 +40,7 @@ data:
         eos_id: 3
 
 testing:
+    #load_model: "models/reverse_rnn/best.ckpt"
     n_best: 1
     beam_size: 1
     beam_alpha: 1.0
@@ -46,6 +53,7 @@ testing:
         tokenize: "13a"
 
 training:
+    #load_model: "models/reverse_rnn/best.ckpt"
     optimizer: "adamw"
     learning_rate: 0.001
     learning_rate_min: 0.0002

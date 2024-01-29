@@ -82,8 +82,10 @@ def initialize_model(
     This initializes a model based on the provided config.
 
     All initializer configuration is part of the `model` section of the configuration
-    file. For an example, see e.g. `https://github.com/joeynmt/joeynmt/blob/main/
-    configs/iwslt14_ende_spm.yaml`.
+    file.
+
+    .. seealso::
+        https://github.com/joeynmt/joeynmt/blob/main/configs/iwslt14_ende_bpe.yaml
 
     The main initializer is set using the `initializer` key. Possible values are
     `xavier`, `uniform`, `normal` or `zeros`. (`xavier` is the default).

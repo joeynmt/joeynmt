@@ -15,8 +15,9 @@ class MultiHeadedAttention(nn.Module):
     """
     Multi-Head Attention module from "Attention is All You Need"
 
-    Implementation modified from OpenNMT-py.
-    https://github.com/OpenNMT/OpenNMT-py
+    .. seealso::
+        Implementation modified from OpenNMT-py.
+        https://github.com/OpenNMT/OpenNMT-py
     """
 
     def __init__(self, num_heads: int, size: int, dropout: float = 0.1) -> None:
@@ -171,8 +172,9 @@ class PositionalEncoding(nn.Module):
     In forward pass, this adds the position-encodings to the input for as many time
     steps as necessary.
 
-    Implementation based on OpenNMT-py.
-    https://github.com/OpenNMT/OpenNMT-py
+    .. seealso::
+        Implementation based on OpenNMT-py.
+        https://github.com/OpenNMT/OpenNMT-py
     """
 
     def __init__(self, size: int = 0, max_len: int = 5000) -> None:
@@ -307,8 +309,9 @@ class TransformerDecoderLayer(nn.Module):
         Represents a single Transformer decoder layer.
         It attends to the source representation and the previous decoder states.
 
-        Note: don't change the name or the order of members!
-        otherwise pretrained models cannot be loaded correctly.
+        .. caution::
+            Don't change the name or the order of members!
+            Otherwise pretrained models cannot be loaded correctly.
 
         :param size: model dimensionality
         :param ff_size: size of the feed-forward intermediate layer

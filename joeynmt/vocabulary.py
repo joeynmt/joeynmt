@@ -211,6 +211,7 @@ def sort_and_cut(counter: Counter,
                  min_freq: int = -1) -> List[str]:
     """
     Cut counter to most frequent, sorted numerically and alphabetically
+
     :param counter: flattened token list in Counter object
     :param max_size: maximum size of vocabulary
     :param min_freq: minimum frequency for an item to be included

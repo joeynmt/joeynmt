@@ -5,6 +5,7 @@ This module holds methods for generating predictions from a model.
 import math
 import sys
 import time
+from functools import partial
 from itertools import zip_longest
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -20,11 +21,11 @@ from joeynmt.config import (
     BaseConfig,
     TestConfig,
     parse_global_args,
-    set_validation_args,
 )
 from joeynmt.data import load_data
 from joeynmt.datasets import StreamDataset
 from joeynmt.helpers import (
+    cast_and_sort,
     expand_reverse_index,
     load_checkpoint,
     resolve_ckpt_path,
@@ -36,10 +37,12 @@ from joeynmt.helpers import (
 from joeynmt.helpers_for_ddp import (
     ddp_merge,
     ddp_reduce,
+    ddp_setup,
     ddp_synchronize,
     get_logger,
     use_ddp,
 )
+from joeynmt.loss import XentLoss
 from joeynmt.metrics import bleu, chrf, sequence_accuracy, token_accuracy
 from joeynmt.model import DataParallelWrapper, Model, build_model
 from joeynmt.search import search
@@ -87,16 +90,27 @@ def predict(
     if use_ddp():
         if args.batch_type == "token":
             logger.warning(
-                "Token-based batch sampling is not supported in distributed "
-                "learning. fall back to sentence-based batch sampling."
+                "Token-based batch sampling is not supported in DDP. "
+                "Fall back to sentence-based batch sampling."
             )
             args = args._replace(batch_type="sentence", batch_size=64)
-        if args.beam_size > 1:
+        if args.beam_size > 1 and args.n_best > 1:
             logger.warning(
-                "Beam search is not supported in distributed learning. "
-                "fall back to greedy decoding."
+                "N-best outputs are not supported in DDP. Fall back to `n_best = 1`."
             )
-            args = set_validation_args(args)
+            args = args._replace(n_best=1)
+        if args.return_prob in ["ref", "hyp"]:
+            logger.warning(
+                "Probability outputs are not supported in DDP. "
+                "Fall back to `return_prob = 'none'`."
+            )
+            args = args._replace(return_prob='none')
+        if args.return_attention:
+            logger.warning(
+                "Attention visualization is not supported in DDP. "
+                "Fall back to `return_attention = False`."
+            )
+            args = args._replace(return_attention=False)
     else:
         # DataParallel distributes batch sequences over devices
         assert args.batch_size >= n_gpu, "`batch_size` must be bigger than `n_gpu`."
@@ -117,6 +131,9 @@ def predict(
     )
     num_samples = valid_iter.batch_sampler.num_samples
 
+    if args.return_prob == "ref":
+        assert compute_loss and valid_iter.has_trg
+
     # log decoding configs
     if args.return_prob == "ref":  # no decoding needed
         decoding_description = ""
@@ -124,25 +141,27 @@ def predict(
         decoding_description = (  # write the decoding strategy in the log
             " (Greedy decoding with " if args.beam_size < 2 else
             f" (Beam search with beam_size={args.beam_size}, "
-            f"beam_alpha={args.beam_alpha}, n_best={args.n_best}, ")
+            f"beam_alpha={args.beam_alpha}, n_best={args.n_best}, "
+        )
         decoding_description += (
             f"min_output_length={args.min_output_length}, "
             f"max_output_length={args.max_output_length}, "
-            f"return_prob='{args.return_prob}', generate_unk={args.generate_unk}, "
+            f"return_prob='{args.return_prob}', "
+            f"return_attention={args.return_attention}, "
+            f"generate_unk={args.generate_unk}, "
             f"repetition_penalty={args.repetition_penalty}, "
             f"no_repeat_ngram_size={args.no_repeat_ngram_size})"
         )
     logger.info("Predicting %d example(s)...%s", num_samples, decoding_description)
 
-    # disable dropout
-    model.eval()
+    model.eval()  # disable dropout
 
     # placeholders for scores
     # Note: access these variables only when rank == 0
     valid_scores = {"loss": float("nan"), "acc": float("nan"), "ppl": float("nan")}
     all_outputs, all_indices, valid_attn_scores, valid_seq_scores = [], [], [], []
     total_loss, total_nseqs, total_ntokens, total_n_correct = 0, 0, 0, 0
-    output, ref_scores, hyp_scores, attention_scores = None, None, None, None
+    outputs, ref_scores, hyp_scores, attention_scores = None, None, None, None
 
     ddp_synchronize()  # ensure that all processes are ready
 
@@ -162,7 +181,7 @@ def predict(
 
             # run as during training to get validation loss (e.g. xent)
             if compute_loss and batch.has_trg:
-                assert model.loss_function is not None
+                assert isinstance(model.loss_function, XentLoss), model.loss_function
 
                 # don't track gradients during validation
                 with torch.autocast(**autocast):
@@ -185,12 +204,10 @@ def predict(
                 if args.return_prob == "ref":
                     # gather
                     log_probs = ddp_merge(log_probs, 0.0)
-                    attn = ddp_merge(attn, 0.0)
-                    batch_trg = ddp_merge(batch.trg, model.pad_index)
-
-                    ref_scores = batch.score(log_probs, batch_trg, model.pad_index)
-                    attention_scores = attn.detach().cpu().numpy()
-                    output = batch_trg.detach().cpu().numpy()
+                    attention_scores = ddp_merge(attn, 0.0)
+                    outputs = ddp_merge(batch.trg, model.pad_index)
+                    # lookup the probability of the ground truth tokens
+                    ref_scores = batch.score(log_probs, outputs, model.pad_index)
 
                 if rank == 0:
                     total_loss += batch_loss.item()
@@ -201,7 +218,7 @@ def predict(
             # (just look up the prob of the ground truth.)
             if args.return_prob != "ref":
                 # run search as during inference to produce translations
-                output, hyp_scores, attention_scores = search(
+                outputs, hyp_scores, attention_scores = search(
                     model=model,
                     batch=batch,
                     beam_size=args.beam_size,
@@ -217,27 +234,32 @@ def predict(
                 )
 
             if use_ddp():
+                # `outputs` from batch.trg have already been merged.
+                # apply ddp_merge() only if `outputs` come from search()!
+                if len(outputs) * n_gpu == batch_nseqs:
+                    outputs = ddp_merge(outputs.to(device), model.pad_index)
+                    # TODO: make `hyp_scores` and `attention_scores` available
+
                 # we don't know the order of merged outputs.
                 # sort them back by indices after the batch loop has ended.
                 batch_indices = ddp_merge(batch.indices.unsqueeze(1), -1).squeeze()
                 assert torch.all(batch_indices >= 0).item(), batch_indices
-                assert len(batch_indices) == len(output) == batch_nseqs
+                assert len(batch_indices) == len(outputs) == batch_nseqs
+
                 if rank == 0:
-                    all_outputs.extend(output)
+                    all_outputs.extend(outputs.detach().cpu().numpy())
                     all_indices.extend(batch_indices.detach().cpu().numpy())
             else:
-                # sort outputs back to original order
-                all_outputs.extend(output[sort_reverse_index])  # either hyp or ref
-                valid_attn_scores.extend(
-                    attention_scores[sort_reverse_index]
-                    if attention_scores is not None else []
+                # sort outputs back to the original order
+                _cast_and_sort = partial(
+                    cast_and_sort, index=sort_reverse_index, size=batch_size
                 )
+                all_outputs.extend(_cast_and_sort(outputs))  # either hyp or ref
+                valid_attn_scores.extend(_cast_and_sort(attention_scores))
                 valid_seq_scores.extend(
-                    ref_scores[sort_reverse_index] \
-                    if ref_scores is not None and ref_scores.shape[0] == batch_size
-                    else hyp_scores[sort_reverse_index] \
-                    if hyp_scores is not None and hyp_scores.shape[0] == batch_size
-                    else [])
+                    _cast_and_sort(ref_scores) if args.return_prob == "ref" else
+                    _cast_and_sort(hyp_scores) if args.return_prob == "hyp" else []
+                )
 
             if rank == 0:
                 total_nseqs += batch_nseqs
@@ -256,8 +278,7 @@ def predict(
             all_outputs = [out for out in _all_outputs if out is not None]
 
         assert total_nseqs == num_samples, (total_nseqs, num_samples)
-        assert len(all_outputs
-                   ) == num_samples * args.n_best, (len(all_outputs), num_samples)
+        assert len(all_outputs) == num_samples * args.n_best
 
         if compute_loss:
             if normalization == "batch":
@@ -327,8 +348,12 @@ def predict(
     ) if rank == 0 else None
 
 
-def evaluate(valid_scores: Dict, valid_hyp: List, data: Dataset,
-             args: TestConfig) -> Tuple[Dict[str, float], List[str]]:
+def evaluate(
+    valid_scores: Dict,
+    valid_hyp: List,
+    data: Dataset,
+    args: TestConfig,
+) -> Tuple[Dict[str, float], List[str]]:
     """
     Compute evaluateion metrics
 
@@ -342,11 +367,16 @@ def evaluate(valid_scores: Dict, valid_hyp: List, data: Dataset,
     """
 
     # references are not length-filtered, not duplicated for n_best > 1
-    valid_ref = [data.tokenizer[data.trg_lang].post_process(t) for t in data.trg]
+    valid_ref = [
+        data.tokenizer[data.trg_lang].post_process(
+            t, generate_unk=args.generate_unk, cut_at_sep=True
+        ) for t in data.trg
+    ]
 
     # metrics are computed on the 1-best hypotheses
-    valid_hyp_1best = [valid_hyp[i] for i in range(0, len(valid_hyp), args.n_best)] \
-        if args.n_best > 1 else valid_hyp
+    valid_hyp_1best = [
+        valid_hyp[i] for i in range(0, len(valid_hyp), args.n_best)
+    ] if args.n_best > 1 else valid_hyp
     assert len(valid_hyp_1best) == len(valid_ref), (valid_hyp_1best, valid_ref)
 
     eval_start_time = time.time()
@@ -385,8 +415,11 @@ def evaluate(valid_scores: Dict, valid_hyp: List, data: Dataset,
     return valid_scores, valid_ref
 
 
-def prepare(args: BaseConfig, rank: int,
-            mode: str) -> Tuple[Model, Dataset, Dataset, Dataset]:
+def prepare(
+    args: BaseConfig,
+    rank: int,
+    mode: str,
+) -> Tuple[Model, Dataset, Dataset, Dataset]:
     """
     Helper function for model and data loading.
 
@@ -424,20 +457,12 @@ def prepare(args: BaseConfig, rank: int,
     # build an encoder-decoder model
     model = build_model(args.model, src_vocab=src_vocab, trg_vocab=trg_vocab)
     model.log_parameters_list()
+
     # need to instantiate loss func after `build_model()`
-    model.loss_function = (args.train.loss, args.train.label_smoothing)
-
-    if mode != "train":
-        # infer ckpt path for testing
-        ckpt = resolve_ckpt_path(args.test.load_model, args.model_dir)
-
-        # load model checkpoint
-        logger.info("Loading model from %s", ckpt)
-        map_location = {"cuda:0": f"cuda:{rank}"} if use_ddp() else args.device
-        model_checkpoint = load_checkpoint(ckpt, map_location=map_location)
-
-        # restore model and optimizer parameters
-        model.load_state_dict(model_checkpoint["model_state"])
+    assert args.train.loss == "crossentropy", args.train.loss
+    model.loss_function = XentLoss(
+        pad_index=model.pad_index, smoothing=args.train.label_smoothing
+    )
 
     # move to gpu
     if args.device.type == "cuda":
@@ -451,6 +476,19 @@ def prepare(args: BaseConfig, rank: int,
             )
         else:
             model = DataParallelWrapper(DP(model))
+
+    if mode != "train":
+        # infer ckpt path for testing
+        ckpt = resolve_ckpt_path(args.test.load_model, args.model_dir)
+
+        # load model checkpoint
+        logger.info("Loading model from %s", ckpt)
+        map_location = {"cuda:0": f"cuda:{rank}"} if use_ddp() else args.device
+        model_checkpoint = load_checkpoint(ckpt, map_location=map_location)
+
+        # restore model and optimizer parameters
+        model.load_state_dict(model_checkpoint["model_state"])
+
     logger.info(model)
 
     # set the random seed
@@ -460,6 +498,8 @@ def prepare(args: BaseConfig, rank: int,
 
 
 def test(
+    rank: int,
+    world_size: int,
     cfg: Dict,
     output_path: str = None,
     prepared: Dict = None,
@@ -470,18 +510,29 @@ def test(
     Main test function. Handles loading a model from checkpoint, generating
     translations, storing them, and plotting attention.
 
+    :param rank: ddp local rank
+    :param world_size: ddp world size
     :param cfg: configuration dict
     :param output_path: path to output
     :param prepared: model and datasets passed from training
     :param save_attention: whether to save attention visualizations
     :param save_scores: whether to save scores
     """
+    # initialize ddp
+    if cfg.pop("use_ddp", False):
+        # TODO: make `master_addr` and `master_port` configurable
+        ddp_setup(rank, world_size, master_addr="localhost", master_port=12355)
+
+        if prepared is None:
+            # need to assign file handlers again, after multi-processes are spawned...
+            get_logger(__name__, log_file=Path(cfg["model_dir"]) / "test.log")
+
     # parse args
-    args = parse_global_args(cfg, rank=0, mode="test")
+    args = parse_global_args(cfg, rank=rank, mode="test")
 
     # load the model and data
     if prepared is None:
-        model, _, dev_data, test_data = prepare(args, rank=0, mode="test")
+        model, _, dev_data, test_data = prepare(args, rank=rank, mode="test")
         data_to_predict = {"dev": dev_data, "test": test_data}
 
     else:  # avoid to load model and data again
@@ -490,6 +541,7 @@ def test(
 
     # check options
     if save_attention:
+        assert output_path, "Please specify --output-path for attention plots."
         if cfg["model"]["decoder"]["type"] == "transformer":
             assert cfg["testing"].get("beam_size", 1) == 1, (
                 "Attention plots can be saved with greedy decoding only. Please set "
@@ -497,7 +549,7 @@ def test(
             )
         args = args._replace(test=args.test._replace(return_attention=True))
     if save_scores:
-        assert output_path, "Please specify --output_path for saving scores."
+        assert output_path, "Please specify --output-path for saving scores."
         if args.test.return_prob == "none":
             logger.warning(
                 "Please specify prob type: {`ref` or `hyp`} in the config. "
@@ -511,22 +563,21 @@ def test(
             )
 
     # prediction loop over datasets
-    for data_set_name, data_set in data_to_predict.items():
-        if data_set is not None:
-            data_set.reset_indices(random_subset=-1)  # no subsampling in evaluation
+    for split, dataset in data_to_predict.items():
+        if dataset is not None:
+            dataset.reset_indices(random_subset=-1)  # no subsampling in evaluation
 
             logger.info(
                 "%s on %s set... (device: %s, n_gpu: %s, use_ddp: %r, fp16: %r)",
-                "Scoring" if args.test.return_prob == "ref" else "Decoding",
-                data_set_name, args.device.type, args.n_gpu, use_ddp(),
-                args.autocast["enabled"]
+                "Scoring" if args.test.return_prob == "ref" else "Decoding", split,
+                args.device.type, args.n_gpu, use_ddp(), args.autocast["enabled"]
             )
-            _, _, hypotheses, hypotheses_raw, seq_scores, att_scores, = predict(
+            predictions = predict(
                 model=model,
-                data=data_set,
+                data=dataset,
                 compute_loss=args.test.return_prob == "ref",
                 device=args.device,
-                rank=0,
+                rank=rank,
                 n_gpu=args.n_gpu,
                 num_workers=args.num_workers,
                 normalization=args.train.normalization,
@@ -534,44 +585,44 @@ def test(
                 autocast=args.autocast,
             )
 
-            if save_attention:
-                if att_scores:
-                    attention_file_name = f"{output_path}.{data_set_name}.att"
+            if rank == 0 and output_path is not None:
+                _, _, hypotheses, hypotheses_raw, seq_scores, att_scores = predictions
+
+                if save_attention and any(len(x) > 0 for x in att_scores):
+                    attention_file_name = f"{output_path}.{split}.att"
                     logger.info("Saving attention plots. This might take a while..")
                     store_attention_plots(
                         attentions=att_scores,
                         targets=hypotheses_raw,
-                        sources=data_set.get_list(
-                            lang=data_set.src_lang, tokenized=True
-                        ),
+                        sources=dataset.get_list(lang=dataset.src_lang, tokenized=True),
                         indices=range(len(hypotheses)),
                         output_prefix=attention_file_name,
                     )
                     logger.info("Attention plots saved to: %s", attention_file_name)
-                else:
+                elif save_attention and all(len(x) == 0 for x in att_scores):
                     logger.warning(
                         "Attention scores could not be saved. Note that attention "
                         "scores are not available when using beam search. "
                         "Set beam_size to 1 for greedy decoding."
                     )
 
-            if output_path is not None:
-                if save_scores and seq_scores is not None:
+                if save_scores and any(len(x) > 0 for x in seq_scores):
                     # save scores
-                    output_path_scores = Path(f"{output_path}.{data_set_name}.scores")
+                    output_path_scores = Path(f"{output_path}.{split}.scores")
                     write_list_to_file(output_path_scores, seq_scores)
                     # save tokens
-                    output_path_tokens = Path(f"{output_path}.{data_set_name}.tokens")
+                    output_path_tokens = Path(f"{output_path}.{split}.tokens")
                     write_list_to_file(output_path_tokens, hypotheses_raw)
                     logger.info(
                         "Scores and corresponding tokens saved to: %s.{scores|tokens}",
-                        f"{output_path}.{data_set_name}",
+                        f"{output_path}.{split}",
                     )
-                if hypotheses is not None:
+
+                if hypotheses and args.test.return_prob != "ref":
                     # save translations
-                    output_path_set = Path(f"{output_path}.{data_set_name}")
+                    output_path_set = Path(f"{output_path}.{split}")
                     save_hypothese(output_path_set, hypotheses, args.test.n_best)
-                    logger.info("Translations saved to: %s.", output_path_set)
+                    logger.info("Translations saved to: %s", output_path_set)
 
 
 def translate(cfg: Dict, output_path: str = None) -> None:
@@ -579,7 +630,9 @@ def translate(cfg: Dict, output_path: str = None) -> None:
     Interactive translation function.
     Loads model from checkpoint and translates either the stdin input or asks for
     input to translate interactively. Translations and scores are printed to stdout.
-    Note: The input sentences don't have to be pre-tokenized.
+
+    .. note::
+        The input sentences don't have to be pre-tokenized.
 
     :param cfg: configuration dict
     :param output_path: path to output file
@@ -652,7 +705,7 @@ def translate(cfg: Dict, output_path: str = None) -> None:
                 test_data.set_item(src_input.rstrip())
                 hypotheses, tokens, scores = _translate_data(test_data, args)
 
-                print("JoeyNMT:")
+                print("Joey-NMT:")
                 for i, (hyp, token,
                         score) in enumerate(zip_longest(hypotheses, tokens, scores)):
                     assert hyp is not None, (i, hyp, token, score)

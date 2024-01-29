@@ -19,7 +19,7 @@ increase in code complexity and a decrease in readability. :eyes:
 
 However, Joey NMT re-implements baselines from major publications.
 
-Check out the detailed [documentation](https://joeynmt.readthedocs.io) :books: and our
+Check out the detailed [documentation](https://joeynmt.readthedocs.io/en/stable/) :books: and our
 [paper](https://arxiv.org/abs/1907.12484). :newspaper:
 
 
@@ -151,7 +151,7 @@ python -m unittest  # Run the unit tests
 
 
 ## Documentation & Tutorials
-We also updated the [documentation](https://joeynmt.readthedocs.io) thoroughly for Joey NMT 2.0!
+We also updated the [documentation](https://joeynmt.readthedocs.io/en/stable/) thoroughly for Joey NMT 2.0!
 
 For details, follow the tutorials in [notebooks](notebooks) dir.
 
@@ -340,7 +340,7 @@ In order to keep the code clean and readable, we make use of:
 - Style checks:
   - [pylint](https://pylint.pycqa.org/) with (mostly) PEP8 conventions, see `.pylintrc`.
   - [yapf](https://github.com/google/yapf), [isort](https://github.com/PyCQA/isort),
-    and [flake8](https://flake8.pycqa.org/); see `.style.yapf`, `setup.cfg` and `Makefile`.
+    and [flake8](https://flake8.pycqa.org/); see `setup.cfg` and `Makefile`.
 - Typing: Every function has documented input types.
 - Docstrings: Every function, class and module has docstrings describing their purpose and usage.
 - Unittests: Every module has unit tests, defined in `test/unit/`.

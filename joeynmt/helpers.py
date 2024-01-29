@@ -13,7 +13,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import importlib_metadata
+import importlib.metadata
 import numpy as np
 import packaging.version
 import torch
@@ -52,7 +52,7 @@ def check_version(cfg_version: str = None) -> str:
     :param cfg_version: version number specified in config
     :return: package version number string
     """
-    pkg_version = importlib_metadata.version("joeynmt")
+    pkg_version = importlib.metadata.version("joeynmt")
 
     joeynmt_version = packaging.version.parse(pkg_version)
     if cfg_version is not None:
@@ -384,11 +384,19 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
     """
     Expand resort_reverse_index for n_best prediction
 
-    ex. 1) reverse_index = [1, 0, 2] and n_best = 2, then this will return
-    [2, 3, 0, 1, 4, 5].
+    .. admonition:: Examples
 
-    ex. 2) reverse_index = [1, 0, 2] and n_best = 3, then this will return
-    [3, 4, 5, 0, 1, 2, 6, 7, 8]
+        1. This will return `[2, 3, 0, 1, 4, 5]`
+
+            .. code-block:: python
+
+                expand_reverse_index(reverse_index=[1, 0, 2], n_best=2)
+
+        2. This will return `[3, 4, 5, 0, 1, 2, 6, 7, 8]`
+
+            .. code-block:: python
+
+                expand_reverse_index(reverse_index=[1, 0, 2], n_best=3)
 
     :param reverse_index: reverse_index returned from batch.sort_by_src_length()
     :param n_best:
@@ -403,6 +411,25 @@ def expand_reverse_index(reverse_index: List[int], n_best: int = 1) -> List[int]
             resort_reverse_index.append(ix * n_best + n)
     assert len(resort_reverse_index) == len(reverse_index) * n_best
     return resort_reverse_index
+
+
+def cast_and_sort(t: Any, index: List, size: int) -> np.ndarray:
+    """
+    Cast array to numpy and re-sort it
+
+    :param t: array
+    :param index: index used in sorting
+    :param size: int
+    :return: sorted numpy array
+    """
+    if t is not None:
+        if torch.is_tensor(t):
+            t = t.detach().cpu().numpy()
+        if isinstance(t, list):
+            t = np.array(t, dtype=object)
+        assert isinstance(t, np.ndarray) and t.shape[0] == size
+        return t[index]
+    return []
 
 
 def remove_extra_spaces(s: str) -> str:

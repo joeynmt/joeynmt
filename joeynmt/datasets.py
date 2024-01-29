@@ -181,8 +181,10 @@ class BaseDataset(Dataset):
     ) -> Batch:
         """
         Custom collate function.
-        See https://pytorch.org/docs/stable/data.html#dataloader-collate-fn for details.
         Please override the batch class here. (not in TrainManager)
+
+        .. seealso::
+            https://pytorch.org/docs/stable/data.html#dataloader-collate-fn
 
         :param batch:
         :param pad_index:
@@ -255,10 +257,6 @@ class BaseDataset(Dataset):
         """
         shuffle = shuffle and self.split == "train"
 
-        # for decoding in DDP, we cannot use TokenBatchSampler
-        if use_ddp() and self.split != "train":
-            assert batch_type == "sentence", self
-
         generator = torch.Generator()
         generator.manual_seed(seed)
         if generator_state is not None:
@@ -267,6 +265,8 @@ class BaseDataset(Dataset):
         # define sampler which yields an integer
         sampler: Sampler[int]
         if use_ddp():  # use ddp
+            # for decoding in DDP, we cannot use TokenBatchSampler
+            assert batch_type == "sentence", self
             sampler = DistributedSubsetSampler(
                 self, shuffle=shuffle, drop_last=True, generator=generator
             )
@@ -417,7 +417,9 @@ class TsvDataset(BaseDataset):
     TsvDataset which handles data in tsv format.
     - file_name should be specified without extension `.tsv`
     - needs src_lang and trg_lang (i.e. `en`, `de`) in header.
-    see: test/data/toy/dev.tsv
+
+    .. seealso::
+        https://github.com/joeynmt/joeynmt/blob/main/test/data/toy/dev.tsv
     """
 
     def __init__(
@@ -651,7 +653,9 @@ class StreamDataset(BaseDataset):
 class BaseHuggingfaceDataset(BaseDataset):
     """
     Wrapper for Huggingface's dataset object
-    cf.) https://huggingface.co/docs/datasets
+
+    .. seealso::
+        https://huggingface.co/docs/datasets
     """
     COLUMN_NAME = "sentence"  # dummy column name. should be overriden.
 
@@ -755,7 +759,9 @@ class BaseHuggingfaceDataset(BaseDataset):
 class HuggingfaceTranslationDataset(BaseHuggingfaceDataset):
     """
     Wrapper for Huggingface's `datasets.features.Translation` class
-    cf.) https://github.com/huggingface/datasets/blob/master/src/datasets/features/translation.py
+
+    .. seealso::
+        https://github.com/huggingface/datasets/blob/master/src/datasets/features/translation.py
     """  # noqa
     COLUMN_NAME = "translation"
 
@@ -926,8 +932,9 @@ class SentenceBatchSampler(BatchSampler):
         Returns number of samples in the dataset.
         This may change during sampling.
 
-        Note: len(dataset) won't change during sampling.
-              Use len(dataset) instead, to retrieve the original dataset length.
+        .. note::
+            len(dataset) won't change during sampling.
+            Use len(dataset) instead, to retrieve the original dataset length.
         """
         assert self.sampler.data_source.indices is not None
         try:

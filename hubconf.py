@@ -68,13 +68,13 @@ def _load_from_remote(
     **kwargs
 ) -> TranslatorHubInterface:
     download_dir = _download_and_extract(model_name_or_path, **kwargs)
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=download_dir,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 def _load_from_huggingface(
@@ -99,20 +99,24 @@ def _load_from_huggingface(
         )
         assert download_dir.is_dir(), (download_dir, cache_dir)
 
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=download_dir,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 def iwslt14_prompt(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 de/en/fr multilingual
-      - https://wit3.fbk.eu/2014-01
-      - https://huggingface.co/datasets/may-ohta/iwslt14
+
+    .. sealso::
+
+        - https://wit3.fbk.eu/2014-01
+        - https://huggingface.co/datasets/may-ohta/iwslt14
+
     """
     # pylint: disable=unused-argument
     return _load_from_huggingface(
@@ -126,7 +130,11 @@ def iwslt14_prompt(*args, **kwargs) -> TranslatorHubInterface:
 def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 deen transformer
-    See https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
+
+    .. sealso::
+
+        https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -140,7 +148,11 @@ def transformer_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
 def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
     """
     IWSLT14 deen RNN
-    See https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
+
+    .. sealso::
+
+        https://github.com/joeynmt/joeynmt/blob/main/scripts/get_iwslt14_bpe.sh
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -154,7 +166,11 @@ def rnn_iwslt14_deen_bpe(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 deen
-    See: https://huggingface.co/datasets/wmt14
+
+    .. sealso::
+
+        https://huggingface.co/datasets/wmt14
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -168,7 +184,11 @@ def wmt14_deen(*args, **kwargs) -> TranslatorHubInterface:
 def wmt14_ende(*args, **kwargs) -> TranslatorHubInterface:
     """
     WMT14 ende
-    See: https://huggingface.co/datasets/wmt14
+
+    .. sealso::
+
+        https://huggingface.co/datasets/wmt14
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -182,7 +202,11 @@ def wmt14_ende(*args, **kwargs) -> TranslatorHubInterface:
 def jparacrawl_jaen(*args, **kwargs) -> TranslatorHubInterface:
     """
     JParaCrawl jaen
-    See https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+
+    .. sealso::
+
+        https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -196,7 +220,11 @@ def jparacrawl_jaen(*args, **kwargs) -> TranslatorHubInterface:
 def jparacrawl_enja(*args, **kwargs) -> TranslatorHubInterface:
     """
     JParaCrawl enja
-    See https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+
+    .. sealso::
+
+        https://www.kecl.ntt.co.jp/icl/lirg/jparacrawl/
+
     """
     # pylint: disable=unused-argument
     return _load_from_remote(
@@ -212,13 +240,13 @@ def local(model_name_or_path, ckpt_file, cfg_file, **kwargs) -> TranslatorHubInt
     joeynmt model saved in local
     """
     # pylint: disable=unused-argument
-    config, test_data, model = _from_pretrained(
+    model, test_data, args = _from_pretrained(
         model_name_or_path=model_name_or_path,
         ckpt_file=ckpt_file,
         cfg_file=cfg_file,
         **kwargs,
     )
-    return TranslatorHubInterface(config, test_data, model)
+    return TranslatorHubInterface(model, test_data, args)
 
 
 if __name__ == '__main__':

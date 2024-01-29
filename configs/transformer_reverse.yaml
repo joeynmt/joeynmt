@@ -1,4 +1,11 @@
-name: "reverse_experiment"
+# Reverse Experiment
+# See https://joeynmt.readthedocs.io/en/stable/tutorial.html
+#
+# - generate data with 
+#
+#     $ python scripts/generate_reverse_task.py
+#
+name: "reverse_experiment_transformer"
 joeynmt_version: "2.3.0"
 model_dir: "models/reverse_transformer"
 use_cuda: True
@@ -6,13 +13,12 @@ fp16: True
 random_seed: 42
     
 data:
-    # generate data with scripts/generate_reverse_task.py
     train: "test/data/reverse/train"
     dev: "test/data/reverse/dev"
     test: "test/data/reverse/test"
     dataset_type: "plain"
-    sample_train_subset: 40000  # must be divisible by n_gpu if use_ddp
-    sample_dev_subset: 400    # must be divisible by n_gpu if use_ddp
+    sample_train_subset: 40000
+    sample_dev_subset: 400
     src:
         lang: "src"
         max_length: 25
@@ -42,7 +48,7 @@ testing:
     beam_alpha: 1.0
     eval_metrics: ["bleu"]
     max_output_length: 30
-    batch_size: 12
+    batch_size: 32
     batch_type: "sentence"
     return_prob: "hyp"
     sacrebleu_cfg:
@@ -55,7 +61,7 @@ training:
     learning_rate_min: 0.0002
     weight_decay: 0.0
     clip_grad_norm: 1.0
-    batch_size: 12
+    batch_size: 32
     batch_type: "sentence"
     batch_multiplier: 2
     scheduling: "plateau"

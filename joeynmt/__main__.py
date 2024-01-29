@@ -63,7 +63,7 @@ def main():
         shutil.copy2(args.config_path, (model_dir / "config.yaml").as_posix())
 
     # make logger
-    logger = get_logger("", log_file=Path(model_dir / f"{args.mode}.log").as_posix())
+    logger = get_logger("", log_file=(model_dir / f"{args.mode}.log").as_posix())
     pkg_version = check_version(cfg.get("joeynmt_version", None))
     logger.info("Hello! This is Joey-NMT (version %s).", pkg_version)
     # TODO: save version number in model checkpoints
@@ -71,13 +71,26 @@ def main():
     if args.use_ddp:
         n_gpu = torch.cuda.device_count() \
             if cfg.get("use_cuda", False) and torch.cuda.is_available() else 0
-        if args.mode == "train":
-            assert n_gpu > 1, "For DDP training, `world_size` must be > 1."
+
+        if args.mode in ["train", "test"]:
+            assert n_gpu > 1, f"For DDP {args.mode}ing, `world_size` must be > 1."
             logger.info("Spawn torch.multiprocessing (nprocs=%d).", n_gpu)
             cfg["use_ddp"] = args.use_ddp
-            mp.spawn(train, args=(n_gpu, cfg, args.skip_test), nprocs=n_gpu)
-        elif args.mode == "test":
-            raise RuntimeError("For testing mode, DDP is currently not available.")
+            if args.mode == "train":
+                mp.spawn(train, args=(n_gpu, cfg, args.skip_test), nprocs=n_gpu)
+            elif args.mode == "test":
+                mp.spawn(
+                    test,
+                    args=(
+                        n_gpu,
+                        cfg,
+                        args.output_path,
+                        None,
+                        args.save_attention,
+                        args.save_scores,
+                    ),
+                    nprocs=n_gpu
+                )
         elif args.mode == "translate":
             raise RuntimeError(
                 "For interactive translation mode, "
@@ -89,8 +102,11 @@ def main():
             train(rank=0, world_size=None, cfg=cfg, skip_test=args.skip_test)
         elif args.mode == "test":
             test(
+                rank=0,
+                world_size=None,
                 cfg=cfg,
                 output_path=args.output_path,
+                prepared=None,
                 save_attention=args.save_attention,
                 save_scores=args.save_scores,
             )
